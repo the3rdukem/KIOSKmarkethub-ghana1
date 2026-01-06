@@ -1,0 +1,149 @@
+You are fixing the Logout and Session Termination system for the KIOSK marketplace.
+
+DO NOT introduce new roles, mock data, or demo logic.
+DO NOT modify business logic unrelated to authentication unless required to fix logout behavior.
+
+This task is focused on:
+	•	Firefox compatibility
+	•	Session cookie invalidation
+	•	Server-side session destruction
+	•	Client auth state reset
+	•	Cross-browser consistency
+
+========================================
+SECTION 1 — PROBLEM STATEMENT (CRITICAL)
+
+Current behavior:
+	•	Logout works correctly in Chrome
+	•	Logout fails in Firefox (normal and private mode)
+	•	Affects Buyers and Vendors
+	•	Master Admin logout works
+	•	After logout, the user briefly sees a success message, then is re-authenticated or redirected back to login due to a lingering session
+
+This is caused by improper cookie deletion and incomplete server-side session invalidation.
+
+This MUST be fixed permanently.
+
+========================================
+SECTION 2 — SINGLE CANONICAL SESSION MODEL
+
+Enforce ONE canonical authentication session for the entire platform.
+
+Rules:
+	•	Exactly ONE session cookie for Admin, Vendor, Buyer
+	•	Role must live inside the session payload
+	•	Remove all role-based or duplicate auth cookies
+	•	Remove any legacy cookies still being set
+
+Example canonical cookie:
+	•	kiosk_session
+
+Audit the entire codebase and ensure no other auth cookies exist.
+
+========================================
+SECTION 3 — UNIFIED LOGOUT FLOW
+
+All logout actions MUST use ONE server-side endpoint:
+
+POST /api/auth/logout
+
+Rules:
+	•	Admin, Vendor, Buyer all use this endpoint
+	•	No client-only logout
+	•	No role-specific logout handlers
+	•	No conditional logic based on portal
+
+========================================
+SECTION 4 — FIREFOX-SAFE COOKIE DELETION (CRITICAL)
+
+DO NOT use cookies().delete().
+
+Firefox does not reliably clear cookies using delete().
+
+Instead, explicitly overwrite the cookie using IDENTICAL attributes to how it was set:
+	•	httpOnly
+	•	secure
+	•	sameSite
+	•	path
+
+On logout:
+	•	Set cookie value to empty string
+	•	Set maxAge = 0
+
+The cookie attributes MUST match exactly or Firefox will retain the cookie.
+
+========================================
+SECTION 5 — SERVER-SIDE SESSION INVALIDATION
+
+On logout:
+	•	Invalidate or delete the session from the database
+	•	Ensure session IDs cannot be reused
+	•	Prevent race conditions or stale session rehydration
+
+If sessions are stored in a table:
+	•	Delete the session record by ID
+
+Session invalidation MUST happen before the response is sent.
+
+========================================
+SECTION 6 — CLIENT AUTH STATE RESET
+
+After logout success:
+	•	Clear all in-memory auth state
+	•	Force router refresh
+	•	Redirect to /auth/login
+
+Client behavior must include:
+	•	router.refresh()
+	•	router.replace(”/auth/login”)
+
+Ensure no auth state survives logout in memory.
+
+========================================
+SECTION 7 — REMOVE CLIENT-SIDE AUTH STORAGE
+
+Completely remove auth persistence from:
+	•	localStorage
+	•	sessionStorage
+	•	IndexedDB
+
+Authentication must be server-authoritative only.
+
+No tokens, user objects, or role flags may be stored client-side.
+
+========================================
+SECTION 8 — PREVENT AUTO RE-AUTHENTICATION
+
+Ensure:
+	•	No useEffect or hydration logic restores sessions after logout
+	•	No optimistic auth restoration
+	•	Protected routes fail immediately when the session cookie is missing or invalid
+
+The absence of a valid session must always result in redirect to login.
+
+========================================
+SECTION 9 — CROSS-BROWSER CONSISTENCY
+
+Behavior MUST be identical across:
+	•	Firefox (normal + private)
+	•	Chrome
+	•	Safari
+
+No browser-specific conditionals or hacks are allowed.
+
+========================================
+FINAL VALIDATION CHECKLIST (MANDATORY)
+
+This task is complete ONLY IF:
+	•	Logout works in Firefox normal mode
+	•	Logout works in Firefox private mode
+	•	Logout works in Chrome and Safari
+	•	Session cookie is fully removed
+	•	Server session is destroyed
+	•	No ghost re-login occurs
+	•	Buyer, Vendor, Admin all behave identically
+	•	No mock, demo, or placeholder logic remains
+
+This fix is BLOCKING all further development.
+
+Do not proceed with new features until this is fully resolved.

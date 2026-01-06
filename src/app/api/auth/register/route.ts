@@ -4,6 +4,9 @@
  * Uses atomic auth service - ALL steps in ONE transaction.
  * If ANY step fails, NOTHING is created.
  * Includes AUDIT LOGGING for all registration events.
+ * 
+ * Sets ONLY session_token cookie (httpOnly).
+ * Role is derived from session validation, not separate cookies.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,7 +14,14 @@ import { cookies } from 'next/headers';
 import { registerUser, getRouteForRole, type AuthErrorCode } from '@/lib/db/dal/auth-service';
 import { logAuthEvent } from '@/lib/db/dal/audit';
 
-// Map auth error codes to HTTP status codes
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+  maxAge: 7 * 24 * 60 * 60,
+};
+
 function getHttpStatus(code: AuthErrorCode): number {
   switch (code) {
     case 'INVALID_INPUT': return 400;
@@ -35,18 +45,15 @@ export async function POST(request: NextRequest) {
 
     console.log('[REGISTER_API] Starting atomic registration', { email, role });
 
-    // Call atomic registration
     const result = registerUser(
       { email, password, name, role, phone, location, businessName, businessType },
       { ipAddress, userAgent }
     );
 
-    // Handle failure with specific error
     if (!result.success || !result.data) {
       const error = result.error!;
       console.log('[REGISTER_API] Registration failed:', error.code, error.message);
 
-      // AUDIT LOG: Registration failure
       logAuthEvent(
         'REGISTRATION_FAILED',
         email || 'unknown',
@@ -69,11 +76,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Registration successful - set cookies
     const { user, session } = result.data;
-    console.log('[REGISTER_API] Registration successful, setting cookies', { userId: user.id, role: user.role });
+    console.log('[REGISTER_API] Registration successful, setting session cookie', { userId: user.id, role: user.role });
 
-    // AUDIT LOG: Registration success
     logAuthEvent(
       'REGISTRATION_SUCCESS',
       user.id,
@@ -88,34 +93,9 @@ export async function POST(request: NextRequest) {
 
     const cookieStore = await cookies();
 
-    // Session token (httpOnly for security)
-    cookieStore.set('session_token', session.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60,
-    });
+    cookieStore.set('session_token', session.token, COOKIE_OPTIONS);
 
-    // User role (readable by client for routing)
-    cookieStore.set('user_role', user.role, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60,
-    });
-
-    // Auth flag (readable by client)
-    cookieStore.set('is_authenticated', 'true', {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60,
-    });
-
-    console.log('[REGISTER_API] Cookies set, returning success');
+    console.log('[REGISTER_API] Session cookie set, returning success');
 
     return NextResponse.json({
       success: true,
@@ -137,7 +117,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[REGISTER_API] Unexpected error:', error);
 
-    // AUDIT LOG: System error during registration
     logAuthEvent(
       'REGISTRATION_ERROR',
       'system',

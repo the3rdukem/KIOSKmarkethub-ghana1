@@ -4,12 +4,13 @@
  * Client-side auth state management.
  * The actual authentication is handled by the server via atomic API routes.
  * This store syncs with the server session.
+ * 
+ * IMPORTANT: NO localStorage/sessionStorage persistence.
+ * Authentication is server-authoritative only via session_token cookie.
  */
 
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
-// User roles
 export type UserRole = 'buyer' | 'vendor' | 'admin' | 'master_admin';
 
 export interface User {
@@ -18,14 +19,11 @@ export interface User {
   name: string;
   role: UserRole;
   avatar?: string;
-  // Admin-specific fields
   adminRole?: 'MASTER_ADMIN' | 'ADMIN';
   permissions?: string[];
-  // Vendor-specific fields
   businessName?: string;
   isVerified?: boolean;
   verificationStatus?: 'pending' | 'under_review' | 'verified' | 'rejected' | 'suspended';
-  // Store fields (for vendors)
   storeDescription?: string;
   storeBanner?: string;
   storeLogo?: string;
@@ -47,7 +45,6 @@ export interface User {
     twitter?: string;
     whatsapp?: string;
   };
-  // Common fields
   status?: string;
   phone?: string;
   location?: string;
@@ -59,118 +56,98 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   isHydrated: boolean;
-  // Actions
   setUser: (user: User | null) => void;
   clearAuth: () => void;
   setLoading: (loading: boolean) => void;
   setHydrated: (hydrated: boolean) => void;
-  // Legacy actions
   login: (user: User) => void;
-  logout: () => void;
+  logout: () => Promise<void>;
   updateUser: (updates: Partial<User>) => void;
-  // Role checks
   isMasterAdmin: () => boolean;
   isAdmin: () => boolean;
   hasAdminAccess: () => boolean;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set, get) => ({
-      user: null,
-      isAuthenticated: false,
+export const useAuthStore = create<AuthState>()((set, get) => ({
+  user: null,
+  isAuthenticated: false,
+  isLoading: false,
+  isHydrated: false,
+
+  setUser: (user: User | null) => {
+    set({
+      user,
+      isAuthenticated: !!user,
       isLoading: false,
-      isHydrated: false,
+    });
+  },
 
-      setUser: (user: User | null) => {
-        set({
-          user,
-          isAuthenticated: !!user,
-          isLoading: false,
-        });
-      },
+  clearAuth: () => {
+    set({ user: null, isAuthenticated: false, isLoading: false });
+  },
 
-      clearAuth: () => {
-        // Clear cookies (for client-side)
-        if (typeof document !== 'undefined') {
-          document.cookie = 'user_role=; path=/; max-age=0';
-          document.cookie = 'is_authenticated=; path=/; max-age=0';
-        }
-        set({ user: null, isAuthenticated: false, isLoading: false });
-      },
+  setLoading: (loading: boolean) => {
+    set({ isLoading: loading });
+  },
 
-      setLoading: (loading: boolean) => {
-        set({ isLoading: loading });
-      },
+  setHydrated: (hydrated: boolean) => {
+    set({ isHydrated: hydrated });
+  },
 
-      setHydrated: (hydrated: boolean) => {
-        set({ isHydrated: hydrated });
-      },
+  login: (user: User) => {
+    set({ user, isAuthenticated: true, isLoading: false });
+  },
 
-      login: (user: User) => {
-        set({ user, isAuthenticated: true, isLoading: false });
-        // Set cookies for middleware-based route protection
-        if (typeof document !== 'undefined') {
-          document.cookie = `user_role=${user.role}; path=/; samesite=lax`;
-          document.cookie = `is_authenticated=true; path=/; samesite=lax`;
-        }
-      },
+  logout: async () => {
+    try {
+      set({ isLoading: true });
+      
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
 
-      logout: () => {
-        // Call logout API
-        fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(console.error);
-        // Clear cookies
-        if (typeof document !== 'undefined') {
-          document.cookie = 'user_role=; path=/; max-age=0';
-          document.cookie = 'is_authenticated=; path=/; max-age=0';
-          document.cookie = 'session_token=; path=/; max-age=0';
-        }
-        set({ user: null, isAuthenticated: false, isLoading: false });
-        // Hard redirect to prevent chunk load errors
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
-        }
-      },
-
-      updateUser: (updates: Partial<User>) => {
-        const currentUser = get().user;
-        if (currentUser) {
-          set({ user: { ...currentUser, ...updates } });
-        }
-      },
-
-      isMasterAdmin: () => {
-        const user = get().user;
-        return user?.role === 'master_admin' || user?.adminRole === 'MASTER_ADMIN';
-      },
-
-      isAdmin: () => {
-        const user = get().user;
-        return user?.role === 'admin' || user?.role === 'master_admin';
-      },
-
-      hasAdminAccess: () => {
-        const user = get().user;
-        return (
-          user?.role === 'admin' ||
-          user?.role === 'master_admin' ||
-          user?.adminRole === 'ADMIN' ||
-          user?.adminRole === 'MASTER_ADMIN'
-        );
-      },
-    }),
-    {
-      name: 'marketplace-auth',
-      partialize: (state) => ({
-        user: state.user,
-        isAuthenticated: state.isAuthenticated,
-      }),
-      onRehydrateStorage: () => (state) => {
-        state?.setHydrated(true);
-      },
+      if (!response.ok) {
+        console.error('[AUTH_STORE] Logout API returned error:', response.status);
+      }
+    } catch (error) {
+      console.error('[AUTH_STORE] Logout error:', error);
+    } finally {
+      set({ user: null, isAuthenticated: false, isLoading: false });
+      
+      if (typeof window !== 'undefined') {
+        window.location.href = '/auth/login';
+      }
     }
-  )
-);
+  },
+
+  updateUser: (updates: Partial<User>) => {
+    const currentUser = get().user;
+    if (currentUser) {
+      set({ user: { ...currentUser, ...updates } });
+    }
+  },
+
+  isMasterAdmin: () => {
+    const user = get().user;
+    return user?.role === 'master_admin' || user?.adminRole === 'MASTER_ADMIN';
+  },
+
+  isAdmin: () => {
+    const user = get().user;
+    return user?.role === 'admin' || user?.role === 'master_admin';
+  },
+
+  hasAdminAccess: () => {
+    const user = get().user;
+    return (
+      user?.role === 'admin' ||
+      user?.role === 'master_admin' ||
+      user?.adminRole === 'ADMIN' ||
+      user?.adminRole === 'MASTER_ADMIN'
+    );
+  },
+}));
 
 /**
  * Sync auth state with server session.
@@ -191,13 +168,6 @@ export async function syncAuthWithServer(): Promise<User | null> {
 
     if (data.authenticated && data.user) {
       useAuthStore.getState().setUser(data.user);
-
-      // Ensure cookies are set for middleware
-      if (typeof document !== 'undefined') {
-        document.cookie = `user_role=${data.user.role}; path=/; samesite=lax`;
-        document.cookie = `is_authenticated=true; path=/; samesite=lax`;
-      }
-
       return data.user;
     } else {
       useAuthStore.getState().clearAuth();
@@ -238,7 +208,6 @@ export async function loginViaAPI(
       };
     }
 
-    // Set user in store
     useAuthStore.getState().login(data.user);
 
     return {
@@ -281,7 +250,6 @@ export async function adminLoginViaAPI(
       };
     }
 
-    // Transform admin data to User format and set in store
     const adminUser: User = {
       id: data.admin.id,
       email: data.admin.email,
@@ -340,7 +308,6 @@ export async function registerViaAPI(data: {
       };
     }
 
-    // Set user in store
     useAuthStore.getState().login(responseData.user);
 
     return {

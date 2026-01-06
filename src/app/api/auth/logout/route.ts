@@ -1,14 +1,27 @@
 /**
  * User Logout API Route
  *
- * Invalidates the current session and clears cookies.
- * Includes AUDIT LOGGING for logout events.
+ * UNIFIED LOGOUT - Used by ALL user types (Buyer, Vendor, Admin)
+ * 
+ * CRITICAL: Uses Firefox-safe cookie deletion:
+ * - Set cookie value to empty string
+ * - Set maxAge = 0
+ * - Use IDENTICAL attributes to how cookies were set
+ * 
+ * This approach works across ALL browsers including Firefox.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { logoutByToken, validateSessionToken } from '@/lib/db/dal/auth-service';
 import { logAuthEvent } from '@/lib/db/dal/audit';
+
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+};
 
 export async function POST(request: NextRequest) {
   const ipAddress = request.headers.get('x-forwarded-for') || undefined;
@@ -18,25 +31,24 @@ export async function POST(request: NextRequest) {
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get('session_token')?.value;
 
-    console.log('[LOGOUT_API] Logging out', { hasToken: !!sessionToken });
+    console.log('[LOGOUT_API] Starting logout', { hasToken: !!sessionToken });
 
-    // Get user info before logout for audit log
     let userId = 'unknown';
     let userEmail = 'unknown';
+    let userRole = 'unknown';
+
     if (sessionToken) {
       const sessionResult = validateSessionToken(sessionToken);
       if (sessionResult.success && sessionResult.data?.user) {
         userId = sessionResult.data.user.id;
         userEmail = sessionResult.data.user.email;
+        userRole = sessionResult.data.user.role;
       }
+
+      const deleted = logoutByToken(sessionToken);
+      console.log('[LOGOUT_API] Session deleted from database:', deleted);
     }
 
-    if (sessionToken) {
-      // Delete the session from database using auth service
-      logoutByToken(sessionToken);
-    }
-
-    // AUDIT LOG: Logout
     logAuthEvent(
       'LOGOUT',
       userId,
@@ -45,23 +57,19 @@ export async function POST(request: NextRequest) {
       {
         ipAddress,
         userAgent,
-        details: 'User logged out',
+        details: `User logged out (role: ${userRole})`,
       }
     );
 
-    // Clear all auth cookies
     cookieStore.set('session_token', '', {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
+      ...COOKIE_OPTIONS,
       maxAge: 0,
     });
 
     cookieStore.set('user_role', '', {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       path: '/',
       maxAge: 0,
     });
@@ -69,12 +77,12 @@ export async function POST(request: NextRequest) {
     cookieStore.set('is_authenticated', '', {
       httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      sameSite: 'lax' as const,
       path: '/',
       maxAge: 0,
     });
 
-    console.log('[LOGOUT_API] Logout successful');
+    console.log('[LOGOUT_API] Logout successful, cookies cleared');
 
     return NextResponse.json({ success: true });
   } catch (error) {

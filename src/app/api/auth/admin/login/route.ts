@@ -4,6 +4,9 @@
  * Uses unified auth service - admin login is now just a wrapper
  * that validates the user has admin role after unified login.
  * Includes AUDIT LOGGING for admin auth events.
+ * 
+ * Sets ONLY session_token cookie (httpOnly).
+ * Role is derived from session validation, not separate cookies.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -11,7 +14,14 @@ import { cookies } from 'next/headers';
 import { loginAdmin, getRouteForRole, type AuthErrorCode } from '@/lib/db/dal/auth-service';
 import { logAuthEvent, logSecurityEvent } from '@/lib/db/dal/audit';
 
-// Map auth error codes to HTTP status codes
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+  maxAge: 7 * 24 * 60 * 60,
+};
+
 function getHttpStatus(code: AuthErrorCode): number {
   switch (code) {
     case 'INVALID_INPUT': return 400;
@@ -35,18 +45,15 @@ export async function POST(request: NextRequest) {
 
     console.log('[ADMIN_LOGIN_API] Starting unified admin login', { email });
 
-    // Call unified admin login (which internally uses loginUser + role validation)
     const result = loginAdmin(
       { email, password },
       { ipAddress, userAgent }
     );
 
-    // Handle failure with specific error
     if (!result.success || !result.data) {
       const error = result.error!;
       console.log('[ADMIN_LOGIN_API] Admin login failed:', error.code, error.message);
 
-      // AUDIT LOG: Admin login failure (security-relevant)
       logSecurityEvent(
         'ADMIN_LOGIN_FAILED',
         `Admin login attempt failed for ${email}: ${error.code}`,
@@ -67,11 +74,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Login successful - set cookies
     const { admin, session } = result.data;
-    console.log('[ADMIN_LOGIN_API] Admin login successful, setting cookies', { adminId: admin.id, role: admin.role });
+    console.log('[ADMIN_LOGIN_API] Admin login successful, setting session cookie', { adminId: admin.id, role: admin.role });
 
-    // AUDIT LOG: Admin login success
     logAuthEvent(
       'ADMIN_LOGIN_SUCCESS',
       admin.id,
@@ -86,34 +91,9 @@ export async function POST(request: NextRequest) {
 
     const cookieStore = await cookies();
 
-    // Session token (httpOnly for security)
-    cookieStore.set('session_token', session.token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60,
-    });
+    cookieStore.set('session_token', session.token, COOKIE_OPTIONS);
 
-    // User role (readable by client for routing)
-    cookieStore.set('user_role', admin.role, {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60,
-    });
-
-    // Auth flag (readable by client)
-    cookieStore.set('is_authenticated', 'true', {
-      httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 7 * 24 * 60 * 60,
-    });
-
-    console.log('[ADMIN_LOGIN_API] Cookies set, returning success');
+    console.log('[ADMIN_LOGIN_API] Session cookie set, returning success');
 
     return NextResponse.json({
       success: true,
@@ -131,7 +111,6 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[ADMIN_LOGIN_API] Unexpected error:', error);
 
-    // AUDIT LOG: System error during admin login
     logSecurityEvent(
       'ADMIN_LOGIN_ERROR',
       `System error during admin login: ${error instanceof Error ? error.message : String(error)}`,

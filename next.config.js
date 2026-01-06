@@ -6,7 +6,13 @@ const nextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  allowedDevOrigins: ['*'],
+  allowedDevOrigins: [
+    'localhost',
+    '127.0.0.1',
+    '*.replit.dev',
+    '*.repl.co',
+    '*.janeway.replit.dev',
+  ],
 };
 
 module.exports = nextConfig;

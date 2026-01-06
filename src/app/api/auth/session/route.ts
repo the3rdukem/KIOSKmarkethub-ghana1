@@ -3,11 +3,21 @@
  *
  * Uses unified auth service for session validation.
  * Returns the same user format for all user types (buyers, vendors, admins).
+ * 
+ * ONLY checks session_token cookie.
+ * Role is derived from session, not separate cookies.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { validateSessionToken } from '@/lib/db/dal/auth-service';
+
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+};
 
 export async function GET(request: NextRequest) {
   try {
@@ -21,17 +31,16 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ authenticated: false, user: null });
     }
 
-    // Validate session using unified auth service
     const result = validateSessionToken(sessionToken);
 
     if (!result.success || !result.data) {
       const error = result.error!;
       console.log('[SESSION_API] Session validation failed:', error.code, error.message);
 
-      // Clear invalid cookies
-      cookieStore.set('session_token', '', { maxAge: 0, path: '/' });
-      cookieStore.set('user_role', '', { maxAge: 0, path: '/' });
-      cookieStore.set('is_authenticated', '', { maxAge: 0, path: '/' });
+      cookieStore.set('session_token', '', {
+        ...COOKIE_OPTIONS,
+        maxAge: 0,
+      });
 
       return NextResponse.json({
         authenticated: false,
@@ -41,7 +50,6 @@ export async function GET(request: NextRequest) {
       });
     }
 
-    // Session valid - return user data (unified format for all user types)
     const { session, user } = result.data;
     console.log('[SESSION_API] Session valid', {
       sessionId: session.id,
@@ -54,7 +62,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ authenticated: false, user: null });
     }
 
-    // Return unified user data
     return NextResponse.json({
       authenticated: true,
       user: {
@@ -74,7 +81,6 @@ export async function GET(request: NextRequest) {
         storeBanner: user.storeBanner,
         storeLogo: user.storeLogo,
         createdAt: user.createdAt,
-        // Admin-specific fields (populated for admin/master_admin roles)
         adminRole: user.adminRole,
         permissions: user.permissions,
       },
