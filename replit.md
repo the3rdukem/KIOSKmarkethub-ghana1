@@ -31,3 +31,16 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - Order tracking
 - Buyer protection
 - Real-time chat/messaging
+
+## Authentication Architecture
+- **Single Canonical Cookie**: Only `session_token` (httpOnly) is used for authentication
+- **Server-Authoritative**: No client-side storage (localStorage/sessionStorage) for auth state
+- **Firefox-Safe Logout**: Cookie deletion uses empty value + maxAge=0 with identical attributes
+- **Unified Logout**: All user types (Buyer, Vendor, Admin) use `/api/auth/logout` endpoint
+- **Session Validation**: Role derived from server-side session, not separate cookies
+
+## Recent Changes (January 2026)
+- Fixed logout and session termination for Firefox compatibility
+- Removed localStorage persistence from auth store
+- Consolidated to single session_token cookie (removed user_role and is_authenticated cookies)
+- Made logout await server response before redirecting
