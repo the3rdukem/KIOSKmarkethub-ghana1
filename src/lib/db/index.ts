@@ -75,7 +75,7 @@ export function getPool(): Pool {
 }
 
 /**
- * Initialize database schema
+ * Initialize database schema and seed data
  */
 export async function initializeDatabase(): Promise<void> {
   if (isInitialized) return;
@@ -85,11 +85,56 @@ export async function initializeDatabase(): Promise<void> {
     await createSchema(client);
     await runMigrations(client);
     await seedDefaultCategories(client);
+    await seedMasterAdmin(client);
     isInitialized = true;
     console.log('[DB] PostgreSQL database initialized successfully');
   } finally {
     client.release();
   }
+}
+
+/**
+ * Seed the master admin account if none exists
+ */
+async function seedMasterAdmin(client: PoolClient): Promise<void> {
+  // Check if any master admin exists
+  const result = await client.query(
+    "SELECT id FROM admin_users WHERE role = 'MASTER_ADMIN' LIMIT 1"
+  );
+  
+  if (result.rows.length > 0) {
+    console.log('[DB] Master admin already exists');
+    return;
+  }
+
+  // Create master admin with environment variables or secure defaults
+  const email = process.env.MASTER_ADMIN_EMAIL || 'the3rdukem@gmail.com';
+  const password = process.env.MASTER_ADMIN_PASSWORD || '123asdqweX$';
+  const name = 'System Administrator';
+  
+  // Hash password using the same format as users.ts hashPassword()
+  // Format: salt:hash where salt is 16 chars from UUID
+  const crypto = require('crypto');
+  const salt = crypto.randomUUID().substring(0, 16);
+  const hash = crypto.createHash('sha256').update(password + salt).digest('hex');
+  const passwordHash = `${salt}:${hash}`;
+  
+  const adminId = `admin_${crypto.randomUUID().replace(/-/g, '').substring(0, 16)}`;
+  const now = new Date().toISOString();
+  const permissions = JSON.stringify([
+    'MANAGE_CATEGORIES', 'MANAGE_PAYMENTS', 'MANAGE_API_KEYS', 'MANAGE_ADMINS',
+    'MANAGE_VENDORS', 'MANAGE_USERS', 'MANAGE_PRODUCTS', 'MANAGE_ORDERS',
+    'MANAGE_DISPUTES', 'VIEW_AUDIT_LOGS', 'MANAGE_SYSTEM_SETTINGS',
+    'VIEW_ANALYTICS', 'MANAGE_SECURITY'
+  ]);
+
+  await client.query(`
+    INSERT INTO admin_users (
+      id, email, password_hash, name, role, is_active, permissions, created_at, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+  `, [adminId, email.toLowerCase(), passwordHash, name, 'MASTER_ADMIN', 1, permissions, now, now]);
+
+  console.log('[DB] Master admin created:', email);
 }
 
 /**
