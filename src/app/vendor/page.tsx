@@ -26,6 +26,7 @@ import { useAuthStore } from "@/lib/auth-store";
 import { useProductsStore } from "@/lib/products-store";
 import { useOrdersStore } from "@/lib/orders-store";
 import { VendorAuthGuard } from "@/components/auth/auth-guard";
+import { VerificationBanner } from "@/components/vendor/verification-banner";
 import { formatDistance } from "date-fns";
 
 function VendorDashboardContent() {
@@ -71,23 +72,12 @@ function VendorDashboardContent() {
   return (
     <SiteLayout>
       <div className="container py-8">
-        {/* Verification Alert */}
-        {!isVerified && (
-          <Alert className="mb-8 border-orange-200 bg-orange-50">
-            <AlertTriangle className="h-4 w-4 text-orange-600" />
-            <AlertDescription className="text-orange-800">
-              <div className="flex items-center justify-between">
-                <div>
-                  <strong>Verification Required:</strong> Complete your vendor verification to start selling.
-                  Step {verificationStep} of 4 completed.
-                </div>
-                <Button size="sm" className="bg-orange-600 hover:bg-orange-700" onClick={() => router.push("/vendor/verify")}>
-                  Continue Verification
-                </Button>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
+        {/* Verification Banner - Shows for unverified/pending vendors */}
+        <VerificationBanner 
+          verificationStatus={user.verificationStatus as 'pending' | 'under_review' | 'verified' | 'rejected' | undefined}
+          verificationNotes={(user as { verificationNotes?: string }).verificationNotes}
+          onStartVerification={() => router.push("/vendor/verify")}
+        />
 
         {/* Header */}
         <div className="flex justify-between items-center mb-8">

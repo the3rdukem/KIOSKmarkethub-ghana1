@@ -113,6 +113,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
     price: "",
     quantity: "0",
     status: "active" as "active" | "draft",
+    imageUrl: "",
   });
   const [categoryAttributes, setCategoryAttributes] = useState<Record<string, string | boolean>>({});
 
@@ -175,6 +176,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           price: newProduct.price,
           quantity: newProduct.quantity,
           status: newProduct.status,
+          images: newProduct.imageUrl ? [newProduct.imageUrl] : [],
           categoryAttributes,
         }),
       });
@@ -195,6 +197,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
         price: "",
         quantity: "0",
         status: "active",
+        imageUrl: "",
       });
       setCategoryAttributes({});
 
@@ -844,7 +847,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
 
       {/* Create Product Dialog */}
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Plus className="w-5 h-5" />
@@ -965,6 +968,27 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                 ))}
               </div>
             )}
+
+            {/* Product Image */}
+            <div>
+              <Label>Product Image URL</Label>
+              <Input
+                value={newProduct.imageUrl}
+                onChange={(e) => setNewProduct(p => ({ ...p, imageUrl: e.target.value }))}
+                placeholder="https://example.com/image.jpg"
+              />
+              <p className="text-xs text-muted-foreground mt-1">Enter a URL for the product image (optional)</p>
+              {newProduct.imageUrl && (
+                <div className="mt-2 w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
+                  <img 
+                    src={newProduct.imageUrl} 
+                    alt="Preview" 
+                    className="w-full h-full object-cover"
+                    onError={(e) => (e.currentTarget.style.display = 'none')}
+                  />
+                </div>
+              )}
+            </div>
 
             {/* Price and Quantity */}
             <div className="grid grid-cols-2 gap-4">

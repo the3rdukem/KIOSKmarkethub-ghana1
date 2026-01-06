@@ -347,6 +347,36 @@ function AdminDashboardContent() {
   const [apiFormData, setApiFormData] = useState<Record<string, string>>({});
   const [isHydrated, setIsHydrated] = useState(false);
 
+  const [dbStats, setDbStats] = useState<{
+    userStats: {
+      totalBuyers: number;
+      totalVendors: number;
+      verifiedVendors: number;
+      pendingVendors: number;
+      activeUsers: number;
+      suspendedUsers: number;
+    };
+    totalProducts: number;
+    totalOrders: number;
+    totalRevenue: number;
+  } | null>(null);
+
+  // Fetch stats from PostgreSQL
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/admin/stats');
+        if (response.ok) {
+          const data = await response.json();
+          setDbStats(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch admin stats:', error);
+      }
+    };
+    fetchStats();
+  }, []);
+
   // Wait for hydration before checking auth
   useEffect(() => {
     setIsHydrated(true);
@@ -501,35 +531,35 @@ function AdminDashboardContent() {
           </div>
         </div>
 
-        {/* Metrics */}
+        {/* Metrics - From PostgreSQL Database */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
           <Card><CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm text-muted-foreground">Total Buyers</p><p className="text-2xl font-bold">{platformMetrics.totalBuyers}</p></div>
+              <div><p className="text-sm text-muted-foreground">Total Buyers</p><p className="text-2xl font-bold">{dbStats?.userStats.totalBuyers ?? 0}</p></div>
               <Users className="w-8 h-8 text-blue-600" />
             </div>
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm text-muted-foreground">Total Vendors</p><p className="text-2xl font-bold">{platformMetrics.totalVendors}</p><p className="text-xs text-green-600">{platformMetrics.verifiedVendors} verified</p></div>
+              <div><p className="text-sm text-muted-foreground">Total Vendors</p><p className="text-2xl font-bold">{dbStats?.userStats.totalVendors ?? 0}</p><p className="text-xs text-green-600">{dbStats?.userStats.verifiedVendors ?? 0} verified</p></div>
               <Store className="w-8 h-8 text-green-600" />
             </div>
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm text-muted-foreground">Total Products</p><p className="text-2xl font-bold">{products.length}</p></div>
+              <div><p className="text-sm text-muted-foreground">Total Products</p><p className="text-2xl font-bold">{dbStats?.totalProducts ?? 0}</p></div>
               <Package className="w-8 h-8 text-purple-600" />
             </div>
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm text-muted-foreground">Total Orders</p><p className="text-2xl font-bold">{orderStats.totalOrders}</p></div>
+              <div><p className="text-sm text-muted-foreground">Total Orders</p><p className="text-2xl font-bold">{dbStats?.totalOrders ?? 0}</p></div>
               <ShoppingCart className="w-8 h-8 text-orange-600" />
             </div>
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <div className="flex items-center justify-between">
-              <div><p className="text-sm text-muted-foreground">Total Sales</p><p className="text-2xl font-bold">GHS {orderStats.totalRevenue.toLocaleString()}</p></div>
+              <div><p className="text-sm text-muted-foreground">Total Sales</p><p className="text-2xl font-bold">GHS {(dbStats?.totalRevenue ?? 0).toLocaleString()}</p></div>
               <DollarSign className="w-8 h-8 text-emerald-600" />
             </div>
           </CardContent></Card>

@@ -1,0 +1,153 @@
+You are fixing final governance, UX clarity, and persistence gaps in the KIOSK marketplace running on Replit with PostgreSQL.
+
+IMPORTANT CONTEXT:
+	•	Authentication is FIXED
+	•	Sessions & persistence are FIXED
+	•	PostgreSQL is the ONLY database
+	•	Vendor gating logic EXISTS
+	•	Admin product creation EXISTS
+
+❌ DO NOT modify authentication, session, or database connection logic
+❌ DO NOT introduce mock or demo data
+
+This task focuses ONLY on:
+	•	Admin user creation completeness
+	•	Admin & vendor counts accuracy
+	•	Vendor verification UX clarity
+	•	Audit logging activation
+	•	Category persistence
+	•	Missing product media support
+
+========================================
+SECTION 1 — FIX ADMIN USER CREATION (ADMIN ROLE)
+
+Current issues:
+	•	Admin can create Buyer and Vendor
+	•	Admin creation DOES NOT work
+	•	Admin creation modal does not scroll properly
+
+Required fixes:
+	1.	Enable Admin creation using the SAME canonical createUser() function:
+	•	Role = ADMIN must be allowed
+	•	Password hashing and validation must apply
+	•	New Admins must be able to log in
+	2.	Fix Admin Create User modal UX:
+	•	Modal MUST be scrollable
+	•	Form MUST not be cut off at normal browser zoom
+	•	Submit button MUST always be accessible
+
+========================================
+SECTION 2 — FIX ADMIN DASHBOARD COUNTS
+
+Current issue:
+	•	Buyer and Vendor counts show 0
+	•	Actual users appear correctly in tables
+
+Required behavior:
+	•	Buyer count = total users with role BUYER
+	•	Vendor count = total users with role VENDOR
+	•	Counts must be computed from PostgreSQL
+	•	Remove hard-coded or stale counters
+
+Counts must update immediately on user creation.
+
+========================================
+SECTION 3 — VENDOR VERIFICATION GATING UX (CLARITY)
+
+Current state:
+	•	Gating works (products go to draft)
+	•	Vendor receives NO feedback or guidance
+
+Required enhancements:
+
+When vendor is UNVERIFIED or PENDING:
+	•	Show a persistent banner or notice:
+“Your account must be verified before you can publish products.”
+	•	Disable publish button with tooltip explanation
+	•	Provide a clear CTA:
+“Start Verification” or “Awaiting Admin Approval”
+
+This is UX-only clarity — DO NOT change gating rules.
+
+========================================
+SECTION 4 — ACTIVATE AUDIT LOGGING (CRITICAL)
+
+Current issue:
+	•	Audit tab is empty
+	•	No events are logged
+
+Required implementation:
+
+Create a canonical audit logging function and log ALL of the following:
+	•	User registration
+	•	User login
+	•	User logout
+	•	Admin user creation
+	•	Vendor verification status changes
+	•	Product creation (admin & vendor)
+	•	Product publish / unpublish
+
+Audit log schema MUST include:
+	•	id
+	•	actorId
+	•	actorRole
+	•	action
+	•	targetId (nullable)
+	•	metadata (JSON)
+	•	createdAt
+
+Audit logs MUST:
+	•	Persist in PostgreSQL
+	•	Appear in Admin → Audits
+	•	Never be editable
+
+========================================
+SECTION 5 — FIX CATEGORY MANAGEMENT PERSISTENCE
+
+Current issue:
+	•	Category creation form submits
+	•	Categories do NOT persist
+
+Required fixes:
+	•	Ensure category create/update/delete writes to PostgreSQL
+	•	Ensure categories reload from DB on refresh
+	•	Ensure Category Management tab reflects DB state
+	•	Remove any in-memory or placeholder category state
+
+Category schema must support:
+	•	Name
+	•	Slug
+	•	Dynamic field definitions (JSON)
+
+========================================
+SECTION 6 — ADD PRODUCT IMAGE UPLOAD (ADMIN)
+
+Current issue:
+	•	Admin product creation has no image upload
+
+Required behavior:
+	•	Admin add-product form MUST support image upload
+	•	Image must persist with product
+	•	Same image handling as vendor products
+	•	Use existing storage mechanism (do NOT mock)
+
+========================================
+SECTION 7 — FINAL VALIDATION CHECKLIST
+
+This task is complete ONLY IF:
+	•	Admin can create Admin users who can log in
+	•	Create User modal scrolls correctly
+	•	Buyer and Vendor counts are accurate
+	•	Vendors see clear verification messaging
+	•	Audit logs populate correctly
+	•	Categories persist after refresh
+	•	Admin can upload product images
+	•	No mock or placeholder logic exists
+
+This is the FINAL stabilization pass before:
+	•	Paystack activation
+	•	SmileID verification
+	•	Messaging & notifications
+
+⸻
+
