@@ -182,28 +182,25 @@ export async function POST(request: NextRequest) {
       const vendorEntity = getVendorByUserId(targetVendorId);
       const verificationStatus = vendorEntity?.verification_status || targetVendor.verification_status;
 
-      // Only verified vendors can create/publish products
+      // Unverified vendors can only create drafts, not publish
       if (verificationStatus !== 'verified') {
-        // Log the blocked attempt
-        createAuditLog({
-          action: 'PRODUCT_CREATION_BLOCKED',
-          category: 'product',
-          targetId: targetVendorId,
-          targetType: 'vendor',
-          targetName: targetVendor.email,
-          details: `Unverified vendor attempted to create product. Verification status: ${verificationStatus}`,
-          severity: 'warning',
-          ipAddress: request.headers.get('x-forwarded-for') || undefined,
-        });
+        // If trying to publish (status=active), block it
+        if (body.status === 'active' || !body.status) {
+          // Log the blocked attempt
+          createAuditLog({
+            action: 'PRODUCT_PUBLISH_BLOCKED',
+            category: 'product',
+            targetId: targetVendorId,
+            targetType: 'vendor',
+            targetName: targetVendor.email,
+            details: `Unverified vendor attempted to publish product. Verification status: ${verificationStatus}. Auto-saving as draft.`,
+            severity: 'warning',
+            ipAddress: request.headers.get('x-forwarded-for') || undefined,
+          });
 
-        return NextResponse.json(
-          {
-            error: 'Vendor verification required to create products',
-            code: 'VENDOR_NOT_VERIFIED',
-            details: `Your account verification status is "${verificationStatus}". Only verified vendors can create and publish products. Please complete the verification process first.`,
-          },
-          { status: 403 }
-        );
+          // Force status to draft instead of blocking entirely
+          body.status = 'draft';
+        }
       }
     } else if (isAdmin && !body.vendorId) {
       return NextResponse.json(

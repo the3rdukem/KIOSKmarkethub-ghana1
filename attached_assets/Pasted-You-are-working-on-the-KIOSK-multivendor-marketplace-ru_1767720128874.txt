@@ -1,0 +1,164 @@
+You are working on the KIOSK multivendor marketplace running on Replit.
+
+IMPORTANT CONTEXT (DO NOT IGNORE):
+	•	Authentication is FIXED
+	•	Session handling is FIXED
+	•	PostgreSQL persistence is FIXED
+	•	Firefox logout is FIXED
+	•	Unified /auth/login is FIXED
+
+❌ DO NOT modify authentication, cookies, sessions, or DB connection logic
+❌ DO NOT introduce mock, demo, or placeholder data
+
+This task is focused on platform governance, admin authority, and feature correctness.
+
+========================================
+SECTION 1 — RESTORE ADMIN VENDOR GOVERNANCE
+
+Fix the Admin → Vendors pipeline.
+
+Current problem:
+	•	Vendor registrations appear in USERS
+	•	Vendor registrations no longer appear in VENDORS tab
+	•	Admin cannot approve or reject vendors
+
+Required behavior:
+	•	Every user with role = VENDOR MUST appear in Admin → Vendors
+	•	Vendors MUST have a verification status:
+	•	UNVERIFIED
+	•	PENDING
+	•	VERIFIED
+	•	REJECTED
+	•	SUSPENDED
+	•	New vendors default to PENDING
+
+Admin must be able to:
+	•	Approve vendor
+	•	Reject vendor (with reason)
+	•	Suspend vendor
+	•	Revoke verification
+
+Changes must persist and reflect immediately.
+
+========================================
+SECTION 2 — ENFORCE VENDOR PRODUCT GATING
+
+Enforce strict verification gating for vendors.
+
+Rules:
+	•	Only VERIFIED vendors may publish products
+	•	UNVERIFIED or PENDING vendors may:
+	•	Create drafts
+	•	Edit drafts
+	•	Backend MUST block publish attempts from unverified vendors
+	•	UI must clearly explain why publishing is blocked
+
+This MUST be enforced server-side, not UI-only.
+
+========================================
+SECTION 3 — FIX & RESTORE DYNAMIC CATEGORY SYSTEM
+
+Restore the dynamic category-driven product form.
+
+Behavior:
+	•	Selecting a category dynamically loads category-specific fields
+	•	Category defines the product schema
+
+Admin Category Management:
+	•	Create category
+	•	Edit category
+	•	Delete category
+	•	Define dynamic fields per category (type, required, label)
+
+Rules:
+	•	Categories are stored in PostgreSQL
+	•	Product forms read category schema dynamically
+	•	Category changes apply sitewide immediately
+	•	Category Management form MUST submit and persist correctly
+
+========================================
+SECTION 4 — ENABLE ADMIN PRODUCT CREATION
+
+Enable Admin to create products from Admin Portal.
+
+Rules:
+	•	Admin-created products must:
+	•	Belong to a selected vendor
+	•	Use the same product schema as vendor products
+	•	Admin must select:
+	•	Vendor
+	•	Category
+	•	Product details
+
+Products must:
+	•	Persist
+	•	Appear in vendor dashboard
+	•	Appear in buyer marketplace
+
+NO mock product logic.
+
+========================================
+SECTION 5 — ENABLE ADMIN USER CREATION (CANONICAL)
+
+Enable Admin to create users from Admin Portal.
+
+Rules:
+	•	Admin MUST use the same canonical createUser() function as public registration
+	•	Admin can create:
+	•	Buyer
+	•	Vendor
+	•	Admin
+	•	Role must be explicitly selected
+
+Users created by Admin MUST:
+	•	Persist
+	•	Appear in USERS
+	•	Appear in VENDORS if role = VENDOR
+
+No duplicate or bypass logic.
+
+========================================
+SECTION 6 — AUDIT LOGGING (MANDATORY)
+
+Implement full audit logging.
+
+Log ALL of the following:
+	•	User registration
+	•	User login
+	•	User logout
+	•	Admin user creation
+	•	Vendor verification status changes
+	•	Product creation
+	•	Product edits
+	•	Product publish / unpublish
+
+Audit log must include:
+	•	actorId
+	•	actorRole
+	•	action
+	•	targetId (if applicable)
+	•	timestamp
+	•	metadata (JSON)
+
+Logs must:
+	•	Persist in PostgreSQL
+	•	Be viewable by Admin
+	•	Never be editable
+
+========================================
+SECTION 7 — FINAL GOVERNANCE VALIDATION
+
+This task is complete ONLY IF:
+	•	Vendors appear correctly in Admin → Vendors
+	•	Admin can approve/reject vendors
+	•	Unverified vendors cannot publish products
+	•	Category management works and persists
+	•	Product forms are dynamically driven by categories
+	•	Admin can create users and products
+	•	Audit logs record all critical actions
+	•	No mock or demo logic exists
+
+This is the FINAL governance layer before:
+	•	Payment activation
+	•	SmileID verification
+	•	Production hardening
