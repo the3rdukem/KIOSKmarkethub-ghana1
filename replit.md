@@ -78,3 +78,7 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - Implemented comprehensive governance system with vendor verification gating
 - Added CategoryManagement component with database-backed API integration
 - Added audit logging to product CRUD, vendor verification, user creation
+- **Vendor Publish UX Fix**: Publish button disabled for unverified vendors, shows amber warning, toast messages check actual vs requested status
+- **Audit Logs Page Rewrite**: Now fetches from PostgreSQL API `/api/admin/audit-logs` instead of Zustand store
+- **Admin User Creation Flow**: Verified canonical createUser() works correctly for all user types
+- **Admin Stats API**: Confirmed getUserStats() uses correct lowercase column names for PostgreSQL
