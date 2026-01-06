@@ -60,7 +60,15 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - `CategoryManagement` - Category CRUD with dynamic form field builder
 - `AuditLogs` - View audit trail for all governance actions
 
+## Master Admin Account
+- **Email**: the3rdukem@gmail.com
+- **Default Password**: 123asdqweX$
+- **Auto-Seeding**: Master admin is automatically created during database initialization if none exists
+- **Override**: Set MASTER_ADMIN_EMAIL and MASTER_ADMIN_PASSWORD env vars to customize
+- **Password Format**: salt:hash using SHA256 (compatible with users.ts hashPassword/verifyPassword)
+
 ## Recent Changes (January 2026)
+- **Master Admin Seeding**: Added seedMasterAdmin() to database initialization with idempotent creation
 - **Database Migration**: Migrated from better-sqlite3 to PostgreSQL using pg package
 - **Async DAL**: All 12+ Data Access Layer files converted to async/await with Promise-based APIs
 - **API Routes Updated**: All API routes updated to use async patterns for DAL function calls
