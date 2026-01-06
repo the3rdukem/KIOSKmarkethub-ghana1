@@ -441,6 +441,10 @@ export default function CreateProductPage() {
 
       console.log("Product created successfully:", data.product);
 
+      // Check if the product was actually published or forced to draft
+      const actualStatus = data.product?.status || status;
+      const wasDowngradedToDraft = status === "active" && actualStatus === "draft";
+
       // Also add to local store for immediate UI update
       addProduct({
         vendorId: user.id,
@@ -463,15 +467,18 @@ export default function CreateProductPage() {
           height: Number(productData.dimensions.height),
         } : undefined,
         tags: productData.tags,
-        status: status,
+        status: actualStatus,
         categoryAttributes: categoryAttributes as Record<string, string | number | boolean>,
       });
 
-      toast.success(
-        status === "active"
-          ? "Product published successfully!"
-          : "Product saved as draft!"
-      );
+      // Show appropriate message based on actual result
+      if (wasDowngradedToDraft) {
+        toast.warning("Product saved as draft. Your account must be verified before you can publish products.");
+      } else if (actualStatus === "active") {
+        toast.success("Product published successfully!");
+      } else {
+        toast.success("Product saved as draft!");
+      }
 
       // Redirect to products page
       router.push("/vendor/products");
@@ -915,17 +922,30 @@ export default function CreateProductPage() {
                     </Alert>
                   )}
 
+                  {/* Verification Warning for Unverified Vendors */}
+                  {user && user.verificationStatus !== 'verified' && (
+                    <Alert className="border-amber-200 bg-amber-50">
+                      <AlertTriangle className="h-4 w-4 text-amber-600" />
+                      <AlertDescription className="text-amber-800 text-sm">
+                        Your account must be verified before you can publish products. Products will be saved as drafts until verification is complete.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
                   <Button
                     type="button"
                     onClick={(e) => handleSubmit(e, "active")}
                     className="w-full"
-                    disabled={isLoading}
+                    disabled={isLoading || (user?.verificationStatus !== 'verified')}
+                    title={user?.verificationStatus !== 'verified' ? "Account verification required to publish" : undefined}
                   >
                     {isLoading ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Publishing...
                       </>
+                    ) : user?.verificationStatus !== 'verified' ? (
+                      "Verification Required to Publish"
                     ) : (
                       "Publish Product"
                     )}

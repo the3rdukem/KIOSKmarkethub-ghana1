@@ -1,0 +1,146 @@
+You are fixing remaining critical governance, correctness, and UX bugs in the KIOSK marketplace running on Replit with PostgreSQL.
+
+IMPORTANT CONTEXT (DO NOT CHANGE):
+	•	Authentication is stable
+	•	Sessions are stable
+	•	PostgreSQL is canonical
+	•	Vendor gating exists
+	•	Category persistence is working
+
+❌ DO NOT refactor auth, sessions, or database setup
+❌ DO NOT introduce mock or demo logic
+
+This task is focused ONLY on the unresolved issues listed below.
+
+========================================
+SECTION 1 — FIX ADMIN USER CREATION (ADMIN ROLE LOGIN FAILURE)
+
+Current issue:
+	•	Admin user creation completes
+	•	Admin record exists in DB
+	•	Newly created Admin CANNOT log in
+	•	Error: “No account found with this email”
+
+Root cause to fix:
+	•	Admin-created users are NOT being created through the SAME canonical auth identity path as public registration
+	•	Admin users are missing required auth credentials or role binding
+
+Required fixes:
+	•	Ensure Admin user creation uses the SAME canonical createUser() function as public registration
+	•	Ensure Admin users:
+	•	Have hashed passwords
+	•	Are written to the SAME users/auth tables
+	•	Are assigned role = ADMIN in the same way as master admin
+	•	Ensure login lookup includes ADMIN role users
+	•	No special-case login logic for admin users
+
+Completion condition:
+	•	Newly created Admin can log in successfully via /auth/login
+
+========================================
+SECTION 2 — FIX ADMIN DASHBOARD COUNTS (BUYER / VENDOR)
+
+Current issue:
+	•	Buyer count = 0
+	•	Vendor count = 0
+	•	Actual users appear correctly in tables
+
+Required fixes:
+	•	Replace any hard-coded or cached counters
+	•	Counts MUST be computed dynamically from PostgreSQL
+	•	Buyer count = COUNT(users WHERE role = BUYER)
+	•	Vendor count = COUNT(users WHERE role = VENDOR)
+	•	Counts MUST update immediately after user creation
+	•	Counts MUST persist after refresh and restart
+
+========================================
+SECTION 3 — FIX VENDOR PRODUCT PUBLISH UX (CRITICAL CLARITY BUG)
+
+Current issue:
+	•	Unverified vendors click “Publish Product”
+	•	System shows “Product published successfully”
+	•	Product is silently saved as draft
+	•	This is misleading and unacceptable UX
+
+Required fixes:
+
+When vendor is NOT VERIFIED:
+	•	Clicking “Publish” MUST NOT show success
+	•	System MUST:
+	•	Block publish action explicitly
+	•	Show clear message:
+“Your account must be verified before you can publish products.”
+	•	Publish button should:
+	•	Be disabled OR
+	•	Trigger a warning modal
+	•	Draft save message must be explicit:
+“Product saved as draft. Verification required to publish.”
+
+Backend MUST still enforce gating (do not rely on UI only).
+
+========================================
+SECTION 4 — ACTIVATE AUDIT LOGGING (ZERO LOGS BUG)
+
+Current issue:
+	•	Audit table exists
+	•	Admin → Audits is empty
+	•	No events are logged at all
+
+Required fixes:
+	•	Implement a canonical logAuditEvent() function
+	•	Call it explicitly in ALL of the following places:
+
+Authentication:
+	•	User registration
+	•	User login
+	•	User logout
+
+Admin actions:
+	•	Admin user creation
+	•	Vendor approval / rejection / suspension
+
+Products:
+	•	Product creation (admin & vendor)
+	•	Product publish attempt
+	•	Product publish success
+	•	Product publish blocked (unverified vendor)
+
+Audit schema MUST include:
+	•	id
+	•	actorId
+	•	actorRole
+	•	action
+	•	targetId (nullable)
+	•	metadata (JSON)
+	•	createdAt
+
+Logs MUST:
+	•	Persist in PostgreSQL
+	•	Appear immediately in Admin → Audits
+	•	Never be editable or deletable from UI
+
+========================================
+SECTION 5 — PRODUCT IMAGE UPLOAD (ADMIN)
+
+Current state:
+	•	Admin can only add product image via URL
+	•	This is insufficient
+
+Required behavior:
+	•	Admin product form MUST support file upload
+	•	Upload must:
+	•	Use the same storage mechanism as vendor uploads
+	•	Persist image URL in product record
+	•	URL input may remain as optional fallback
+
+========================================
+SECTION 6 — FINAL VALIDATION REQUIREMENTS
+
+This task is complete ONLY IF:
+	•	Admin-created Admin users can log in
+	•	Buyer and Vendor counts reflect real totals
+	•	Unverified vendors NEVER see “published successfully”
+	•	Vendor publish UX is explicit and honest
+	•	Audit logs populate for auth, admin, and product actions
+	•	Admin can upload product images via file upload
+	•	No mock, placeholder, or misleading UI remains
