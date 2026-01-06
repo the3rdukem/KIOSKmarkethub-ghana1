@@ -34,6 +34,7 @@ import { formatDistance, format } from "date-fns";
 import { toast } from "sonner";
 import { Product, useProductsStore } from "@/lib/products-store";
 import { useUsersStore } from "@/lib/users-store";
+import { MultiImageUpload } from "@/components/ui/image-upload";
 
 // Types for API data
 interface ApiVendor {
@@ -113,7 +114,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
     price: "",
     quantity: "0",
     status: "active" as "active" | "draft",
-    imageUrl: "",
+    images: [] as string[],
   });
   const [categoryAttributes, setCategoryAttributes] = useState<Record<string, string | boolean>>({});
 
@@ -176,7 +177,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           price: newProduct.price,
           quantity: newProduct.quantity,
           status: newProduct.status,
-          images: newProduct.imageUrl ? [newProduct.imageUrl] : [],
+          images: newProduct.images,
           categoryAttributes,
         }),
       });
@@ -197,7 +198,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
         price: "",
         quantity: "0",
         status: "active",
-        imageUrl: "",
+        images: [],
       });
       setCategoryAttributes({});
 
@@ -969,25 +970,16 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
               </div>
             )}
 
-            {/* Product Image */}
+            {/* Product Images */}
             <div>
-              <Label>Product Image URL</Label>
-              <Input
-                value={newProduct.imageUrl}
-                onChange={(e) => setNewProduct(p => ({ ...p, imageUrl: e.target.value }))}
-                placeholder="https://example.com/image.jpg"
+              <Label>Product Images</Label>
+              <MultiImageUpload
+                values={newProduct.images}
+                onChange={(images) => setNewProduct(p => ({ ...p, images }))}
+                maxImages={5}
+                maxSizeMB={5}
               />
-              <p className="text-xs text-muted-foreground mt-1">Enter a URL for the product image (optional)</p>
-              {newProduct.imageUrl && (
-                <div className="mt-2 w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
-                  <img 
-                    src={newProduct.imageUrl} 
-                    alt="Preview" 
-                    className="w-full h-full object-cover"
-                    onError={(e) => (e.currentTarget.style.display = 'none')}
-                  />
-                </div>
-              )}
+              <p className="text-xs text-muted-foreground mt-1">Upload up to 5 product images (drag and drop or click to upload)</p>
             </div>
 
             {/* Price and Quantity */}

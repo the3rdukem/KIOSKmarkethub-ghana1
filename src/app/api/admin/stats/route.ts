@@ -30,7 +30,7 @@ export async function GET() {
 
     const userStats = await getUserStats();
 
-    const productsResult = await query<{ count: string }>('SELECT COUNT(*) as count FROM products WHERE is_deleted = 0');
+    const productsResult = await query<{ count: string }>('SELECT COUNT(*) as count FROM products');
     const totalProducts = parseInt(productsResult.rows[0]?.count || '0');
 
     const ordersResult = await query<{ count: string }>('SELECT COUNT(*) as count FROM orders');

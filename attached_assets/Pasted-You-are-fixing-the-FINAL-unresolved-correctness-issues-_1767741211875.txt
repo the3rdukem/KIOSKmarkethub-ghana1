@@ -1,0 +1,147 @@
+You are fixing the FINAL unresolved correctness issues in the KIOSK marketplace.
+
+The platform is running on Replit + PostgreSQL.
+Authentication, sessions, categories, and vendor gating are already working.
+
+❌ DO NOT refactor authentication
+❌ DO NOT change DB provider
+❌ DO NOT touch vendor gating logic (already correct)
+
+This task addresses ONLY the remaining broken behaviors listed below.
+
+========================================
+SECTION 1 — FIX ADMIN USER CREATION (ADMIN ROLE LOGIN BUG)
+
+Current state (CRITICAL):
+	•	Admin-created Admin users appear in DB
+	•	Admin-created Admin users CANNOT log in
+	•	Error: “No account found with this email”
+	•	Buyer & Vendor admin-creation works
+
+Root cause (must be fixed):
+	•	Admin users are NOT being created through the same canonical auth identity pipeline
+	•	Admin users are missing auth linkage (password hash / auth table / role binding)
+
+MANDATORY FIXES:
+	•	ALL admin-created users (Buyer, Vendor, Admin) MUST go through:
+	•	the SAME canonical createUser() function
+	•	the SAME password hashing logic
+	•	the SAME auth identity table
+	•	Admin role MUST be assigned as:
+	•	role = ‘ADMIN’
+	•	not inferred or special-cased
+	•	Login lookup MUST include ADMIN users
+	•	REMOVE any conditional logic that skips auth creation for admins
+
+Completion condition:
+	•	Admin-created Admin users can log in via /auth/login
+
+========================================
+SECTION 2 — FIX ADMIN DASHBOARD COUNTS (BUYER & VENDOR)
+
+Current state:
+	•	Buyer count = 0 ❌
+	•	Vendor count = 0 ❌
+	•	Vendor tab counts work ✅
+	•	Product counts work ✅
+
+Root cause:
+	•	Dashboard counters are using:
+	•	stale cache OR
+	•	wrong table OR
+	•	incorrect role filter
+
+MANDATORY FIXES:
+	•	Admin dashboard counts MUST be computed directly from PostgreSQL
+	•	Buyer count query:
+COUNT(users WHERE role = ‘BUYER’)
+	•	Vendor count query:
+COUNT(users WHERE role = ‘VENDOR’)
+	•	Counts MUST:
+	•	update immediately
+	•	persist across refresh
+	•	not depend on frontend state
+
+DO NOT:
+	•	hardcode values
+	•	reuse vendor tab logic incorrectly
+	•	cache counts in memory
+
+========================================
+SECTION 3 — ENABLE FILE UPLOAD FOR ADMIN PRODUCT IMAGES
+
+Current state:
+	•	Admin can ONLY add product image via URL ❌
+	•	Vendors can upload images via file ✅
+
+MANDATORY FIXES:
+	•	Admin product form MUST support file upload
+	•	Admin uploads MUST:
+	•	use the SAME storage pipeline as vendor uploads
+	•	persist image URL in product record
+	•	URL input may remain as optional fallback
+	•	UI must show image preview after upload
+
+DO NOT:
+	•	create a separate storage system
+	•	mock uploads
+	•	disable vendor uploads
+
+========================================
+SECTION 4 — ACTIVATE AUDIT LOGGING (ZERO LOGS BUG)
+
+Current state (SEVERE):
+	•	Audit table exists
+	•	Admin → Audits shows ZERO records
+	•	No login, logout, admin, or product events logged
+
+Root cause:
+	•	Audit function exists OR schema exists
+	•	BUT is never called OR calls are no-ops
+
+MANDATORY FIXES:
+	•	Implement ONE canonical logAuditEvent() function
+	•	Persist logs to PostgreSQL (NOT memory)
+
+CALL logAuditEvent() on:
+
+Auth:
+	•	User registration
+	•	User login
+	•	User logout
+
+Admin actions:
+	•	Admin creates user
+	•	Admin creates product
+	•	Admin approves / rejects vendor
+
+Products:
+	•	Product creation
+	•	Publish attempt
+	•	Publish blocked (unverified vendor)
+	•	Publish success
+
+Audit record MUST include:
+	•	id
+	•	actorId
+	•	actorRole
+	•	action
+	•	targetType
+	•	targetId
+	•	metadata (JSON)
+	•	createdAt
+
+UI REQUIREMENTS:
+	•	Admin → Audits must populate immediately
+	•	Logs must persist across refresh
+	•	Logs must NOT be editable or deletable
+
+========================================
+SECTION 5 — FINAL VALIDATION CHECKLIST
+
+This task is COMPLETE ONLY IF:
+	•	Admin-created Admin users can log in
+	•	Buyer & Vendor counts reflect real totals
+	•	Admin can upload product images via file upload
+	•	Audit logs appear for auth, admin, and product actions
+	•	No mock, silent failure, or misleading UI remains
