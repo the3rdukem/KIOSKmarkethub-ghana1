@@ -10,48 +10,41 @@
  * NEVER import these in client components.
  */
 
-// Database
-export { getDatabase, closeDatabase, runTransaction, isDatabaseHealthy, getDatabaseStats } from '../index';
+// Database core functions
+export { 
+  query, 
+  runTransaction, 
+  isDatabaseHealthy, 
+  getDatabaseStats, 
+  closeDatabase,
+  initializeDatabase as initializeDbSchema
+} from '../index';
 
-// Users
-export * from './users';
-
-// Admin
-export * from './admin';
-
-// Sessions
-export * from './sessions';
-
-// Products
-export * from './products';
-
-// Orders
-export * from './orders';
-
-// Integrations
-export * from './integrations';
-
-// Audit
-export * from './audit';
+// Re-export individual modules with namespace imports to avoid conflicts
+export * as users from './users';
+export * as sessions from './sessions';
+export * as products from './products';
+export * as orders from './orders';
+export * as vendors from './vendors';
+export * as categories from './categories';
+export * as integrations from './integrations';
+export * as audit from './audit';
+export * as admin from './admin';
+export * as authService from './auth-service';
 
 /**
  * Initialize the entire database system
  * Call this on application startup
  */
-export function initializeDatabase(): void {
-  // Import dynamically to avoid circular dependencies
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const dbModule = require('../index');
-  dbModule.getDatabase();
+export async function initializeFullDatabase(): Promise<void> {
+  const dbModule = await import('../index');
+  await dbModule.initializeDatabase();
 
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const adminModule = require('./admin');
-  adminModule.initializeAdminSystem();
+  const adminModule = await import('./admin');
+  await adminModule.initializeAdminSystem();
 
-  // Initialize default integrations
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const integrationsModule = require('./integrations');
-  integrationsModule.initializeIntegrations();
+  const integrationsModule = await import('./integrations');
+  await integrationsModule.initializeIntegrations();
 
   console.log('[DB] Database system initialized');
 }

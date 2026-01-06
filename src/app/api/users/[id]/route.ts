@@ -36,7 +36,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
-    const user = getUserById(id);
+    const user = await getUserById(id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -96,12 +96,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
-    const user = getUserById(id);
+    const user = await getUserById(id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -141,9 +141,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       if (body.verifiedBy !== undefined) updates.verifiedBy = body.verifiedBy;
 
       // Log admin action
-      const admin = getAdminById(session.user_id);
+      const admin = await getAdminById(session.user_id);
       if (admin) {
-        logAdminAction('USER_UPDATED', {
+        await logAdminAction('USER_UPDATED', {
           id: admin.id,
           name: admin.name,
           email: admin.email,
@@ -158,7 +158,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    const updatedUser = updateUser(id, updates);
+    const updatedUser = await updateUser(id, updates);
 
     if (!updatedUser) {
       return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
@@ -194,7 +194,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -204,7 +204,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    const user = getUserById(id);
+    const user = await getUserById(id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -215,9 +215,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     let success: boolean;
     if (permanent && session.user_role === 'master_admin') {
-      success = deleteUser(id);
+      success = await deleteUser(id);
     } else {
-      success = softDeleteUser(id, session.user_id, reason);
+      success = await softDeleteUser(id, session.user_id, reason);
     }
 
     if (!success) {
@@ -225,9 +225,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Log admin action
-    const admin = getAdminById(session.user_id);
+    const admin = await getAdminById(session.user_id);
     if (admin) {
-      logAdminAction(permanent ? 'USER_PERMANENTLY_DELETED' : 'USER_SOFT_DELETED', {
+      await logAdminAction(permanent ? 'USER_PERMANENTLY_DELETED' : 'USER_SOFT_DELETED', {
         id: admin.id,
         name: admin.name,
         email: admin.email,

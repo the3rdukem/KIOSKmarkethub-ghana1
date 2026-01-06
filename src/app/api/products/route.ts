@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     // For public access, only show active products
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get('session_token')?.value;
-    const session = sessionToken ? validateSession(sessionToken) : null;
+    const session = sessionToken ? await validateSession(sessionToken) : null;
 
     if (session) {
       // Authenticated - can see their own products regardless of status
@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
       options.offset = parseInt(offset, 10);
     }
 
-    const products = getProducts(options);
+    const products = await getProducts(options);
 
     // Transform for client
     const transformedProducts = products.map((product) => ({
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -137,12 +137,12 @@ export async function POST(request: NextRequest) {
 
     // For admin product creation, a vendorId must be provided
     let targetVendorId: string;
-    let targetVendor: ReturnType<typeof getUserById>;
+    let targetVendor: Awaited<ReturnType<typeof getUserById>>;
 
     if (isAdmin && body.vendorId) {
       // Admin creating product on behalf of vendor
       targetVendorId = body.vendorId;
-      targetVendor = getUserById(targetVendorId);
+      targetVendor = await getUserById(targetVendorId);
 
       if (!targetVendor) {
         return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
@@ -153,7 +153,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Check vendor entity for verification status (preferred) or fallback to user
-      const vendorEntity = getVendorByUserId(targetVendorId);
+      const vendorEntity = await getVendorByUserId(targetVendorId);
       const verificationStatus = vendorEntity?.verification_status || targetVendor.verification_status;
 
       // CRITICAL: Even admin-created products respect vendor verification
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
     } else if (isVendor) {
       // Vendor creating their own product
       targetVendorId = session.user_id;
-      targetVendor = getUserById(targetVendorId);
+      targetVendor = await getUserById(targetVendorId);
 
       if (!targetVendor) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -179,7 +179,7 @@ export async function POST(request: NextRequest) {
 
       // CRITICAL: Vendor verification gating - SERVER-SIDE ENFORCEMENT
       // Check vendor entity for verification status (preferred) or fallback to user
-      const vendorEntity = getVendorByUserId(targetVendorId);
+      const vendorEntity = await getVendorByUserId(targetVendorId);
       const verificationStatus = vendorEntity?.verification_status || targetVendor.verification_status;
 
       // Unverified vendors can only create drafts, not publish
@@ -187,7 +187,7 @@ export async function POST(request: NextRequest) {
         // If trying to publish (status=active), block it
         if (body.status === 'active' || !body.status) {
           // Log the blocked attempt
-          createAuditLog({
+          await createAuditLog({
             action: 'PRODUCT_PUBLISH_BLOCKED',
             category: 'product',
             targetId: targetVendorId,
@@ -235,14 +235,15 @@ export async function POST(request: NextRequest) {
       categoryAttributes: body.categoryAttributes,
     };
 
-    const product = createProduct(productInput);
+    const product = await createProduct(productInput);
 
     // Log successful product creation
-    createAuditLog({
+    const adminUser = isAdmin ? await getUserById(session.user_id) : null;
+    await createAuditLog({
       action: isAdmin ? 'ADMIN_PRODUCT_CREATED' : 'PRODUCT_CREATED',
       category: 'product',
       adminId: isAdmin ? session.user_id : undefined,
-      adminName: isAdmin ? (getUserById(session.user_id)?.name || 'Admin') : undefined,
+      adminName: isAdmin ? (adminUser?.name || 'Admin') : undefined,
       targetId: product.id,
       targetType: 'product',
       targetName: product.name,

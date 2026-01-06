@@ -45,22 +45,22 @@ export async function GET(request: NextRequest) {
       const cookieStore = await cookies();
       const sessionToken = cookieStore.get('session_token')?.value;
       if (sessionToken) {
-        const session = validateSession(sessionToken);
+        const session = await validateSession(sessionToken);
         if (session && (session.user_role === 'admin' || session.user_role === 'master_admin')) {
-          return NextResponse.json({ stats: getCategoryStats() });
+          return NextResponse.json({ stats: await getCategoryStats() });
         }
       }
     }
 
     // Get form schema for a specific category
     if (formSchema) {
-      const schema = getCategoryFormSchemaByName(formSchema);
+      const schema = await getCategoryFormSchemaByName(formSchema);
       return NextResponse.json({ formSchema: schema });
     }
 
     // Get single category by ID
     if (id) {
-      const category = getCategoryById(id);
+      const category = await getCategoryById(id);
       if (!category) {
         return NextResponse.json({ error: 'Category not found' }, { status: 404 });
       }
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
 
     // Get single category by slug
     if (slug) {
-      const category = getCategoryBySlug(slug);
+      const category = await getCategoryBySlug(slug);
       if (!category) {
         return NextResponse.json({ error: 'Category not found' }, { status: 404 });
       }
@@ -133,24 +133,24 @@ export async function GET(request: NextRequest) {
     // Get list of categories
     let categories;
     if (menuOnly) {
-      categories = getMenuCategories();
+      categories = await getMenuCategories();
     } else if (homeOnly) {
-      categories = getCategories({ isActive: true, showInHome: true });
+      categories = await getCategories({ isActive: true, showInHome: true });
     } else if (activeOnly) {
-      categories = getActiveCategories();
+      categories = await getActiveCategories();
     } else {
       // Admin can see all categories
       const cookieStore = await cookies();
       const sessionToken = cookieStore.get('session_token')?.value;
       if (sessionToken) {
-        const session = validateSession(sessionToken);
+        const session = await validateSession(sessionToken);
         if (session && (session.user_role === 'admin' || session.user_role === 'master_admin')) {
-          categories = getCategories();
+          categories = await getCategories();
         } else {
-          categories = getActiveCategories();
+          categories = await getActiveCategories();
         }
       } else {
-        categories = getActiveCategories();
+        categories = await getActiveCategories();
       }
     }
 
@@ -205,7 +205,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -224,12 +224,12 @@ export async function POST(request: NextRequest) {
 
     // Check for duplicate slug
     const generatedSlug = slug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-    const existing = getCategoryBySlug(generatedSlug);
+    const existing = await getCategoryBySlug(generatedSlug);
     if (existing) {
       return NextResponse.json({ error: 'A category with this slug already exists' }, { status: 409 });
     }
 
-    const category = createCategory({
+    const category = await createCategory({
       name,
       slug: generatedSlug,
       description,
@@ -245,7 +245,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Create audit log
-    createAuditLog({
+    await createAuditLog({
       action: 'CATEGORY_CREATED',
       category: 'category',
       adminId: session.user_id,
@@ -291,7 +291,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -306,8 +306,8 @@ export async function PATCH(request: NextRequest) {
 
     // Handle reorder
     if (reorder && Array.isArray(reorder)) {
-      reorderCategories(reorder);
-      createAuditLog({
+      await reorderCategories(reorder);
+      await createAuditLog({
         action: 'CATEGORIES_REORDERED',
         category: 'category',
         adminId: session.user_id,
@@ -322,18 +322,18 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
     }
 
-    const category = getCategoryById(categoryId);
+    const category = await getCategoryById(categoryId);
     if (!category) {
       return NextResponse.json({ error: 'Category not found' }, { status: 404 });
     }
 
-    const updatedCategory = updateCategory(categoryId, updates);
+    const updatedCategory = await updateCategory(categoryId, updates);
     if (!updatedCategory) {
       return NextResponse.json({ error: 'Failed to update category' }, { status: 500 });
     }
 
     // Create audit log
-    createAuditLog({
+    await createAuditLog({
       action: 'CATEGORY_UPDATED',
       category: 'category',
       adminId: session.user_id,
@@ -376,7 +376,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -394,18 +394,18 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
     }
 
-    const category = getCategoryById(categoryId);
+    const category = await getCategoryById(categoryId);
     if (!category) {
       return NextResponse.json({ error: 'Category not found' }, { status: 404 });
     }
 
-    const result = deleteCategory(categoryId, force);
+    const result = await deleteCategory(categoryId, force);
     if (!result.success) {
       return NextResponse.json({ error: result.error || 'Failed to delete category' }, { status: 400 });
     }
 
     // Create audit log
-    createAuditLog({
+    await createAuditLog({
       action: 'CATEGORY_DELETED',
       category: 'category',
       adminId: session.user_id,

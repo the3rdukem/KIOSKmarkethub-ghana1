@@ -38,7 +38,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -48,12 +48,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
-    const user = getUserById(id);
+    const user = await getUserById(id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const admin = getAdminById(session.user_id);
+    const admin = await getAdminById(session.user_id);
     if (!admin) {
       return NextResponse.json({ error: 'Admin not found' }, { status: 404 });
     }
@@ -71,12 +71,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           return NextResponse.json({ error: 'Reason is required for suspension' }, { status: 400 });
         }
 
-        const result = updateUser(id, { status: 'suspended' });
+        const result = await updateUser(id, { status: 'suspended' });
         if (!result) {
           return NextResponse.json({ error: 'Failed to suspend user' }, { status: 500 });
         }
 
-        logAdminAction('USER_SUSPENDED', {
+        await logAdminAction('USER_SUSPENDED', {
           id: admin.id,
           name: admin.name,
           email: admin.email,
@@ -95,12 +95,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       }
 
       case 'activate': {
-        const result = updateUser(id, { status: 'active' });
+        const result = await updateUser(id, { status: 'active' });
         if (!result) {
           return NextResponse.json({ error: 'Failed to activate user' }, { status: 500 });
         }
 
-        logAdminAction('USER_ACTIVATED', {
+        await logAdminAction('USER_ACTIVATED', {
           id: admin.id,
           name: admin.name,
           email: admin.email,
@@ -123,12 +123,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           return NextResponse.json({ error: 'Reason is required for ban' }, { status: 400 });
         }
 
-        const result = updateUser(id, { status: 'banned' });
+        const result = await updateUser(id, { status: 'banned' });
         if (!result) {
           return NextResponse.json({ error: 'Failed to ban user' }, { status: 500 });
         }
 
-        logAdminAction('USER_BANNED', {
+        await logAdminAction('USER_BANNED', {
           id: admin.id,
           name: admin.name,
           email: admin.email,
@@ -152,7 +152,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           return NextResponse.json({ error: 'User is not a vendor' }, { status: 400 });
         }
 
-        const result = updateUser(id, {
+        const result = await updateUser(id, {
           verificationStatus: 'verified',
           status: 'active',
           verifiedAt: new Date().toISOString(),
@@ -163,7 +163,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           return NextResponse.json({ error: 'Failed to approve vendor' }, { status: 500 });
         }
 
-        logAdminAction('VENDOR_APPROVED', {
+        await logAdminAction('VENDOR_APPROVED', {
           id: admin.id,
           name: admin.name,
           email: admin.email,
@@ -190,7 +190,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           return NextResponse.json({ error: 'Reason is required for rejection' }, { status: 400 });
         }
 
-        const result = updateUser(id, {
+        const result = await updateUser(id, {
           verificationStatus: 'rejected',
           verificationNotes: reason,
         });
@@ -199,7 +199,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           return NextResponse.json({ error: 'Failed to reject vendor' }, { status: 500 });
         }
 
-        logAdminAction('VENDOR_REJECTED', {
+        await logAdminAction('VENDOR_REJECTED', {
           id: admin.id,
           name: admin.name,
           email: admin.email,
@@ -226,7 +226,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           return NextResponse.json({ error: 'Request details are required' }, { status: 400 });
         }
 
-        const result = updateUser(id, {
+        const result = await updateUser(id, {
           verificationStatus: 'under_review',
           verificationNotes: reason,
         });
@@ -235,7 +235,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           return NextResponse.json({ error: 'Failed to request documents' }, { status: 500 });
         }
 
-        logAdminAction('VENDOR_DOCS_REQUESTED', {
+        await logAdminAction('VENDOR_DOCS_REQUESTED', {
           id: admin.id,
           name: admin.name,
           email: admin.email,

@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -52,12 +52,12 @@ export async function GET(request: NextRequest) {
 
     // Return stats if requested
     if (stats === 'true') {
-      const auditStats = getAuditLogStats();
+      const auditStats = await getAuditLogStats();
       return NextResponse.json({ stats: auditStats });
     }
 
     // Fetch audit logs with filters
-    const logs = getAuditLogs({
+    const logs = await getAuditLogs({
       category: category || undefined,
       severity: severity || undefined,
       adminId: adminId || undefined,

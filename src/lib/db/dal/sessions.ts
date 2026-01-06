@@ -1,11 +1,11 @@
 /**
- * Sessions Data Access Layer
+ * Sessions Data Access Layer - PostgreSQL
  *
  * Server-side session management for authentication.
  * Sessions are stored in database, not localStorage.
  */
 
-import { getDatabase } from '../index';
+import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash, randomBytes } from 'crypto';
 
@@ -20,10 +20,8 @@ export interface DbSession {
   created_at: string;
 }
 
-// Session duration in milliseconds (7 days)
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Debug logging helper
 const DEBUG = process.env.NODE_ENV === 'development';
 function debugLog(action: string, details: Record<string, unknown>): void {
   if (DEBUG) {
@@ -31,24 +29,15 @@ function debugLog(action: string, details: Record<string, unknown>): void {
   }
 }
 
-/**
- * Generate a secure session token
- */
 export function generateSessionToken(): string {
   return randomBytes(32).toString('hex');
 }
 
-/**
- * Hash session token for storage
- */
 export function hashToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');
 }
 
-/**
- * Create a new session
- */
-export function createSession(
+export async function createSession(
   userId: string,
   userRole: string,
   options?: {
@@ -56,10 +45,9 @@ export function createSession(
     userAgent?: string;
     durationMs?: number;
   }
-): { session: DbSession; token: string } {
+): Promise<{ session: DbSession; token: string }> {
   debugLog('CREATE_START', { userId, userRole, hasOptions: !!options });
 
-  const db = getDatabase();
   const id = `sess_${uuidv4().replace(/-/g, '').substring(0, 24)}`;
   const token = generateSessionToken();
   const tokenHash = hashToken(token);
@@ -72,33 +60,31 @@ export function createSession(
     expiresAt: expiresAt.toISOString()
   });
 
-  const stmt = db.prepare(`
-    INSERT INTO sessions (
-      id, user_id, user_role, token_hash, ip_address, user_agent, expires_at, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
   try {
-    stmt.run(
-      id,
-      userId,
-      userRole,
-      tokenHash,
-      options?.ipAddress || null,
-      options?.userAgent || null,
-      expiresAt.toISOString(),
-      now.toISOString()
+    await query(
+      `INSERT INTO sessions (id, user_id, user_role, token_hash, ip_address, user_agent, expires_at, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        id,
+        userId,
+        userRole,
+        tokenHash,
+        options?.ipAddress || null,
+        options?.userAgent || null,
+        expiresAt.toISOString(),
+        now.toISOString()
+      ]
     );
 
-    const session = getSessionById(id)!;
+    const session = await getSessionById(id);
 
     debugLog('CREATE_SUCCESS', {
       sessionId: id,
-      userId: session.user_id,
-      role: session.user_role
+      userId: session?.user_id,
+      role: session?.user_role
     });
 
-    return { session, token };
+    return { session: session!, token };
   } catch (error) {
     debugLog('CREATE_ERROR', {
       error: error instanceof Error ? error.message : String(error)
@@ -107,23 +93,14 @@ export function createSession(
   }
 }
 
-/**
- * Get session by ID
- */
-export function getSessionById(id: string): DbSession | null {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM sessions WHERE id = ?');
-  return stmt.get(id) as DbSession | null;
+export async function getSessionById(id: string): Promise<DbSession | null> {
+  const result = await query<DbSession>('SELECT * FROM sessions WHERE id = $1', [id]);
+  return result.rows[0] || null;
 }
 
-/**
- * Validate session token
- * Returns the session if valid and not expired, null otherwise
- */
-export function validateSession(token: string): DbSession | null {
+export async function validateSession(token: string): Promise<DbSession | null> {
   debugLog('VALIDATE_START', { tokenPrefix: token.substring(0, 8) });
 
-  const db = getDatabase();
   const tokenHash = hashToken(token);
   const now = new Date().toISOString();
 
@@ -132,13 +109,12 @@ export function validateSession(token: string): DbSession | null {
     currentTime: now
   });
 
-  const stmt = db.prepare(`
-    SELECT * FROM sessions
-    WHERE token_hash = ?
-    AND expires_at > ?
-  `);
+  const result = await query<DbSession>(
+    'SELECT * FROM sessions WHERE token_hash = $1 AND expires_at > $2',
+    [tokenHash, now]
+  );
 
-  const session = stmt.get(tokenHash, now) as DbSession | null;
+  const session = result.rows[0] || null;
 
   if (session) {
     debugLog('VALIDATE_SUCCESS', {
@@ -148,9 +124,11 @@ export function validateSession(token: string): DbSession | null {
       expiresAt: session.expires_at
     });
   } else {
-    // Check if session exists but is expired
-    const expiredStmt = db.prepare('SELECT * FROM sessions WHERE token_hash = ?');
-    const expiredSession = expiredStmt.get(tokenHash) as DbSession | null;
+    const expiredResult = await query<DbSession>(
+      'SELECT * FROM sessions WHERE token_hash = $1',
+      [tokenHash]
+    );
+    const expiredSession = expiredResult.rows[0];
 
     if (expiredSession) {
       debugLog('VALIDATE_EXPIRED', {
@@ -166,111 +144,87 @@ export function validateSession(token: string): DbSession | null {
   return session;
 }
 
-/**
- * Extend session expiration
- */
-export function extendSession(sessionId: string, durationMs?: number): boolean {
-  const db = getDatabase();
+export async function extendSession(sessionId: string, durationMs?: number): Promise<boolean> {
   const expiresAt = new Date(Date.now() + (durationMs || SESSION_DURATION_MS));
 
-  const stmt = db.prepare('UPDATE sessions SET expires_at = ? WHERE id = ?');
-  const result = stmt.run(expiresAt.toISOString(), sessionId);
+  const result = await query(
+    'UPDATE sessions SET expires_at = $1 WHERE id = $2',
+    [expiresAt.toISOString(), sessionId]
+  );
 
-  debugLog('EXTEND', { sessionId, newExpiresAt: expiresAt.toISOString(), success: result.changes > 0 });
+  const success = (result.rowCount ?? 0) > 0;
+  debugLog('EXTEND', { sessionId, newExpiresAt: expiresAt.toISOString(), success });
 
-  return result.changes > 0;
+  return success;
 }
 
-/**
- * Delete session (logout)
- */
-export function deleteSession(sessionId: string): boolean {
-  const db = getDatabase();
-  const stmt = db.prepare('DELETE FROM sessions WHERE id = ?');
-  const result = stmt.run(sessionId);
+export async function deleteSession(sessionId: string): Promise<boolean> {
+  const result = await query('DELETE FROM sessions WHERE id = $1', [sessionId]);
+  const success = (result.rowCount ?? 0) > 0;
 
-  debugLog('DELETE', { sessionId, success: result.changes > 0 });
+  debugLog('DELETE', { sessionId, success });
 
-  return result.changes > 0;
+  return success;
 }
 
-/**
- * Delete session by token
- */
-export function deleteSessionByToken(token: string): boolean {
-  const db = getDatabase();
+export async function deleteSessionByToken(token: string): Promise<boolean> {
   const tokenHash = hashToken(token);
-  const stmt = db.prepare('DELETE FROM sessions WHERE token_hash = ?');
-  const result = stmt.run(tokenHash);
+  const result = await query('DELETE FROM sessions WHERE token_hash = $1', [tokenHash]);
+  const success = (result.rowCount ?? 0) > 0;
 
-  debugLog('DELETE_BY_TOKEN', { hashPrefix: tokenHash.substring(0, 8), success: result.changes > 0 });
+  debugLog('DELETE_BY_TOKEN', { hashPrefix: tokenHash.substring(0, 8), success });
 
-  return result.changes > 0;
+  return success;
 }
 
-/**
- * Delete all sessions for a user
- */
-export function deleteUserSessions(userId: string): number {
-  const db = getDatabase();
-  const stmt = db.prepare('DELETE FROM sessions WHERE user_id = ?');
-  const result = stmt.run(userId);
+export async function deleteUserSessions(userId: string): Promise<number> {
+  const result = await query('DELETE FROM sessions WHERE user_id = $1', [userId]);
+  const deletedCount = result.rowCount ?? 0;
 
-  debugLog('DELETE_USER_SESSIONS', { userId, deletedCount: result.changes });
+  debugLog('DELETE_USER_SESSIONS', { userId, deletedCount });
 
-  return result.changes;
+  return deletedCount;
 }
 
-/**
- * Get all sessions for a user
- */
-export function getUserSessions(userId: string): DbSession[] {
-  const db = getDatabase();
+export async function getUserSessions(userId: string): Promise<DbSession[]> {
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
-    SELECT * FROM sessions
-    WHERE user_id = ?
-    AND expires_at > ?
-    ORDER BY created_at DESC
-  `);
+  const result = await query<DbSession>(
+    'SELECT * FROM sessions WHERE user_id = $1 AND expires_at > $2 ORDER BY created_at DESC',
+    [userId, now]
+  );
 
-  return stmt.all(userId, now) as DbSession[];
+  return result.rows;
 }
 
-/**
- * Cleanup expired sessions
- */
-export function cleanupExpiredSessions(): number {
-  const db = getDatabase();
+export async function cleanupExpiredSessions(): Promise<number> {
   const now = new Date().toISOString();
 
-  const stmt = db.prepare('DELETE FROM sessions WHERE expires_at <= ?');
-  const result = stmt.run(now);
+  const result = await query('DELETE FROM sessions WHERE expires_at <= $1', [now]);
+  const deletedCount = result.rowCount ?? 0;
 
-  debugLog('CLEANUP', { deletedCount: result.changes });
+  debugLog('CLEANUP', { deletedCount });
 
-  return result.changes;
+  return deletedCount;
 }
 
-/**
- * Get session stats
- */
-export function getSessionStats(): {
+export async function getSessionStats(): Promise<{
   activeSessionCount: number;
   expiredSessionCount: number;
-} {
-  const db = getDatabase();
+}> {
   const now = new Date().toISOString();
 
-  const activeStmt = db.prepare('SELECT COUNT(*) as count FROM sessions WHERE expires_at > ?');
-  const expiredStmt = db.prepare('SELECT COUNT(*) as count FROM sessions WHERE expires_at <= ?');
-
-  const active = activeStmt.get(now) as { count: number };
-  const expired = expiredStmt.get(now) as { count: number };
+  const activeResult = await query<{ count: string }>(
+    'SELECT COUNT(*) as count FROM sessions WHERE expires_at > $1',
+    [now]
+  );
+  const expiredResult = await query<{ count: string }>(
+    'SELECT COUNT(*) as count FROM sessions WHERE expires_at <= $1',
+    [now]
+  );
 
   return {
-    activeSessionCount: active.count,
-    expiredSessionCount: expired.count,
+    activeSessionCount: parseInt(activeResult.rows[0]?.count || '0'),
+    expiredSessionCount: parseInt(expiredResult.rows[0]?.count || '0'),
   };
 }

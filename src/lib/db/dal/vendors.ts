@@ -5,7 +5,7 @@
  * A user with role "vendor" gets a corresponding vendor record.
  */
 
-import { getDatabase, runTransaction } from '../index';
+import { query, runTransaction } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 
 export type VerificationStatus = 'pending' | 'under_review' | 'verified' | 'rejected' | 'suspended';
@@ -74,20 +74,17 @@ export interface UpdateVendorInput {
 /**
  * Create a new vendor record
  */
-export function createVendor(input: CreateVendorInput): DbVendor {
-  const db = getDatabase();
+export async function createVendor(input: CreateVendorInput): Promise<DbVendor> {
   const id = `vendor_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
+  await query(`
     INSERT INTO vendors (
       id, user_id, business_name, business_type, description,
       phone, email, address, city, region,
       verification_status, store_status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', 'inactive', ?, ?)
-  `);
-
-  stmt.run(
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'pending', 'inactive', $11, $12)
+  `, [
     id,
     input.userId,
     input.businessName,
@@ -100,112 +97,110 @@ export function createVendor(input: CreateVendorInput): DbVendor {
     input.region || null,
     now,
     now
-  );
+  ]);
 
-  return getVendorById(id)!;
+  const vendor = await getVendorById(id);
+  return vendor!;
 }
 
 /**
  * Get vendor by ID
  */
-export function getVendorById(id: string): DbVendor | null {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM vendors WHERE id = ?');
-  return stmt.get(id) as DbVendor | null;
+export async function getVendorById(id: string): Promise<DbVendor | null> {
+  const result = await query<DbVendor>('SELECT * FROM vendors WHERE id = $1', [id]);
+  return result.rows[0] || null;
 }
 
 /**
  * Get vendor by user ID
  */
-export function getVendorByUserId(userId: string): DbVendor | null {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM vendors WHERE user_id = ?');
-  return stmt.get(userId) as DbVendor | null;
+export async function getVendorByUserId(userId: string): Promise<DbVendor | null> {
+  const result = await query<DbVendor>('SELECT * FROM vendors WHERE user_id = $1', [userId]);
+  return result.rows[0] || null;
 }
 
 /**
  * Get all vendors with optional filters
  */
-export function getVendors(options?: {
+export async function getVendors(options?: {
   verificationStatus?: VerificationStatus;
   storeStatus?: StoreStatus;
   limit?: number;
   offset?: number;
-}): DbVendor[] {
-  const db = getDatabase();
-  let query = 'SELECT * FROM vendors WHERE 1=1';
+}): Promise<DbVendor[]> {
+  let queryStr = 'SELECT * FROM vendors WHERE 1=1';
   const params: unknown[] = [];
+  let paramIndex = 1;
 
   if (options?.verificationStatus) {
-    query += ' AND verification_status = ?';
+    queryStr += ` AND verification_status = $${paramIndex++}`;
     params.push(options.verificationStatus);
   }
 
   if (options?.storeStatus) {
-    query += ' AND store_status = ?';
+    queryStr += ` AND store_status = $${paramIndex++}`;
     params.push(options.storeStatus);
   }
 
-  query += ' ORDER BY created_at DESC';
+  queryStr += ' ORDER BY created_at DESC';
 
   if (options?.limit) {
-    query += ' LIMIT ?';
+    queryStr += ` LIMIT $${paramIndex++}`;
     params.push(options.limit);
   }
 
   if (options?.offset) {
-    query += ' OFFSET ?';
+    queryStr += ` OFFSET $${paramIndex++}`;
     params.push(options.offset);
   }
 
-  const stmt = db.prepare(query);
-  return stmt.all(...params) as DbVendor[];
+  const result = await query<DbVendor>(queryStr, params);
+  return result.rows;
 }
 
 /**
  * Get vendors with user data joined
  */
-export function getVendorsWithUsers(options?: {
+export async function getVendorsWithUsers(options?: {
   verificationStatus?: VerificationStatus;
   storeStatus?: StoreStatus;
   limit?: number;
-}): (DbVendor & { user_name: string; user_email: string; user_status: string })[] {
-  const db = getDatabase();
-  let query = `
+}): Promise<(DbVendor & { user_name: string; user_email: string; user_status: string })[]> {
+  let queryStr = `
     SELECT v.*, u.name as user_name, u.email as user_email, u.status as user_status
     FROM vendors v
     JOIN users u ON v.user_id = u.id
     WHERE u.is_deleted = 0
   `;
   const params: unknown[] = [];
+  let paramIndex = 1;
 
   if (options?.verificationStatus) {
-    query += ' AND v.verification_status = ?';
+    queryStr += ` AND v.verification_status = $${paramIndex++}`;
     params.push(options.verificationStatus);
   }
 
   if (options?.storeStatus) {
-    query += ' AND v.store_status = ?';
+    queryStr += ` AND v.store_status = $${paramIndex++}`;
     params.push(options.storeStatus);
   }
 
-  query += ' ORDER BY v.created_at DESC';
+  queryStr += ' ORDER BY v.created_at DESC';
 
   if (options?.limit) {
-    query += ' LIMIT ?';
+    queryStr += ` LIMIT $${paramIndex++}`;
     params.push(options.limit);
   }
 
-  const stmt = db.prepare(query);
-  return stmt.all(...params) as (DbVendor & { user_name: string; user_email: string; user_status: string })[];
+  const result = await query<DbVendor & { user_name: string; user_email: string; user_status: string }>(queryStr, params);
+  return result.rows;
 }
 
 /**
  * Get pending vendors (for admin approval)
  */
-export function getPendingVendors(): (DbVendor & { user_name: string; user_email: string })[] {
-  const db = getDatabase();
-  const stmt = db.prepare(`
+export async function getPendingVendors(): Promise<(DbVendor & { user_name: string; user_email: string })[]> {
+  const result = await query<DbVendor & { user_name: string; user_email: string }>(`
     SELECT v.*, u.name as user_name, u.email as user_email
     FROM vendors v
     JOIN users u ON v.user_id = u.id
@@ -213,103 +208,102 @@ export function getPendingVendors(): (DbVendor & { user_name: string; user_email
     AND u.is_deleted = 0
     ORDER BY v.created_at ASC
   `);
-  return stmt.all() as (DbVendor & { user_name: string; user_email: string })[];
+  return result.rows;
 }
 
 /**
  * Update vendor
  */
-export function updateVendor(id: string, updates: UpdateVendorInput): DbVendor | null {
-  const db = getDatabase();
+export async function updateVendor(id: string, updates: UpdateVendorInput): Promise<DbVendor | null> {
   const now = new Date().toISOString();
 
-  const fields: string[] = ['updated_at = ?'];
+  const fields: string[] = ['updated_at = $1'];
   const values: unknown[] = [now];
+  let paramIndex = 2;
 
   if (updates.businessName !== undefined) {
-    fields.push('business_name = ?');
+    fields.push(`business_name = $${paramIndex++}`);
     values.push(updates.businessName);
   }
   if (updates.businessType !== undefined) {
-    fields.push('business_type = ?');
+    fields.push(`business_type = $${paramIndex++}`);
     values.push(updates.businessType);
   }
   if (updates.description !== undefined) {
-    fields.push('description = ?');
+    fields.push(`description = $${paramIndex++}`);
     values.push(updates.description);
   }
   if (updates.logo !== undefined) {
-    fields.push('logo = ?');
+    fields.push(`logo = $${paramIndex++}`);
     values.push(updates.logo);
   }
   if (updates.banner !== undefined) {
-    fields.push('banner = ?');
+    fields.push(`banner = $${paramIndex++}`);
     values.push(updates.banner);
   }
   if (updates.phone !== undefined) {
-    fields.push('phone = ?');
+    fields.push(`phone = $${paramIndex++}`);
     values.push(updates.phone);
   }
   if (updates.email !== undefined) {
-    fields.push('email = ?');
+    fields.push(`email = $${paramIndex++}`);
     values.push(updates.email);
   }
   if (updates.address !== undefined) {
-    fields.push('address = ?');
+    fields.push(`address = $${paramIndex++}`);
     values.push(updates.address);
   }
   if (updates.city !== undefined) {
-    fields.push('city = ?');
+    fields.push(`city = $${paramIndex++}`);
     values.push(updates.city);
   }
   if (updates.region !== undefined) {
-    fields.push('region = ?');
+    fields.push(`region = $${paramIndex++}`);
     values.push(updates.region);
   }
   if (updates.verificationStatus !== undefined) {
-    fields.push('verification_status = ?');
+    fields.push(`verification_status = $${paramIndex++}`);
     values.push(updates.verificationStatus);
   }
   if (updates.verificationDocuments !== undefined) {
-    fields.push('verification_documents = ?');
+    fields.push(`verification_documents = $${paramIndex++}`);
     values.push(updates.verificationDocuments);
   }
   if (updates.verificationNotes !== undefined) {
-    fields.push('verification_notes = ?');
+    fields.push(`verification_notes = $${paramIndex++}`);
     values.push(updates.verificationNotes);
   }
   if (updates.verifiedAt !== undefined) {
-    fields.push('verified_at = ?');
+    fields.push(`verified_at = $${paramIndex++}`);
     values.push(updates.verifiedAt);
   }
   if (updates.verifiedBy !== undefined) {
-    fields.push('verified_by = ?');
+    fields.push(`verified_by = $${paramIndex++}`);
     values.push(updates.verifiedBy);
   }
   if (updates.storeStatus !== undefined) {
-    fields.push('store_status = ?');
+    fields.push(`store_status = $${paramIndex++}`);
     values.push(updates.storeStatus);
   }
   if (updates.commissionRate !== undefined) {
-    fields.push('commission_rate = ?');
+    fields.push(`commission_rate = $${paramIndex++}`);
     values.push(updates.commissionRate);
   }
 
   values.push(id);
+  const sql = `UPDATE vendors SET ${fields.join(', ')} WHERE id = $${paramIndex}`;
+  const result = await query(sql, values);
 
-  const stmt = db.prepare(`UPDATE vendors SET ${fields.join(', ')} WHERE id = ?`);
-  const result = stmt.run(...values);
-
-  if (result.changes === 0) return null;
-  return getVendorById(id);
+  if ((result.rowCount ?? 0) === 0) return null;
+  return await getVendorById(id);
 }
 
 /**
  * Approve vendor
  */
-export function approveVendor(vendorId: string, approvedBy: string): DbVendor | null {
+export async function approveVendor(vendorId: string, approvedBy: string): Promise<DbVendor | null> {
   const now = new Date().toISOString();
-  return updateVendor(vendorId, {
+  return await updateVendor(vendorId, {
     verificationStatus: 'verified',
     verifiedAt: now,
     verifiedBy: approvedBy,
@@ -320,8 +314,8 @@ export function approveVendor(vendorId: string, approvedBy: string): DbVendor | 
 /**
  * Reject vendor
  */
-export function rejectVendor(vendorId: string, rejectedBy: string, reason: string): DbVendor | null {
-  return updateVendor(vendorId, {
+export async function rejectVendor(vendorId: string, rejectedBy: string, reason: string): Promise<DbVendor | null> {
+  return await updateVendor(vendorId, {
     verificationStatus: 'rejected',
     verificationNotes: reason,
     verifiedBy: rejectedBy,
@@ -332,8 +326,8 @@ export function rejectVendor(vendorId: string, rejectedBy: string, reason: strin
 /**
  * Suspend vendor
  */
-export function suspendVendor(vendorId: string, suspendedBy: string, reason: string): DbVendor | null {
-  return updateVendor(vendorId, {
+export async function suspendVendor(vendorId: string, suspendedBy: string, reason: string): Promise<DbVendor | null> {
+  return await updateVendor(vendorId, {
     verificationStatus: 'suspended',
     storeStatus: 'suspended',
     verificationNotes: reason,
@@ -344,66 +338,65 @@ export function suspendVendor(vendorId: string, suspendedBy: string, reason: str
 /**
  * Get vendor statistics
  */
-export function getVendorStats(): {
+export async function getVendorStats(): Promise<{
   total: number;
   pending: number;
   verified: number;
   rejected: number;
   suspended: number;
   activeStores: number;
-} {
-  const db = getDatabase();
-  const stats = db.prepare(`
+}> {
+  const result = await query<{
+    total: string;
+    pending: string;
+    verified: string;
+    rejected: string;
+    suspended: string;
+    active_stores: string;
+  }>(`
     SELECT
       COUNT(*) as total,
       SUM(CASE WHEN verification_status = 'pending' OR verification_status = 'under_review' THEN 1 ELSE 0 END) as pending,
       SUM(CASE WHEN verification_status = 'verified' THEN 1 ELSE 0 END) as verified,
       SUM(CASE WHEN verification_status = 'rejected' THEN 1 ELSE 0 END) as rejected,
       SUM(CASE WHEN verification_status = 'suspended' THEN 1 ELSE 0 END) as suspended,
-      SUM(CASE WHEN store_status = 'active' THEN 1 ELSE 0 END) as activeStores
+      SUM(CASE WHEN store_status = 'active' THEN 1 ELSE 0 END) as active_stores
     FROM vendors
-  `).get() as {
-    total: number;
-    pending: number;
-    verified: number;
-    rejected: number;
-    suspended: number;
-    activeStores: number;
-  };
+  `);
+
+  const stats = result.rows[0];
 
   return {
-    total: stats.total || 0,
-    pending: stats.pending || 0,
-    verified: stats.verified || 0,
-    rejected: stats.rejected || 0,
-    suspended: stats.suspended || 0,
-    activeStores: stats.activeStores || 0,
+    total: parseInt(stats?.total || '0'),
+    pending: parseInt(stats?.pending || '0'),
+    verified: parseInt(stats?.verified || '0'),
+    rejected: parseInt(stats?.rejected || '0'),
+    suspended: parseInt(stats?.suspended || '0'),
+    activeStores: parseInt(stats?.active_stores || '0'),
   };
 }
 
 /**
  * Delete vendor
  */
-export function deleteVendor(id: string): boolean {
-  const db = getDatabase();
-  const stmt = db.prepare('DELETE FROM vendors WHERE id = ?');
-  const result = stmt.run(id);
-  return result.changes > 0;
+export async function deleteVendor(id: string): Promise<boolean> {
+  const result = await query('DELETE FROM vendors WHERE id = $1', [id]);
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
  * Check if vendor can sell (is verified)
  */
-export function canVendorSell(vendorId: string): boolean {
-  const vendor = getVendorById(vendorId);
+export async function canVendorSell(vendorId: string): Promise<boolean> {
+  const vendor = await getVendorById(vendorId);
   return vendor?.verification_status === 'verified';
 }
 
 /**
  * Check if vendor can sell by user ID
  */
-export function canUserSell(userId: string): boolean {
-  const vendor = getVendorByUserId(userId);
+export async function canUserSell(userId: string): Promise<boolean> {
+  const vendor = await getVendorByUserId(userId);
   return vendor?.verification_status === 'verified';
 }
 
@@ -411,7 +404,7 @@ export function canUserSell(userId: string): boolean {
  * Update vendor verification status from KYC service (Smile Identity)
  * This is called by webhook handlers when verification results are received
  */
-export function updateVendorVerificationStatus(
+export async function updateVendorVerificationStatus(
   userId: string,
   data: {
     verificationStatus: VerificationStatus;
@@ -419,8 +412,8 @@ export function updateVendorVerificationStatus(
     smileJobId?: string;
     verifiedAt?: string;
   }
-): DbVendor | null {
-  const vendor = getVendorByUserId(userId);
+): Promise<DbVendor | null> {
+  const vendor = await getVendorByUserId(userId);
   if (!vendor) {
     console.error(`[VENDORS] Vendor not found for user ${userId}`);
     return null;
@@ -450,14 +443,14 @@ export function updateVendorVerificationStatus(
     updates.storeStatus = 'active';
   }
 
-  return updateVendor(vendor.id, updates);
+  return await updateVendor(vendor.id, updates);
 }
 
 /**
  * Set vendor KYC job ID (tracks pending Smile Identity verification)
  */
-export function setVendorKycJobId(userId: string, jobId: string): boolean {
-  const vendor = getVendorByUserId(userId);
+export async function setVendorKycJobId(userId: string, jobId: string): Promise<boolean> {
+  const vendor = await getVendorByUserId(userId);
   if (!vendor) return false;
 
   const existingDocs = vendor.verification_documents
@@ -466,7 +459,7 @@ export function setVendorKycJobId(userId: string, jobId: string): boolean {
   existingDocs.kycJobId = jobId;
   existingDocs.kycInitiatedAt = new Date().toISOString();
 
-  const result = updateVendor(vendor.id, {
+  const result = await updateVendor(vendor.id, {
     verificationStatus: 'under_review',
     verificationDocuments: JSON.stringify(existingDocs),
   });
@@ -477,8 +470,8 @@ export function setVendorKycJobId(userId: string, jobId: string): boolean {
 /**
  * Get vendor's pending KYC job ID
  */
-export function getVendorKycJobId(userId: string): string | null {
-  const vendor = getVendorByUserId(userId);
+export async function getVendorKycJobId(userId: string): Promise<string | null> {
+  const vendor = await getVendorByUserId(userId);
   if (!vendor || !vendor.verification_documents) return null;
 
   try {

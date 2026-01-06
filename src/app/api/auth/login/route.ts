@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
 
     console.log('[LOGIN_API] Starting atomic login', { email });
 
-    const result = loginUser(
+    const result = await loginUser(
       { email, password },
       { ipAddress, userAgent }
     );
@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       const error = result.error!;
       console.log('[LOGIN_API] Login failed:', error.code, error.message);
 
-      logAuthEvent(
+      await logAuthEvent(
         'LOGIN_FAILED',
         email || 'unknown',
         email || 'unknown',
@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
     const { user, session } = result.data;
     console.log('[LOGIN_API] Login successful, setting session cookie', { userId: user.id, role: user.role });
 
-    logAuthEvent(
+    await logAuthEvent(
       'LOGIN_SUCCESS',
       user.id,
       user.email,
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[LOGIN_API] Unexpected error:', error);
 
-    logAuthEvent(
+    await logAuthEvent(
       'LOGIN_ERROR',
       'system',
       'unknown',

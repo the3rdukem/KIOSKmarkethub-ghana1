@@ -5,7 +5,7 @@
  * Credentials are stored encrypted in the database.
  */
 
-import { getDatabase } from '../index';
+import { query } from '../index';
 import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
 // Encryption key from environment or generate a default for development
@@ -397,17 +397,16 @@ export interface IntegrationWithCredentials {
 /**
  * Initialize default integrations in database if not present
  */
-export function initializeIntegrations(): void {
-  const db = getDatabase();
+export async function initializeIntegrations(): Promise<void> {
   const now = new Date().toISOString();
 
   for (const schema of INTEGRATION_SCHEMAS) {
-    const existing = db.prepare('SELECT id FROM integrations WHERE id = ?').get(schema.id);
-    if (!existing) {
-      db.prepare(`
+    const existing = await query('SELECT id FROM integrations WHERE id = $1', [schema.id]);
+    if (existing.rows.length === 0) {
+      await query(`
         INSERT INTO integrations (id, name, description, provider, category, is_enabled, is_configured, environment, status, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 0, 0, ?, 'not_configured', ?, ?)
-      `).run(schema.id, schema.name, schema.description, schema.provider, schema.category, schema.defaultEnvironment, now, now);
+        VALUES ($1, $2, $3, $4, $5, 0, 0, $6, 'not_configured', $7, $8)
+      `, [schema.id, schema.name, schema.description, schema.provider, schema.category, schema.defaultEnvironment, now, now]);
       console.log(`[INTEGRATIONS] Initialized ${schema.name}`);
     }
   }
@@ -423,9 +422,9 @@ export function getIntegrationSchema(id: string): IntegrationSchema | undefined 
 /**
  * Get all integrations with their schemas
  */
-export function getIntegrations(): IntegrationWithCredentials[] {
-  const db = getDatabase();
-  const integrations = db.prepare('SELECT * FROM integrations ORDER BY category, name').all() as DbIntegration[];
+export async function getIntegrations(): Promise<IntegrationWithCredentials[]> {
+  const result = await query<DbIntegration>('SELECT * FROM integrations ORDER BY category, name');
+  const integrations = result.rows;
 
   return integrations.map(i => ({
     id: i.id,
@@ -449,9 +448,9 @@ export function getIntegrations(): IntegrationWithCredentials[] {
 /**
  * Get integration by ID
  */
-export function getIntegrationById(id: string): IntegrationWithCredentials | null {
-  const db = getDatabase();
-  const integration = db.prepare('SELECT * FROM integrations WHERE id = ?').get(id) as DbIntegration | undefined;
+export async function getIntegrationById(id: string): Promise<IntegrationWithCredentials | null> {
+  const result = await query<DbIntegration>('SELECT * FROM integrations WHERE id = $1', [id]);
+  const integration = result.rows[0];
 
   if (!integration) return null;
 
@@ -491,47 +490,43 @@ function checkRequiredCredentials(id: string, credentials: Record<string, string
 /**
  * Update integration credentials
  */
-export function updateIntegrationCredentials(
+export async function updateIntegrationCredentials(
   id: string,
   credentials: Record<string, string>
-): IntegrationWithCredentials | null {
-  const db = getDatabase();
+): Promise<IntegrationWithCredentials | null> {
   const now = new Date().toISOString();
 
   // Check if all required fields have values to determine if configured
   const hasRequiredCredentials = checkRequiredCredentials(id, credentials);
   const encryptedCredentials = encryptCredentials(credentials);
 
-  const stmt = db.prepare(`
+  const result = await query(`
     UPDATE integrations SET
-      credentials = ?,
-      is_configured = ?,
-      status = ?,
-      updated_at = ?
-    WHERE id = ?
-  `);
-
-  const result = stmt.run(
+      credentials = $1,
+      is_configured = $2,
+      status = $3,
+      updated_at = $4
+    WHERE id = $5
+  `, [
     encryptedCredentials,
     hasRequiredCredentials ? 1 : 0,
     hasRequiredCredentials ? 'disconnected' : 'not_configured',
     now,
     id
-  );
+  ]);
 
-  if (result.changes === 0) return null;
+  if ((result.rowCount ?? 0) === 0) return null;
   return getIntegrationById(id);
 }
 
 /**
  * Toggle integration enabled status
  */
-export function toggleIntegration(id: string, enabled: boolean): IntegrationWithCredentials | null {
-  const db = getDatabase();
+export async function toggleIntegration(id: string, enabled: boolean): Promise<IntegrationWithCredentials | null> {
   const now = new Date().toISOString();
 
   // Get current integration
-  const current = getIntegrationById(id);
+  const current = await getIntegrationById(id);
   if (!current) return null;
 
   // Can only enable if configured
@@ -541,66 +536,60 @@ export function toggleIntegration(id: string, enabled: boolean): IntegrationWith
 
   const newStatus: IntegrationStatus = enabled ? 'connected' : 'disconnected';
 
-  const stmt = db.prepare(`
+  await query(`
     UPDATE integrations SET
-      is_enabled = ?,
-      status = ?,
-      updated_at = ?
-    WHERE id = ?
-  `);
+      is_enabled = $1,
+      status = $2,
+      updated_at = $3
+    WHERE id = $4
+  `, [enabled ? 1 : 0, newStatus, now, id]);
 
-  stmt.run(enabled ? 1 : 0, newStatus, now, id);
   return getIntegrationById(id);
 }
 
 /**
  * Update integration environment (demo/live/sandbox/production)
  */
-export function updateIntegrationEnvironment(
+export async function updateIntegrationEnvironment(
   id: string,
   environment: IntegrationEnvironment
-): IntegrationWithCredentials | null {
-  const db = getDatabase();
+): Promise<IntegrationWithCredentials | null> {
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
+  await query(`
     UPDATE integrations SET
-      environment = ?,
-      updated_at = ?
-    WHERE id = ?
-  `);
+      environment = $1,
+      updated_at = $2
+    WHERE id = $3
+  `, [environment, now, id]);
 
-  stmt.run(environment, now, id);
   return getIntegrationById(id);
 }
 
 /**
  * Update integration test result
  */
-export function updateIntegrationTestResult(
+export async function updateIntegrationTestResult(
   id: string,
   success: boolean,
   error?: string
-): IntegrationWithCredentials | null {
-  const db = getDatabase();
+): Promise<IntegrationWithCredentials | null> {
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
+  await query(`
     UPDATE integrations SET
-      status = ?,
-      last_tested_at = ?,
-      last_error = ?,
-      updated_at = ?
-    WHERE id = ?
-  `);
-
-  stmt.run(
+      status = $1,
+      last_tested_at = $2,
+      last_error = $3,
+      updated_at = $4
+    WHERE id = $5
+  `, [
     success ? 'connected' : 'error',
     now,
     error || null,
     now,
     id
-  );
+  ]);
 
   return getIntegrationById(id);
 }
@@ -608,15 +597,15 @@ export function updateIntegrationTestResult(
 /**
  * Get Paystack credentials (convenience function)
  */
-export function getPaystackCredentials(): {
+export async function getPaystackCredentials(): Promise<{
   publicKey: string;
   secretKey: string;
   webhookSecret: string;
   isConfigured: boolean;
   isEnabled: boolean;
   environment: IntegrationEnvironment;
-} | null {
-  const integration = getIntegrationById('paystack');
+} | null> {
+  const integration = await getIntegrationById('paystack');
   if (!integration) return null;
 
   return {
@@ -632,13 +621,13 @@ export function getPaystackCredentials(): {
 /**
  * Get Google Maps credentials
  */
-export function getGoogleMapsCredentials(): {
+export async function getGoogleMapsCredentials(): Promise<{
   apiKey: string;
   enabledServices: string[];
   isConfigured: boolean;
   isEnabled: boolean;
-} | null {
-  const integration = getIntegrationById('google_maps');
+} | null> {
+  const integration = await getIntegrationById('google_maps');
   if (!integration) return null;
 
   const servicesStr = integration.credentials['enabledServices'] || 'places,autocomplete,geocoding';
@@ -654,7 +643,7 @@ export function getGoogleMapsCredentials(): {
 /**
  * Get Smile Identity credentials
  */
-export function getSmileIdentityCredentials(): {
+export async function getSmileIdentityCredentials(): Promise<{
   partnerId: string;
   apiKey: string;
   callbackUrl: string;
@@ -664,8 +653,8 @@ export function getSmileIdentityCredentials(): {
   isConfigured: boolean;
   isEnabled: boolean;
   environment: IntegrationEnvironment;
-} | null {
-  const integration = getIntegrationById('smile_identity');
+} | null> {
+  const integration = await getIntegrationById('smile_identity');
   if (!integration) return null;
 
   return {
@@ -685,7 +674,7 @@ export function getSmileIdentityCredentials(): {
  * Test Paystack connection
  */
 export async function testPaystackConnection(): Promise<{ success: boolean; error?: string }> {
-  const credentials = getPaystackCredentials();
+  const credentials = await getPaystackCredentials();
 
   if (!credentials || !credentials.secretKey) {
     return { success: false, error: 'Paystack secret key not configured' };
@@ -701,17 +690,17 @@ export async function testPaystackConnection(): Promise<{ success: boolean; erro
     });
 
     if (response.ok) {
-      updateIntegrationTestResult('paystack', true);
+      await updateIntegrationTestResult('paystack', true);
       return { success: true };
     } else {
       const data = await response.json();
       const error = data.message || 'Failed to connect to Paystack';
-      updateIntegrationTestResult('paystack', false, error);
+      await updateIntegrationTestResult('paystack', false, error);
       return { success: false, error };
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Connection failed';
-    updateIntegrationTestResult('paystack', false, errorMessage);
+    await updateIntegrationTestResult('paystack', false, errorMessage);
     return { success: false, error: errorMessage };
   }
 }
@@ -720,7 +709,7 @@ export async function testPaystackConnection(): Promise<{ success: boolean; erro
  * Test Google Maps connection
  */
 export async function testGoogleMapsConnection(): Promise<{ success: boolean; error?: string }> {
-  const credentials = getGoogleMapsCredentials();
+  const credentials = await getGoogleMapsCredentials();
 
   if (!credentials || !credentials.apiKey) {
     return { success: false, error: 'Google Maps API key not configured' };
@@ -735,19 +724,19 @@ export async function testGoogleMapsConnection(): Promise<{ success: boolean; er
     const data = await response.json();
 
     if (data.status === 'OK') {
-      updateIntegrationTestResult('google_maps', true);
+      await updateIntegrationTestResult('google_maps', true);
       return { success: true };
     } else if (data.status === 'REQUEST_DENIED') {
       const error = data.error_message || 'API key is invalid or restricted';
-      updateIntegrationTestResult('google_maps', false, error);
+      await updateIntegrationTestResult('google_maps', false, error);
       return { success: false, error };
     } else {
-      updateIntegrationTestResult('google_maps', true);
+      await updateIntegrationTestResult('google_maps', true);
       return { success: true };
     }
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Connection failed';
-    updateIntegrationTestResult('google_maps', false, errorMessage);
+    await updateIntegrationTestResult('google_maps', false, errorMessage);
     return { success: false, error: errorMessage };
   }
 }
@@ -756,13 +745,13 @@ export async function testGoogleMapsConnection(): Promise<{ success: boolean; er
  * Test Smile Identity connection
  */
 export async function testSmileIdentityConnection(): Promise<{ success: boolean; error?: string }> {
-  const credentials = getSmileIdentityCredentials();
+  const credentials = await getSmileIdentityCredentials();
 
   if (!credentials || !credentials.partnerId || !credentials.apiKey) {
     return { success: false, error: 'Smile Identity credentials not configured' };
   }
 
-  const integration = getIntegrationById('smile_identity');
+  const integration = await getIntegrationById('smile_identity');
   const isSandbox = integration?.environment === 'sandbox';
 
   try {
@@ -784,29 +773,29 @@ export async function testSmileIdentityConnection(): Promise<{ success: boolean;
       // 401 might mean auth works but endpoint requires different auth
       // For sandbox, we accept this as "working"
       if (isSandbox) {
-        updateIntegrationTestResult('smile_identity', true);
+        await updateIntegrationTestResult('smile_identity', true);
         return { success: true };
       }
     }
 
     // For sandbox mode, just validate the credential format
     if (isSandbox && credentials.partnerId && credentials.apiKey) {
-      updateIntegrationTestResult('smile_identity', true);
+      await updateIntegrationTestResult('smile_identity', true);
       return { success: true };
     }
 
     const error = 'Failed to connect to Smile Identity';
-    updateIntegrationTestResult('smile_identity', false, error);
+    await updateIntegrationTestResult('smile_identity', false, error);
     return { success: false, error };
   } catch (error) {
     // For sandbox, network errors are okay - credentials are validated
     if (credentials.partnerId && credentials.apiKey) {
-      updateIntegrationTestResult('smile_identity', true);
+      await updateIntegrationTestResult('smile_identity', true);
       return { success: true };
     }
 
     const errorMessage = error instanceof Error ? error.message : 'Connection failed';
-    updateIntegrationTestResult('smile_identity', false, errorMessage);
+    await updateIntegrationTestResult('smile_identity', false, errorMessage);
     return { success: false, error: errorMessage };
   }
 }
@@ -824,9 +813,9 @@ export async function testIntegrationConnection(id: string): Promise<{ success: 
       return testSmileIdentityConnection();
     default:
       // Generic test - just validate credentials exist
-      const integration = getIntegrationById(id);
+      const integration = await getIntegrationById(id);
       if (integration && integration.isConfigured) {
-        updateIntegrationTestResult(id, true);
+        await updateIntegrationTestResult(id, true);
         return { success: true };
       }
       return { success: false, error: 'Integration not configured' };
@@ -836,43 +825,46 @@ export async function testIntegrationConnection(id: string): Promise<{ success: 
 /**
  * Get integration stats
  */
-export function getIntegrationStats(): {
+export async function getIntegrationStats(): Promise<{
   total: number;
   configured: number;
   enabled: number;
   connected: number;
   byCategory: Record<string, { total: number; connected: number }>;
-} {
-  const db = getDatabase();
-
-  const stats = db.prepare(`
+}> {
+  const statsResult = await query<{ total: string; configured: string; enabled: string; connected: string }>(`
     SELECT
       COUNT(*) as total,
       SUM(CASE WHEN is_configured = 1 THEN 1 ELSE 0 END) as configured,
       SUM(CASE WHEN is_enabled = 1 THEN 1 ELSE 0 END) as enabled,
       SUM(CASE WHEN status = 'connected' THEN 1 ELSE 0 END) as connected
     FROM integrations
-  `).get() as { total: number; configured: number; enabled: number; connected: number };
+  `);
+  const stats = statsResult.rows[0];
 
-  const categories = db.prepare(`
+  const categoriesResult = await query<{ category: string; total: string; connected: string }>(`
     SELECT
       category,
       COUNT(*) as total,
       SUM(CASE WHEN status = 'connected' AND is_enabled = 1 THEN 1 ELSE 0 END) as connected
     FROM integrations
     GROUP BY category
-  `).all() as { category: string; total: number; connected: number }[];
+  `);
+  const categories = categoriesResult.rows;
 
   const byCategory: Record<string, { total: number; connected: number }> = {};
   for (const cat of categories) {
-    byCategory[cat.category] = { total: cat.total, connected: cat.connected };
+    byCategory[cat.category] = { 
+      total: parseInt(cat.total) || 0, 
+      connected: parseInt(cat.connected) || 0 
+    };
   }
 
   return {
-    total: stats.total || 0,
-    configured: stats.configured || 0,
-    enabled: stats.enabled || 0,
-    connected: stats.connected || 0,
+    total: parseInt(stats?.total || '0'),
+    configured: parseInt(stats?.configured || '0'),
+    enabled: parseInt(stats?.enabled || '0'),
+    connected: parseInt(stats?.connected || '0'),
     byCategory,
   };
 }

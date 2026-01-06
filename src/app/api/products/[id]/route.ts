@@ -28,7 +28,7 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
-    const product = getProductById(id);
+    const product = await getProductById(id);
 
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (product.status !== 'active') {
       const cookieStore = await cookies();
       const sessionToken = cookieStore.get('session_token')?.value;
-      const session = sessionToken ? validateSession(sessionToken) : null;
+      const session = sessionToken ? await validateSession(sessionToken) : null;
 
       if (!session) {
         return NextResponse.json({ error: 'Product not found' }, { status: 404 });
@@ -103,12 +103,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
-    const product = getProductById(id);
+    const product = await getProductById(id);
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
@@ -133,12 +133,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (body.status === 'active' && product.status !== 'active') {
       // Vendor trying to publish - check verification
       if (isVendor) {
-        const vendorEntity = getVendorByUserId(session.user_id);
-        const user = getUserById(session.user_id);
+        const vendorEntity = await getVendorByUserId(session.user_id);
+        const user = await getUserById(session.user_id);
         const verificationStatus = vendorEntity?.verification_status || user?.verification_status;
 
         if (verificationStatus !== 'verified') {
-          createAuditLog({
+          await createAuditLog({
             action: 'PRODUCT_PUBLISH_BLOCKED',
             category: 'product',
             targetId: product.id,
@@ -160,8 +160,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         }
       } else if (isAdmin) {
         // Admin publishing on behalf of vendor - check vendor's verification
-        const vendorEntity = getVendorByUserId(product.vendor_id);
-        const vendorUser = getUserById(product.vendor_id);
+        const vendorEntity = await getVendorByUserId(product.vendor_id);
+        const vendorUser = await getUserById(product.vendor_id);
         const verificationStatus = vendorEntity?.verification_status || vendorUser?.verification_status;
 
         if (verificationStatus !== 'verified') {
@@ -195,7 +195,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       updates.featuredBy = session.user_id;
     }
 
-    const updatedProduct = updateProduct(id, updates);
+    const updatedProduct = await updateProduct(id, updates);
 
     if (!updatedProduct) {
       return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
@@ -203,7 +203,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Log product update with status change info
     const statusChanged = body.status !== undefined && body.status !== product.status;
-    createAuditLog({
+    await createAuditLog({
       action: statusChanged && body.status === 'active' ? 'PRODUCT_PUBLISHED' : 'PRODUCT_UPDATED',
       category: 'product',
       adminId: isAdmin ? session.user_id : undefined,
@@ -250,12 +250,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
-    const product = getProductById(id);
+    const product = await getProductById(id);
     if (!product) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
@@ -269,7 +269,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
-    const success = deleteProduct(id);
+    const success = await deleteProduct(id);
 
     if (!success) {
       return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });

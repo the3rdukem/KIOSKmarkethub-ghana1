@@ -32,20 +32,20 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
     // Get vendor record
-    const vendor = getVendorByUserId(session.user_id);
+    const vendor = await getVendorByUserId(session.user_id);
 
     // Check if Smile Identity is available
     const smileIdAvailable = isSmileIdentityAvailable();
     const config = getSmileIdConfig();
 
     // Get pending KYC job ID if any
-    const pendingJobId = getVendorKycJobId(session.user_id);
+    const pendingJobId = await getVendorKycJobId(session.user_id);
 
     // If there's a pending job, check its status
     let pendingJobStatus = null;
@@ -99,7 +99,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get or create vendor record
-    const vendor = getVendorByUserId(session.user_id);
+    const vendor = await getVendorByUserId(session.user_id);
 
     if (!vendor) {
       // If no vendor record exists, we need to create one
@@ -149,7 +149,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if there's a pending verification
-    const existingJobId = getVendorKycJobId(session.user_id);
+    const existingJobId = await getVendorKycJobId(session.user_id);
     if (existingJobId && vendor.verification_status === 'under_review') {
       return NextResponse.json({
         error: 'Verification is already in progress',
@@ -175,10 +175,10 @@ export async function POST(request: NextRequest) {
 
       if (verificationResult.success && verificationResult.jobId) {
         // Store the job ID
-        setVendorKycJobId(session.user_id, verificationResult.jobId);
+        await setVendorKycJobId(session.user_id, verificationResult.jobId);
 
         // Log the action
-        createAuditLog({
+        await createAuditLog({
           action: 'VENDOR_KYC_INITIATED',
           category: 'vendor',
           adminId: session.user_id,
@@ -194,7 +194,7 @@ export async function POST(request: NextRequest) {
         const config = getSmileIdConfig();
         if (config?.environment === 'sandbox' && verificationResult.status === 'approved') {
           // Auto-approve in sandbox
-          updateVendor(vendor.id, {
+          await updateVendor(vendor.id, {
             verificationStatus: 'verified',
             verificationNotes: 'Verified via Smile Identity (Sandbox)',
             verifiedAt: new Date().toISOString(),
@@ -223,13 +223,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Manual review fallback
-    updateVendor(vendor.id, {
+    await updateVendor(vendor.id, {
       verificationStatus: 'under_review',
       verificationNotes: `Manual review requested. ID Type: ${idType}, ID Number: ${idNumber}`,
     });
 
     // Log the action
-    createAuditLog({
+    await createAuditLog({
       action: 'VENDOR_VERIFICATION_SUBMITTED',
       category: 'vendor',
       adminId: session.user_id,
@@ -267,7 +267,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -276,7 +276,7 @@ export async function PUT(request: NextRequest) {
 
     if (!jobId) {
       // Check for stored job ID
-      const storedJobId = getVendorKycJobId(session.user_id);
+      const storedJobId = await getVendorKycJobId(session.user_id);
       if (!storedJobId) {
         return NextResponse.json({ error: 'No pending verification found' }, { status: 400 });
       }

@@ -12,7 +12,7 @@
  * 4. Login is ROLE-AGNOSTIC - role determines redirect, not auth method
  */
 
-import { getDatabase, runTransaction } from '../index';
+import { query, runTransaction } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash, randomBytes } from 'crypto';
 
@@ -141,10 +141,10 @@ export interface CreateUserInput {
  * - Same verification state initialization
  * - Same database table (users)
  */
-export function createUser(
+export async function createUser(
   input: CreateUserInput,
   options?: { ipAddress?: string; userAgent?: string; createSession?: boolean }
-): AuthResult<{ user: AuthUser; session?: AuthSession }> {
+): Promise<AuthResult<{ user: AuthUser; session?: AuthSession }>> {
   console.log('[AUTH_SERVICE:CREATE_USER] Starting canonical user creation', {
     email: input.email,
     role: input.role,
@@ -180,23 +180,24 @@ export function createUser(
   }
 
   try {
-    const result = runTransaction(() => {
-      const db = getDatabase();
+    const result = await runTransaction(async (client) => {
       const now = new Date().toISOString();
 
       // Check email doesn't exist in users table
-      const existingUser = db
-        .prepare('SELECT id FROM users WHERE email = ? COLLATE NOCASE')
-        .get(input.email.toLowerCase());
-      if (existingUser) {
+      const existingUserResult = await client.query(
+        'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
+        [input.email.toLowerCase()]
+      );
+      if (existingUserResult.rows[0]) {
         throw { code: 'EMAIL_EXISTS' as AuthErrorCode, message: 'An account with this email already exists' };
       }
 
       // Also check admin_users table for backward compatibility
-      const existingAdmin = db
-        .prepare('SELECT id FROM admin_users WHERE email = ? COLLATE NOCASE')
-        .get(input.email.toLowerCase());
-      if (existingAdmin) {
+      const existingAdminResult = await client.query(
+        'SELECT id FROM admin_users WHERE LOWER(email) = LOWER($1)',
+        [input.email.toLowerCase()]
+      );
+      if (existingAdminResult.rows[0]) {
         throw { code: 'EMAIL_EXISTS' as AuthErrorCode, message: 'An account with this email already exists' };
       }
 
@@ -217,18 +218,14 @@ export function createUser(
       // Determine verification status
       const verificationStatus: VerificationStatus | null = input.role === 'vendor' ? 'pending' : null;
 
-      const insertResult = db
-        .prepare(
-          `
-        INSERT INTO users (
+      const insertResult = await client.query(
+        `INSERT INTO users (
           id, email, password_hash, name, role, status,
           phone, location, business_name, business_type,
           verification_status, created_at, updated_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `
-        )
-        .run(
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+        [
           userId,
           input.email.toLowerCase(),
           passwordHash,
@@ -242,14 +239,16 @@ export function createUser(
           verificationStatus,
           now,
           now
-        );
+        ]
+      );
 
-      if (insertResult.changes === 0) {
+      if ((insertResult.rowCount ?? 0) === 0) {
         throw { code: 'ROLE_ASSIGNMENT_FAILED' as AuthErrorCode, message: 'Failed to create user' };
       }
 
       // Verify user was created
-      const createdUser = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as Record<string, unknown>;
+      const createdUserResult = await client.query('SELECT * FROM users WHERE id = $1', [userId]);
+      const createdUser = createdUserResult.rows[0] as Record<string, unknown>;
       if (!createdUser || !createdUser.role) {
         throw { code: 'ROLE_ASSIGNMENT_FAILED' as AuthErrorCode, message: 'User creation verification failed' };
       }
@@ -265,17 +264,13 @@ export function createUser(
       // Create vendor entity if vendor role
       if (input.role === 'vendor') {
         const vendorId = `vendor_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
-        const vendorInsert = db
-          .prepare(
-            `
-          INSERT INTO vendors (
+        const vendorInsertResult = await client.query(
+          `INSERT INTO vendors (
             id, user_id, business_name, business_type, phone, email,
             verification_status, store_status, created_at, updated_at
           )
-          VALUES (?, ?, ?, ?, ?, ?, 'pending', 'inactive', ?, ?)
-        `
-          )
-          .run(
+          VALUES ($1, $2, $3, $4, $5, $6, 'pending', 'inactive', $7, $8)`,
+          [
             vendorId,
             userId,
             input.businessName || input.name,
@@ -284,9 +279,10 @@ export function createUser(
             input.email.toLowerCase(),
             now,
             now
-          );
+          ]
+        );
 
-        if (vendorInsert.changes === 0) {
+        if ((vendorInsertResult.rowCount ?? 0) === 0) {
           throw { code: 'ROLE_ASSIGNMENT_FAILED' as AuthErrorCode, message: 'Failed to create vendor entity' };
         }
 
@@ -326,14 +322,10 @@ export function createUser(
         const tokenHash = hashToken(token);
         const expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
 
-        const sessionResult = db
-          .prepare(
-            `
-          INSERT INTO sessions (id, user_id, user_role, token_hash, ip_address, user_agent, expires_at, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `
-          )
-          .run(
+        const sessionResult = await client.query(
+          `INSERT INTO sessions (id, user_id, user_role, token_hash, ip_address, user_agent, expires_at, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [
             sessionId,
             userId,
             createdUser.role,
@@ -342,9 +334,10 @@ export function createUser(
             options?.userAgent || null,
             expiresAt,
             now
-          );
+          ]
+        );
 
-        if (sessionResult.changes === 0) {
+        if ((sessionResult.rowCount ?? 0) === 0) {
           throw { code: 'SESSION_CREATION_FAILED' as AuthErrorCode, message: 'Failed to create session' };
         }
 
@@ -429,10 +422,10 @@ export interface RegisterInput {
  * Register a new user (buyer or vendor)
  * Uses canonical createUser() internally
  */
-export function registerUser(
+export async function registerUser(
   input: RegisterInput,
   options?: { ipAddress?: string; userAgent?: string }
-): AuthResult<{ user: AuthUser; session: AuthSession }> {
+): Promise<AuthResult<{ user: AuthUser; session: AuthSession }>> {
   // Only allow buyer/vendor registration through this endpoint
   if (input.role !== 'buyer' && input.role !== 'vendor') {
     return {
@@ -441,7 +434,7 @@ export function registerUser(
     };
   }
 
-  const result = createUser(
+  const result = await createUser(
     {
       email: input.email,
       password: input.password,
@@ -487,10 +480,10 @@ export interface LoginInput {
  * Returns the same AuthUser format regardless of source.
  * Role determines redirect AFTER successful login, not auth method.
  */
-export function loginUser(
+export async function loginUser(
   input: LoginInput,
   options?: { ipAddress?: string; userAgent?: string }
-): AuthResult<{ user: AuthUser; session: AuthSession }> {
+): Promise<AuthResult<{ user: AuthUser; session: AuthSession }>> {
   console.log('[AUTH_SERVICE:LOGIN] Starting unified login', { email: input.email });
 
   if (!input.email || !input.password) {
@@ -498,22 +491,25 @@ export function loginUser(
   }
 
   try {
-    const result = runTransaction(() => {
-      const db = getDatabase();
+    const result = await runTransaction(async (client) => {
       const now = new Date().toISOString();
 
       // Step 1: Check users table first
-      let user = db
-        .prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE AND is_deleted = 0')
-        .get(input.email.toLowerCase()) as Record<string, unknown> | undefined;
+      const userResult = await client.query(
+        'SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND is_deleted = 0',
+        [input.email.toLowerCase()]
+      );
+      let user = userResult.rows[0] as Record<string, unknown> | undefined;
 
       let isLegacyAdmin = false;
 
       // Step 2: If not found in users, check admin_users table
       if (!user) {
-        const admin = db
-          .prepare('SELECT * FROM admin_users WHERE email = ? COLLATE NOCASE')
-          .get(input.email.toLowerCase()) as Record<string, unknown> | undefined;
+        const adminResult = await client.query(
+          'SELECT * FROM admin_users WHERE LOWER(email) = LOWER($1)',
+          [input.email.toLowerCase()]
+        );
+        const admin = adminResult.rows[0] as Record<string, unknown> | undefined;
 
         if (admin) {
           // Found in admin_users table
@@ -590,7 +586,7 @@ export function loginUser(
 
       // Step 7: Fix missing vendor verification status
       if (user.role === 'vendor' && !user.verification_status && !isLegacyAdmin) {
-        db.prepare('UPDATE users SET verification_status = ? WHERE id = ?').run('pending', user.id);
+        await client.query('UPDATE users SET verification_status = $1 WHERE id = $2', ['pending', user.id]);
         user.verification_status = 'pending';
       }
 
@@ -600,14 +596,10 @@ export function loginUser(
       const tokenHash = hashToken(token);
       const expiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
 
-      const sessionResult = db
-        .prepare(
-          `
-        INSERT INTO sessions (id, user_id, user_role, token_hash, ip_address, user_agent, expires_at, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `
-        )
-        .run(
+      const sessionResult = await client.query(
+        `INSERT INTO sessions (id, user_id, user_role, token_hash, ip_address, user_agent, expires_at, created_at)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [
           sessionId,
           user.id,
           user.role,
@@ -616,17 +608,18 @@ export function loginUser(
           options?.userAgent || null,
           expiresAt,
           now
-        );
+        ]
+      );
 
-      if (sessionResult.changes === 0) {
+      if ((sessionResult.rowCount ?? 0) === 0) {
         throw { code: 'SESSION_CREATION_FAILED' as AuthErrorCode, message: 'Failed to create session' };
       }
 
       // Step 9: Update last login
       if (isLegacyAdmin) {
-        db.prepare('UPDATE admin_users SET last_login_at = ?, updated_at = ? WHERE id = ?').run(now, now, user.id);
+        await client.query('UPDATE admin_users SET last_login_at = $1, updated_at = $2 WHERE id = $3', [now, now, user.id]);
       } else {
-        db.prepare('UPDATE users SET last_login_at = ?, updated_at = ? WHERE id = ?').run(now, now, user.id);
+        await client.query('UPDATE users SET last_login_at = $1, updated_at = $2 WHERE id = $3', [now, now, user.id]);
       }
 
       console.log('[AUTH_SERVICE:LOGIN] Success', { userId: user.id, role: user.role, isLegacyAdmin });
@@ -699,11 +692,11 @@ export function loginUser(
 // Now just calls unified loginUser()
 // ============================================
 
-export function loginAdmin(
+export async function loginAdmin(
   input: { email: string; password: string },
   options?: { ipAddress?: string; userAgent?: string }
-): AuthResult<{ admin: AuthUser; session: AuthSession }> {
-  const result = loginUser(input, options);
+): Promise<AuthResult<{ admin: AuthUser; session: AuthSession }>> {
+  const result = await loginUser(input, options);
 
   if (!result.success || !result.data) {
     // Map error for admin context
@@ -740,22 +733,23 @@ export function loginAdmin(
 // SESSION VALIDATION
 // ============================================
 
-export function validateSessionToken(token: string): AuthResult<{
+export async function validateSessionToken(token: string): Promise<AuthResult<{
   session: { id: string; userId: string; userRole: UserRole; expiresAt: string };
   user?: AuthUser;
-}> {
+}>> {
   if (!token) {
     return { success: false, error: { code: 'INVALID_INPUT', message: 'Session token is required' } };
   }
 
   try {
-    const db = getDatabase();
     const tokenHash = hashToken(token);
     const now = new Date().toISOString();
 
-    const session = db
-      .prepare('SELECT * FROM sessions WHERE token_hash = ? AND expires_at > ?')
-      .get(tokenHash, now) as Record<string, unknown> | undefined;
+    const sessionResult = await query<Record<string, unknown>>(
+      'SELECT * FROM sessions WHERE token_hash = $1 AND expires_at > $2',
+      [tokenHash, now]
+    );
+    const session = sessionResult.rows[0];
 
     if (!session) {
       return { success: false, error: { code: 'INVALID_CREDENTIALS', message: 'Session is invalid or expired' } };
@@ -765,7 +759,11 @@ export function validateSessionToken(token: string): AuthResult<{
 
     // Check for admin in admin_users table first (legacy)
     if (userRole === 'admin' || userRole === 'master_admin') {
-      const admin = db.prepare('SELECT * FROM admin_users WHERE id = ?').get(session.user_id) as Record<string, unknown> | undefined;
+      const adminResult = await query<Record<string, unknown>>(
+        'SELECT * FROM admin_users WHERE id = $1',
+        [session.user_id]
+      );
+      const admin = adminResult.rows[0];
 
       if (admin) {
         if (admin.is_active !== 1) {
@@ -774,7 +772,7 @@ export function validateSessionToken(token: string): AuthResult<{
 
         // Extend session
         const newExpiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
-        db.prepare('UPDATE sessions SET expires_at = ? WHERE id = ?').run(newExpiresAt, session.id);
+        await query('UPDATE sessions SET expires_at = $1 WHERE id = $2', [newExpiresAt, session.id]);
 
         let permissions: string[] = [];
         try {
@@ -819,9 +817,11 @@ export function validateSessionToken(token: string): AuthResult<{
     }
 
     // Check users table
-    const user = db
-      .prepare('SELECT * FROM users WHERE id = ? AND is_deleted = 0')
-      .get(session.user_id) as Record<string, unknown> | undefined;
+    const userResult = await query<Record<string, unknown>>(
+      'SELECT * FROM users WHERE id = $1 AND is_deleted = 0',
+      [session.user_id]
+    );
+    const user = userResult.rows[0];
 
     if (!user) {
       return { success: false, error: { code: 'USER_NOT_FOUND', message: 'User account not found' } };
@@ -840,7 +840,7 @@ export function validateSessionToken(token: string): AuthResult<{
 
     // Extend session
     const newExpiresAt = new Date(Date.now() + SESSION_DURATION_MS).toISOString();
-    db.prepare('UPDATE sessions SET expires_at = ? WHERE id = ?').run(newExpiresAt, session.id);
+    await query('UPDATE sessions SET expires_at = $1 WHERE id = $2', [newExpiresAt, session.id]);
 
     const authUser: AuthUser = {
       id: user.id as string,
@@ -895,13 +895,12 @@ export function validateSessionToken(token: string): AuthResult<{
 // LOGOUT
 // ============================================
 
-export function logoutByToken(token: string): boolean {
+export async function logoutByToken(token: string): Promise<boolean> {
   if (!token) return false;
   try {
-    const db = getDatabase();
     const tokenHash = hashToken(token);
-    const result = db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash);
-    return result.changes > 0;
+    const result = await query('DELETE FROM sessions WHERE token_hash = $1', [tokenHash]);
+    return (result.rowCount ?? 0) > 0;
   } catch (error) {
     console.error('[AUTH_SERVICE:LOGOUT] Error:', error);
     return false;
@@ -934,7 +933,7 @@ export function canVendorSell(verificationStatus: VerificationStatus | null): bo
  * Create an admin user (uses canonical createUser)
  * For use by master admins to create other admins
  */
-export function createAdminUser(
+export async function createAdminUser(
   input: {
     email: string;
     password: string;
@@ -943,8 +942,8 @@ export function createAdminUser(
     permissions?: string[];
   },
   options?: { createdBy?: string }
-): AuthResult<{ user: AuthUser }> {
-  const result = createUser(
+): Promise<AuthResult<{ user: AuthUser }>> {
+  const result = await createUser(
     {
       email: input.email,
       password: input.password,

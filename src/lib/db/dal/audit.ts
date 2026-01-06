@@ -4,7 +4,7 @@
  * Server-side only - provides audit logging for all system actions.
  */
 
-import { getDatabase } from '../index';
+import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 
 export type AuditCategory = 'vendor' | 'user' | 'product' | 'order' | 'api' | 'system' | 'auth' | 'admin' | 'security' | 'category';
@@ -62,20 +62,17 @@ export interface AuditLogFilters {
 /**
  * Create an audit log entry
  */
-export function createAuditLog(input: CreateAuditLogInput): DbAuditLog {
-  const db = getDatabase();
+export async function createAuditLog(input: CreateAuditLogInput): Promise<DbAuditLog> {
   const id = `log_${uuidv4().replace(/-/g, '').substring(0, 20)}`;
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
+  await query(`
     INSERT INTO audit_logs (
       id, action, category, admin_id, admin_name, admin_email, admin_role,
       target_id, target_type, target_name, details, previous_value, new_value,
       ip_address, user_agent, severity, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+  `, [
     id,
     input.action,
     input.category,
@@ -93,78 +90,78 @@ export function createAuditLog(input: CreateAuditLogInput): DbAuditLog {
     input.userAgent || null,
     input.severity || 'info',
     now
-  );
+  ]);
 
-  return getAuditLogById(id)!;
+  const result = await getAuditLogById(id);
+  return result!;
 }
 
 /**
  * Get audit log by ID
  */
-export function getAuditLogById(id: string): DbAuditLog | null {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM audit_logs WHERE id = ?');
-  return stmt.get(id) as DbAuditLog | null;
+export async function getAuditLogById(id: string): Promise<DbAuditLog | null> {
+  const result = await query<DbAuditLog>('SELECT * FROM audit_logs WHERE id = $1', [id]);
+  return result.rows[0] || null;
 }
 
 /**
  * Get audit logs with filters
  */
-export function getAuditLogs(filters?: AuditLogFilters): DbAuditLog[] {
-  const db = getDatabase();
-  let query = 'SELECT * FROM audit_logs WHERE 1=1';
+export async function getAuditLogs(filters?: AuditLogFilters): Promise<DbAuditLog[]> {
+  let sql = 'SELECT * FROM audit_logs WHERE 1=1';
   const params: unknown[] = [];
+  let paramIndex = 1;
 
   if (filters?.category) {
-    query += ' AND category = ?';
+    sql += ` AND category = $${paramIndex++}`;
     params.push(filters.category);
   }
 
   if (filters?.adminId) {
-    query += ' AND admin_id = ?';
+    sql += ` AND admin_id = $${paramIndex++}`;
     params.push(filters.adminId);
   }
 
   if (filters?.targetId) {
-    query += ' AND target_id = ?';
+    sql += ` AND target_id = $${paramIndex++}`;
     params.push(filters.targetId);
   }
 
   if (filters?.severity) {
-    query += ' AND severity = ?';
+    sql += ` AND severity = $${paramIndex++}`;
     params.push(filters.severity);
   }
 
   if (filters?.startDate) {
-    query += ' AND created_at >= ?';
+    sql += ` AND created_at >= $${paramIndex++}`;
     params.push(filters.startDate);
   }
 
   if (filters?.endDate) {
-    query += ' AND created_at <= ?';
+    sql += ` AND created_at <= $${paramIndex++}`;
     params.push(filters.endDate);
   }
 
-  query += ' ORDER BY created_at DESC';
+  sql += ' ORDER BY created_at DESC';
 
   if (filters?.limit) {
-    query += ' LIMIT ?';
+    sql += ` LIMIT $${paramIndex++}`;
     params.push(filters.limit);
   }
 
   if (filters?.offset) {
-    query += ' OFFSET ?';
+    sql += ` OFFSET $${paramIndex++}`;
     params.push(filters.offset);
   }
 
-  const stmt = db.prepare(query);
-  return stmt.all(...params) as DbAuditLog[];
+  const result = await query<DbAuditLog>(sql, params);
+  return result.rows;
 }
 
 /**
  * Get recent audit logs (last 24 hours)
  */
-export function getRecentAuditLogs(limit: number = 100): DbAuditLog[] {
+export async function getRecentAuditLogs(limit: number = 100): Promise<DbAuditLog[]> {
   const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   return getAuditLogs({ startDate: yesterday, limit });
 }
@@ -172,63 +169,58 @@ export function getRecentAuditLogs(limit: number = 100): DbAuditLog[] {
 /**
  * Get audit logs for a specific target
  */
-export function getTargetAuditLogs(targetId: string, limit?: number): DbAuditLog[] {
+export async function getTargetAuditLogs(targetId: string, limit?: number): Promise<DbAuditLog[]> {
   return getAuditLogs({ targetId, limit });
 }
 
 /**
  * Get audit logs by admin
  */
-export function getAdminAuditLogs(adminId: string, limit?: number): DbAuditLog[] {
+export async function getAdminAuditLogs(adminId: string, limit?: number): Promise<DbAuditLog[]> {
   return getAuditLogs({ adminId, limit });
 }
 
 /**
  * Get critical security logs
  */
-export function getSecurityLogs(limit?: number): DbAuditLog[] {
+export async function getSecurityLogs(limit?: number): Promise<DbAuditLog[]> {
   return getAuditLogs({ severity: 'critical', limit });
 }
 
 /**
  * Cleanup old audit logs (keep last N days)
  */
-export function cleanupAuditLogs(daysToKeep: number = 90): number {
-  const db = getDatabase();
+export async function cleanupAuditLogs(daysToKeep: number = 90): Promise<number> {
   const cutoffDate = new Date(Date.now() - daysToKeep * 24 * 60 * 60 * 1000).toISOString();
-
-  const stmt = db.prepare('DELETE FROM audit_logs WHERE created_at < ?');
-  const result = stmt.run(cutoffDate);
-  return result.changes;
+  const result = await query('DELETE FROM audit_logs WHERE created_at < $1', [cutoffDate]);
+  return result.rowCount ?? 0;
 }
 
 /**
  * Get audit log stats
  */
-export function getAuditLogStats(): {
+export async function getAuditLogStats(): Promise<{
   totalLogs: number;
   todayLogs: number;
   criticalLogs: number;
   byCategory: Record<string, number>;
-} {
-  const db = getDatabase();
+}> {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const todayStr = today.toISOString();
 
-  const totalStmt = db.prepare('SELECT COUNT(*) as count FROM audit_logs');
-  const todayStmt = db.prepare('SELECT COUNT(*) as count FROM audit_logs WHERE created_at >= ?');
-  const criticalStmt = db.prepare("SELECT COUNT(*) as count FROM audit_logs WHERE severity = 'critical'");
-  const categoryStmt = db.prepare('SELECT category, COUNT(*) as count FROM audit_logs GROUP BY category');
+  const totalResult = await query<{ count: string }>('SELECT COUNT(*) as count FROM audit_logs');
+  const todayResult = await query<{ count: string }>('SELECT COUNT(*) as count FROM audit_logs WHERE created_at >= $1', [todayStr]);
+  const criticalResult = await query<{ count: string }>("SELECT COUNT(*) as count FROM audit_logs WHERE severity = 'critical'");
+  const categoryResult = await query<{ category: string; count: string }>('SELECT category, COUNT(*) as count FROM audit_logs GROUP BY category');
 
-  const total = (totalStmt.get() as { count: number }).count;
-  const todayCount = (todayStmt.get(todayStr) as { count: number }).count;
-  const critical = (criticalStmt.get() as { count: number }).count;
-  const categories = categoryStmt.all() as { category: string; count: number }[];
+  const total = parseInt(totalResult.rows[0]?.count || '0');
+  const todayCount = parseInt(todayResult.rows[0]?.count || '0');
+  const critical = parseInt(criticalResult.rows[0]?.count || '0');
 
   const byCategory: Record<string, number> = {};
-  for (const cat of categories) {
-    byCategory[cat.category] = cat.count;
+  for (const cat of categoryResult.rows) {
+    byCategory[cat.category] = parseInt(cat.count);
   }
 
   return {
@@ -242,7 +234,7 @@ export function getAuditLogStats(): {
 /**
  * Log admin action (convenience function)
  */
-export function logAdminAction(
+export async function logAdminAction(
   action: string,
   admin: { id: string; name: string; email: string; role: string },
   options?: {
@@ -255,7 +247,7 @@ export function logAdminAction(
     newValue?: string;
     severity?: AuditSeverity;
   }
-): DbAuditLog {
+): Promise<DbAuditLog> {
   return createAuditLog({
     action,
     category: options?.category || 'admin',
@@ -270,7 +262,7 @@ export function logAdminAction(
 /**
  * Log security event (convenience function)
  */
-export function logSecurityEvent(
+export async function logSecurityEvent(
   action: string,
   details: string,
   options?: {
@@ -279,7 +271,7 @@ export function logSecurityEvent(
     ipAddress?: string;
     severity?: AuditSeverity;
   }
-): DbAuditLog {
+): Promise<DbAuditLog> {
   return createAuditLog({
     action,
     category: 'security',
@@ -292,7 +284,7 @@ export function logSecurityEvent(
 /**
  * Log auth event (convenience function)
  */
-export function logAuthEvent(
+export async function logAuthEvent(
   action: string,
   userId: string,
   userEmail: string,
@@ -302,7 +294,7 @@ export function logAuthEvent(
     userAgent?: string;
     details?: string;
   }
-): DbAuditLog {
+): Promise<DbAuditLog> {
   return createAuditLog({
     action,
     category: 'auth',

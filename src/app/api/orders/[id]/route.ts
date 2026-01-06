@@ -37,12 +37,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
-    const order = getOrderById(id);
+    const order = await getOrderById(id);
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
@@ -99,12 +99,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
-    const order = getOrderById(id);
+    const order = await getOrderById(id);
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
@@ -131,7 +131,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       updates.paymentStatus = body.paymentStatus;
     }
 
-    const updatedOrder = updateOrder(id, updates);
+    const updatedOrder = await updateOrder(id, updates);
 
     if (!updatedOrder) {
       return NextResponse.json({ error: 'Failed to update order' }, { status: 500 });
@@ -139,9 +139,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     // Log admin action
     if (isAdmin) {
-      const admin = getAdminById(session.user_id);
+      const admin = await getAdminById(session.user_id);
       if (admin) {
-        logAdminAction('ORDER_UPDATED', {
+        await logAdminAction('ORDER_UPDATED', {
           id: admin.id,
           name: admin.name,
           email: admin.email,
@@ -186,12 +186,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
-    const order = getOrderById(id);
+    const order = await getOrderById(id);
     if (!order) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
@@ -209,7 +209,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Order cannot be cancelled in its current state' }, { status: 400 });
     }
 
-    const success = cancelOrder(id);
+    const success = await cancelOrder(id);
 
     if (!success) {
       return NextResponse.json({ error: 'Failed to cancel order' }, { status: 500 });
@@ -217,9 +217,9 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
 
     // Log admin action
     if (isAdmin) {
-      const admin = getAdminById(session.user_id);
+      const admin = await getAdminById(session.user_id);
       if (admin) {
-        logAdminAction('ORDER_CANCELLED', {
+        await logAdminAction('ORDER_CANCELLED', {
           id: admin.id,
           name: admin.name,
           email: admin.email,

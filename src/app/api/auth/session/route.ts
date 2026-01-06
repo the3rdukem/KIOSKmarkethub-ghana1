@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ authenticated: false, user: null });
     }
 
-    const result = validateSessionToken(sessionToken);
+    const result = await validateSessionToken(sessionToken);
 
     if (!result.success || !result.data) {
       const error = result.error!;

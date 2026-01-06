@@ -1,78 +1,118 @@
 /**
- * Database Module
+ * Database Module - PostgreSQL
  *
- * Production-ready SQLite database for Replit migration.
+ * Production-ready PostgreSQL database for Replit.
  * This module provides:
- * - Database connection management
+ * - Database connection pool management
  * - Schema initialization
- * - Connection pooling
  * - Transaction support
  *
- * The database file is stored in the project root for persistence.
+ * Uses Replit's managed PostgreSQL via PGHOST/PGUSER/etc or DATABASE_URL.
  */
 
-import Database from 'better-sqlite3';
-import { readFileSync, existsSync, mkdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { Pool, PoolClient, QueryResult } from 'pg';
 
-// Database file location - use data directory for Replit persistence
-const DATA_DIR = process.env.DATA_DIR || join(process.cwd(), 'data');
-const DB_PATH = process.env.DATABASE_PATH || join(DATA_DIR, 'marketplace.db');
+// Build database connection string from Replit PostgreSQL env vars if available
+// This takes precedence over DATABASE_URL to ensure we use the Replit-managed database
+function buildConnectionString(): string {
+  // Prefer Replit's native PostgreSQL environment variables
+  const pgHost = process.env.PGHOST;
+  const pgDatabase = process.env.PGDATABASE;
+  const pgUser = process.env.PGUSER;
+  const pgPassword = process.env.PGPASSWORD;
+  const pgPort = process.env.PGPORT || '5432';
 
-// Ensure data directory exists
-if (!existsSync(DATA_DIR)) {
-  mkdirSync(DATA_DIR, { recursive: true });
+  if (pgHost && pgDatabase && pgUser && pgPassword) {
+    console.log('[DB] Using Replit PostgreSQL environment variables');
+    return `postgresql://${pgUser}:${encodeURIComponent(pgPassword)}@${pgHost}:${pgPort}/${pgDatabase}`;
+  }
+
+  // Fallback to DATABASE_URL
+  const databaseUrl = process.env.DATABASE_URL;
+  if (!databaseUrl) {
+    throw new Error(
+      'PostgreSQL connection not configured. Either PGHOST/PGDATABASE/PGUSER/PGPASSWORD or DATABASE_URL must be set.'
+    );
+  }
+
+  if (databaseUrl.includes('sqlite')) {
+    throw new Error(
+      'SQLite is not supported. DATABASE_URL must be a PostgreSQL connection string.'
+    );
+  }
+
+  // Handle postgres:// vs postgresql:// prefix mismatch
+  if (databaseUrl.startsWith('postgres://')) {
+    return databaseUrl.replace(/^postgres:\/\//, 'postgresql://');
+  }
+  return databaseUrl;
 }
 
-// Global database instance
-let db: Database.Database | null = null;
+const connectionString = buildConnectionString();
+
+// Global connection pool
+let pool: Pool | null = null;
+let isInitialized = false;
 
 /**
- * Get database connection (singleton pattern)
+ * Get database connection pool (singleton pattern)
  */
-export function getDatabase(): Database.Database {
-  if (!db) {
-    db = new Database(DB_PATH, {
-      verbose: process.env.NODE_ENV === 'development' ? console.log : undefined,
+export function getPool(): Pool {
+  if (!pool) {
+    pool = new Pool({
+      connectionString,
+      max: 20,
+      idleTimeoutMillis: 30000,
+      connectionTimeoutMillis: 10000,
     });
 
-    // Enable WAL mode for better performance
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
-
-    // Initialize schema on first connection
-    initializeSchema();
+    pool.on('error', (err) => {
+      console.error('[DB] Unexpected pool error:', err);
+    });
   }
 
-  return db;
+  return pool;
 }
 
 /**
- * Initialize database schema from SQL file
+ * Initialize database schema
  */
-function initializeSchema(): void {
-  if (!db) return;
+export async function initializeDatabase(): Promise<void> {
+  if (isInitialized) return;
 
-  const schemaPath = join(__dirname, 'schema.sql');
-
-  if (existsSync(schemaPath)) {
-    const schema = readFileSync(schemaPath, 'utf-8');
-    db.exec(schema);
-    console.log('[DB] Schema initialized successfully');
-  } else {
-    // If running in production without schema file, create inline
-    createSchemaInline();
+  const client = await getPool().connect();
+  try {
+    await createSchema(client);
+    await runMigrations(client);
+    await seedDefaultCategories(client);
+    isInitialized = true;
+    console.log('[DB] PostgreSQL database initialized successfully');
+  } finally {
+    client.release();
   }
 }
 
 /**
- * Create schema inline for production builds
+ * Create database schema
  */
-function createSchemaInline(): void {
-  if (!db) return;
+async function createSchema(client: PoolClient): Promise<void> {
+  // Check if schema already exists by looking for the users table
+  const tableCheck = await client.query(`
+    SELECT EXISTS (
+      SELECT FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      AND table_name = 'users'
+    );
+  `);
 
-  // Core tables only - full schema defined here for production
-  db.exec(`
+  if (tableCheck.rows[0].exists) {
+    console.log('[DB] Schema already exists, skipping creation');
+    return;
+  }
+
+  console.log('[DB] Creating database schema...');
+  
+  await client.query(`
     -- Users table
     CREATE TABLE IF NOT EXISTS users (
       id TEXT PRIMARY KEY,
@@ -95,9 +135,12 @@ function createSchemaInline(): void {
       store_banner TEXT,
       store_logo TEXT,
       is_deleted INTEGER DEFAULT 0,
+      deleted_at TEXT,
+      deleted_by TEXT,
+      deletion_reason TEXT,
       last_login_at TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
     );
 
     -- Admin users table
@@ -112,11 +155,11 @@ function createSchemaInline(): void {
       mfa_enabled INTEGER DEFAULT 0,
       created_by TEXT,
       last_login_at TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
     );
 
-    -- Vendors table (business entities linked to users)
+    -- Vendors table
     CREATE TABLE IF NOT EXISTS vendors (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL UNIQUE,
@@ -141,12 +184,12 @@ function createSchemaInline(): void {
       total_orders INTEGER DEFAULT 0,
       rating REAL DEFAULT 0,
       review_count INTEGER DEFAULT 0,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      CONSTRAINT fk_vendors_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
-    -- Categories table with dynamic form schema
+    -- Categories table
     CREATE TABLE IF NOT EXISTS categories (
       id TEXT PRIMARY KEY,
       name TEXT NOT NULL,
@@ -161,9 +204,9 @@ function createSchemaInline(): void {
       display_order INTEGER NOT NULL DEFAULT 0,
       form_schema TEXT,
       created_by TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
+      created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      CONSTRAINT fk_categories_parent FOREIGN KEY (parent_id) REFERENCES categories(id) ON DELETE SET NULL
     );
 
     -- Products table
@@ -198,9 +241,9 @@ function createSchemaInline(): void {
       is_featured INTEGER DEFAULT 0,
       featured_at TEXT,
       featured_by TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-      FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+      created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      CONSTRAINT fk_products_category FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
     );
 
     -- Orders table
@@ -220,8 +263,8 @@ function createSchemaInline(): void {
       shipping_address TEXT NOT NULL,
       tracking_number TEXT,
       notes TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
     );
 
     -- Sessions table
@@ -233,7 +276,7 @@ function createSchemaInline(): void {
       ip_address TEXT,
       user_agent TEXT,
       expires_at TEXT NOT NULL,
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
     );
 
     -- Audit logs table
@@ -254,7 +297,7 @@ function createSchemaInline(): void {
       ip_address TEXT,
       user_agent TEXT,
       severity TEXT DEFAULT 'info',
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
     );
 
     -- Integrations table
@@ -271,15 +314,15 @@ function createSchemaInline(): void {
       credentials TEXT,
       last_tested_at TEXT,
       last_error TEXT,
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
     );
 
     -- Site settings table
     CREATE TABLE IF NOT EXISTS site_settings (
       key TEXT PRIMARY KEY,
       value TEXT NOT NULL,
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
     );
 
     -- Create indexes
@@ -294,107 +337,54 @@ function createSchemaInline(): void {
     CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash);
   `);
-
-  // Run migrations for existing databases
-  runMigrations();
-
-  // Seed default categories if none exist
-  seedDefaultCategories();
-
-  console.log('[DB] Inline schema created successfully');
 }
 
 /**
- * Run database migrations for existing tables
+ * Run database migrations
  */
-function runMigrations(): void {
-  if (!db) return;
-
-  // Check if products table needs migration
-  const productColumns = db.prepare("PRAGMA table_info(products)").all() as Array<{ name: string }>;
-  const productColumnNames = new Set(productColumns.map(c => c.name));
-
-  // Add missing columns to products table
-  const missingProductColumns = [
-    { name: 'cost_per_item', type: 'REAL' },
-    { name: 'sku', type: 'TEXT' },
-    { name: 'barcode', type: 'TEXT' },
-    { name: 'weight', type: 'REAL' },
-    { name: 'dimensions', type: 'TEXT' },
-    { name: 'approval_status', type: 'TEXT' },
-    { name: 'approved_by', type: 'TEXT' },
-    { name: 'approved_at', type: 'TEXT' },
-    { name: 'rejection_reason', type: 'TEXT' },
-    { name: 'suspended_by', type: 'TEXT' },
-    { name: 'suspended_at', type: 'TEXT' },
-    { name: 'suspension_reason', type: 'TEXT' },
-    { name: 'featured_at', type: 'TEXT' },
-    { name: 'featured_by', type: 'TEXT' },
-    { name: 'category_id', type: 'TEXT' },
+async function runMigrations(client: PoolClient): Promise<void> {
+  // Add missing columns if they don't exist (PostgreSQL syntax)
+  const migrations = [
+    { table: 'users', column: 'deleted_at', type: 'TEXT' },
+    { table: 'users', column: 'deleted_by', type: 'TEXT' },
+    { table: 'users', column: 'deletion_reason', type: 'TEXT' },
+    { table: 'products', column: 'cost_per_item', type: 'REAL' },
+    { table: 'products', column: 'sku', type: 'TEXT' },
+    { table: 'products', column: 'barcode', type: 'TEXT' },
+    { table: 'products', column: 'weight', type: 'REAL' },
+    { table: 'products', column: 'dimensions', type: 'TEXT' },
+    { table: 'products', column: 'approval_status', type: 'TEXT' },
+    { table: 'products', column: 'approved_by', type: 'TEXT' },
+    { table: 'products', column: 'approved_at', type: 'TEXT' },
+    { table: 'products', column: 'rejection_reason', type: 'TEXT' },
+    { table: 'products', column: 'suspended_by', type: 'TEXT' },
+    { table: 'products', column: 'suspended_at', type: 'TEXT' },
+    { table: 'products', column: 'suspension_reason', type: 'TEXT' },
+    { table: 'products', column: 'featured_at', type: 'TEXT' },
+    { table: 'products', column: 'featured_by', type: 'TEXT' },
+    { table: 'products', column: 'category_id', type: 'TEXT' },
+    { table: 'integrations', column: 'description', type: 'TEXT' },
+    { table: 'integrations', column: 'last_tested_at', type: 'TEXT' },
+    { table: 'integrations', column: 'last_error', type: 'TEXT' },
   ];
 
-  for (const col of missingProductColumns) {
-    if (!productColumnNames.has(col.name)) {
-      try {
-        db.exec(`ALTER TABLE products ADD COLUMN ${col.name} ${col.type}`);
-        console.log(`[DB] Added column ${col.name} to products table`);
-      } catch (e) {
-        // Column may already exist
-      }
-    }
-  }
-
-  // Check if users table needs deleted columns
-  const userColumns = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
-  const userColumnNames = new Set(userColumns.map(c => c.name));
-
-  const missingUserColumns = [
-    { name: 'deleted_at', type: 'TEXT' },
-    { name: 'deleted_by', type: 'TEXT' },
-    { name: 'deletion_reason', type: 'TEXT' },
-  ];
-
-  for (const col of missingUserColumns) {
-    if (!userColumnNames.has(col.name)) {
-      try {
-        db.exec(`ALTER TABLE users ADD COLUMN ${col.name} ${col.type}`);
-        console.log(`[DB] Added column ${col.name} to users table`);
-      } catch (e) {
-        // Column may already exist
-      }
-    }
-  }
-
-  // Check if integrations table needs columns
-  const integrationColumns = db.prepare("PRAGMA table_info(integrations)").all() as Array<{ name: string }>;
-  const integrationColumnNames = new Set(integrationColumns.map(c => c.name));
-
-  const missingIntegrationColumns = [
-    { name: 'description', type: 'TEXT' },
-    { name: 'last_tested_at', type: 'TEXT' },
-    { name: 'last_error', type: 'TEXT' },
-  ];
-
-  for (const col of missingIntegrationColumns) {
-    if (!integrationColumnNames.has(col.name)) {
-      try {
-        db.exec(`ALTER TABLE integrations ADD COLUMN ${col.name} ${col.type}`);
-        console.log(`[DB] Added column ${col.name} to integrations table`);
-      } catch (e) {
-        // Column may already exist
-      }
+  for (const migration of migrations) {
+    try {
+      await client.query(`
+        ALTER TABLE ${migration.table} ADD COLUMN IF NOT EXISTS ${migration.column} ${migration.type}
+      `);
+    } catch (e) {
+      // Column may already exist or syntax not supported
     }
   }
 }
 
 /**
- * Seed default categories if categories table is empty
+ * Seed default categories if empty
  */
-function seedDefaultCategories(): void {
-  if (!db) return;
-
-  const count = db.prepare('SELECT COUNT(*) as count FROM categories').get() as { count: number };
-  if (count.count > 0) return;
+async function seedDefaultCategories(client: PoolClient): Promise<void> {
+  const result = await client.query('SELECT COUNT(*) as count FROM categories');
+  if (parseInt(result.rows[0].count) > 0) return;
 
   const defaultCategories = [
     {
@@ -505,14 +495,14 @@ function seedDefaultCategories(): void {
     },
   ];
 
-  const stmt = db.prepare(`
-    INSERT INTO categories (id, name, slug, description, icon, parent_id, display_order, form_schema, created_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
-  `);
-
   for (const cat of defaultCategories) {
     try {
-      stmt.run(cat.id, cat.name, cat.slug, cat.description, cat.icon, cat.parent_id || null, cat.display_order, cat.form_schema);
+      await client.query(
+        `INSERT INTO categories (id, name, slug, description, icon, parent_id, display_order, form_schema, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW()::TEXT, NOW()::TEXT)
+         ON CONFLICT (id) DO NOTHING`,
+        [cat.id, cat.name, cat.slug, cat.description, cat.icon, cat.parent_id || null, cat.display_order, cat.form_schema]
+      );
     } catch (e) {
       // Category may already exist
     }
@@ -522,69 +512,101 @@ function seedDefaultCategories(): void {
 }
 
 /**
- * Close database connection
+ * Execute a query with parameters
  */
-export function closeDatabase(): void {
-  if (db) {
-    db.close();
-    db = null;
+export async function query<T = Record<string, unknown>>(text: string, params?: unknown[]): Promise<QueryResult<T & Record<string, unknown>>> {
+  const client = await getPool().connect();
+  try {
+    return await client.query(text, params) as QueryResult<T & Record<string, unknown>>;
+  } finally {
+    client.release();
   }
 }
 
 /**
- * Run database transaction
+ * Run a transaction
  */
-export function runTransaction<T>(fn: () => T): T {
-  const database = getDatabase();
-  const transaction = database.transaction(fn);
-  return transaction();
+export async function runTransaction<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (e) {
+    await client.query('ROLLBACK');
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+/**
+ * Close database pool
+ */
+export async function closeDatabase(): Promise<void> {
+  if (pool) {
+    await pool.end();
+    pool = null;
+    isInitialized = false;
+  }
 }
 
 /**
  * Database health check
  */
-export function isDatabaseHealthy(): boolean {
+export async function isDatabaseHealthy(): Promise<boolean> {
   try {
-    const database = getDatabase();
-    const result = database.prepare('SELECT 1').get();
-    return !!result;
+    const result = await query('SELECT 1');
+    return result.rows.length > 0;
   } catch {
     return false;
   }
 }
 
 /**
- * Get database stats for monitoring
+ * Get database stats
  */
-export function getDatabaseStats(): {
-  path: string;
-  size: number;
+export async function getDatabaseStats(): Promise<{
+  connected: boolean;
+  poolSize: number;
   tables: string[];
   healthy: boolean;
-} {
+}> {
   try {
-    const database = getDatabase();
-    const tables = database
-      .prepare("SELECT name FROM sqlite_master WHERE type='table'")
-      .all() as { name: string }[];
-
-    const stats = statSync(DB_PATH);
+    const tablesResult = await query<{ tablename: string }>(
+      "SELECT tablename FROM pg_tables WHERE schemaname = 'public'"
+    );
+    const healthy = await isDatabaseHealthy();
+    const p = getPool();
 
     return {
-      path: DB_PATH,
-      size: stats.size,
-      tables: tables.map((t) => t.name),
-      healthy: isDatabaseHealthy(),
+      connected: true,
+      poolSize: p.totalCount,
+      tables: tablesResult.rows.map((t) => t.tablename),
+      healthy,
     };
   } catch (error) {
     return {
-      path: DB_PATH,
-      size: 0,
+      connected: false,
+      poolSize: 0,
       tables: [],
       healthy: false,
     };
   }
 }
 
-// Export types for use in other modules
-export type { Database };
+// Legacy sync function wrapper for compatibility during migration
+// These wrap async calls - use with caution
+export function getDatabase(): { 
+  prepare: (sql: string) => { 
+    run: (...params: unknown[]) => void; 
+    get: (...params: unknown[]) => unknown;
+    all: (...params: unknown[]) => unknown[];
+  };
+  exec: (sql: string) => void;
+} {
+  throw new Error(
+    'Synchronous getDatabase() is no longer supported. Use async query() or runTransaction() instead.'
+  );
+}

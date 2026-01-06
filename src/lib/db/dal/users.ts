@@ -1,11 +1,11 @@
 /**
- * Users Data Access Layer
+ * Users Data Access Layer - PostgreSQL
  *
  * Server-side only - provides CRUD operations for users.
  * All data persistence happens here, not in client stores.
  */
 
-import { getDatabase, runTransaction } from '../index';
+import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash } from 'crypto';
 
@@ -71,10 +71,6 @@ export interface UpdateUserInput {
   lastLoginAt?: string;
 }
 
-/**
- * Hash password using SHA-256 with salt
- * In production, use bcrypt or argon2
- */
 export function hashPassword(password: string): string {
   const salt = uuidv4().substring(0, 16);
   const hash = createHash('sha256')
@@ -83,9 +79,6 @@ export function hashPassword(password: string): string {
   return `${salt}:${hash}`;
 }
 
-/**
- * Verify password against stored hash
- */
 export function verifyPassword(password: string, storedHash: string): boolean {
   const [salt, hash] = storedHash.split(':');
   if (!salt || !hash) return false;
@@ -95,300 +88,270 @@ export function verifyPassword(password: string, storedHash: string): boolean {
   return computedHash === hash;
 }
 
-/**
- * Create a new user
- */
-export function createUser(input: CreateUserInput): DbUser {
-  const db = getDatabase();
+export async function createUser(input: CreateUserInput): Promise<DbUser> {
   const id = `user_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();
   const passwordHash = input.password ? hashPassword(input.password) : null;
 
-  const stmt = db.prepare(`
-    INSERT INTO users (
+  await query(
+    `INSERT INTO users (
       id, email, password_hash, name, role, status, phone, location,
       business_name, business_type, verification_status, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
-    id,
-    input.email.toLowerCase(),
-    passwordHash,
-    input.name,
-    input.role,
-    input.status || (input.role === 'vendor' ? 'pending' : 'active'),
-    input.phone || null,
-    input.location || null,
-    input.businessName || null,
-    input.businessType || null,
-    input.role === 'vendor' ? (input.verificationStatus || 'pending') : null,
-    now,
-    now
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`,
+    [
+      id,
+      input.email.toLowerCase(),
+      passwordHash,
+      input.name,
+      input.role,
+      input.status || (input.role === 'vendor' ? 'pending' : 'active'),
+      input.phone || null,
+      input.location || null,
+      input.businessName || null,
+      input.businessType || null,
+      input.role === 'vendor' ? (input.verificationStatus || 'pending') : null,
+      now,
+      now
+    ]
   );
 
-  return getUserById(id)!;
+  return (await getUserById(id))!;
 }
 
-/**
- * Get user by ID
- */
-export function getUserById(id: string): DbUser | null {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM users WHERE id = ?');
-  return stmt.get(id) as DbUser | null;
+export async function getUserById(id: string): Promise<DbUser | null> {
+  const result = await query<DbUser>('SELECT * FROM users WHERE id = $1', [id]);
+  return result.rows[0] || null;
 }
 
-/**
- * Get user by email
- */
-export function getUserByEmail(email: string): DbUser | null {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM users WHERE email = ? COLLATE NOCASE');
-  return stmt.get(email.toLowerCase()) as DbUser | null;
+export async function getUserByEmail(email: string): Promise<DbUser | null> {
+  const result = await query<DbUser>(
+    'SELECT * FROM users WHERE LOWER(email) = LOWER($1)',
+    [email]
+  );
+  return result.rows[0] || null;
 }
 
-/**
- * Get all users (excluding soft-deleted)
- */
-export function getUsers(options?: {
+export async function getUsers(options?: {
   role?: UserRole;
   status?: UserStatus;
   includeDeleted?: boolean;
   limit?: number;
   offset?: number;
-}): DbUser[] {
-  const db = getDatabase();
-  let query = 'SELECT * FROM users WHERE 1=1';
+}): Promise<DbUser[]> {
+  let sql = 'SELECT * FROM users WHERE 1=1';
   const params: unknown[] = [];
+  let paramIndex = 1;
 
   if (!options?.includeDeleted) {
-    query += ' AND is_deleted = 0';
+    sql += ' AND is_deleted = 0';
   }
 
   if (options?.role) {
-    query += ' AND role = ?';
+    sql += ` AND role = $${paramIndex++}`;
     params.push(options.role);
   }
 
   if (options?.status) {
-    query += ' AND status = ?';
+    sql += ` AND status = $${paramIndex++}`;
     params.push(options.status);
   }
 
-  query += ' ORDER BY created_at DESC';
+  sql += ' ORDER BY created_at DESC';
 
   if (options?.limit) {
-    query += ' LIMIT ?';
+    sql += ` LIMIT $${paramIndex++}`;
     params.push(options.limit);
   }
 
   if (options?.offset) {
-    query += ' OFFSET ?';
+    sql += ` OFFSET $${paramIndex++}`;
     params.push(options.offset);
   }
 
-  const stmt = db.prepare(query);
-  return stmt.all(...params) as DbUser[];
+  const result = await query<DbUser>(sql, params);
+  return result.rows;
 }
 
-/**
- * Update user
- */
-export function updateUser(id: string, updates: UpdateUserInput): DbUser | null {
-  const db = getDatabase();
+export async function updateUser(id: string, updates: UpdateUserInput): Promise<DbUser | null> {
   const now = new Date().toISOString();
 
-  const fields: string[] = ['updated_at = ?'];
-  const values: unknown[] = [now];
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  fields.push(`updated_at = $${paramIndex++}`);
+  values.push(now);
 
   if (updates.name !== undefined) {
-    fields.push('name = ?');
+    fields.push(`name = $${paramIndex++}`);
     values.push(updates.name);
   }
   if (updates.status !== undefined) {
-    fields.push('status = ?');
+    fields.push(`status = $${paramIndex++}`);
     values.push(updates.status);
   }
   if (updates.avatar !== undefined) {
-    fields.push('avatar = ?');
+    fields.push(`avatar = $${paramIndex++}`);
     values.push(updates.avatar);
   }
   if (updates.phone !== undefined) {
-    fields.push('phone = ?');
+    fields.push(`phone = $${paramIndex++}`);
     values.push(updates.phone);
   }
   if (updates.location !== undefined) {
-    fields.push('location = ?');
+    fields.push(`location = $${paramIndex++}`);
     values.push(updates.location);
   }
   if (updates.businessName !== undefined) {
-    fields.push('business_name = ?');
+    fields.push(`business_name = $${paramIndex++}`);
     values.push(updates.businessName);
   }
   if (updates.businessType !== undefined) {
-    fields.push('business_type = ?');
+    fields.push(`business_type = $${paramIndex++}`);
     values.push(updates.businessType);
   }
   if (updates.verificationStatus !== undefined) {
-    fields.push('verification_status = ?');
+    fields.push(`verification_status = $${paramIndex++}`);
     values.push(updates.verificationStatus);
   }
   if (updates.verificationNotes !== undefined) {
-    fields.push('verification_notes = ?');
+    fields.push(`verification_notes = $${paramIndex++}`);
     values.push(updates.verificationNotes);
   }
   if (updates.verifiedAt !== undefined) {
-    fields.push('verified_at = ?');
+    fields.push(`verified_at = $${paramIndex++}`);
     values.push(updates.verifiedAt);
   }
   if (updates.verifiedBy !== undefined) {
-    fields.push('verified_by = ?');
+    fields.push(`verified_by = $${paramIndex++}`);
     values.push(updates.verifiedBy);
   }
   if (updates.storeDescription !== undefined) {
-    fields.push('store_description = ?');
+    fields.push(`store_description = $${paramIndex++}`);
     values.push(updates.storeDescription);
   }
   if (updates.storeBanner !== undefined) {
-    fields.push('store_banner = ?');
+    fields.push(`store_banner = $${paramIndex++}`);
     values.push(updates.storeBanner);
   }
   if (updates.storeLogo !== undefined) {
-    fields.push('store_logo = ?');
+    fields.push(`store_logo = $${paramIndex++}`);
     values.push(updates.storeLogo);
   }
   if (updates.isDeleted !== undefined) {
-    fields.push('is_deleted = ?');
+    fields.push(`is_deleted = $${paramIndex++}`);
     values.push(updates.isDeleted ? 1 : 0);
   }
   if (updates.lastLoginAt !== undefined) {
-    fields.push('last_login_at = ?');
+    fields.push(`last_login_at = $${paramIndex++}`);
     values.push(updates.lastLoginAt);
   }
 
   values.push(id);
 
-  const stmt = db.prepare(`UPDATE users SET ${fields.join(', ')} WHERE id = ?`);
-  const result = stmt.run(...values);
+  const result = await query(
+    `UPDATE users SET ${fields.join(', ')} WHERE id = $${paramIndex}`,
+    values
+  );
 
-  if (result.changes === 0) return null;
+  if ((result.rowCount ?? 0) === 0) return null;
   return getUserById(id);
 }
 
-/**
- * Soft delete user
- */
-export function softDeleteUser(id: string, deletedBy: string, reason: string): boolean {
-  const db = getDatabase();
+export async function softDeleteUser(id: string, deletedBy: string, reason: string): Promise<boolean> {
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
-    UPDATE users SET
+  const result = await query(
+    `UPDATE users SET
       status = 'deleted',
       is_deleted = 1,
-      deleted_at = ?,
-      deleted_by = ?,
-      deletion_reason = ?,
-      updated_at = ?
-    WHERE id = ?
-  `);
+      deleted_at = $1,
+      deleted_by = $2,
+      deletion_reason = $3,
+      updated_at = $4
+    WHERE id = $5`,
+    [now, deletedBy, reason, now, id]
+  );
 
-  const result = stmt.run(now, deletedBy, reason, now, id);
-  return result.changes > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
-/**
- * Permanently delete user
- */
-export function deleteUser(id: string): boolean {
-  const db = getDatabase();
-  const stmt = db.prepare('DELETE FROM users WHERE id = ?');
-  const result = stmt.run(id);
-  return result.changes > 0;
+export async function deleteUser(id: string): Promise<boolean> {
+  const result = await query('DELETE FROM users WHERE id = $1', [id]);
+  return (result.rowCount ?? 0) > 0;
 }
 
-/**
- * Verify user credentials
- */
-export function verifyUserCredentials(email: string, password: string): DbUser | null {
-  const user = getUserByEmail(email);
+export async function verifyUserCredentials(email: string, password: string): Promise<DbUser | null> {
+  const user = await getUserByEmail(email);
   if (!user || !user.password_hash) return null;
   if (!verifyPassword(password, user.password_hash)) return null;
-  // Allow login for active and pending users
-  // Block suspended, banned, and deleted users
   const allowedStatuses: UserStatus[] = ['active', 'pending'];
   if (!allowedStatuses.includes(user.status)) return null;
   return user;
 }
 
-/**
- * Search users
- */
-export function searchUsers(query: string, options?: {
+export async function searchUsers(searchQuery: string, options?: {
   role?: UserRole;
   limit?: number;
-}): DbUser[] {
-  const db = getDatabase();
-  const searchTerm = `%${query.toLowerCase()}%`;
+}): Promise<DbUser[]> {
+  const searchTerm = `%${searchQuery.toLowerCase()}%`;
   let sql = `
     SELECT * FROM users
     WHERE is_deleted = 0
     AND (
-      LOWER(name) LIKE ?
-      OR LOWER(email) LIKE ?
-      OR LOWER(phone) LIKE ?
-      OR LOWER(business_name) LIKE ?
+      LOWER(name) LIKE $1
+      OR LOWER(email) LIKE $1
+      OR LOWER(phone) LIKE $1
+      OR LOWER(business_name) LIKE $1
     )
   `;
 
-  const params: unknown[] = [searchTerm, searchTerm, searchTerm, searchTerm];
+  const params: unknown[] = [searchTerm];
+  let paramIndex = 2;
 
   if (options?.role) {
-    sql += ' AND role = ?';
+    sql += ` AND role = $${paramIndex++}`;
     params.push(options.role);
   }
 
   sql += ' ORDER BY name ASC';
 
   if (options?.limit) {
-    sql += ' LIMIT ?';
+    sql += ` LIMIT $${paramIndex++}`;
     params.push(options.limit);
   }
 
-  const stmt = db.prepare(sql);
-  return stmt.all(...params) as DbUser[];
+  const result = await query<DbUser>(sql, params);
+  return result.rows;
 }
 
-/**
- * Get pending vendors for verification
- */
-export function getPendingVendors(): DbUser[] {
-  const db = getDatabase();
-  const stmt = db.prepare(`
+export async function getPendingVendors(): Promise<DbUser[]> {
+  const result = await query<DbUser>(`
     SELECT * FROM users
     WHERE role = 'vendor'
     AND verification_status IN ('pending', 'under_review')
     AND is_deleted = 0
     ORDER BY created_at ASC
   `);
-  return stmt.all() as DbUser[];
+  return result.rows;
 }
 
-/**
- * Get user statistics
- */
-export function getUserStats(): {
+export async function getUserStats(): Promise<{
   totalBuyers: number;
   totalVendors: number;
   verifiedVendors: number;
   pendingVendors: number;
   activeUsers: number;
   suspendedUsers: number;
-} {
-  const db = getDatabase();
-
-  const statsQuery = db.prepare(`
+}> {
+  const result = await query<{
+    totalbuyers: string;
+    totalvendors: string;
+    verifiedvendors: string;
+    pendingvendors: string;
+    activeusers: string;
+    suspendedusers: string;
+  }>(`
     SELECT
       SUM(CASE WHEN role = 'buyer' AND is_deleted = 0 THEN 1 ELSE 0 END) as totalBuyers,
       SUM(CASE WHEN role = 'vendor' AND is_deleted = 0 THEN 1 ELSE 0 END) as totalVendors,
@@ -399,37 +362,26 @@ export function getUserStats(): {
     FROM users
   `);
 
-  const result = statsQuery.get() as {
-    totalBuyers: number;
-    totalVendors: number;
-    verifiedVendors: number;
-    pendingVendors: number;
-    activeUsers: number;
-    suspendedUsers: number;
-  };
+  const row = result.rows[0];
 
   return {
-    totalBuyers: result.totalBuyers || 0,
-    totalVendors: result.totalVendors || 0,
-    verifiedVendors: result.verifiedVendors || 0,
-    pendingVendors: result.pendingVendors || 0,
-    activeUsers: result.activeUsers || 0,
-    suspendedUsers: result.suspendedUsers || 0,
+    totalBuyers: parseInt(row?.totalbuyers || '0'),
+    totalVendors: parseInt(row?.totalvendors || '0'),
+    verifiedVendors: parseInt(row?.verifiedvendors || '0'),
+    pendingVendors: parseInt(row?.pendingvendors || '0'),
+    activeUsers: parseInt(row?.activeusers || '0'),
+    suspendedUsers: parseInt(row?.suspendedusers || '0'),
   };
 }
 
-/**
- * Update user password
- */
-export function updateUserPassword(id: string, newPassword: string): boolean {
-  const db = getDatabase();
+export async function updateUserPassword(id: string, newPassword: string): Promise<boolean> {
   const passwordHash = hashPassword(newPassword);
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
-    UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?
-  `);
+  const result = await query(
+    'UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3',
+    [passwordHash, now, id]
+  );
 
-  const result = stmt.run(passwordHash, now, id);
-  return result.changes > 0;
+  return (result.rowCount ?? 0) > 0;
 }

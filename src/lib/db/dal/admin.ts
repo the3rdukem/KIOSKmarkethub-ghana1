@@ -5,7 +5,7 @@
  * Includes the initial master admin setup.
  */
 
-import { getDatabase } from '../index';
+import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 import { hashPassword, verifyPassword } from './users';
 
@@ -86,17 +86,16 @@ const INITIAL_MASTER_ADMIN = {
 /**
  * Initialize the system with the initial master admin
  */
-export function initializeAdminSystem(): void {
-  const db = getDatabase();
-
+export async function initializeAdminSystem(): Promise<void> {
   // Check if any admin exists
-  const existingAdmin = db.prepare(
+  const result = await query(
     "SELECT id FROM admin_users WHERE role = 'MASTER_ADMIN' LIMIT 1"
-  ).get();
+  );
+  const existingAdmin = result.rows[0];
 
   if (!existingAdmin) {
     // Create initial master admin
-    createAdminUser({
+    await createAdminUser({
       email: INITIAL_MASTER_ADMIN.email,
       password: INITIAL_MASTER_ADMIN.password,
       name: INITIAL_MASTER_ADMIN.name,
@@ -110,22 +109,19 @@ export function initializeAdminSystem(): void {
 /**
  * Create a new admin user
  */
-export function createAdminUser(input: CreateAdminInput): DbAdminUser {
-  const db = getDatabase();
+export async function createAdminUser(input: CreateAdminInput): Promise<DbAdminUser> {
   const id = `admin_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();
   const passwordHash = hashPassword(input.password);
   const permissions = input.permissions ||
     (input.role === 'MASTER_ADMIN' ? MASTER_ADMIN_PERMISSIONS : ADMIN_PERMISSIONS);
 
-  const stmt = db.prepare(`
+  await query(`
     INSERT INTO admin_users (
       id, email, password_hash, name, role, is_active,
       permissions, created_by, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+  `, [
     id,
     input.email.toLowerCase(),
     passwordHash,
@@ -136,56 +132,54 @@ export function createAdminUser(input: CreateAdminInput): DbAdminUser {
     input.createdBy || null,
     now,
     now
-  );
+  ]);
 
-  return getAdminById(id)!;
+  const admin = await getAdminById(id);
+  return admin!;
 }
 
 /**
  * Get admin by ID
  */
-export function getAdminById(id: string): DbAdminUser | null {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM admin_users WHERE id = ?');
-  return stmt.get(id) as DbAdminUser | null;
+export async function getAdminById(id: string): Promise<DbAdminUser | null> {
+  const result = await query<DbAdminUser>('SELECT * FROM admin_users WHERE id = $1', [id]);
+  return result.rows[0] || null;
 }
 
 /**
  * Get admin by email
  */
-export function getAdminByEmail(email: string): DbAdminUser | null {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM admin_users WHERE email = ? COLLATE NOCASE');
-  return stmt.get(email.toLowerCase()) as DbAdminUser | null;
+export async function getAdminByEmail(email: string): Promise<DbAdminUser | null> {
+  // PostgreSQL uses ILIKE for case-insensitive comparison or Lower()
+  const result = await query<DbAdminUser>('SELECT * FROM admin_users WHERE LOWER(email) = LOWER($1)', [email]);
+  return result.rows[0] || null;
 }
 
 /**
  * Get all admins
  */
-export function getAllAdmins(): DbAdminUser[] {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM admin_users ORDER BY created_at ASC');
-  return stmt.all() as DbAdminUser[];
+export async function getAllAdmins(): Promise<DbAdminUser[]> {
+  const result = await query<DbAdminUser>('SELECT * FROM admin_users ORDER BY created_at ASC');
+  return result.rows;
 }
 
 /**
  * Get master admins
  */
-export function getMasterAdmins(): DbAdminUser[] {
-  const db = getDatabase();
-  const stmt = db.prepare("SELECT * FROM admin_users WHERE role = 'MASTER_ADMIN'");
-  return stmt.all() as DbAdminUser[];
+export async function getMasterAdmins(): Promise<DbAdminUser[]> {
+  const result = await query<DbAdminUser>("SELECT * FROM admin_users WHERE role = 'MASTER_ADMIN'");
+  return result.rows;
 }
 
 /**
  * Authenticate admin
  */
-export function authenticateAdmin(email: string, password: string): {
+export async function authenticateAdmin(email: string, password: string): Promise<{
   success: boolean;
   admin?: DbAdminUser;
   error?: string;
-} {
-  const admin = getAdminByEmail(email);
+}> {
+  const admin = await getAdminByEmail(email);
 
   if (!admin) {
     return { success: false, error: 'Invalid credentials' };
@@ -200,7 +194,7 @@ export function authenticateAdmin(email: string, password: string): {
   }
 
   // Update last login
-  updateAdminLastLogin(admin.id);
+  await updateAdminLastLogin(admin.id);
 
   return { success: true, admin };
 }
@@ -208,99 +202,89 @@ export function authenticateAdmin(email: string, password: string): {
 /**
  * Update admin last login
  */
-export function updateAdminLastLogin(id: string): void {
-  const db = getDatabase();
+export async function updateAdminLastLogin(id: string): Promise<void> {
   const now = new Date().toISOString();
-  const stmt = db.prepare('UPDATE admin_users SET last_login_at = ? WHERE id = ?');
-  stmt.run(now, id);
+  await query('UPDATE admin_users SET last_login_at = $1 WHERE id = $2', [now, id]);
 }
 
 /**
  * Update admin
  */
-export function updateAdmin(id: string, updates: {
+export async function updateAdmin(id: string, updates: {
   name?: string;
   isActive?: boolean;
   permissions?: AdminPermission[];
-}): DbAdminUser | null {
-  const db = getDatabase();
+}): Promise<DbAdminUser | null> {
   const now = new Date().toISOString();
 
-  const fields: string[] = ['updated_at = ?'];
+  const fields: string[] = ['updated_at = $1'];
   const values: unknown[] = [now];
+  let paramIndex = 2;
 
   if (updates.name !== undefined) {
-    fields.push('name = ?');
+    fields.push(`name = $${paramIndex++}`);
     values.push(updates.name);
   }
   if (updates.isActive !== undefined) {
-    fields.push('is_active = ?');
+    fields.push(`is_active = $${paramIndex++}`);
     values.push(updates.isActive ? 1 : 0);
   }
   if (updates.permissions !== undefined) {
-    fields.push('permissions = ?');
+    fields.push(`permissions = $${paramIndex++}`);
     values.push(JSON.stringify(updates.permissions));
   }
 
   values.push(id);
+  const sql = `UPDATE admin_users SET ${fields.join(', ')} WHERE id = $${paramIndex}`;
+  const result = await query(sql, values);
 
-  const stmt = db.prepare(`UPDATE admin_users SET ${fields.join(', ')} WHERE id = ?`);
-  const result = stmt.run(...values);
-
-  if (result.changes === 0) return null;
+  if ((result.rowCount ?? 0) === 0) return null;
   return getAdminById(id);
 }
 
 /**
  * Change admin password
  */
-export function changeAdminPassword(id: string, newPassword: string): boolean {
+export async function changeAdminPassword(id: string, newPassword: string): Promise<boolean> {
   if (newPassword.length < 8) return false;
 
-  const db = getDatabase();
   const passwordHash = hashPassword(newPassword);
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
-    UPDATE admin_users SET password_hash = ?, updated_at = ? WHERE id = ?
-  `);
+  const result = await query(`
+    UPDATE admin_users SET password_hash = $1, updated_at = $2 WHERE id = $3
+  `, [passwordHash, now, id]);
 
-  const result = stmt.run(passwordHash, now, id);
-  return result.changes > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
  * Revoke admin access (deactivate)
  */
-export function revokeAdminAccess(id: string): boolean {
-  const db = getDatabase();
+export async function revokeAdminAccess(id: string): Promise<boolean> {
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
-    UPDATE admin_users SET is_active = 0, updated_at = ? WHERE id = ?
-  `);
+  const result = await query(`
+    UPDATE admin_users SET is_active = 0, updated_at = $1 WHERE id = $2
+  `, [now, id]);
 
-  const result = stmt.run(now, id);
-  return result.changes > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
  * Delete admin (permanent)
  */
-export function deleteAdmin(id: string): boolean {
-  const db = getDatabase();
-
+export async function deleteAdmin(id: string): Promise<boolean> {
   // Prevent deleting the last master admin
-  const masterAdmins = getMasterAdmins();
-  const targetAdmin = getAdminById(id);
+  const masterAdmins = await getMasterAdmins();
+  const targetAdmin = await getAdminById(id);
 
   if (targetAdmin?.role === 'MASTER_ADMIN' && masterAdmins.length <= 1) {
     return false;
   }
 
-  const stmt = db.prepare('DELETE FROM admin_users WHERE id = ?');
-  const result = stmt.run(id);
-  return result.changes > 0;
+  const result = await query('DELETE FROM admin_users WHERE id = $1', [id]);
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**

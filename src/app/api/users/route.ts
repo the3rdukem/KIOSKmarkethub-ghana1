@@ -9,11 +9,11 @@ import { cookies } from 'next/headers';
 import { validateSession } from '@/lib/db/dal/sessions';
 import {
   getUsers,
-  getUserById,
   updateUser,
   searchUsers,
   getPendingVendors,
   getUserStats,
+  type DbUser,
   type UserRole,
   type UserStatus,
 } from '@/lib/db/dal/users';
@@ -35,7 +35,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -56,20 +56,20 @@ export async function GET(request: NextRequest) {
 
     // Return stats if requested
     if (stats === 'true') {
-      const userStats = getUserStats();
+      const userStats = await getUserStats();
       return NextResponse.json({ stats: userStats });
     }
 
     // Return pending vendors if requested
     if (pending === 'true') {
-      const pendingVendors = getPendingVendors();
+      const pendingVendors = await getPendingVendors();
       const transformedVendors = pendingVendors.map(transformUser);
       return NextResponse.json({ users: transformedVendors, total: transformedVendors.length });
     }
 
     // Search if query provided
     if (search) {
-      const results = searchUsers(search, {
+      const results = await searchUsers(search, {
         role: role || undefined,
         limit: limit ? parseInt(limit, 10) : undefined,
       });
@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get users with filters
-    const users = getUsers({
+    const users = await getUsers({
       role: role || undefined,
       status: status || undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
 /**
  * Transform database user to client format
  */
-function transformUser(user: ReturnType<typeof getUserById>) {
+function transformUser(user: DbUser | null) {
   if (!user) return null;
   return {
     id: user.id,

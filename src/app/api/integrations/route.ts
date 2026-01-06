@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
   try {
     // Ensure integrations are initialized
     if (!initialized) {
-      initializeIntegrations();
+      await initializeIntegrations();
       initialized = true;
     }
 
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -68,12 +68,12 @@ export async function GET(request: NextRequest) {
 
     // Return stats if requested
     if (stats === 'true') {
-      return NextResponse.json({ stats: getIntegrationStats() });
+      return NextResponse.json({ stats: await getIntegrationStats() });
     }
 
     // Return single integration if ID provided
     if (id) {
-      const integration = getIntegrationById(id);
+      const integration = await getIntegrationById(id);
       if (!integration) {
         return NextResponse.json({ error: 'Integration not found' }, { status: 404 });
       }
@@ -112,7 +112,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Return all integrations with schemas
-    const integrations = getIntegrations();
+    const integrations = await getIntegrations();
     const isMasterAdmin = session.user_role === 'master_admin';
 
     // Mask credentials for security
@@ -148,7 +148,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       integrations: maskedIntegrations,
       total: integrations.length,
-      stats: getIntegrationStats(),
+      stats: await getIntegrationStats(),
     });
   } catch (error) {
     console.error('Get integrations error:', error);
@@ -165,7 +165,7 @@ export async function PATCH(request: NextRequest) {
   try {
     // Ensure integrations are initialized
     if (!initialized) {
-      initializeIntegrations();
+      await initializeIntegrations();
       initialized = true;
     }
 
@@ -177,7 +177,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -194,7 +194,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Integration ID is required' }, { status: 400 });
     }
 
-    const integration = getIntegrationById(integrationId);
+    const integration = await getIntegrationById(integrationId);
     if (!integration) {
       return NextResponse.json({ error: 'Integration not found' }, { status: 404 });
     }
@@ -208,7 +208,7 @@ export async function PATCH(request: NextRequest) {
         if (!credentials || typeof credentials !== 'object') {
           return NextResponse.json({ error: 'Credentials object is required' }, { status: 400 });
         }
-        updatedIntegration = updateIntegrationCredentials(integrationId, credentials);
+        updatedIntegration = await updateIntegrationCredentials(integrationId, credentials);
         auditAction = 'INTEGRATION_CREDENTIALS_UPDATED';
         auditDetails = `Updated credentials for ${integration.name}`;
         break;
@@ -217,7 +217,7 @@ export async function PATCH(request: NextRequest) {
         if (typeof enabled !== 'boolean') {
           return NextResponse.json({ error: 'Enabled boolean is required' }, { status: 400 });
         }
-        updatedIntegration = toggleIntegration(integrationId, enabled);
+        updatedIntegration = await toggleIntegration(integrationId, enabled);
         if (!updatedIntegration && enabled) {
           return NextResponse.json(
             { error: 'Cannot enable integration: not configured' },
@@ -232,7 +232,7 @@ export async function PATCH(request: NextRequest) {
         if (!environment || !['demo', 'live', 'sandbox', 'production'].includes(environment)) {
           return NextResponse.json({ error: 'Valid environment (demo/live/sandbox/production) is required' }, { status: 400 });
         }
-        updatedIntegration = updateIntegrationEnvironment(integrationId, environment);
+        updatedIntegration = await updateIntegrationEnvironment(integrationId, environment);
         auditAction = 'INTEGRATION_ENVIRONMENT_CHANGED';
         auditDetails = `Changed ${integration.name} environment to ${environment}`;
         break;
@@ -242,12 +242,12 @@ export async function PATCH(request: NextRequest) {
         const testResult = await testIntegrationConnection(integrationId);
 
         if (testResult.success) {
-          updatedIntegration = getIntegrationById(integrationId);
+          updatedIntegration = await getIntegrationById(integrationId);
           auditAction = 'INTEGRATION_TEST_SUCCESS';
           auditDetails = `Successfully tested ${integration.name}`;
         } else {
           // Create audit log for failed test
-          createAuditLog({
+          await createAuditLog({
             action: 'INTEGRATION_TEST_FAILED',
             category: 'api',
             adminId: session.user_id,
@@ -275,7 +275,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Create audit log
-    createAuditLog({
+    await createAuditLog({
       action: auditAction,
       category: 'api',
       adminId: session.user_id,

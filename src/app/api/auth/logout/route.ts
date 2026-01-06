@@ -38,18 +38,18 @@ export async function POST(request: NextRequest) {
     let userRole = 'unknown';
 
     if (sessionToken) {
-      const sessionResult = validateSessionToken(sessionToken);
+      const sessionResult = await validateSessionToken(sessionToken);
       if (sessionResult.success && sessionResult.data?.user) {
         userId = sessionResult.data.user.id;
         userEmail = sessionResult.data.user.email;
         userRole = sessionResult.data.user.role;
       }
 
-      const deleted = logoutByToken(sessionToken);
+      const deleted = await logoutByToken(sessionToken);
       console.log('[LOGOUT_API] Session deleted from database:', deleted);
     }
 
-    logAuthEvent(
+    await logAuthEvent(
       'LOGOUT',
       userId,
       userEmail,

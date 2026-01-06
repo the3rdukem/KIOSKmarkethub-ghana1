@@ -4,7 +4,7 @@
  * Server-side only - provides CRUD operations for orders.
  */
 
-import { getDatabase } from '../index';
+import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 
 export type OrderStatus = 'pending' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded';
@@ -74,20 +74,17 @@ export interface UpdateOrderInput {
 /**
  * Create a new order
  */
-export function createOrder(input: CreateOrderInput): DbOrder {
-  const db = getDatabase();
+export async function createOrder(input: CreateOrderInput): Promise<DbOrder> {
   const id = `order_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
+  await query(`
     INSERT INTO orders (
       id, buyer_id, buyer_name, buyer_email, items, subtotal,
       shipping_fee, tax, total, status, payment_status, payment_method,
       shipping_address, notes, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+  `, [
     id,
     input.buyerId,
     input.buyerName,
@@ -104,63 +101,64 @@ export function createOrder(input: CreateOrderInput): DbOrder {
     input.notes || null,
     now,
     now
-  );
+  ]);
 
-  return getOrderById(id)!;
+  const result = await getOrderById(id);
+  return result!;
 }
 
 /**
  * Get order by ID
  */
-export function getOrderById(id: string): DbOrder | null {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM orders WHERE id = ?');
-  return stmt.get(id) as DbOrder | null;
+export async function getOrderById(id: string): Promise<DbOrder | null> {
+  const result = await query<DbOrder>('SELECT * FROM orders WHERE id = $1', [id]);
+  return result.rows[0] || null;
 }
 
 /**
  * Get all orders
  */
-export function getOrders(options?: {
+export async function getOrders(options?: {
   buyerId?: string;
   vendorId?: string;
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
   limit?: number;
   offset?: number;
-}): DbOrder[] {
-  const db = getDatabase();
-  let query = 'SELECT * FROM orders WHERE 1=1';
+}): Promise<DbOrder[]> {
+  let sql = 'SELECT * FROM orders WHERE 1=1';
   const params: unknown[] = [];
+  let paramIndex = 1;
 
   if (options?.buyerId) {
-    query += ' AND buyer_id = ?';
+    sql += ` AND buyer_id = $${paramIndex++}`;
     params.push(options.buyerId);
   }
 
   if (options?.status) {
-    query += ' AND status = ?';
+    sql += ` AND status = $${paramIndex++}`;
     params.push(options.status);
   }
 
   if (options?.paymentStatus) {
-    query += ' AND payment_status = ?';
+    sql += ` AND payment_status = $${paramIndex++}`;
     params.push(options.paymentStatus);
   }
 
-  query += ' ORDER BY created_at DESC';
+  sql += ' ORDER BY created_at DESC';
 
   if (options?.limit) {
-    query += ' LIMIT ?';
+    sql += ` LIMIT $${paramIndex++}`;
     params.push(options.limit);
   }
 
   if (options?.offset) {
-    query += ' OFFSET ?';
+    sql += ` OFFSET $${paramIndex++}`;
     params.push(options.offset);
   }
 
-  let orders = db.prepare(query).all(...params) as DbOrder[];
+  const result = await query<DbOrder>(sql, params);
+  let orders = result.rows;
 
   // Filter by vendorId if provided (requires parsing items JSON)
   if (options?.vendorId) {
@@ -176,86 +174,87 @@ export function getOrders(options?: {
 /**
  * Get orders by buyer
  */
-export function getOrdersByBuyer(buyerId: string): DbOrder[] {
+export async function getOrdersByBuyer(buyerId: string): Promise<DbOrder[]> {
   return getOrders({ buyerId });
 }
 
 /**
  * Get orders by vendor
  */
-export function getOrdersByVendor(vendorId: string): DbOrder[] {
+export async function getOrdersByVendor(vendorId: string): Promise<DbOrder[]> {
   return getOrders({ vendorId });
 }
 
 /**
  * Update order
  */
-export function updateOrder(id: string, updates: UpdateOrderInput): DbOrder | null {
-  const db = getDatabase();
+export async function updateOrder(id: string, updates: UpdateOrderInput): Promise<DbOrder | null> {
   const now = new Date().toISOString();
 
-  const fields: string[] = ['updated_at = ?'];
-  const values: unknown[] = [now];
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  fields.push(`updated_at = $${paramIndex++}`);
+  values.push(now);
 
   if (updates.status !== undefined) {
-    fields.push('status = ?');
+    fields.push(`status = $${paramIndex++}`);
     values.push(updates.status);
   }
   if (updates.paymentStatus !== undefined) {
-    fields.push('payment_status = ?');
+    fields.push(`payment_status = $${paramIndex++}`);
     values.push(updates.paymentStatus);
   }
   if (updates.trackingNumber !== undefined) {
-    fields.push('tracking_number = ?');
+    fields.push(`tracking_number = $${paramIndex++}`);
     values.push(updates.trackingNumber);
   }
   if (updates.notes !== undefined) {
-    fields.push('notes = ?');
+    fields.push(`notes = $${paramIndex++}`);
     values.push(updates.notes);
   }
 
   values.push(id);
 
-  const stmt = db.prepare(`UPDATE orders SET ${fields.join(', ')} WHERE id = ?`);
-  const result = stmt.run(...values);
+  const result = await query(
+    `UPDATE orders SET ${fields.join(', ')} WHERE id = $${paramIndex}`,
+    values
+  );
 
-  if (result.changes === 0) return null;
+  if ((result.rowCount ?? 0) === 0) return null;
   return getOrderById(id);
 }
 
 /**
  * Cancel order
  */
-export function cancelOrder(id: string): boolean {
-  const result = updateOrder(id, { status: 'cancelled' });
+export async function cancelOrder(id: string): Promise<boolean> {
+  const result = await updateOrder(id, { status: 'cancelled' });
   return result !== null;
 }
 
 /**
  * Delete order (use with caution)
  */
-export function deleteOrder(id: string): boolean {
-  const db = getDatabase();
-  const stmt = db.prepare('DELETE FROM orders WHERE id = ?');
-  const result = stmt.run(id);
-  return result.changes > 0;
+export async function deleteOrder(id: string): Promise<boolean> {
+  const result = await query('DELETE FROM orders WHERE id = $1', [id]);
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
  * Get order stats
  */
-export function getOrderStats(vendorId?: string): {
+export async function getOrderStats(vendorId?: string): Promise<{
   totalOrders: number;
   pendingOrders: number;
   completedOrders: number;
   cancelledOrders: number;
   totalRevenue: number;
-} {
-  const db = getDatabase();
-
+}> {
   if (vendorId) {
     // For vendor, we need to sum up only their items
-    const orders = getOrdersByVendor(vendorId);
+    const orders = await getOrdersByVendor(vendorId);
     let totalRevenue = 0;
     let pendingOrders = 0;
     let completedOrders = 0;
@@ -285,7 +284,13 @@ export function getOrderStats(vendorId?: string): {
     };
   }
 
-  const statsQuery = db.prepare(`
+  const statsResult = await query<{
+    totalorders: string;
+    pendingorders: string;
+    completedorders: string;
+    cancelledorders: string;
+    totalrevenue: string | null;
+  }>(`
     SELECT
       COUNT(*) as totalOrders,
       SUM(CASE WHEN status IN ('pending', 'confirmed', 'processing') THEN 1 ELSE 0 END) as pendingOrders,
@@ -295,20 +300,14 @@ export function getOrderStats(vendorId?: string): {
     FROM orders
   `);
 
-  const result = statsQuery.get() as {
-    totalOrders: number;
-    pendingOrders: number;
-    completedOrders: number;
-    cancelledOrders: number;
-    totalRevenue: number;
-  };
+  const result = statsResult.rows[0];
 
   return {
-    totalOrders: result.totalOrders || 0,
-    pendingOrders: result.pendingOrders || 0,
-    completedOrders: result.completedOrders || 0,
-    cancelledOrders: result.cancelledOrders || 0,
-    totalRevenue: result.totalRevenue || 0,
+    totalOrders: parseInt(result?.totalorders || '0'),
+    pendingOrders: parseInt(result?.pendingorders || '0'),
+    completedOrders: parseInt(result?.completedorders || '0'),
+    cancelledOrders: parseInt(result?.cancelledorders || '0'),
+    totalRevenue: parseFloat(result?.totalrevenue || '0'),
   };
 }
 

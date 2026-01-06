@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -45,13 +45,13 @@ export async function GET(request: NextRequest) {
 
     if (session.user_role === 'admin' || session.user_role === 'master_admin') {
       // Admins see all orders
-      orders = getOrders({ status, limit: limit ? parseInt(limit, 10) : undefined, offset: offset ? parseInt(offset, 10) : undefined });
+      orders = await getOrders({ status, limit: limit ? parseInt(limit, 10) : undefined, offset: offset ? parseInt(offset, 10) : undefined });
     } else if (session.user_role === 'vendor') {
       // Vendors see orders containing their products
-      orders = getOrders({ vendorId: session.user_id, status });
+      orders = await getOrders({ vendorId: session.user_id, status });
     } else {
       // Buyers see their own orders
-      orders = getOrders({ buyerId: session.user_id, status });
+      orders = await getOrders({ buyerId: session.user_id, status });
     }
 
     const transformedOrders = orders.map((order) => ({
@@ -97,12 +97,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
 
-    const user = getUserById(session.user_id);
+    const user = await getUserById(session.user_id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
@@ -145,11 +145,11 @@ export async function POST(request: NextRequest) {
       notes: body.notes,
     };
 
-    const order = createOrder(orderInput);
+    const order = await createOrder(orderInput);
 
     // Reduce inventory for each item
     for (const item of body.items) {
-      reduceInventory(item.productId, item.quantity);
+      await reduceInventory(item.productId, item.quantity);
     }
 
     return NextResponse.json({

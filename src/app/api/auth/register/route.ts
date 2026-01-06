@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     console.log('[REGISTER_API] Starting atomic registration', { email, role });
 
-    const result = registerUser(
+    const result = await registerUser(
       { email, password, name, role, phone, location, businessName, businessType },
       { ipAddress, userAgent }
     );
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       const error = result.error!;
       console.log('[REGISTER_API] Registration failed:', error.code, error.message);
 
-      logAuthEvent(
+      await logAuthEvent(
         'REGISTRATION_FAILED',
         email || 'unknown',
         email || 'unknown',
@@ -79,7 +79,7 @@ export async function POST(request: NextRequest) {
     const { user, session } = result.data;
     console.log('[REGISTER_API] Registration successful, setting session cookie', { userId: user.id, role: user.role });
 
-    logAuthEvent(
+    await logAuthEvent(
       'REGISTRATION_SUCCESS',
       user.id,
       user.email,
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[REGISTER_API] Unexpected error:', error);
 
-    logAuthEvent(
+    await logAuthEvent(
       'REGISTRATION_ERROR',
       'system',
       'unknown',

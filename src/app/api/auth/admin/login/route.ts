@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
 
     console.log('[ADMIN_LOGIN_API] Starting unified admin login', { email });
 
-    const result = loginAdmin(
+    const result = await loginAdmin(
       { email, password },
       { ipAddress, userAgent }
     );
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       const error = result.error!;
       console.log('[ADMIN_LOGIN_API] Admin login failed:', error.code, error.message);
 
-      logSecurityEvent(
+      await logSecurityEvent(
         'ADMIN_LOGIN_FAILED',
         `Admin login attempt failed for ${email}: ${error.code}`,
         {
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     const { admin, session } = result.data;
     console.log('[ADMIN_LOGIN_API] Admin login successful, setting session cookie', { adminId: admin.id, role: admin.role });
 
-    logAuthEvent(
+    await logAuthEvent(
       'ADMIN_LOGIN_SUCCESS',
       admin.id,
       admin.email,
@@ -111,7 +111,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[ADMIN_LOGIN_API] Unexpected error:', error);
 
-    logSecurityEvent(
+    await logSecurityEvent(
       'ADMIN_LOGIN_ERROR',
       `System error during admin login: ${error instanceof Error ? error.message : String(error)}`,
       {

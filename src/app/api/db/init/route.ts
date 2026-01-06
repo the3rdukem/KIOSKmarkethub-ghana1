@@ -6,28 +6,28 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { initializeDatabase, getDatabaseStats, isDatabaseHealthy } from '@/lib/db/dal';
+import { initializeDbSchema, getDatabaseStats, isDatabaseHealthy } from '@/lib/db/dal';
 
 let initialized = false;
 
 export async function GET(request: NextRequest) {
   try {
     if (!initialized) {
-      initializeDatabase();
+      await initializeDbSchema();
       initialized = true;
     }
 
-    const stats = getDatabaseStats();
-    const healthy = isDatabaseHealthy();
+    const stats = await getDatabaseStats();
+    const healthy = await isDatabaseHealthy();
 
     return NextResponse.json({
       success: true,
       initialized: true,
       healthy,
       stats: {
-        path: stats.path,
+        poolSize: stats.poolSize,
+        connected: stats.connected,
         tables: stats.tables,
-        healthy: stats.healthy,
       },
     });
   } catch (error) {
@@ -40,9 +40,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  // Force re-initialization (for development)
   try {
-    initializeDatabase();
+    await initializeDbSchema();
     initialized = true;
 
     return NextResponse.json({

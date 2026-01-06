@@ -4,7 +4,7 @@
  * Server-side only - provides CRUD operations for products.
  */
 
-import { getDatabase } from '../index';
+import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 
 export type ProductStatus = 'active' | 'draft' | 'archived' | 'pending_approval' | 'rejected' | 'suspended';
@@ -23,12 +23,12 @@ export interface DbProduct {
   barcode: string | null;
   quantity: number;
   track_quantity: number;
-  images: string | null; // JSON array
+  images: string | null;
   weight: number | null;
-  dimensions: string | null; // JSON
-  tags: string | null; // JSON array
+  dimensions: string | null;
+  tags: string | null;
   status: ProductStatus;
-  category_attributes: string | null; // JSON
+  category_attributes: string | null;
   approval_status: string | null;
   approved_by: string | null;
   approved_at: string | null;
@@ -88,60 +88,58 @@ export interface UpdateProductInput {
 /**
  * Create a new product
  */
-export function createProduct(input: CreateProductInput): DbProduct {
-  const db = getDatabase();
+export async function createProduct(input: CreateProductInput): Promise<DbProduct> {
   const id = `prod_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
-    INSERT INTO products (
+  await query(
+    `INSERT INTO products (
       id, vendor_id, vendor_name, name, description, category, price,
       compare_price, cost_per_item, sku, barcode, quantity, track_quantity,
       images, weight, dimensions, tags, status, category_attributes,
       created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `);
-
-  stmt.run(
-    id,
-    input.vendorId,
-    input.vendorName,
-    input.name,
-    input.description || null,
-    input.category || null,
-    input.price,
-    input.comparePrice || null,
-    input.costPerItem || null,
-    input.sku || null,
-    input.barcode || null,
-    input.quantity || 0,
-    input.trackQuantity !== false ? 1 : 0,
-    input.images ? JSON.stringify(input.images) : null,
-    input.weight || null,
-    input.dimensions ? JSON.stringify(input.dimensions) : null,
-    input.tags ? JSON.stringify(input.tags) : null,
-    input.status || 'active',
-    input.categoryAttributes ? JSON.stringify(input.categoryAttributes) : null,
-    now,
-    now
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
+    [
+      id,
+      input.vendorId,
+      input.vendorName,
+      input.name,
+      input.description || null,
+      input.category || null,
+      input.price,
+      input.comparePrice || null,
+      input.costPerItem || null,
+      input.sku || null,
+      input.barcode || null,
+      input.quantity || 0,
+      input.trackQuantity !== false ? 1 : 0,
+      input.images ? JSON.stringify(input.images) : null,
+      input.weight || null,
+      input.dimensions ? JSON.stringify(input.dimensions) : null,
+      input.tags ? JSON.stringify(input.tags) : null,
+      input.status || 'active',
+      input.categoryAttributes ? JSON.stringify(input.categoryAttributes) : null,
+      now,
+      now
+    ]
   );
 
-  return getProductById(id)!;
+  const product = await getProductById(id);
+  return product!;
 }
 
 /**
  * Get product by ID
  */
-export function getProductById(id: string): DbProduct | null {
-  const db = getDatabase();
-  const stmt = db.prepare('SELECT * FROM products WHERE id = ?');
-  return stmt.get(id) as DbProduct | null;
+export async function getProductById(id: string): Promise<DbProduct | null> {
+  const result = await query<DbProduct>('SELECT * FROM products WHERE id = $1', [id]);
+  return result.rows[0] || null;
 }
 
 /**
  * Get all products
  */
-export function getProducts(options?: {
+export async function getProducts(options?: {
   vendorId?: string;
   category?: string;
   status?: ProductStatus;
@@ -149,62 +147,63 @@ export function getProducts(options?: {
   limit?: number;
   offset?: number;
   search?: string;
-}): DbProduct[] {
-  const db = getDatabase();
-  let query = 'SELECT * FROM products WHERE 1=1';
+}): Promise<DbProduct[]> {
+  let sql = 'SELECT * FROM products WHERE 1=1';
   const params: unknown[] = [];
+  let paramIndex = 1;
 
   if (options?.vendorId) {
-    query += ' AND vendor_id = ?';
+    sql += ` AND vendor_id = $${paramIndex++}`;
     params.push(options.vendorId);
   }
 
   if (options?.category) {
-    query += ' AND category = ?';
+    sql += ` AND category = $${paramIndex++}`;
     params.push(options.category);
   }
 
   if (options?.status) {
-    query += ' AND status = ?';
+    sql += ` AND status = $${paramIndex++}`;
     params.push(options.status);
   }
 
   if (options?.isFeatured !== undefined) {
-    query += ' AND is_featured = ?';
+    sql += ` AND is_featured = $${paramIndex++}`;
     params.push(options.isFeatured ? 1 : 0);
   }
 
   if (options?.search) {
-    query += ' AND (LOWER(name) LIKE ? OR LOWER(description) LIKE ?)';
+    sql += ` AND (LOWER(name) LIKE $${paramIndex} OR LOWER(description) LIKE $${paramIndex})`;
     const searchTerm = `%${options.search.toLowerCase()}%`;
-    params.push(searchTerm, searchTerm);
+    params.push(searchTerm);
+    paramIndex++;
   }
 
-  query += ' ORDER BY created_at DESC';
+  sql += ' ORDER BY created_at DESC';
 
   if (options?.limit) {
-    query += ' LIMIT ?';
+    sql += ` LIMIT $${paramIndex++}`;
     params.push(options.limit);
   }
 
   if (options?.offset) {
-    query += ' OFFSET ?';
+    sql += ` OFFSET $${paramIndex++}`;
     params.push(options.offset);
   }
 
-  const stmt = db.prepare(query);
-  return stmt.all(...params) as DbProduct[];
+  const result = await query<DbProduct>(sql, params);
+  return result.rows;
 }
 
 /**
  * Get active products (for storefront)
  */
-export function getActiveProducts(options?: {
+export async function getActiveProducts(options?: {
   category?: string;
   vendorId?: string;
   limit?: number;
   offset?: number;
-}): DbProduct[] {
+}): Promise<DbProduct[]> {
   return getProducts({
     ...options,
     status: 'active',
@@ -214,99 +213,102 @@ export function getActiveProducts(options?: {
 /**
  * Get products by vendor
  */
-export function getProductsByVendor(vendorId: string): DbProduct[] {
+export async function getProductsByVendor(vendorId: string): Promise<DbProduct[]> {
   return getProducts({ vendorId });
 }
 
 /**
  * Get featured products
  */
-export function getFeaturedProducts(limit?: number): DbProduct[] {
+export async function getFeaturedProducts(limit?: number): Promise<DbProduct[]> {
   return getProducts({ status: 'active', isFeatured: true, limit });
 }
 
 /**
  * Update product
  */
-export function updateProduct(id: string, updates: UpdateProductInput): DbProduct | null {
-  const db = getDatabase();
+export async function updateProduct(id: string, updates: UpdateProductInput): Promise<DbProduct | null> {
   const now = new Date().toISOString();
 
-  const fields: string[] = ['updated_at = ?'];
-  const values: unknown[] = [now];
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  fields.push(`updated_at = $${paramIndex++}`);
+  values.push(now);
 
   if (updates.name !== undefined) {
-    fields.push('name = ?');
+    fields.push(`name = $${paramIndex++}`);
     values.push(updates.name);
   }
   if (updates.description !== undefined) {
-    fields.push('description = ?');
+    fields.push(`description = $${paramIndex++}`);
     values.push(updates.description);
   }
   if (updates.category !== undefined) {
-    fields.push('category = ?');
+    fields.push(`category = $${paramIndex++}`);
     values.push(updates.category);
   }
   if (updates.price !== undefined) {
-    fields.push('price = ?');
+    fields.push(`price = $${paramIndex++}`);
     values.push(updates.price);
   }
   if (updates.comparePrice !== undefined) {
-    fields.push('compare_price = ?');
+    fields.push(`compare_price = $${paramIndex++}`);
     values.push(updates.comparePrice);
   }
   if (updates.costPerItem !== undefined) {
-    fields.push('cost_per_item = ?');
+    fields.push(`cost_per_item = $${paramIndex++}`);
     values.push(updates.costPerItem);
   }
   if (updates.sku !== undefined) {
-    fields.push('sku = ?');
+    fields.push(`sku = $${paramIndex++}`);
     values.push(updates.sku);
   }
   if (updates.barcode !== undefined) {
-    fields.push('barcode = ?');
+    fields.push(`barcode = $${paramIndex++}`);
     values.push(updates.barcode);
   }
   if (updates.quantity !== undefined) {
-    fields.push('quantity = ?');
+    fields.push(`quantity = $${paramIndex++}`);
     values.push(updates.quantity);
   }
   if (updates.trackQuantity !== undefined) {
-    fields.push('track_quantity = ?');
+    fields.push(`track_quantity = $${paramIndex++}`);
     values.push(updates.trackQuantity ? 1 : 0);
   }
   if (updates.images !== undefined) {
-    fields.push('images = ?');
+    fields.push(`images = $${paramIndex++}`);
     values.push(JSON.stringify(updates.images));
   }
   if (updates.weight !== undefined) {
-    fields.push('weight = ?');
+    fields.push(`weight = $${paramIndex++}`);
     values.push(updates.weight);
   }
   if (updates.dimensions !== undefined) {
-    fields.push('dimensions = ?');
+    fields.push(`dimensions = $${paramIndex++}`);
     values.push(JSON.stringify(updates.dimensions));
   }
   if (updates.tags !== undefined) {
-    fields.push('tags = ?');
+    fields.push(`tags = $${paramIndex++}`);
     values.push(JSON.stringify(updates.tags));
   }
   if (updates.status !== undefined) {
-    fields.push('status = ?');
+    fields.push(`status = $${paramIndex++}`);
     values.push(updates.status);
   }
   if (updates.categoryAttributes !== undefined) {
-    fields.push('category_attributes = ?');
+    fields.push(`category_attributes = $${paramIndex++}`);
     values.push(JSON.stringify(updates.categoryAttributes));
   }
   if (updates.isFeatured !== undefined) {
-    fields.push('is_featured = ?');
+    fields.push(`is_featured = $${paramIndex++}`);
     values.push(updates.isFeatured ? 1 : 0);
     if (updates.isFeatured) {
-      fields.push('featured_at = ?');
+      fields.push(`featured_at = $${paramIndex++}`);
       values.push(now);
       if (updates.featuredBy) {
-        fields.push('featured_by = ?');
+        fields.push(`featured_by = $${paramIndex++}`);
         values.push(updates.featuredBy);
       }
     } else {
@@ -317,38 +319,37 @@ export function updateProduct(id: string, updates: UpdateProductInput): DbProduc
 
   values.push(id);
 
-  const stmt = db.prepare(`UPDATE products SET ${fields.join(', ')} WHERE id = ?`);
-  const result = stmt.run(...values);
+  const result = await query(
+    `UPDATE products SET ${fields.join(', ')} WHERE id = $${paramIndex}`,
+    values
+  );
 
-  if (result.changes === 0) return null;
+  if ((result.rowCount ?? 0) === 0) return null;
   return getProductById(id);
 }
 
 /**
  * Delete product
  */
-export function deleteProduct(id: string): boolean {
-  const db = getDatabase();
-  const stmt = db.prepare('DELETE FROM products WHERE id = ?');
-  const result = stmt.run(id);
-  return result.changes > 0;
+export async function deleteProduct(id: string): Promise<boolean> {
+  const result = await query('DELETE FROM products WHERE id = $1', [id]);
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
  * Reduce product inventory
  */
-export function reduceInventory(id: string, quantity: number): boolean {
-  const db = getDatabase();
-  const product = getProductById(id);
+export async function reduceInventory(id: string, quantity: number): Promise<boolean> {
+  const product = await getProductById(id);
 
   if (!product) return false;
   if (product.track_quantity && product.quantity < quantity) return false;
 
   if (product.track_quantity) {
-    const stmt = db.prepare(`
-      UPDATE products SET quantity = quantity - ?, updated_at = ? WHERE id = ?
-    `);
-    stmt.run(quantity, new Date().toISOString(), id);
+    await query(
+      `UPDATE products SET quantity = quantity - $1, updated_at = $2 WHERE id = $3`,
+      [quantity, new Date().toISOString(), id]
+    );
   }
 
   return true;
@@ -357,131 +358,128 @@ export function reduceInventory(id: string, quantity: number): boolean {
 /**
  * Search products
  */
-export function searchProducts(query: string, options?: {
+export async function searchProducts(searchQuery: string, options?: {
   category?: string;
   status?: ProductStatus;
   limit?: number;
-}): DbProduct[] {
-  const db = getDatabase();
-  const searchTerm = `%${query.toLowerCase()}%`;
+}): Promise<DbProduct[]> {
+  const searchTerm = `%${searchQuery.toLowerCase()}%`;
+  let paramIndex = 1;
 
   let sql = `
     SELECT * FROM products
-    WHERE status = ?
+    WHERE status = $${paramIndex++}
     AND (
-      LOWER(name) LIKE ?
-      OR LOWER(description) LIKE ?
-      OR tags LIKE ?
+      LOWER(name) LIKE $${paramIndex}
+      OR LOWER(description) LIKE $${paramIndex}
+      OR tags LIKE $${paramIndex}
     )
   `;
 
   const params: unknown[] = [
     options?.status || 'active',
     searchTerm,
-    searchTerm,
-    searchTerm,
   ];
+  paramIndex++;
 
   if (options?.category) {
-    sql += ' AND category = ?';
+    sql += ` AND category = $${paramIndex++}`;
     params.push(options.category);
   }
 
   sql += ' ORDER BY name ASC';
 
   if (options?.limit) {
-    sql += ' LIMIT ?';
+    sql += ` LIMIT $${paramIndex++}`;
     params.push(options.limit);
   }
 
-  const stmt = db.prepare(sql);
-  return stmt.all(...params) as DbProduct[];
+  const result = await query<DbProduct>(sql, params);
+  return result.rows;
 }
 
 /**
  * Get product stats
  */
-export function getProductStats(vendorId?: string): {
+export async function getProductStats(vendorId?: string): Promise<{
   totalProducts: number;
   activeProducts: number;
   draftProducts: number;
   pendingProducts: number;
   featuredProducts: number;
-} {
-  const db = getDatabase();
+}> {
   let whereClause = '';
   const params: unknown[] = [];
 
   if (vendorId) {
-    whereClause = ' WHERE vendor_id = ?';
+    whereClause = ' WHERE vendor_id = $1';
     params.push(vendorId);
   }
 
-  const statsQuery = db.prepare(`
-    SELECT
-      COUNT(*) as totalProducts,
-      SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as activeProducts,
-      SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draftProducts,
-      SUM(CASE WHEN status = 'pending_approval' THEN 1 ELSE 0 END) as pendingProducts,
-      SUM(CASE WHEN is_featured = 1 AND status = 'active' THEN 1 ELSE 0 END) as featuredProducts
-    FROM products${whereClause}
-  `);
+  const result = await query<{
+    totalproducts: string;
+    activeproducts: string;
+    draftproducts: string;
+    pendingproducts: string;
+    featuredproducts: string;
+  }>(
+    `SELECT
+      COUNT(*) as totalproducts,
+      SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as activeproducts,
+      SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) as draftproducts,
+      SUM(CASE WHEN status = 'pending_approval' THEN 1 ELSE 0 END) as pendingproducts,
+      SUM(CASE WHEN is_featured = 1 AND status = 'active' THEN 1 ELSE 0 END) as featuredproducts
+    FROM products${whereClause}`,
+    params
+  );
 
-  const result = statsQuery.get(...params) as {
-    totalProducts: number;
-    activeProducts: number;
-    draftProducts: number;
-    pendingProducts: number;
-    featuredProducts: number;
-  };
+  const row = result.rows[0];
 
   return {
-    totalProducts: result.totalProducts || 0,
-    activeProducts: result.activeProducts || 0,
-    draftProducts: result.draftProducts || 0,
-    pendingProducts: result.pendingProducts || 0,
-    featuredProducts: result.featuredProducts || 0,
+    totalProducts: parseInt(row?.totalproducts || '0'),
+    activeProducts: parseInt(row?.activeproducts || '0'),
+    draftProducts: parseInt(row?.draftproducts || '0'),
+    pendingProducts: parseInt(row?.pendingproducts || '0'),
+    featuredProducts: parseInt(row?.featuredproducts || '0'),
   };
 }
 
 /**
  * Suspend product
  */
-export function suspendProduct(id: string, suspendedBy: string, reason: string): boolean {
-  const db = getDatabase();
+export async function suspendProduct(id: string, suspendedBy: string, reason: string): Promise<boolean> {
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
-    UPDATE products SET
+  const result = await query(
+    `UPDATE products SET
       status = 'suspended',
-      suspended_by = ?,
-      suspended_at = ?,
-      suspension_reason = ?,
-      updated_at = ?
-    WHERE id = ?
-  `);
+      suspended_by = $1,
+      suspended_at = $2,
+      suspension_reason = $3,
+      updated_at = $4
+    WHERE id = $5`,
+    [suspendedBy, now, reason, now, id]
+  );
 
-  const result = stmt.run(suspendedBy, now, reason, now, id);
-  return result.changes > 0;
+  return (result.rowCount ?? 0) > 0;
 }
 
 /**
  * Unsuspend product
  */
-export function unsuspendProduct(id: string): boolean {
-  const db = getDatabase();
+export async function unsuspendProduct(id: string): Promise<boolean> {
   const now = new Date().toISOString();
 
-  const stmt = db.prepare(`
-    UPDATE products SET
+  const result = await query(
+    `UPDATE products SET
       status = 'active',
       suspended_by = NULL,
       suspended_at = NULL,
       suspension_reason = NULL,
-      updated_at = ?
-    WHERE id = ?
-  `);
+      updated_at = $1
+    WHERE id = $2`,
+    [now, id]
+  );
 
-  const result = stmt.run(now, id);
-  return result.changes > 0;
+  return (result.rowCount ?? 0) > 0;
 }

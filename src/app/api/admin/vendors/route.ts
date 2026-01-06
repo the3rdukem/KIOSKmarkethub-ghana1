@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -56,13 +56,13 @@ export async function GET(request: NextRequest) {
 
     // Return stats if requested
     if (stats === 'true') {
-      const vendorStats = getVendorStats();
+      const vendorStats = await getVendorStats();
       return NextResponse.json({ stats: vendorStats });
     }
 
     // Return pending vendors if requested
     if (pending === 'true') {
-      const pendingVendors = getPendingVendors();
+      const pendingVendors = await getPendingVendors();
       return NextResponse.json({
         vendors: pendingVendors.map(v => ({
           id: v.id,
@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get vendors with user data
-    const vendors = getVendorsWithUsers({
+    const vendors = await getVendorsWithUsers({
       verificationStatus: verificationStatus || undefined,
       storeStatus: storeStatus || undefined,
     });
@@ -149,7 +149,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -166,7 +166,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Vendor ID is required' }, { status: 400 });
     }
 
-    const vendor = getVendorById(vendorId);
+    const vendor = await getVendorById(vendorId);
     if (!vendor) {
       return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
     }
@@ -177,9 +177,9 @@ export async function PATCH(request: NextRequest) {
 
     switch (action) {
       case 'approve':
-        updatedVendor = approveVendor(vendorId, session.user_id);
+        updatedVendor = await approveVendor(vendorId, session.user_id);
         // Also update the user's verification status
-        updateUser(vendor.user_id, {
+        await updateUser(vendor.user_id, {
           verificationStatus: 'verified',
           verifiedAt: new Date().toISOString(),
           verifiedBy: session.user_id,
@@ -193,9 +193,9 @@ export async function PATCH(request: NextRequest) {
         if (!reason) {
           return NextResponse.json({ error: 'Reason is required for rejection' }, { status: 400 });
         }
-        updatedVendor = rejectVendor(vendorId, session.user_id, reason);
+        updatedVendor = await rejectVendor(vendorId, session.user_id, reason);
         // Also update the user's verification status
-        updateUser(vendor.user_id, {
+        await updateUser(vendor.user_id, {
           verificationStatus: 'rejected',
           verificationNotes: reason,
         });
@@ -207,9 +207,9 @@ export async function PATCH(request: NextRequest) {
         if (!reason) {
           return NextResponse.json({ error: 'Reason is required for suspension' }, { status: 400 });
         }
-        updatedVendor = suspendVendor(vendorId, session.user_id, reason);
+        updatedVendor = await suspendVendor(vendorId, session.user_id, reason);
         // Also update the user's status
-        updateUser(vendor.user_id, {
+        await updateUser(vendor.user_id, {
           verificationStatus: 'suspended',
           status: 'suspended',
         });
@@ -218,11 +218,11 @@ export async function PATCH(request: NextRequest) {
         break;
 
       case 'unsuspend':
-        updatedVendor = updateVendor(vendorId, {
+        updatedVendor = await updateVendor(vendorId, {
           verificationStatus: 'verified',
           storeStatus: 'active',
         });
-        updateUser(vendor.user_id, {
+        await updateUser(vendor.user_id, {
           verificationStatus: 'verified',
           status: 'active',
         });
@@ -232,7 +232,7 @@ export async function PATCH(request: NextRequest) {
 
       default:
         // Generic update
-        updatedVendor = updateVendor(vendorId, updates);
+        updatedVendor = await updateVendor(vendorId, updates);
         auditAction = 'VENDOR_UPDATED';
         auditDetails = `Updated vendor: ${vendor.business_name}`;
     }
@@ -242,7 +242,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // Create audit log
-    createAuditLog({
+    await createAuditLog({
       action: auditAction,
       category: 'vendor',
       adminId: session.user_id,

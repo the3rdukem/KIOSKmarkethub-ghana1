@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -43,7 +43,7 @@ export async function GET(request: NextRequest) {
     const includeDeleted = searchParams.get('includeDeleted') === 'true';
 
     // Fetch users from database
-    const users = getUsers({
+    const users = await getUsers({
       role: role || undefined,
       status: status as 'active' | 'suspended' | 'pending' | 'banned' | 'deleted' | undefined,
       includeDeleted,
@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -141,7 +141,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Use CANONICAL createUser() - same as registration
-    const result = createUser(
+    const result = await createUser(
       {
         email,
         password,
@@ -172,10 +172,10 @@ export async function POST(request: NextRequest) {
     const createdUser = result.data.user;
 
     // Get admin info for audit log
-    const adminUser = getUserById(session.user_id);
+    const adminUser = await getUserById(session.user_id);
 
     // Log admin user creation
-    createAuditLog({
+    await createAuditLog({
       action: 'ADMIN_USER_CREATED',
       category: 'admin',
       adminId: session.user_id,
@@ -236,7 +236,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    const session = validateSession(sessionToken);
+    const session = await validateSession(sessionToken);
     if (!session) {
       return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
     }
@@ -253,12 +253,12 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'userId and action are required' }, { status: 400 });
     }
 
-    const targetUser = getUserById(userId);
+    const targetUser = await getUserById(userId);
     if (!targetUser) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    const adminUser = getUserById(session.user_id);
+    const adminUser = await getUserById(session.user_id);
     const now = new Date().toISOString();
 
     let updates: Parameters<typeof updateUser>[1] = {};
@@ -330,14 +330,14 @@ export async function PATCH(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
-    const updatedUser = updateUser(userId, updates);
+    const updatedUser = await updateUser(userId, updates);
 
     if (!updatedUser) {
       return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
     }
 
     // Log the action
-    createAuditLog({
+    await createAuditLog({
       action: auditAction,
       category: action.includes('verification') ? 'vendor' : 'user',
       adminId: session.user_id,

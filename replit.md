@@ -1,7 +1,7 @@
 # Sabi Market V3
 
 ## Overview
-MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobile Money payments, and buyer protection. Built with Next.js 15, Tailwind CSS, shadcn/ui components, and better-sqlite3 for local database storage.
+MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobile Money payments, and buyer protection. Built with Next.js 15, Tailwind CSS, shadcn/ui components, and PostgreSQL for database storage.
 
 ## Project Structure
 - `src/app/` - Next.js App Router pages and API routes
@@ -22,7 +22,15 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 ## Development
 - **Dev Server**: `npm run dev` (runs on port 5000)
 - **Build**: `npm run build`
-- **Database**: SQLite via better-sqlite3 (stored locally)
+- **Database**: PostgreSQL via Replit's managed database (PGHOST, PGDATABASE, PGUSER, PGPASSWORD)
+
+## Database Architecture
+- **PostgreSQL-Only**: Database has been migrated from SQLite to PostgreSQL
+- **Connection Pool**: Uses `pg` package with connection pooling (max 20 connections)
+- **Async DAL**: All Data Access Layer functions are async/await with Promise return types
+- **Query Pattern**: Uses `await query<Type>(sql, [params])` with `.rows[0]` or `.rows` access
+- **Placeholders**: PostgreSQL uses `$1, $2, $3...` instead of SQLite's `?`
+- **Environment Priority**: Prefers PGHOST/PGUSER/etc env vars over DATABASE_URL
 
 ## Key Features
 - Multi-vendor marketplace
@@ -53,10 +61,12 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - `AuditLogs` - View audit trail for all governance actions
 
 ## Recent Changes (January 2026)
+- **Database Migration**: Migrated from better-sqlite3 to PostgreSQL using pg package
+- **Async DAL**: All 12+ Data Access Layer files converted to async/await with Promise-based APIs
+- **API Routes Updated**: All API routes updated to use async patterns for DAL function calls
+- **Connection Pooling**: Implemented PostgreSQL connection pool with 20 max connections
+- **Environment Lock**: Database connection prefers Replit PostgreSQL env vars (PGHOST, etc.)
+- **Schema Migration**: PostgreSQL schema with all tables, indexes, foreign keys, and category seeding
 - Implemented comprehensive governance system with vendor verification gating
 - Added CategoryManagement component with database-backed API integration
-- Replaced localStorage-based category store with database persistence
 - Added audit logging to product CRUD, vendor verification, user creation
-- Fixed logout and session termination for Firefox compatibility
-- Removed localStorage persistence from auth store
-- Consolidated to single session_token cookie (removed user_role and is_authenticated cookies)
