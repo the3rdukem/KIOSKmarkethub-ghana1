@@ -189,18 +189,25 @@ export default function VendorProductsPage() {
     try {
       toast.loading('Duplicating product...', { id: 'duplicate' });
 
+      // Generate unique SKU - strip existing copy suffixes and add timestamp
+      let newSku: string | undefined = undefined;
+      if (product.sku) {
+        const baseSku = product.sku.replace(/-copy(-\d+)?$/i, '');
+        newSku = `${baseSku}-copy-${Date.now().toString(36)}`;
+      }
+
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          name: `${product.name ?? ''} (Copy)`,
+          name: `${(product.name ?? '').replace(/ \(Copy\)$/i, '')} (Copy)`,
           description: product.description ?? '',
           category: product.category ?? '',
           price: product.price ?? 0,
           comparePrice: product.comparePrice,
           costPerItem: product.costPerItem,
-          sku: product.sku ? `${product.sku}-copy` : undefined,
+          sku: newSku,
           barcode: undefined,
           quantity: product.quantity ?? 0,
           trackQuantity: product.trackQuantity ?? true,
@@ -222,12 +229,22 @@ export default function VendorProductsPage() {
         }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to duplicate product');
+        if (data.code === 'VENDOR_NOT_VERIFIED') {
+          toast.error('Your account must be verified to create products');
+        } else {
+          toast.error(data.error || 'Failed to duplicate product');
+        }
+        if (user) {
+          fetchVendorProducts(user.id);
+        }
       }
     } catch (error) {
       toast.dismiss('duplicate');
       console.error('Duplicate error:', error);
       toast.error('Failed to duplicate product');
+      if (user) {
+        fetchVendorProducts(user.id);
+      }
     }
   };
 

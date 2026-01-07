@@ -95,3 +95,7 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - **Admin Revoke API**: Created `/api/admin/admins/[id]` endpoint for revoking/activating admin access
 - **Product Actions API**: Added PATCH handler to `/api/products/[id]` for admin actions (approve, reject, suspend, unsuspend, feature, unfeature)
 - **Vendor Product Delete API-First**: Vendor product delete now uses DELETE API with fetchVendorProducts() refresh
+- **Null-Safe Product Edit Form**: All product fields use nullish coalescing for safe defaults, arrays checked with Array.isArray()
+- **Draft Save Validation**: Draft saves only require product name, full validation only for publish
+- **Duplicate Product**: Added handleDuplicateProduct with unique SKU generation, creates draft and redirects to edit page
+- **API-First Product Updates**: Vendor edit page now uses PUT /api/products/[id] instead of Zustand store

@@ -347,33 +347,51 @@ export default function CreateProductPage() {
     }
   };
 
-  const validateForm = () => {
+  const validateForm = (forPublish: boolean) => {
     const newErrors: Record<string, string> = {};
-    if (!productData.name.trim()) newErrors.name = "Product name is required";
-    if (!productData.description.trim()) newErrors.description = "Product description is required";
-    if (!productData.category) newErrors.category = "Category is required";
 
-    // Validate category-specific fields from API schema
-    if (productData.category && currentCategoryFields.length > 0) {
-      for (const field of currentCategoryFields) {
-        if (field.required) {
-          const value = categoryAttributes[field.key];
-          if (value === undefined || value === null || value === '') {
-            newErrors[field.key] = `${field.label} is required`;
+    // NULL-SAFE validation - coerce to string before trim
+    const name = (productData.name || "").trim();
+    const description = (productData.description || "").trim();
+    const category = productData.category || "";
+    const price = productData.price || "";
+    const quantity = productData.quantity || "";
+
+    // Draft saves only require a name
+    if (!name) {
+      newErrors.name = "Product name is required";
+    }
+
+    // Full validation only for publish
+    if (forPublish) {
+      if (!description) newErrors.description = "Product description is required";
+      if (!category) newErrors.category = "Category is required";
+
+      // Validate category-specific fields from API schema
+      if (category && currentCategoryFields.length > 0) {
+        for (const field of currentCategoryFields) {
+          if (field.required) {
+            const value = categoryAttributes[field.key];
+            if (value === undefined || value === null || value === '') {
+              newErrors[field.key] = `${field.label} is required`;
+            }
           }
         }
       }
-    }
 
-    if (!productData.price) newErrors.price = "Price is required";
-    else if (isNaN(Number(productData.price)) || Number(productData.price) <= 0) {
-      newErrors.price = "Price must be a valid positive number";
-    }
-    if (productData.comparePrice && (isNaN(Number(productData.comparePrice)) || Number(productData.comparePrice) <= 0)) {
-      newErrors.comparePrice = "Compare price must be a valid positive number";
-    }
-    if (productData.trackQuantity && !productData.quantity) {
-      newErrors.quantity = "Quantity is required when tracking inventory";
+      if (!price) {
+        newErrors.price = "Price is required";
+      } else if (isNaN(Number(price)) || Number(price) <= 0) {
+        newErrors.price = "Price must be a valid positive number";
+      }
+
+      if (productData.comparePrice && (isNaN(Number(productData.comparePrice)) || Number(productData.comparePrice) <= 0)) {
+        newErrors.comparePrice = "Compare price must be a valid positive number";
+      }
+
+      if (productData.trackQuantity && !quantity) {
+        newErrors.quantity = "Quantity is required when tracking inventory";
+      }
     }
 
     setErrors(newErrors);
@@ -400,7 +418,9 @@ export default function CreateProductPage() {
   const handleSubmit = async (e: React.FormEvent, status: "draft" | "active") => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    // Draft saves skip full validation, only require name
+    const forPublish = status === "active";
+    if (!validateForm(forPublish)) {
       toast.error("Please fix the errors in the form");
       return;
     }
