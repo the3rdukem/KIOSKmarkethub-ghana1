@@ -50,7 +50,7 @@ export default function HomePage() {
   const getCategoryCount = (categoryName: string) => {
     if (!isHydrated) return "Browse";
     const count = products.filter(p =>
-      p.category.toLowerCase().includes(categoryName.toLowerCase())
+      p.category && p.category.toLowerCase().includes(categoryName.toLowerCase())
     ).length;
     return count > 0 ? `${count} products` : "Browse";
   };

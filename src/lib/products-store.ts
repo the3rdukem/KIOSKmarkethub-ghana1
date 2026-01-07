@@ -187,7 +187,7 @@ export const useProductsStore = create<ProductsState>()(
             product.status === 'active' &&
             (product.name.toLowerCase().includes(lowerQuery) ||
               product.description.toLowerCase().includes(lowerQuery) ||
-              product.category.toLowerCase().includes(lowerQuery) ||
+              (product.category && product.category.toLowerCase().includes(lowerQuery)) ||
               product.tags.some((tag) => tag.toLowerCase().includes(lowerQuery)))
         );
       },

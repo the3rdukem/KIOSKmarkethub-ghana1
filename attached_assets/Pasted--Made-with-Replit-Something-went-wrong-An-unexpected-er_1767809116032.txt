@@ -1,0 +1,46 @@
+
+Made with Replit
+Something went wrong
+An unexpected error occurred. Please try again or return to the home page.
+
+can't access property "toLowerCase", p.category is null
+
+
+HomePage@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/src_b3db6f88._.js:7455:215
+ClientPageRoot@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_20d1a1c3._.js:9745:57
+SegmentViewNode@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:2546:40
+InnerLayoutRouter@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_20d1a1c3._.js:7527:49
+RedirectErrorBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:4617:9
+RedirectBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:4625:24
+HTTPAccessFallbackErrorBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:5480:9
+HTTPAccessFallbackBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:5488:59
+LoadingBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_20d1a1c3._.js:7608:33
+ErrorBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:996:67
+InnerScrollAndFocusHandler@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_20d1a1c3._.js:7424:9
+ScrollAndFocusHandler@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_20d1a1c3._.js:7509:37
+RenderFromTemplateContext@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_20d1a1c3._.js:7826:44
+SegmentStateProvider@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:2563:24
+OuterLayoutRouter@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_20d1a1c3._.js:7644:168
+DbInitializer@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/src_9216feda._.js:354:24
+ErrorBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/src_9216feda._.js:820:9
+ClientProvider@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/src_9216feda._.js:907:24
+body@unknown:0:0
+html@unknown:0:0
+RootLayout [Server]@unknown:0:0
+SegmentViewNode@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:2546:40
+__next_root_layout_boundary__@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:1493:28
+RedirectErrorBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:4617:9
+RedirectBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:4625:24
+HTTPAccessFallbackErrorBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:5480:9
+HTTPAccessFallbackBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:5488:59
+DevRootHTTPAccessFallbackBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:5558:24
+AppDevOverlayErrorBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_b0daae9a._.js:2659:9
+HotReload@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:6365:50
+Router@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:6619:53
+ErrorBoundaryHandler@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:984:9
+ErrorBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:996:67
+RootErrorBoundary@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:5365:67
+AppRouter@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:6922:58
+ServerRoot@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:9879:34
+Root@https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev/_next/static/chunks/node_modules_next_dist_client_cf1d9188._.js:9899:24
+
