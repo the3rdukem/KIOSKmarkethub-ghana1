@@ -1,0 +1,142 @@
+You are fixing CRITICAL LOGIC BUGS in the KIOSK marketplace.
+
+Auth, persistence, and PostgreSQL are WORKING.
+DO NOT refactor architecture.
+DO NOT introduce new abstractions.
+DO NOT touch unrelated features.
+
+Apply ONLY the fixes described below.
+
+========================================
+SECTION 1 — FIX ADMIN LOGIN (CRITICAL)
+========================================
+
+Problem:
+Admin-created admins cannot log in.
+
+Root cause:
+Login query filters out role='admin'.
+
+Required fix:
+- Update auth login logic to allow:
+  - buyer
+  - vendor
+  - admin
+- Ensure admin users are queried from the same users table
+- Do NOT create a separate admin auth flow
+
+Validation:
+- Admin created via admin panel can log in immediately
+- No “No account found” error
+
+Files to inspect:
+- auth-service.ts
+- login handlers
+
+========================================
+SECTION 2 — ACTIVATE AUDIT LOGGING (CRITICAL)
+========================================
+
+Problem:
+Audit table is empty.
+
+Root cause:
+- No call sites
+- Errors silently swallowed
+
+Required fix:
+- Explicitly call audit logging on:
+  - Login
+  - Logout
+  - Registration
+  - Admin user creation
+  - Product creation
+  - Product publish attempts
+- Remove silent catch blocks
+- Log failures to server console
+
+Audit schema must record:
+- actorId
+- actorRole
+- action
+- targetType
+- targetId
+- timestamp
+
+Files to inspect:
+- audit.ts
+- auth routes
+- admin API routes
+
+Validation:
+- Audit entries appear immediately after actions
+- Admin audit tab shows records
+
+========================================
+SECTION 3 — FIX ADMIN DASHBOARD COUNTS
+========================================
+
+Problem:
+Buyer/Vendor counts show 0.
+
+Root cause:
+Query filters status='active' only.
+
+Required fix:
+- Count ALL users unless explicitly filtered by admin UI
+- Do NOT assume status='active'
+- Ensure counts reflect DB truth
+
+Files to inspect:
+- users.ts
+- getUserStats()
+
+Validation:
+- Counts match visible user lists
+- No refresh/logout needed
+
+========================================
+SECTION 4 — FIX STORE ROUTING (404s)
+========================================
+
+Problem:
+Product → Store links return 404.
+
+Root cause:
+Slug/ID mismatch.
+
+Required fix:
+- Choose ONE canonical identifier for public stores (slug preferred)
+- Ensure:
+  - Product cards link using that identifier
+  - Store routes resolve using the same identifier
+- Update preview / visit store links accordingly
+
+Files to inspect:
+- Product card components
+- Vendor store routes
+
+Validation:
+- “Visit store” works from:
+  - Product page
+  - Vendor panel
+  - Buyer view
+
+========================================
+SECTION 5 — NO REGRESSIONS
+========================================
+
+Do NOT:
+- Reintroduce mock data
+- Add demo shortcuts
+- Change DB schema unless necessary
+
+========================================
+FINAL CHECKLIST
+========================================
+
+Task is complete ONLY IF:
+- Admins can log in
+- Audit logs populate
+- Dashboard counts are accurate
+- Store links work
