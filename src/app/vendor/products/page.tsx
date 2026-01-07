@@ -185,6 +185,52 @@ export default function VendorProductsPage() {
     }
   };
 
+  const handleDuplicateProduct = async (product: Product) => {
+    try {
+      toast.loading('Duplicating product...', { id: 'duplicate' });
+
+      const response = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: `${product.name ?? ''} (Copy)`,
+          description: product.description ?? '',
+          category: product.category ?? '',
+          price: product.price ?? 0,
+          comparePrice: product.comparePrice,
+          costPerItem: product.costPerItem,
+          sku: product.sku ? `${product.sku}-copy` : undefined,
+          barcode: undefined,
+          quantity: product.quantity ?? 0,
+          trackQuantity: product.trackQuantity ?? true,
+          images: Array.isArray(product.images) ? product.images : [],
+          tags: Array.isArray(product.tags) ? product.tags : [],
+          status: 'draft',
+        }),
+      });
+
+      toast.dismiss('duplicate');
+
+      if (response.ok) {
+        const data = await response.json();
+        toast.success(`Product duplicated as draft!`);
+        if (data.product?.id) {
+          router.push(`/vendor/products/edit/${data.product.id}`);
+        } else if (user) {
+          fetchVendorProducts(user.id);
+        }
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to duplicate product');
+      }
+    } catch (error) {
+      toast.dismiss('duplicate');
+      console.error('Duplicate error:', error);
+      toast.error('Failed to duplicate product');
+    }
+  };
+
   const handleBulkUpload = () => {
     setIsUploading(true);
     setUploadProgress(0);
@@ -513,7 +559,7 @@ export default function VendorProductsPage() {
                                 <Edit className="w-4 h-4 mr-2" />
                                 Edit Product
                               </DropdownMenuItem>
-                              <DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleDuplicateProduct(product)}>
                                 <Copy className="w-4 h-4 mr-2" />
                                 Duplicate
                               </DropdownMenuItem>
