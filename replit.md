@@ -83,3 +83,4 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - **Admin User Creation Flow**: Verified canonical createUser() works correctly for all user types
 - **Admin Stats API**: Confirmed getUserStats() uses correct lowercase column names for PostgreSQL
 - **Admin Product Image Upload**: Added MultiImageUpload component to admin product creation form, replacing URL-only input with full file upload support (drag-and-drop, multiple images up to 5, base64 encoding)
+- **Admin Stats Revenue Fix**: Fixed orders revenue calculation to use correct `total` column instead of non-existent `total_amount`
