@@ -1,0 +1,99 @@
+You are fixing DATA CONSISTENCY and ROUTING issues in the KIOSK marketplace.
+
+Auth and PostgreSQL persistence are WORKING.
+Audit logging IS WORKING at the backend.
+DO NOT add features.
+DO NOT refactor architecture unnecessarily.
+
+Your task is to CONSOLIDATE logic so the Admin UI reflects DB truth.
+
+========================================
+SECTION 1 — CONSOLIDATE AUDIT LOG VIEWS
+========================================
+
+Problem:
+- Admin dashboard audit tab is empty
+- User dropdown audit page shows logs correctly
+
+Required fix:
+- Identify the audit API used by the working audit page
+- Reuse that SAME endpoint and query for:
+  Admin → Dashboard → Audits tab
+- Remove duplicate or stale audit queries
+
+Validation:
+- Both audit views show identical data
+
+========================================
+SECTION 2 — FIX ADMIN USER LOGIN (ADMIN ROLE)
+========================================
+
+Problem:
+Admin-created admins cannot log in.
+
+Required fix:
+- Audit ALL login queries and guards
+- Ensure role='admin' is not excluded in ANY login path
+- Ensure admin-created users use the SAME login handler as others
+
+Validation:
+- Newly created admins can log in immediately
+
+========================================
+SECTION 3 — UNIFY ADMIN PRODUCT DATA SOURCE
+========================================
+
+Problem:
+- Admin top tiles, product tab, and marketplace show different counts
+
+Required fix:
+- Define ONE canonical product query:
+  - Used by admin counts
+  - Used by admin product list
+  - Used by marketplace (with visibility filters)
+- Remove stale caching or add proper revalidation after:
+  - Product creation
+  - Product update
+  - Product publish
+
+Validation:
+- Counts and lists match instantly
+- No logout/login required
+
+========================================
+SECTION 4 — FIX STORE ROUTING IDENTIFIER
+========================================
+
+Problem:
+Store pages 404 due to slug/ID mismatch.
+
+Required fix:
+- Choose ONE public identifier (slug preferred)
+- Update:
+  - Product “Visit Store” links
+  - Vendor “Preview Store” links
+  - Public store route resolver
+- Ensure identifier consistency end-to-end
+
+Validation:
+- Store pages load correctly from all entry points
+
+========================================
+SECTION 5 — REMOVE DUPLICATION
+========================================
+
+Rules:
+- ONE query per concept
+- ONE source of truth
+- NO parallel implementations
+
+========================================
+FINAL VALIDATION
+========================================
+
+This task is complete ONLY IF:
+- Admin audits show logs
+- Admin-created admins can log in
+- Product counts match product lists
+- Marketplace, admin, and vendor views agree
+- Store links never 404

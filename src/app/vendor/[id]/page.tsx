@@ -77,62 +77,110 @@ export default function VendorStorePage() {
   const [sortBy, setSortBy] = useState("featured");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isHydrated, setIsHydrated] = useState(false);
+  const [dbVendor, setDbVendor] = useState<PlatformUser | null>(null);
+  const [dbProducts, setDbProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  // Get vendor data - check both users store and current logged-in user
-  const getVendorData = (): PlatformUser | null => {
-    if (!isHydrated) return null;
+  useEffect(() => {
+    const fetchVendorData = async () => {
+      if (!vendorId) return;
+      setIsLoading(true);
+      try {
+        const [vendorRes, productsRes] = await Promise.all([
+          fetch(`/api/vendors/${vendorId}`),
+          fetch(`/api/products?vendorId=${vendorId}&status=active`)
+        ]);
 
-    // First check if the current logged-in user is viewing their own store
-    if (currentUser && currentUser.id === vendorId && currentUser.role === 'vendor') {
-      // Convert auth user to PlatformUser format
-      return {
-        id: currentUser.id,
-        email: currentUser.email,
-        name: currentUser.name,
-        role: 'vendor',
-        status: 'active',
-        avatar: currentUser.avatar,
-        phone: currentUser.phone,
-        location: currentUser.location,
-        createdAt: currentUser.createdAt,
-        updatedAt: currentUser.createdAt,
-        businessName: currentUser.businessName,
-        verificationStatus: currentUser.verificationStatus,
-        storeDescription: currentUser.storeDescription,
-        storeBanner: currentUser.storeBanner,
-        storeLogo: currentUser.storeLogo,
-        storeWebsite: currentUser.storeWebsite,
-        storeBusinessHours: currentUser.storeBusinessHours,
-        storeReturnPolicy: currentUser.storeReturnPolicy,
-        storeShippingPolicy: currentUser.storeShippingPolicy,
-        storeSpecialties: currentUser.storeSpecialties,
-        storeCertifications: currentUser.storeCertifications,
-        storeRating: currentUser.storeRating,
-        storeResponseTime: currentUser.storeResponseTime,
-        storeStatus: currentUser.storeStatus,
-        storeVacationMessage: currentUser.storeVacationMessage,
-        storeContactEmail: currentUser.storeContactEmail,
-        storeContactPhone: currentUser.storeContactPhone,
-        storeSocialLinks: currentUser.storeSocialLinks,
-      };
-    }
+        if (vendorRes.ok) {
+          const vendorData = await vendorRes.json();
+          if (vendorData.user) {
+            setDbVendor({
+              id: vendorData.user.id,
+              email: vendorData.user.email,
+              name: vendorData.user.name,
+              role: vendorData.user.role,
+              status: vendorData.user.status,
+              avatar: vendorData.user.avatar,
+              phone: vendorData.user.phone,
+              location: vendorData.user.location,
+              createdAt: vendorData.user.createdAt,
+              updatedAt: vendorData.user.updatedAt,
+              businessName: vendorData.user.businessName,
+              verificationStatus: vendorData.user.verificationStatus,
+              storeDescription: vendorData.user.storeDescription,
+              storeBanner: vendorData.user.storeBanner,
+              storeLogo: vendorData.user.storeLogo,
+              storeWebsite: vendorData.user.storeWebsite,
+              storeBusinessHours: vendorData.user.storeBusinessHours,
+              storeReturnPolicy: vendorData.user.storeReturnPolicy,
+              storeShippingPolicy: vendorData.user.storeShippingPolicy,
+              storeSpecialties: vendorData.user.storeSpecialties,
+              storeCertifications: vendorData.user.storeCertifications,
+              storeRating: vendorData.user.storeRating,
+              storeResponseTime: vendorData.user.storeResponseTime,
+              storeStatus: vendorData.user.storeStatus,
+              storeVacationMessage: vendorData.user.storeVacationMessage,
+              storeContactEmail: vendorData.user.storeContactEmail,
+              storeContactPhone: vendorData.user.storeContactPhone,
+              storeSocialLinks: vendorData.user.storeSocialLinks,
+            });
+          }
+        }
 
-    // Otherwise look up in users store
-    return getUserById(vendorId) || null;
-  };
+        if (productsRes.ok) {
+          const productsData = await productsRes.json();
+          setDbProducts(productsData.products || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch vendor data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const vendor = getVendorData();
+    fetchVendorData();
+  }, [vendorId]);
 
-  // Get vendor's products (only active ones for buyers)
+  const vendor = dbVendor || (currentUser && currentUser.id === vendorId && currentUser.role === 'vendor' ? {
+    id: currentUser.id,
+    email: currentUser.email,
+    name: currentUser.name,
+    role: 'vendor' as const,
+    status: 'active' as const,
+    avatar: currentUser.avatar,
+    phone: currentUser.phone,
+    location: currentUser.location,
+    createdAt: currentUser.createdAt,
+    updatedAt: currentUser.createdAt,
+    businessName: currentUser.businessName,
+    verificationStatus: currentUser.verificationStatus,
+    storeDescription: currentUser.storeDescription,
+    storeBanner: currentUser.storeBanner,
+    storeLogo: currentUser.storeLogo,
+    storeWebsite: currentUser.storeWebsite,
+    storeBusinessHours: currentUser.storeBusinessHours,
+    storeReturnPolicy: currentUser.storeReturnPolicy,
+    storeShippingPolicy: currentUser.storeShippingPolicy,
+    storeSpecialties: currentUser.storeSpecialties,
+    storeCertifications: currentUser.storeCertifications,
+    storeRating: currentUser.storeRating,
+    storeResponseTime: currentUser.storeResponseTime,
+    storeStatus: currentUser.storeStatus,
+    storeVacationMessage: currentUser.storeVacationMessage,
+    storeContactEmail: currentUser.storeContactEmail,
+    storeContactPhone: currentUser.storeContactPhone,
+    storeSocialLinks: currentUser.storeSocialLinks,
+  } : null);
+
+  // Get vendor's products from database (already filtered to active)
   const vendorProducts = useMemo(() => {
     if (!isHydrated) return [];
-    const products = getProductsByVendor(vendorId).filter(p => p.status === "active");
-    return products;
-  }, [isHydrated, vendorId, getProductsByVendor]);
+    return dbProducts.length > 0 ? dbProducts : getProductsByVendor(vendorId).filter(p => p.status === "active");
+  }, [isHydrated, dbProducts, vendorId, getProductsByVendor]);
 
   // Get vendor's orders for stats
   const vendorOrders = useMemo(() => {
@@ -219,7 +267,7 @@ export default function VendorStorePage() {
   };
 
   // Loading state
-  if (!isHydrated) {
+  if (!isHydrated || isLoading) {
     return (
       <SiteLayout>
         <div className="container py-8">
@@ -232,7 +280,7 @@ export default function VendorStorePage() {
   }
 
   // Vendor not found
-  if (!vendor || vendor.role !== "vendor") {
+  if (!vendor || (vendor.role !== "vendor" && vendor.role !== 'admin' && vendor.role !== 'master_admin')) {
     return (
       <SiteLayout>
         <div className="container py-8">

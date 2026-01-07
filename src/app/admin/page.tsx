@@ -80,23 +80,37 @@ function AdminManagementSection({
 
   const admins = getAllAdmins();
 
-  const handleCreateAdmin = () => {
+  const handleCreateAdmin = async () => {
     if (!newAdminData.email || !newAdminData.name || !newAdminData.password) {
       toast.error("Please fill in all fields");
       return;
     }
 
-    const result = createAdmin(
-      newAdminData,
-      { id: currentAdmin.id, email: "", name: currentAdmin.name, role: "MASTER_ADMIN", passwordHash: "", isActive: true, createdAt: "", permissions: [] }
-    );
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: newAdminData.email,
+          name: newAdminData.name,
+          password: newAdminData.password,
+          role: newAdminData.role === 'ADMIN' ? 'admin' : 'master_admin',
+        }),
+      });
 
-    if (result.success) {
-      toast.success(`Admin account created for ${newAdminData.email}`);
-      setShowCreateDialog(false);
-      setNewAdminData({ email: "", name: "", password: "", role: "ADMIN" });
-    } else {
-      toast.error(result.error || "Failed to create admin");
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`Admin account created for ${newAdminData.email}`);
+        setShowCreateDialog(false);
+        setNewAdminData({ email: "", name: "", password: "", role: "ADMIN" });
+      } else {
+        toast.error(data.error || "Failed to create admin");
+      }
+    } catch (error) {
+      console.error('Failed to create admin:', error);
+      toast.error("Failed to create admin");
     }
   };
 
@@ -361,7 +375,23 @@ function AdminDashboardContent() {
     totalRevenue: number;
   } | null>(null);
 
-  // Fetch stats from PostgreSQL
+  const [dbAuditLogs, setDbAuditLogs] = useState<Array<{
+    id: string;
+    action: string;
+    category: string;
+    adminId: string | null;
+    adminName: string | null;
+    adminEmail: string | null;
+    adminRole: string | null;
+    targetId: string | null;
+    targetType: string | null;
+    targetName: string | null;
+    details: string | null;
+    severity: string;
+    timestamp: string;
+  }>>([]);
+
+  // Fetch stats and audit logs from PostgreSQL
   useEffect(() => {
     const fetchStats = async () => {
       try {
@@ -374,7 +404,21 @@ function AdminDashboardContent() {
         console.error('Failed to fetch admin stats:', error);
       }
     };
+
+    const fetchAuditLogs = async () => {
+      try {
+        const response = await fetch('/api/admin/audit-logs?limit=100');
+        if (response.ok) {
+          const data = await response.json();
+          setDbAuditLogs(data.logs || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch audit logs:', error);
+      }
+    };
+
     fetchStats();
+    fetchAuditLogs();
   }, []);
 
   // Wait for hydration before checking auth
@@ -637,14 +681,14 @@ function AdminDashboardContent() {
                 <CardHeader><CardTitle>Recent Activity</CardTitle></CardHeader>
                 <CardContent>
                   <ScrollArea className="h-[200px]">
-                    {auditLogs.length === 0 ? (
+                    {dbAuditLogs.length === 0 ? (
                       <p className="text-center text-muted-foreground py-8">No recent activity</p>
                     ) : (
                       <div className="space-y-3">
-                        {auditLogs.slice(0, 10).map((log) => (
+                        {dbAuditLogs.slice(0, 10).map((log) => (
                           <div key={log.id} className="flex items-start gap-3 text-sm">
                             <div className="w-2 h-2 mt-2 rounded-full bg-blue-500" />
-                            <div><p className="font-medium">{log.action.replace(/_/g, " ")}</p><p className="text-muted-foreground text-xs">{log.details} • {formatTimestamp(log.timestamp)}</p></div>
+                            <div><p className="font-medium">{log.action.replace(/_/g, " ")}</p><p className="text-muted-foreground text-xs">{log.details || "-"} • {formatTimestamp(log.timestamp)}</p></div>
                           </div>
                         ))}
                       </div>
@@ -969,21 +1013,21 @@ function AdminDashboardContent() {
                 </div>
               </CardHeader>
               <CardContent>
-                {auditLogs.length === 0 ? (
+                {dbAuditLogs.length === 0 ? (
                   <div className="text-center py-12"><History className="w-16 h-16 text-gray-300 mx-auto mb-4" /><h3 className="text-lg font-semibold">No Audit Logs</h3></div>
                 ) : (
                   <ScrollArea className="h-[600px]">
                     <Table>
                       <TableHeader><TableRow><TableHead>Timestamp</TableHead><TableHead>Action</TableHead><TableHead>Category</TableHead><TableHead>Admin</TableHead><TableHead>Target</TableHead><TableHead>Details</TableHead></TableRow></TableHeader>
                       <TableBody>
-                        {auditLogs.map((log) => (
+                        {dbAuditLogs.map((log) => (
                           <TableRow key={log.id}>
                             <TableCell className="text-sm">{format(new Date(log.timestamp), "MMM d, yyyy HH:mm")}</TableCell>
                             <TableCell><Badge variant="outline">{log.action.replace(/_/g, " ")}</Badge></TableCell>
                             <TableCell><Badge variant="secondary">{log.category}</Badge></TableCell>
-                            <TableCell>{log.adminName}</TableCell>
+                            <TableCell>{log.adminName || "-"}</TableCell>
                             <TableCell>{log.targetName || "-"}</TableCell>
-                            <TableCell className="max-w-[300px] truncate">{log.details}</TableCell>
+                            <TableCell className="max-w-[300px] truncate">{log.details || "-"}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
