@@ -236,6 +236,122 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 }
 
 /**
+ * PATCH /api/products/[id]
+ * Admin actions: approve, reject, suspend, unsuspend, feature, unfeature
+ */
+export async function PATCH(request: NextRequest, { params }: RouteParams) {
+  try {
+    const { id } = await params;
+
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get('session_token')?.value;
+
+    if (!sessionToken) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const session = await validateSession(sessionToken);
+    if (!session) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
+
+    if (session.user_role !== 'admin' && session.user_role !== 'master_admin') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
+    const product = await getProductById(id);
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    const body = await request.json();
+    const { action, reason } = body;
+
+    const adminUser = await getUserById(session.user_id);
+    const now = new Date().toISOString();
+    let updates: UpdateProductInput = {};
+    let auditAction = '';
+    let auditDetails = '';
+
+    switch (action) {
+      case 'approve':
+        updates = { status: 'active' };
+        auditAction = 'PRODUCT_APPROVED';
+        auditDetails = `Admin approved product "${product.name}"`;
+        break;
+      case 'reject':
+        if (!reason) {
+          return NextResponse.json({ error: 'Reason required for rejection' }, { status: 400 });
+        }
+        updates = { status: 'rejected' };
+        auditAction = 'PRODUCT_REJECTED';
+        auditDetails = `Admin rejected product "${product.name}". Reason: ${reason}`;
+        break;
+      case 'suspend':
+        if (!reason) {
+          return NextResponse.json({ error: 'Reason required for suspension' }, { status: 400 });
+        }
+        updates = { status: 'suspended' };
+        auditAction = 'PRODUCT_SUSPENDED';
+        auditDetails = `Admin suspended product "${product.name}". Reason: ${reason}`;
+        break;
+      case 'unsuspend':
+        updates = { status: 'active' };
+        auditAction = 'PRODUCT_UNSUSPENDED';
+        auditDetails = `Admin unsuspended product "${product.name}"`;
+        break;
+      case 'feature':
+        updates = { isFeatured: true, featuredBy: session.user_id };
+        auditAction = 'PRODUCT_FEATURED';
+        auditDetails = `Admin featured product "${product.name}"`;
+        break;
+      case 'unfeature':
+        updates = { isFeatured: false };
+        auditAction = 'PRODUCT_UNFEATURED';
+        auditDetails = `Admin removed product "${product.name}" from featured`;
+        break;
+      default:
+        return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    }
+
+    const updatedProduct = await updateProduct(id, updates);
+
+    if (!updatedProduct) {
+      return NextResponse.json({ error: 'Failed to update product' }, { status: 500 });
+    }
+
+    await createAuditLog({
+      action: auditAction,
+      category: 'product',
+      adminId: session.user_id,
+      adminName: adminUser?.name || 'Admin',
+      adminEmail: adminUser?.email,
+      adminRole: session.user_role,
+      targetId: product.id,
+      targetType: 'product',
+      targetName: product.name,
+      details: auditDetails,
+      previousValue: product.status,
+      newValue: updates.status || (updates.isFeatured ? 'featured' : 'unfeatured'),
+      severity: action === 'suspend' || action === 'reject' ? 'warning' : 'info',
+      ipAddress: request.headers.get('x-forwarded-for') || undefined,
+    });
+
+    return NextResponse.json({
+      success: true,
+      product: {
+        id: updatedProduct.id,
+        status: updatedProduct.status,
+        isFeatured: updatedProduct.is_featured === 1,
+      },
+    });
+  } catch (error) {
+    console.error('Product action error:', error);
+    return NextResponse.json({ error: 'Failed to perform action' }, { status: 500 });
+  }
+}
+
+/**
  * DELETE /api/products/[id]
  */
 export async function DELETE(request: NextRequest, { params }: RouteParams) {

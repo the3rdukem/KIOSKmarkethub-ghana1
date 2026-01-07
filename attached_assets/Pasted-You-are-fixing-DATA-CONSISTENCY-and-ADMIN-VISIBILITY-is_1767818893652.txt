@@ -1,0 +1,162 @@
+You are fixing DATA CONSISTENCY and ADMIN VISIBILITY issues in the KIOSK marketplace.
+
+AUTHENTICATION AND DATABASE PERSISTENCE ARE ALREADY WORKING.
+DO NOT rewrite auth, session handling, or database connections.
+
+This task is focused on:
+- Canonical field mapping (snake_case ↔ camelCase)
+- Admin-created users not appearing in admin UI
+- Product visibility consistency (draft / published)
+- Count tiles vs table mismatches
+- Vendor draft product discoverability
+
+========================================
+SECTION 1 — CANONICAL FIELD MAPPING (CRITICAL)
+========================================
+
+The PostgreSQL database uses snake_case fields:
+- vendor_id
+- user_id
+- created_at
+- updated_at
+- role
+- status
+
+Fix ALL backend queries and API responses so that:
+
+- Internal DB queries use snake_case ONLY
+- API responses normalize to camelCase ONLY
+- Frontend NEVER directly consumes snake_case fields
+
+Example normalization layer:
+- vendor_id → vendorId
+- created_at → createdAt
+
+This normalization MUST happen:
+- In repositories / services
+- NOT in React components
+- NOT conditionally
+
+Audit and fix all query call sites related to:
+- Products
+- Users
+- Vendors
+- Admin dashboards
+- Counts
+- Draft filters
+
+========================================
+SECTION 2 — ADMIN-CREATED ADMINS VISIBILITY
+========================================
+
+Problem:
+- Admin-created admin users can log in
+- But they DO NOT appear in Admin → Users / Admins lists
+
+Fix requirements:
+- Ensure admin creation uses the SAME canonical createUser() function
+- Ensure role = 'admin' is NOT excluded by any filters
+- Ensure admin queries do NOT filter by:
+  - status = 'active' only
+  - role != 'admin'
+  - vendor-only joins
+
+Admin lists MUST:
+- Include admins created by Master Admin
+- Display all admin accounts
+- Reflect real-time DB state
+
+========================================
+SECTION 3 — PRODUCT VISIBILITY & DRAFT DISCOVERY
+========================================
+
+Problem:
+- Draft products exist but are invisible in admin & vendor dashboards
+- Draft products affect count tiles but not tables
+
+Fix requirements:
+
+Admin:
+- Admin → Products MUST show:
+  - published products
+  - draft products
+  - suspended products
+- Admin must be able to FILTER by status
+
+Vendor:
+- Vendor dashboard MUST show:
+  - all own products
+  - including drafts
+- Draft products must be clearly labeled
+
+No product may exist in DB without being visible in:
+- Admin (global)
+- Vendor (owner)
+
+========================================
+SECTION 4 — DASHBOARD COUNT CONSISTENCY
+========================================
+
+Problem:
+- Count tiles update instantly
+- Tables lag or show fewer items
+
+Fix requirements:
+
+- Count queries MUST use the SAME filters as table queries
+- No hardcoded status filters (e.g. status='active' only)
+- Counts must reflect:
+  - real DB records
+  - including drafts where applicable
+
+Ensure:
+- Products count === Products table length (when unfiltered)
+- Vendors count === Vendors table length
+- Users count === Users table length
+
+========================================
+SECTION 5 — QUERY FILTER AUDIT (MANDATORY)
+========================================
+
+Audit and fix ALL queries that include:
+- status filters
+- role filters
+- joins that exclude admins or drafts
+
+Common bugs to remove:
+- where status = 'active'
+- where role != 'admin'
+- vendor-only joins for global queries
+
+Filters MUST be explicit and intentional.
+
+========================================
+SECTION 6 — REAL-TIME STATE REFRESH
+========================================
+
+Ensure UI reflects DB state immediately:
+
+- After creating users
+- After creating products
+- After status changes
+
+Rules:
+- No stale caches
+- No reliance on logout/login to refresh
+- Invalidate queries properly after mutations
+
+========================================
+FINAL VALIDATION CHECKLIST (MANDATORY)
+========================================
+
+This task is complete ONLY IF:
+
+- Admin-created admins appear in admin lists
+- Draft products are visible to admin and vendor
+- Count tiles match table data
+- No ghost or hidden products remain
+- No camelCase / snake_case mismatch exists
+- UI updates immediately after create actions
+- No auth or persistence logic was modified
+
+DO NOT mark this task complete until ALL checklist items pass.

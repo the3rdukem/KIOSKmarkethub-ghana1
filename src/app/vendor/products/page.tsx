@@ -54,7 +54,7 @@ import { toast } from "sonner";
 export default function VendorProductsPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const { products, deleteProduct, getProductsByVendor, syncVendorProducts } = useProductsStore();
+  useProductsStore();
   const { getOrdersByVendor } = useOrdersStore();
 
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
@@ -66,18 +66,34 @@ export default function VendorProductsPage() {
   const [isUploading, setIsUploading] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [vendorProducts, setVendorProducts] = useState<Product[]>([]);
+
+  const fetchVendorProducts = async (vendorId: string) => {
+    try {
+      const response = await fetch(`/api/products?vendorId=${vendorId}`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setVendorProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch vendor products:', error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  // Sync products from API on mount
   useEffect(() => {
     if (isHydrated && isAuthenticated && user) {
       setIsSyncing(true);
-      syncVendorProducts(user.id).finally(() => setIsSyncing(false));
+      fetchVendorProducts(user.id);
     }
-  }, [isHydrated, isAuthenticated, user, syncVendorProducts]);
+  }, [isHydrated, isAuthenticated, user]);
 
   useEffect(() => {
     if (isHydrated && !isAuthenticated) {
@@ -99,8 +115,6 @@ export default function VendorProductsPage() {
     return null;
   }
 
-  // Get REAL vendor-specific products
-  const vendorProducts = user ? getProductsByVendor(user.id) : [];
   const vendorOrders = user ? getOrdersByVendor(user.id) : [];
 
   // Filter products based on search and filters
@@ -148,10 +162,26 @@ export default function VendorProductsPage() {
     }
   };
 
-  const handleDeleteProduct = (productId: string, productName: string) => {
+  const handleDeleteProduct = async (productId: string, productName: string) => {
     if (confirm(`Are you sure you want to delete "${productName}"?`)) {
-      deleteProduct(productId);
-      toast.success(`Product "${productName}" deleted successfully!`);
+      try {
+        const response = await fetch(`/api/products/${productId}`, {
+          method: 'DELETE',
+          credentials: 'include',
+        });
+        if (response.ok) {
+          toast.success(`Product "${productName}" deleted successfully!`);
+          if (user) {
+            fetchVendorProducts(user.id);
+          }
+        } else {
+          const data = await response.json();
+          toast.error(data.error || 'Failed to delete product');
+        }
+      } catch (error) {
+        console.error('Delete error:', error);
+        toast.error('Failed to delete product');
+      }
     }
   };
 

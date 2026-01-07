@@ -88,3 +88,10 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - **Admin Creation API Fix**: Create Admin dialog now POSTs to `/api/admin/users` for database persistence (was only updating client store)
 - **Public Vendor API**: Added `/api/vendors/[id]` for public vendor store pages (only active vendors, no sensitive data)
 - **Vendor Store Page**: Now fetches vendor and products from database APIs instead of client-side Zustand stores
+- **Admin Admins API**: Created `/api/admin/admins` endpoint for fetching admin users from database (not Zustand)
+- **Admin Management Refactor**: AdminManagementSection now fetches from API, refreshes after create, uses database as source of truth
+- **Product Management DB-First**: ProductManagement component now fetches products from `/api/products` API instead of Zustand store
+- **Draft Product Visibility**: Added Draft status card to product management quick stats, all product statuses visible to admin
+- **Admin Revoke API**: Created `/api/admin/admins/[id]` endpoint for revoking/activating admin access
+- **Product Actions API**: Added PATCH handler to `/api/products/[id]` for admin actions (approve, reject, suspend, unsuspend, feature, unfeature)
+- **Vendor Product Delete API-First**: Vendor product delete now uses DELETE API with fetchVendorProducts() refresh

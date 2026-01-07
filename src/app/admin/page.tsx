@@ -61,24 +61,49 @@ import {
 } from "lucide-react";
 import { AdminAuthGuard } from "@/components/auth/auth-guard";
 
-// Admin Management Section Component (Master Admin Only)
+interface DbAdmin {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  isActive: boolean;
+  permissions: string[];
+  createdBy: string | null;
+  lastLoginAt: string | null;
+  createdAt: string;
+}
+
 function AdminManagementSection({
   currentAdmin,
-  getAllAdmins,
-  createAdmin,
-  revokeAdminAccess
 }: {
   currentAdmin: { id: string; name: string; adminRole?: string };
-  getAllAdmins: () => MasterAdminUser[];
-  createAdmin: (data: { email: string; name: string; password: string; role: AdminRole }, createdBy: MasterAdminUser) => { success: boolean; admin?: MasterAdminUser; error?: string };
-  revokeAdminAccess: (adminId: string, revokedBy: MasterAdminUser, reason: string) => boolean;
 }) {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [newAdminData, setNewAdminData] = useState({ email: "", name: "", password: "", role: "ADMIN" as AdminRole });
   const [revokeReason, setRevokeReason] = useState("");
-  const [selectedAdminToRevoke, setSelectedAdminToRevoke] = useState<MasterAdminUser | null>(null);
+  const [selectedAdminToRevoke, setSelectedAdminToRevoke] = useState<DbAdmin | null>(null);
+  const [admins, setAdmins] = useState<DbAdmin[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const admins = getAllAdmins();
+  const fetchAdmins = async () => {
+    try {
+      const response = await fetch('/api/admin/admins', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAdmins(data.admins || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch admins:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchAdmins();
+  }, []);
 
   const handleCreateAdmin = async () => {
     if (!newAdminData.email || !newAdminData.name || !newAdminData.password) {
@@ -87,7 +112,7 @@ function AdminManagementSection({
     }
 
     try {
-      const response = await fetch('/api/admin/users', {
+      const response = await fetch('/api/admin/admins', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -95,7 +120,7 @@ function AdminManagementSection({
           email: newAdminData.email,
           name: newAdminData.name,
           password: newAdminData.password,
-          role: newAdminData.role === 'ADMIN' ? 'admin' : 'master_admin',
+          role: newAdminData.role,
         }),
       });
 
@@ -105,6 +130,7 @@ function AdminManagementSection({
         toast.success(`Admin account created for ${newAdminData.email}`);
         setShowCreateDialog(false);
         setNewAdminData({ email: "", name: "", password: "", role: "ADMIN" });
+        fetchAdmins();
       } else {
         toast.error(data.error || "Failed to create admin");
       }
@@ -114,23 +140,30 @@ function AdminManagementSection({
     }
   };
 
-  const handleRevokeAccess = () => {
+  const handleRevokeAccess = async () => {
     if (!selectedAdminToRevoke || !revokeReason) {
       toast.error("Please provide a reason");
       return;
     }
 
-    const success = revokeAdminAccess(
-      selectedAdminToRevoke.id,
-      { id: currentAdmin.id, email: "", name: currentAdmin.name, role: "MASTER_ADMIN", passwordHash: "", isActive: true, createdAt: "", permissions: [] },
-      revokeReason
-    );
+    try {
+      const response = await fetch(`/api/admin/admins/${selectedAdminToRevoke.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'revoke', reason: revokeReason }),
+      });
 
-    if (success) {
-      toast.success(`Access revoked for ${selectedAdminToRevoke.name}`);
-      setSelectedAdminToRevoke(null);
-      setRevokeReason("");
-    } else {
+      if (response.ok) {
+        toast.success(`Access revoked for ${selectedAdminToRevoke.name}`);
+        setSelectedAdminToRevoke(null);
+        setRevokeReason("");
+        fetchAdmins();
+      } else {
+        toast.error("Cannot revoke access for this admin");
+      }
+    } catch (error) {
+      console.error('Failed to revoke access:', error);
       toast.error("Cannot revoke access for this admin");
     }
   };
@@ -812,9 +845,6 @@ function AdminDashboardContent() {
             <TabsContent value="admins" className="space-y-6">
               <AdminManagementSection
                 currentAdmin={user}
-                getAllAdmins={getAllAdmins}
-                createAdmin={createAdmin}
-                revokeAdminAccess={revokeAdminAccess}
               />
             </TabsContent>
           )}

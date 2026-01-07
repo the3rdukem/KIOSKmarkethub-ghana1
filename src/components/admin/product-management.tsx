@@ -28,7 +28,7 @@ import {
 import {
   Package, Eye, CheckCircle, XCircle, AlertTriangle,
   Search, MoreHorizontal, Ban, Trash2, Star, StarOff,
-  DollarSign, Tag, Store, Image as ImageIcon, Clock, Pause, Play, Plus, Loader2
+  DollarSign, Tag, Store, Image as ImageIcon, Clock, Pause, Play, Plus, Loader2, FileEdit
 } from "lucide-react";
 import { formatDistance, format } from "date-fns";
 import { toast } from "sonner";
@@ -74,21 +74,6 @@ type ProductFilter = "all" | "active" | "draft" | "pending" | "suspended" | "rej
 type ProductAction = "approve" | "reject" | "suspend" | "unsuspend" | "feature" | "unfeature" | "delete" | null;
 
 export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManagementProps) {
-  const {
-    products,
-    getAllProducts,
-    getPendingApprovalProducts,
-    getSuspendedProducts,
-    getFeaturedProducts,
-    approveProduct,
-    rejectProduct,
-    suspendProduct,
-    unsuspendProduct,
-    featureProduct,
-    unfeatureProduct,
-    adminDeleteProduct,
-  } = useProductsStore();
-
   const { getUserById } = useUsersStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -100,6 +85,29 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
   const [selectedProducts, setSelectedProducts] = useState<string[]>([]);
   const [productFilter, setProductFilter] = useState<ProductFilter>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
+  
+  const [products, setProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(true);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await fetch('/api/products', {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProducts();
+  }, []);
 
   // Admin create product state
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -201,9 +209,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
         images: [],
       });
       setCategoryAttributes({});
-
-      // Refresh products (in a real app, you'd refetch from API)
-      window.location.reload();
+      fetchProducts();
     } catch (error) {
       console.error('Failed to create product:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to create product');
@@ -221,7 +227,6 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
   const getFilteredProducts = () => {
     let filtered = products;
 
-    // Apply status filter
     switch (productFilter) {
       case "active":
         filtered = products.filter(p => p.status === "active");
@@ -230,16 +235,16 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
         filtered = products.filter(p => p.status === "draft");
         break;
       case "pending":
-        filtered = getPendingApprovalProducts();
+        filtered = products.filter(p => p.status === "pending_approval");
         break;
       case "suspended":
-        filtered = getSuspendedProducts();
+        filtered = products.filter(p => p.status === "suspended");
         break;
       case "rejected":
         filtered = products.filter(p => p.status === "rejected");
         break;
       case "featured":
-        filtered = getFeaturedProducts();
+        filtered = products.filter(p => p.isFeatured);
         break;
       default:
         filtered = products;
@@ -286,46 +291,72 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
     setActionReason("");
   };
 
-  const executeAction = () => {
+  const executeAction = async () => {
     if (!selectedProduct || !actionType) return;
 
-    switch (actionType) {
-      case "approve":
-        approveProduct(selectedProduct.id, currentAdmin.id);
-        toast.success(`"${selectedProduct.name}" has been approved`);
-        break;
-      case "reject":
-        if (!actionReason.trim()) {
-          toast.error("Please provide a reason for rejection");
-          return;
-        }
-        rejectProduct(selectedProduct.id, currentAdmin.id, actionReason);
-        toast.success(`"${selectedProduct.name}" has been rejected`);
-        break;
-      case "suspend":
-        if (!actionReason.trim()) {
-          toast.error("Please provide a reason for suspension");
-          return;
-        }
-        suspendProduct(selectedProduct.id, currentAdmin.id, actionReason);
-        toast.success(`"${selectedProduct.name}" has been suspended`);
-        break;
-      case "unsuspend":
-        unsuspendProduct(selectedProduct.id, currentAdmin.id);
-        toast.success(`"${selectedProduct.name}" has been unsuspended`);
-        break;
-      case "feature":
-        featureProduct(selectedProduct.id, currentAdmin.id);
-        toast.success(`"${selectedProduct.name}" is now featured`);
-        break;
-      case "unfeature":
-        unfeatureProduct(selectedProduct.id, currentAdmin.id);
-        toast.success(`"${selectedProduct.name}" is no longer featured`);
-        break;
-      case "delete":
-        adminDeleteProduct(selectedProduct.id, currentAdmin.id);
-        toast.success(`"${selectedProduct.name}" has been deleted`);
-        break;
+    try {
+      let endpoint = `/api/products/${selectedProduct.id}`;
+      let method = 'PATCH';
+      let body: Record<string, unknown> = {};
+
+      switch (actionType) {
+        case "approve":
+          body = { action: 'approve' };
+          break;
+        case "reject":
+          if (!actionReason.trim()) {
+            toast.error("Please provide a reason for rejection");
+            return;
+          }
+          body = { action: 'reject', reason: actionReason };
+          break;
+        case "suspend":
+          if (!actionReason.trim()) {
+            toast.error("Please provide a reason for suspension");
+            return;
+          }
+          body = { action: 'suspend', reason: actionReason };
+          break;
+        case "unsuspend":
+          body = { action: 'unsuspend' };
+          break;
+        case "feature":
+          body = { action: 'feature' };
+          break;
+        case "unfeature":
+          body = { action: 'unfeature' };
+          break;
+        case "delete":
+          method = 'DELETE';
+          break;
+      }
+
+      const response = await fetch(endpoint, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: method !== 'DELETE' ? JSON.stringify(body) : undefined,
+      });
+
+      if (response.ok) {
+        const actionMessages: Record<string, string> = {
+          approve: `"${selectedProduct.name}" has been approved`,
+          reject: `"${selectedProduct.name}" has been rejected`,
+          suspend: `"${selectedProduct.name}" has been suspended`,
+          unsuspend: `"${selectedProduct.name}" has been unsuspended`,
+          feature: `"${selectedProduct.name}" is now featured`,
+          unfeature: `"${selectedProduct.name}" is no longer featured`,
+          delete: `"${selectedProduct.name}" has been deleted`,
+        };
+        toast.success(actionMessages[actionType] || 'Action completed');
+        fetchProducts();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Action failed');
+      }
+    } catch (error) {
+      console.error('Product action error:', error);
+      toast.error('Failed to perform action');
     }
 
     setShowActionDialog(false);
@@ -394,19 +425,19 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
 
   const actionConfig = getActionDialogContent();
 
-  // Count by status for quick stats
   const statusCounts = useMemo(() => ({
     all: products.length,
     active: products.filter(p => p.status === "active").length,
-    pending: getPendingApprovalProducts().length,
-    suspended: getSuspendedProducts().length,
-    featured: getFeaturedProducts().length,
-  }), [products, getPendingApprovalProducts, getSuspendedProducts, getFeaturedProducts]);
+    draft: products.filter(p => p.status === "draft").length,
+    pending: products.filter(p => p.status === "pending_approval").length,
+    suspended: products.filter(p => p.status === "suspended").length,
+    featured: products.filter(p => p.isFeatured).length,
+  }), [products]);
 
   return (
     <div className="space-y-6">
       {/* Quick Stats */}
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-6 gap-4">
         <Card className="cursor-pointer hover:border-gray-400 transition-colors" onClick={() => setProductFilter("all")}>
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -426,6 +457,17 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                 <p className="text-2xl font-bold text-green-600">{statusCounts.active}</p>
               </div>
               <CheckCircle className="w-8 h-8 text-green-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-blue-400 transition-colors" onClick={() => setProductFilter("draft")}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Draft</p>
+                <p className="text-2xl font-bold text-blue-600">{statusCounts.draft}</p>
+              </div>
+              <FileEdit className="w-8 h-8 text-blue-400" />
             </div>
           </CardContent>
         </Card>
