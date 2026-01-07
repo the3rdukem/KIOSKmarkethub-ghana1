@@ -122,24 +122,24 @@ export default function EditProductPage() {
       return;
     }
 
-    // Pre-fill form with real product data
+    // Pre-fill form with real product data - NULL-SAFE initialization
     setProductData({
-      name: product.name,
-      description: product.description,
-      category: product.category,
-      price: product.price.toString(),
-      comparePrice: product.comparePrice?.toString() || "",
-      costPerItem: product.costPerItem?.toString() || "",
-      sku: product.sku || "",
-      barcode: product.barcode || "",
-      quantity: product.quantity.toString(),
-      trackQuantity: product.trackQuantity,
-      tags: product.tags.join(", "),
+      name: product.name ?? "",
+      description: product.description ?? "",
+      category: product.category ?? "",
+      price: product.price != null ? String(product.price) : "",
+      comparePrice: product.comparePrice != null ? String(product.comparePrice) : "",
+      costPerItem: product.costPerItem != null ? String(product.costPerItem) : "",
+      sku: product.sku ?? "",
+      barcode: product.barcode ?? "",
+      quantity: product.quantity != null ? String(product.quantity) : "",
+      trackQuantity: product.trackQuantity ?? true,
+      tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
       status: (product.status === 'active' || product.status === 'draft' || product.status === 'archived') ? product.status : 'draft'
     });
 
-    // Load existing product images
-    setProductImages(product.images || []);
+    // Load existing product images - NULL-SAFE
+    setProductImages(Array.isArray(product.images) ? product.images : []);
 
     setIsLoadingProduct(false);
   }, [isHydrated, isAuthenticated, user, productId, getProductById, router]);
@@ -178,18 +178,33 @@ export default function EditProductPage() {
     }
   };
 
-  const validateForm = () => {
+  const validateForm = (forPublish: boolean) => {
     const newErrors: Record<string, string> = {};
 
-    if (!productData.name.trim()) newErrors.name = "Product name is required";
-    if (!productData.description.trim()) newErrors.description = "Product description is required";
-    if (!productData.category) newErrors.category = "Category is required";
-    if (!productData.price) newErrors.price = "Price is required";
-    else if (Number.isNaN(Number(productData.price)) || Number(productData.price) <= 0) {
-      newErrors.price = "Price must be a valid positive number";
+    // NULL-SAFE validation - coerce to string before trim
+    const name = (productData.name || "").trim();
+    const description = (productData.description || "").trim();
+    const category = productData.category || "";
+    const price = productData.price || "";
+    const quantity = productData.quantity || "";
+
+    // Draft saves only require a name
+    if (!name) {
+      newErrors.name = "Product name is required";
     }
-    if (productData.trackQuantity && !productData.quantity) {
-      newErrors.quantity = "Quantity is required when tracking inventory";
+
+    // Full validation only for publish
+    if (forPublish) {
+      if (!description) newErrors.description = "Product description is required";
+      if (!category) newErrors.category = "Category is required";
+      if (!price) {
+        newErrors.price = "Price is required";
+      } else if (Number.isNaN(Number(price)) || Number(price) <= 0) {
+        newErrors.price = "Price must be a valid positive number";
+      }
+      if (productData.trackQuantity && !quantity) {
+        newErrors.quantity = "Quantity is required when tracking inventory";
+      }
     }
 
     setErrors(newErrors);
@@ -199,39 +214,67 @@ export default function EditProductPage() {
   const handleSubmit = async (e: React.FormEvent, status: "draft" | "active") => {
     e.preventDefault();
 
-    if (!validateForm()) return;
+    // Draft saves skip full validation, only require name
+    const forPublish = status === "active";
+    if (!validateForm(forPublish)) return;
 
     setIsLoading(true);
 
     try {
-      // Parse tags
-      const tagsArray = productData.tags
+      // NULL-SAFE: Parse tags with fallback
+      const tagsString = productData.tags || "";
+      const tagsArray = tagsString
         .split(",")
-        .map(tag => tag.trim())
+        .map(tag => (tag || "").trim())
         .filter(tag => tag.length > 0);
 
-      // Update the product in the store
-      updateProduct(productId, {
-        name: productData.name.trim(),
-        description: productData.description.trim(),
-        category: productData.category,
-        price: Number.parseFloat(productData.price),
-        comparePrice: productData.comparePrice ? Number.parseFloat(productData.comparePrice) : undefined,
-        costPerItem: productData.costPerItem ? Number.parseFloat(productData.costPerItem) : undefined,
-        sku: productData.sku.trim() || undefined,
-        barcode: productData.barcode.trim() || undefined,
-        quantity: productData.trackQuantity ? Number.parseInt(productData.quantity) : 0,
-        trackQuantity: productData.trackQuantity,
-        images: productImages,
-        tags: tagsArray,
-        status: status
+      // NULL-SAFE: Parse numeric values
+      const name = (productData.name || "").trim();
+      const description = (productData.description || "").trim();
+      const sku = (productData.sku || "").trim();
+      const barcode = (productData.barcode || "").trim();
+      const priceValue = productData.price ? Number.parseFloat(productData.price) : 0;
+      const comparePriceValue = productData.comparePrice ? Number.parseFloat(productData.comparePrice) : undefined;
+      const costPerItemValue = productData.costPerItem ? Number.parseFloat(productData.costPerItem) : undefined;
+      const quantityValue = productData.quantity ? Number.parseInt(productData.quantity, 10) : 0;
+
+      // Update the product via API
+      const response = await fetch(`/api/products/${productId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name,
+          description,
+          category: productData.category || "",
+          price: priceValue,
+          comparePrice: comparePriceValue,
+          costPerItem: costPerItemValue,
+          sku: sku || undefined,
+          barcode: barcode || undefined,
+          quantity: productData.trackQuantity ? quantityValue : 0,
+          trackQuantity: productData.trackQuantity ?? true,
+          images: productImages,
+          tags: tagsArray,
+          status
+        }),
       });
 
-      toast.success(`Product "${productData.name}" updated successfully!`);
-
-      // Redirect to products page
-      router.push("/vendor/products");
+      if (response.ok) {
+        toast.success(`Product "${name}" updated successfully!`);
+        router.push("/vendor/products");
+      } else {
+        const data = await response.json();
+        if (data.code === 'VENDOR_NOT_VERIFIED' && status === 'active') {
+          toast.error("Your vendor account must be verified to publish products");
+          setErrors({ submit: data.details || "Vendor verification required" });
+        } else {
+          toast.error(data.error || "Failed to update product");
+          setErrors({ submit: data.error || "Failed to update product" });
+        }
+      }
     } catch (error) {
+      console.error("Update product error:", error);
       setErrors({ submit: "Failed to update product. Please try again." });
       toast.error("Failed to update product");
     } finally {

@@ -1,0 +1,113 @@
+You are fixing VENDOR PRODUCT MANAGEMENT stability in the KIOSK marketplace.
+
+AUTH, DATABASE PERSISTENCE, AND ADMIN FLOWS ARE ALREADY WORKING.
+DO NOT modify authentication, database schemas, or admin logic.
+
+This task focuses ONLY on:
+- Vendor product edit reliability
+- Draft handling
+- Form validation safety
+- Duplicate product behavior
+
+========================================
+SECTION 1 — NULL-SAFE PRODUCT FORM STATE (CRITICAL)
+========================================
+
+Problem:
+Product edit forms crash because product fields (e.g. description) can be NULL.
+
+Fix requirements:
+
+- ALL product form fields MUST be initialized as safe defaults
+- No controlled input may ever receive null
+
+Rules:
+- string fields → default to ""
+- number fields → default to ""
+- arrays → default to []
+- booleans → default to false
+
+On product load:
+- Normalize product data BEFORE setting state
+- Never pass raw DB values directly into React inputs
+
+Example:
+- description: product.description ?? ""
+
+========================================
+SECTION 2 — VALIDATION SAFETY (MANDATORY)
+========================================
+
+Fix all validation logic to be null-safe.
+
+Rules:
+- NEVER call .trim() on nullable values
+- Always coerce to string before validation
+
+Example:
+- const description = (productData.description || "").trim()
+
+Validation must:
+- Work for drafts
+- Work for partially filled products
+- Not block "Save as Draft"
+
+========================================
+SECTION 3 — SAVE AS DRAFT BEHAVIOR
+========================================
+
+Fix vendor "Save as Draft" behavior:
+
+Rules:
+- Draft save MUST bypass publish-only validation
+- Draft save MUST persist even if:
+  - description is empty
+  - price is empty
+  - images are missing
+
+Only "Publish" requires full validation.
+
+========================================
+SECTION 4 — DUPLICATE PRODUCT FUNCTIONALITY
+========================================
+
+Fix "Duplicate Product" action:
+
+Rules:
+- Create a NEW product record
+- Copy all editable fields
+- Set status = "draft"
+- Assign current vendor as owner
+- Redirect vendor to edit page of duplicated product
+
+Duplicate must:
+- Not overwrite original
+- Not silently fail
+- Provide user feedback
+
+========================================
+SECTION 5 — ERROR HANDLING & FEEDBACK
+========================================
+
+Vendor product actions MUST:
+
+- Never fail silently
+- Display clear error messages
+- Log errors server-side
+- Prevent UI freeze on validation errors
+
+========================================
+FINAL VALIDATION CHECKLIST (MANDATORY)
+========================================
+
+This task is complete ONLY IF:
+
+- Vendor can edit draft products without crashes
+- Save as Draft always works
+- Publish validates correctly
+- Duplicate Product creates a new draft
+- No textarea receives null
+- No runtime trim() errors occur
+- Vendor product flows are stable and predictable
+
+DO NOT mark complete until ALL checks pass.
