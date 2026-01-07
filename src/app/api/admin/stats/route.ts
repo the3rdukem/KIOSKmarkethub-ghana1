@@ -36,7 +36,7 @@ export async function GET() {
     const ordersResult = await query<{ count: string }>('SELECT COUNT(*) as count FROM orders');
     const totalOrders = parseInt(ordersResult.rows[0]?.count || '0');
 
-    const revenueResult = await query<{ total: string }>("SELECT COALESCE(SUM(total_amount), 0) as total FROM orders WHERE status != 'cancelled'");
+    const revenueResult = await query<{ total: string }>("SELECT COALESCE(SUM(total), 0) as total FROM orders WHERE status != 'cancelled'");
     const totalRevenue = parseFloat(revenueResult.rows[0]?.total || '0');
 
     return NextResponse.json({
