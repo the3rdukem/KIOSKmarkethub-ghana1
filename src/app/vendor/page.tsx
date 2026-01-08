@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
@@ -20,38 +21,89 @@ import {
   Plus,
   BarChart3,
   Settings,
-  Eye
+  Eye,
+  Loader2
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
-import { useProductsStore } from "@/lib/products-store";
-import { useOrdersStore } from "@/lib/orders-store";
 import { VendorAuthGuard } from "@/components/auth/auth-guard";
 import { VerificationBanner } from "@/components/vendor/verification-banner";
 import { formatDistance } from "date-fns";
 
+interface VendorStats {
+  products: {
+    total: number;
+    draft: number;
+    active: number;
+    pending: number;
+    suspended: number;
+  };
+  orders: {
+    total: number;
+    pending: number;
+    completed: number;
+    cancelled: number;
+  };
+  revenue: number;
+  recentOrders: Array<{
+    id: string;
+    status: string;
+    total: number;
+    createdAt: string;
+    buyerName: string;
+  }>;
+}
+
 function VendorDashboardContent() {
   const router = useRouter();
   const { user } = useAuthStore();
-  const { getProductsByVendor } = useProductsStore();
-  const { getOrdersByVendor, getOrderStats } = useOrdersStore();
+  const [stats, setStats] = useState<VendorStats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await fetch('/api/vendor/stats', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          setStats(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch vendor stats:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchStats();
+  }, []);
 
   // User is guaranteed to exist here because of AuthGuard
   if (!user) return null;
 
-  // Get REAL vendor-specific data
-  const vendorProducts = getProductsByVendor(user.id);
-  const vendorOrders = getOrdersByVendor(user.id);
-  const orderStats = getOrderStats(user.id);
+  // Show loading state while fetching data
+  if (isLoading) {
+    return (
+      <SiteLayout>
+        <div className="container py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <div className="text-center">
+              <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto mb-4" />
+              <p className="text-muted-foreground">Loading dashboard...</p>
+            </div>
+          </div>
+        </div>
+      </SiteLayout>
+    );
+  }
 
-  // Calculate real metrics
-  const totalProducts = vendorProducts.length;
-  const activeProducts = vendorProducts.filter(p => p.status === "active").length;
-  const totalRevenue = orderStats.totalRevenue;
-  const totalOrders = orderStats.totalOrders;
-  const pendingOrders = orderStats.pendingOrders;
-
-  // Get recent orders (last 5)
-  const recentOrders = vendorOrders.slice(0, 5);
+  // Extract stats from API response
+  const totalProducts = stats?.products.total ?? 0;
+  const activeProducts = stats?.products.active ?? 0;
+  const draftProducts = stats?.products.draft ?? 0;
+  const totalRevenue = stats?.revenue ?? 0;
+  const totalOrders = stats?.orders.total ?? 0;
+  const pendingOrders = stats?.orders.pending ?? 0;
+  const completedOrders = stats?.orders.completed ?? 0;
+  const recentOrders = stats?.recentOrders ?? [];
 
   // Verification status - from user data
   const isVerified = user.isVerified || false;
@@ -144,7 +196,7 @@ function VendorDashboardContent() {
                   <CheckCircle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">{orderStats.completedOrders}</div>
+                  <div className="text-2xl font-bold">{completedOrders}</div>
                   <p className="text-xs text-muted-foreground">
                     Delivered orders
                   </p>
@@ -216,10 +268,7 @@ function VendorDashboardContent() {
                               <p className="text-sm text-muted-foreground">{order.buyerName}</p>
                             </div>
                             <div>
-                              <p className="font-medium">{order.items.length} item(s)</p>
-                              <p className="text-sm text-muted-foreground">
-                                GHS {order.items.reduce((sum, item) => sum + item.price * item.quantity, 0).toLocaleString()}
-                              </p>
+                              <p className="font-medium">GHS {(order.total || 0).toLocaleString()}</p>
                             </div>
                           </div>
                         </div>
@@ -352,7 +401,7 @@ function VendorDashboardContent() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Completed Orders</span>
-                  <span className="font-medium">{orderStats.completedOrders}</span>
+                  <span className="font-medium">{completedOrders}</span>
                 </div>
                 <Button
                   size="sm"
