@@ -1,0 +1,195 @@
+You are working on the KIOSK Marketplace running on Replit, using Next.js App Router and PostgreSQL.
+Authentication and persistence are already stable.
+
+This task does NOT redesign features.
+It stabilizes timing, cache invalidation, and activity visibility.
+
+Do NOT introduce mock logic or polling.
+
+⸻
+
+========================================
+
+SECTION 1 — DEFINE TWO TYPES OF COUNTS (CRITICAL)
+
+========================================
+
+There are TWO distinct count systems. Enforce this separation strictly.
+
+A) SYSTEM TOTAL COUNTS (AUTHORITATIVE)
+
+Used for:
+	•	Dashboard tiles (top cards)
+	•	Per-page stat tiles (Products, Vendors, etc.)
+
+Rules:
+	•	Always query DB directly
+	•	Include ALL statuses unless explicitly filtered
+	•	Must be real-time accurate
+	•	Must never rely on session or cache
+
+These are already working — DO NOT CHANGE THEIR LOGIC
+
+⸻
+
+B) ACTIVITY COUNTS (SINCE LAST ADMIN LOGIN)
+
+Used for:
+	•	Navigation tab badges (Users, Products, Orders, Vendors)
+
+Rules:
+	•	Represent new activity since last admin login
+	•	Reset ONLY on successful admin login
+	•	Must be deterministic (no “eventually correct” behavior)
+
+⸻
+
+========================================
+
+SECTION 2 — FIX DELAYED RESET ROOT CAUSE
+
+========================================
+
+The current delayed reset indicates cache / stale state, not logic failure.
+
+You MUST fix this by implementing ALL of the following:
+
+1️⃣ Session Boundary Revalidation (MANDATORY)
+
+On admin login success:
+	•	Persist last_admin_login_at to DB
+	•	Immediately invalidate:
+	•	Admin layout
+	•	Admin navigation component
+	•	Activity summary endpoint
+
+On admin logout:
+	•	Clear client state
+	•	Force server revalidation of admin routes
+
+⸻
+
+2️⃣ Disable Caching for Activity Queries
+
+All endpoints or server actions that power:
+	•	Nav tab counts
+	•	“New since last login” logic
+
+MUST:
+	•	Use cache: "no-store" OR equivalent
+	•	Bypass any Replit / Next.js caching
+	•	Read directly from DB every time
+
+NO edge caching
+NO stale-while-revalidate
+NO in-memory memoization
+
+⸻
+
+3️⃣ Frontend State Invalidation
+
+Admin navigation component MUST:
+	•	Refetch activity counts on:
+	•	Initial mount
+	•	Successful login
+	•	Logout → login transition
+	•	Never reuse stale props between sessions
+
+⸻
+
+========================================
+
+SECTION 3 — ACTIVITY QUERY RULES (STRICT)
+
+========================================
+
+Activity counts MUST be calculated as:
+
+COUNT(
+  entities
+  WHERE created_at > last_admin_login_at
+)
+
+Rules:
+	•	Use created_at (snake_case, DB-native)
+	•	Never infer from status changes
+	•	Never include drafts unless explicitly required
+	•	Never include soft-deleted records
+
+⸻
+
+========================================
+
+SECTION 4 — NAVIGATION TAB BEHAVIOR (FINALIZED)
+
+========================================
+
+Navigation tab badges must follow these rules:
+	•	Show activity counts only
+	•	Reset to 0 immediately on login
+	•	Increment only when NEW activity occurs
+	•	Never show total system counts
+	•	Never lag behind DB state
+
+If no new activity exists → show 0, not blank
+
+⸻
+
+========================================
+
+SECTION 5 — USERS & ORDERS TAB CONSISTENCY
+
+========================================
+
+Fix inconsistencies:
+	•	USERS tab:
+	•	Must support activity count
+	•	Do NOT show system total here
+	•	ORDERS tab:
+	•	Activity count must work even if system total is 0
+	•	Must not be hard-coded or stubbed
+
+⸻
+
+========================================
+
+SECTION 6 — VENDOR DASHBOARD COUNTS (ALIGNMENT)
+
+========================================
+
+Vendor dashboard tiles MUST:
+	•	Use direct DB queries
+	•	Include correct statuses
+	•	Never rely on cached admin logic
+	•	Update immediately after product actions
+
+Fix any tile showing 0 when data exists.
+
+⸻
+
+========================================
+
+SECTION 7 — VALIDATION REQUIREMENTS (NON-NEGOTIABLE)
+
+========================================
+
+This task is COMPLETE ONLY IF:
+	•	Nav counts reset instantly on admin login
+	•	No delayed “eventual” correction occurs
+	•	Counts do NOT survive logout
+	•	Dashboard tiles remain accurate
+	•	Products, users, vendors, orders behave consistently
+	•	No cache hacks or timeouts are used
+
+⸻
+
+❗ ABSOLUTE RULES
+	•	DO NOT redesign UI
+	•	DO NOT repurpose counts beyond this spec
+	•	DO NOT add polling
+	•	DO NOT add WebSockets
+	•	DO NOT introduce artificial delays
+
+This is a correctness + determinism fix, not a feature request.
+
+⸻

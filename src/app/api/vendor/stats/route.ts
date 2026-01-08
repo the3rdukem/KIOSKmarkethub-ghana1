@@ -3,6 +3,10 @@ import { query } from '@/lib/db';
 import { validateSessionToken } from '@/lib/db/dal/auth-service';
 import { cookies } from 'next/headers';
 
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
@@ -135,7 +139,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       products: {
         total: totalProducts,
         draft: draftProducts,
@@ -152,6 +156,13 @@ export async function GET(request: NextRequest) {
       revenue: totalRevenue,
       recentOrders: recentVendorOrders,
     });
+    
+    // Prevent any caching - always read fresh from DB
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error) {
     console.error('[VENDOR_STATS] Error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

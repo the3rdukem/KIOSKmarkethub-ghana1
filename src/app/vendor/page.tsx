@@ -62,7 +62,15 @@ function VendorDashboardContent() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('/api/vendor/stats', { credentials: 'include' });
+        // Use cache: 'no-store' to always get fresh data from DB
+        const response = await fetch('/api/vendor/stats', { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           setStats(data);

@@ -436,7 +436,15 @@ function AdminDashboardContent() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch('/api/admin/stats');
+        // Use cache: 'no-store' to always get fresh data from DB
+        const response = await fetch('/api/admin/stats', { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           setDbStats(data);
@@ -448,7 +456,15 @@ function AdminDashboardContent() {
 
     const fetchAuditLogs = async () => {
       try {
-        const response = await fetch('/api/admin/audit-logs?limit=100');
+        // Use cache: 'no-store' to always get fresh data from DB
+        const response = await fetch('/api/admin/audit-logs?limit=100', { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           setDbAuditLogs(data.logs || []);
@@ -460,7 +476,15 @@ function AdminDashboardContent() {
 
     const fetchActivityCounts = async () => {
       try {
-        const response = await fetch('/api/admin/activity-summary', { credentials: 'include' });
+        // Use cache: 'no-store' to always get fresh data from DB
+        const response = await fetch('/api/admin/activity-summary', { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
         if (response.ok) {
           const data = await response.json();
           setActivityCounts(data.counts || { users: 0, vendors: 0, products: 0, orders: 0, disputes: 0 });
@@ -473,7 +497,7 @@ function AdminDashboardContent() {
     fetchStats();
     fetchAuditLogs();
     fetchActivityCounts();
-  }, []);
+  }, [user?.id]); // Refetch when user changes (login transition)
 
   // Wait for hydration before checking auth
   useEffect(() => {

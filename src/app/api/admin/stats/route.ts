@@ -10,6 +10,10 @@ import { validateSession } from '@/lib/db/dal/sessions';
 import { getUserStats } from '@/lib/db/dal/users';
 import { query } from '@/lib/db';
 
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
     const cookieStore = await cookies();
@@ -39,7 +43,7 @@ export async function GET() {
     const revenueResult = await query<{ total: string }>("SELECT COALESCE(SUM(total), 0) as total FROM orders WHERE status != 'cancelled'");
     const totalRevenue = parseFloat(revenueResult.rows[0]?.total || '0');
 
-    return NextResponse.json({
+    const response = NextResponse.json({
       userStats: {
         totalBuyers: userStats.totalBuyers,
         totalVendors: userStats.totalVendors,
@@ -52,6 +56,13 @@ export async function GET() {
       totalOrders,
       totalRevenue,
     });
+    
+    // Prevent any caching - always read fresh from DB
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error) {
     console.error('Admin stats error:', error);
     return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500 });
