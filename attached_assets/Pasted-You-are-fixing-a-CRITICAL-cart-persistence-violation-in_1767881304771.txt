@@ -1,0 +1,95 @@
+You are fixing a CRITICAL cart persistence violation
+in the KIOSK Marketplace.
+
+DO NOT modify cart isolation or merge logic.
+DO NOT weaken security.
+This task corrects INVALID logout behavior.
+
+========================================
+SECTION 1 — STOP DELETING USER CARTS (CRITICAL)
+========================================
+
+IMMEDIATELY remove ANY logic that deletes
+authenticated user carts on logout.
+
+Rules:
+- Guest cart → DELETE on logout
+- User cart → NEVER DELETE on logout
+
+Logout must:
+- Destroy auth session
+- Clear guest_session_id cookie
+- Reset client cart store
+- PRESERVE user cart in database
+
+========================================
+SECTION 2 — CART OWNERSHIP GUARANTEE
+========================================
+
+A cart with:
+- owner_type = 'user'
+- owner_id = user_id
+
+MUST persist across:
+- Logout
+- Login
+- Browser restart
+- Session expiration
+
+Only explicit user actions may delete it:
+- Checkout completion
+- Manual cart clear
+
+========================================
+SECTION 3 — FIX LOGOUT HANDLER
+========================================
+
+Audit logout code:
+
+- REMOVE any call that:
+  - Deletes cart WHERE owner_type='user'
+  - Clears cart rows for authenticated users
+
+Ensure logout handler:
+- Is session-scoped, not data-scoped
+- Does NOT touch user cart records
+
+========================================
+SECTION 4 — LOGIN FLOW VALIDATION
+========================================
+
+On login:
+- Fetch existing user cart from DB
+- Initialize cart store from server
+- Do NOT assume empty cart
+
+If guest cart existed:
+- Merge occurs FIRST
+- Guest cart deleted
+- User cart persists
+
+========================================
+SECTION 5 — SERVER VERIFICATION
+========================================
+
+Add invariant check:
+
+- If owner_type='user':
+  - Cart deletion is FORBIDDEN
+  - Log error if attempted
+
+========================================
+SECTION 6 — FINAL VALIDATION (MANDATORY)
+========================================
+
+This task is complete ONLY IF:
+
+- User adds items → logout → login → items remain
+- Guest adds items → login → items merge
+- Guest logout → cart cleared
+- No user cart is ever deleted on logout
+- Behavior consistent across Chrome & Firefox
+
+DO NOT add features.
+DO NOT modify merge timing.
+DO NOT clear user carts.

@@ -187,7 +187,32 @@ export async function clearCart(ownerType: CartOwnerType, ownerId: string): Prom
   );
 }
 
-export async function deleteCart(ownerType: CartOwnerType, ownerId: string): Promise<boolean> {
+/**
+ * Delete a cart from the database.
+ * 
+ * CRITICAL INVARIANT: User carts should NEVER be deleted except:
+ * - After checkout completion
+ * - By explicit user action (manual cart clear)
+ * 
+ * Guest carts CAN be deleted on merge or session expiry.
+ * 
+ * @param ownerType - 'guest' or 'user'
+ * @param ownerId - session_id for guests, user_id for users
+ * @param force - Must be true to delete user carts (safety guard)
+ */
+export async function deleteCart(
+  ownerType: CartOwnerType,
+  ownerId: string,
+  force: boolean = false
+): Promise<boolean> {
+  // Safety guard: prevent accidental user cart deletion
+  if (ownerType === 'user' && !force) {
+    console.error('[CART_DAL] BLOCKED: Attempted to delete user cart without force flag', {
+      ownerId: ownerId.substring(0, 8) + '...',
+    });
+    return false;
+  }
+  
   const result = await query(
     'DELETE FROM carts WHERE owner_type = $1 AND owner_id = $2',
     [ownerType, ownerId]

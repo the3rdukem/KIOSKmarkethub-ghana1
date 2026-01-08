@@ -82,7 +82,9 @@ export async function POST(request: NextRequest) {
       maxAge: 0,
     });
 
-    // Clear guest session cookie to prevent cart leakage
+    // Clear guest session cookie to prevent cart state leakage
+    // NOTE: User carts are NOT deleted on logout - they persist in database
+    // Only guest carts are ephemeral and cleared when guest_session_id cookie expires
     cookieStore.set('guest_session_id', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -91,17 +93,7 @@ export async function POST(request: NextRequest) {
       maxAge: 0,
     });
 
-    // Clear user's server-side cart on logout
-    if (userId !== 'unknown') {
-      try {
-        const { clearCart } = await import('@/lib/db/dal/cart');
-        await clearCart('user', userId);
-      } catch (e) {
-        console.error('[LOGOUT_API] Failed to clear cart:', e);
-      }
-    }
-
-    console.log('[LOGOUT_API] Logout successful, cookies and cart cleared');
+    console.log('[LOGOUT_API] Logout successful, session cleared (user cart preserved)');
 
     return NextResponse.json({ success: true });
   } catch (error) {
