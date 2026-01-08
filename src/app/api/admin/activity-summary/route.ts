@@ -42,24 +42,35 @@ export async function GET(request: NextRequest) {
 
     const sinceDate = previousLoginAt || '1970-01-01T00:00:00.000Z';
 
+    // Count all new activity since admin's last login
     const [
+      newUsers,
+      newVendors,
       newProducts,
       newOrders,
-      newVendors,
       newDisputes
     ] = await Promise.all([
+      // New users = buyers + vendors created after last login
       query<{ count: string }>(
-        'SELECT COUNT(*) as count FROM products WHERE created_at > $1',
+        `SELECT COUNT(*) as count FROM users WHERE created_at > $1`,
         [sinceDate]
       ),
-      query<{ count: string }>(
-        'SELECT COUNT(*) as count FROM orders WHERE created_at > $1',
-        [sinceDate]
-      ),
+      // New vendors = users with role='vendor' created after last login
       query<{ count: string }>(
         `SELECT COUNT(*) as count FROM users WHERE role = 'vendor' AND created_at > $1`,
         [sinceDate]
       ),
+      // New products = ALL products (draft, published, pending) created after last login
+      query<{ count: string }>(
+        'SELECT COUNT(*) as count FROM products WHERE created_at > $1',
+        [sinceDate]
+      ),
+      // New orders = orders created after last login
+      query<{ count: string }>(
+        'SELECT COUNT(*) as count FROM orders WHERE created_at > $1',
+        [sinceDate]
+      ),
+      // New disputes = disputes created after last login
       query<{ count: string }>(
         'SELECT COUNT(*) as count FROM disputes WHERE created_at > $1',
         [sinceDate]
@@ -69,9 +80,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       previousLoginAt,
       counts: {
+        users: parseInt(newUsers.rows[0]?.count || '0', 10),
+        vendors: parseInt(newVendors.rows[0]?.count || '0', 10),
         products: parseInt(newProducts.rows[0]?.count || '0', 10),
         orders: parseInt(newOrders.rows[0]?.count || '0', 10),
-        vendors: parseInt(newVendors.rows[0]?.count || '0', 10),
         disputes: parseInt(newDisputes.rows[0]?.count || '0', 10),
       }
     });

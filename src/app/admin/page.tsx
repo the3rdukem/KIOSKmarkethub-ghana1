@@ -425,11 +425,12 @@ function AdminDashboardContent() {
   }>>([]);
 
   const [activityCounts, setActivityCounts] = useState<{
+    users: number;
+    vendors: number;
     products: number;
     orders: number;
-    vendors: number;
     disputes: number;
-  }>({ products: 0, orders: 0, vendors: 0, disputes: 0 });
+  }>({ users: 0, vendors: 0, products: 0, orders: 0, disputes: 0 });
 
   // Fetch stats and audit logs from PostgreSQL
   useEffect(() => {
@@ -462,7 +463,7 @@ function AdminDashboardContent() {
         const response = await fetch('/api/admin/activity-summary', { credentials: 'include' });
         if (response.ok) {
           const data = await response.json();
-          setActivityCounts(data.counts || { products: 0, orders: 0, vendors: 0, disputes: 0 });
+          setActivityCounts(data.counts || { users: 0, vendors: 0, products: 0, orders: 0, disputes: 0 });
         }
       } catch (error) {
         console.error('Failed to fetch activity counts:', error);
@@ -665,7 +666,11 @@ function AdminDashboardContent() {
         <Tabs value={selectedTab} onValueChange={setSelectedTab}>
           <TabsList className="mb-6 flex-wrap h-auto gap-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="buyers">Users<Badge className="ml-2" variant="secondary">{users.filter(u => !u.isDeleted).length}</Badge></TabsTrigger>
+            <TabsTrigger value="buyers">
+              Users
+              <Badge className="ml-2" variant="secondary">{users.filter(u => !u.isDeleted).length}</Badge>
+              {activityCounts.users > 0 && <Badge className="ml-1 bg-blue-500 text-white text-xs">+{activityCounts.users}</Badge>}
+            </TabsTrigger>
             <TabsTrigger value="vendors">
               Vendors
               {pendingVendors.length > 0 && <Badge className="ml-2" variant="destructive">{pendingVendors.length}</Badge>}

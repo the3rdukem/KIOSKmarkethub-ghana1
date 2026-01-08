@@ -1,0 +1,140 @@
+You are fixing the ACTIVITY NOTIFICATION SYSTEM and DASHBOARD STAT COUNTS
+for the MarketHub / KIOSK marketplace running on Replit with PostgreSQL.
+
+Auth, persistence, and core CRUD are already stable.
+DO NOT touch promotions, pricing logic, API integrations, or analytics.
+
+This task fixes INCOMPLETE implementations.
+
+================================================
+SECTION 1 — ADMIN LAST LOGIN (CRITICAL)
+================================================
+
+Fix admin session tracking:
+
+- Every successful admin login MUST update:
+  admin.last_login_at = NOW()
+
+Rules:
+- This timestamp is per-admin
+- Must persist in PostgreSQL
+- Must NOT be cached
+- Must NOT be global
+- Logout + next login MUST reset activity windows
+
+================================================
+SECTION 2 — ADMIN ACTIVITY NOTIFICATIONS (OPTION B)
+================================================
+
+Navigation tab badges represent:
+NEW ACTIVITY SINCE LAST ADMIN LOGIN
+
+Fix and COMPLETE all tabs:
+
+USERS TAB:
+- Count buyers + vendors created after last_login_at
+- Must increment correctly
+- Must reset after next login
+
+VENDORS TAB:
+- Add missing badge
+- Count new vendor registrations OR newly verified vendors
+- Be explicit in code comments which one is used
+
+PRODUCTS TAB:
+- Count products created after last_login_at
+- Includes ALL statuses (draft, published, pending)
+- MUST reset after logout/login
+
+ORDERS TAB:
+- Implement missing logic
+- Count orders created after last_login_at
+- Do NOT assume 0 is correct without query
+
+UI RULES:
+- Hide badge if count = 0
+- These are NOT totals
+- Do NOT reuse dashboard tile queries
+
+================================================
+SECTION 3 — BACKEND CONTRACT
+================================================
+
+Expose ONE endpoint only:
+GET /admin/activity-summary
+
+Response includes:
+- newUsers
+- newVendors
+- newProducts
+- newOrders
+
+Frontend MUST consume ONLY this endpoint.
+
+================================================
+SECTION 4 — ADMIN USERS & ORDERS PAGES (UX PARITY)
+================================================
+
+Add live stat tiles to:
+
+ADMIN → USERS PAGE
+ADMIN → ORDERS PAGE
+
+Tiles must mirror:
+- Products page
+- Vendors page
+
+Examples:
+Users:
+- Total users
+- Buyers
+- Vendors
+- Admins
+
+Orders:
+- Total orders
+- Pending
+- Completed
+- Cancelled
+
+================================================
+SECTION 5 — VENDOR DASHBOARD TILE FIX
+================================================
+
+Fix Vendor Dashboard "unclickable tiles":
+
+- Products count must reflect vendor-owned products
+- Draft + published must be counted correctly
+- Orders count must reflect vendor orders
+- Revenue must not default to 0 if orders exist
+
+Rules:
+- Queries must use vendor_id correctly
+- No status over-filtering
+- No stale joins from SQLite era
+
+================================================
+SECTION 6 — NON-REGRESSION RULES
+================================================
+
+DO NOT:
+- Modify product schema
+- Modify promotions or discounts
+- Merge add/edit product forms
+- Touch admin permissions
+- Touch audit logging (already fixed)
+
+================================================
+FINAL VALIDATION CHECKLIST (MANDATORY)
+================================================
+
+This task is complete ONLY IF:
+
+- Users tab badge increments and resets correctly
+- Vendors tab badge exists and works
+- Products badge resets after logout/login
+- Orders badge works
+- Admin Users page has stat tiles
+- Admin Orders page has stat tiles
+- Vendor dashboard tiles show real data
+- No unrelated systems were changed
