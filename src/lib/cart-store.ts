@@ -108,6 +108,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
   },
 
   addItem: async (newItem) => {
+    const previousItems = [...get().items];
     const items = get().items;
     const existingItemIndex = items.findIndex(
       item => item.id === newItem.id &&
@@ -134,29 +135,42 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     setTimeout(() => set({ isOpen: false }), 2000);
 
     try {
-      await fetch('/api/cart', {
+      const response = await fetch('/api/cart', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'add', item: { ...newItem, quantity: newItem.quantity || 1 } }),
       });
+      
+      if (!response.ok) {
+        console.error('[CART_STORE] Server rejected add, rolling back');
+        set({ items: previousItems });
+      }
     } catch (error) {
-      console.error('[CART_STORE] Failed to sync add:', error);
+      console.error('[CART_STORE] Failed to sync add, rolling back:', error);
+      set({ items: previousItems });
     }
   },
 
   removeItem: async (id) => {
+    const previousItems = [...get().items];
     set({ items: get().items.filter(item => item.id !== id) });
 
     try {
-      await fetch('/api/cart', {
+      const response = await fetch('/api/cart', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'remove', itemId: id }),
       });
+      
+      if (!response.ok) {
+        console.error('[CART_STORE] Server rejected remove, rolling back');
+        set({ items: previousItems });
+      }
     } catch (error) {
-      console.error('[CART_STORE] Failed to sync remove:', error);
+      console.error('[CART_STORE] Failed to sync remove, rolling back:', error);
+      set({ items: previousItems });
     }
   },
 
@@ -166,6 +180,7 @@ export const useCartStore = create<CartStore>()((set, get) => ({
       return;
     }
 
+    const previousItems = [...get().items];
     set({
       items: get().items.map(item =>
         item.id === id
@@ -175,14 +190,20 @@ export const useCartStore = create<CartStore>()((set, get) => ({
     });
 
     try {
-      await fetch('/api/cart', {
+      const response = await fetch('/api/cart', {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'update_quantity', itemId: id, quantity }),
       });
+      
+      if (!response.ok) {
+        console.error('[CART_STORE] Server rejected quantity update, rolling back');
+        set({ items: previousItems });
+      }
     } catch (error) {
-      console.error('[CART_STORE] Failed to sync quantity:', error);
+      console.error('[CART_STORE] Failed to sync quantity, rolling back:', error);
+      set({ items: previousItems });
     }
   },
 

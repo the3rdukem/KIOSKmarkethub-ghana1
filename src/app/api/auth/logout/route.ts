@@ -82,7 +82,26 @@ export async function POST(request: NextRequest) {
       maxAge: 0,
     });
 
-    console.log('[LOGOUT_API] Logout successful, cookies cleared');
+    // Clear guest session cookie to prevent cart leakage
+    cookieStore.set('guest_session_id', '', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      path: '/',
+      maxAge: 0,
+    });
+
+    // Clear user's server-side cart on logout
+    if (userId !== 'unknown') {
+      try {
+        const { clearCart } = await import('@/lib/db/dal/cart');
+        await clearCart('user', userId);
+      } catch (e) {
+        console.error('[LOGOUT_API] Failed to clear cart:', e);
+      }
+    }
+
+    console.log('[LOGOUT_API] Logout successful, cookies and cart cleared');
 
     return NextResponse.json({ success: true });
   } catch (error) {

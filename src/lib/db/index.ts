@@ -452,6 +452,31 @@ async function runMigrations(client: PoolClient): Promise<void> {
     // Table may already exist
   }
 
+  // Create disputes table if it doesn't exist
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS disputes (
+        id TEXT PRIMARY KEY,
+        order_id TEXT NOT NULL,
+        buyer_id TEXT NOT NULL,
+        vendor_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        reason TEXT,
+        amount REAL DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'open',
+        resolution TEXT,
+        resolved_by TEXT,
+        resolved_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
+      );
+      CREATE INDEX IF NOT EXISTS idx_disputes_order ON disputes(order_id);
+      CREATE INDEX IF NOT EXISTS idx_disputes_status ON disputes(status);
+    `);
+  } catch (e) {
+    // Table may already exist
+  }
+
   for (const migration of migrations) {
     try {
       await client.query(`
