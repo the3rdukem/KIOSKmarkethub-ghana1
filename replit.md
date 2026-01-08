@@ -127,3 +127,8 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
   - Storage abstraction: `src/lib/services/storage.ts` for provider-agnostic file uploads (local fs with cloud migration path)
   - Review constraints: One review per buyer per product, vendor can reply once per review
   - Review statuses: active, hidden, deleted with full moderation audit trail
+- **Search Page API-First**: Search page now fetches products directly from `/api/products?status=active` API on mount instead of Zustand store, eliminating persist middleware conflicts
+- **Homepage API-First**: Homepage fetches products from database API instead of Zustand store for data consistency
+- **Vendor Analytics API-First**: Vendor analytics page fetches reviews from `/api/reviews` API instead of Zustand store
+- **Suspense Wrapper Fix**: Search page wrapped in Suspense boundary for Next.js App Router useSearchParams compatibility
+- **DbInitializer Pattern**: Global DbInitializer component ensures database and auth are initialized before rendering app content

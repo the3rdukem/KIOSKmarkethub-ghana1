@@ -24,18 +24,43 @@ import {
   Calendar
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
-import { useProductsStore } from "@/lib/products-store";
+import { useProductsStore, Product } from "@/lib/products-store";
 import { useOrdersStore } from "@/lib/orders-store";
-import { useReviewsStore } from "@/lib/reviews-store";
+
+interface ApiReview {
+  id: string;
+  product_id: string;
+  buyer_id: string;
+  buyer_name: string;
+  rating: number;
+  comment: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  product_name?: string;
+}
+
+interface NormalizedReview {
+  id: string;
+  productId: string;
+  buyerId: string;
+  buyerName: string;
+  rating: number;
+  comment: string;
+  productName: string;
+  createdAt: string;
+}
 
 export default function VendorAnalyticsPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const { getProductsByVendor } = useProductsStore();
+  const { syncVendorProducts } = useProductsStore();
   const { getOrdersByVendor, getOrderStats } = useOrdersStore();
-  const { reviews, getAverageRating } = useReviewsStore();
   const [isHydrated, setIsHydrated] = useState(false);
   const [timeRange, setTimeRange] = useState("30");
+  const [vendorProducts, setVendorProducts] = useState<Product[]>([]);
+  const [productReviews, setProductReviews] = useState<NormalizedReview[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -50,7 +75,48 @@ export default function VendorAnalyticsPage() {
     }
   }, [isHydrated, isAuthenticated, user, router]);
 
-  if (!isHydrated) {
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!isHydrated || !user) return;
+      
+      setIsLoading(true);
+      try {
+        const [productsRes, reviewsRes] = await Promise.all([
+          fetch(`/api/products?vendorId=${user.id}`, { credentials: 'include' }),
+          fetch(`/api/reviews?vendorId=${user.id}`, { credentials: 'include' })
+        ]);
+
+        if (productsRes.ok) {
+          const productsData = await productsRes.json();
+          setVendorProducts(productsData.products || []);
+        }
+
+        if (reviewsRes.ok) {
+          const reviewsData = await reviewsRes.json();
+          const apiReviews: ApiReview[] = reviewsData.reviews || [];
+          const normalized: NormalizedReview[] = apiReviews.map((r) => ({
+            id: r.id,
+            productId: r.product_id,
+            buyerId: r.buyer_id,
+            buyerName: r.buyer_name || 'Anonymous',
+            rating: r.rating,
+            comment: r.comment || '',
+            productName: r.product_name || 'Unknown Product',
+            createdAt: r.created_at,
+          }));
+          setProductReviews(normalized);
+        }
+      } catch (error) {
+        console.error('Failed to fetch analytics data:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [isHydrated, user]);
+
+  if (!isHydrated || isLoading) {
     return (
       <SiteLayout>
         <div className="container py-8">
@@ -66,15 +132,8 @@ export default function VendorAnalyticsPage() {
     return null;
   }
 
-  const vendorProducts = getProductsByVendor(user.id);
   const vendorOrders = getOrdersByVendor(user.id);
   const orderStats = getOrderStats(user.id);
-
-  // Calculate product reviews and ratings
-  const productReviews = vendorProducts.flatMap(product => {
-    const productReviewsList = reviews.filter(r => r.productId === product.id);
-    return productReviewsList.map(r => ({ ...r, productName: product.name }));
-  });
 
   const averageStoreRating = productReviews.length > 0
     ? productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length

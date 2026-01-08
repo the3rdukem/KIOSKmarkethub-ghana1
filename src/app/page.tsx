@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Shield, TrendingUp, Users, ShoppingBag, Search, Package, CheckCircle } from "lucide-react";
 import AdvancedSearch from "@/components/search/advanced-search";
 import Link from "next/link";
-import { useProductsStore } from "@/lib/products-store";
+import { Product } from "@/lib/products-store";
 import { useUsersStore } from "@/lib/users-store";
 import { useOrdersStore } from "@/lib/orders-store";
 import { PromotionalBannerDisplay } from "@/components/banners/promotional-banner";
@@ -25,30 +25,43 @@ const categories = [
 const trendingSearches = ["iPhone", "MacBook", "Kente", "Cocoa", "Smartphones"];
 
 export default function HomePage() {
-  const [isHydrated, setIsHydrated] = useState(false);
-  const { products, getActiveProducts, syncFromApi } = useProductsStore();
+  const [isLoading, setIsLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>([]);
   const { users, getPlatformMetrics } = useUsersStore();
   const { orders } = useOrdersStore();
 
   useEffect(() => {
-    setIsHydrated(true);
-    // Sync products from API on mount
-    syncFromApi();
-  }, [syncFromApi]);
+    const fetchProducts = async () => {
+      try {
+        const response = await fetch('/api/products?status=active', {
+          credentials: 'include',
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setProducts(data.products || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch products:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchProducts();
+  }, []);
 
-  // Get real active products (only after hydration)
-  const activeProducts = isHydrated ? getActiveProducts() : [];
+  // Get real active products (only after data loads)
+  const activeProducts = products.filter(p => p.status === 'active');
   const featuredProducts = activeProducts.slice(0, 4);
 
-  // Get real metrics (only after hydration)
-  const metrics = isHydrated ? getPlatformMetrics() : { totalVendors: 0 };
-  const totalProducts = isHydrated ? products.length : 0;
-  const totalVendors = isHydrated ? (metrics.totalVendors || users.filter(u => u.role === "vendor").length) : 0;
-  const totalOrders = isHydrated ? orders.length : 0;
+  // Get real metrics (only after data loads)
+  const metrics = !isLoading ? getPlatformMetrics() : { totalVendors: 0 };
+  const totalProducts = !isLoading ? products.length : 0;
+  const totalVendors = !isLoading ? (metrics.totalVendors || users.filter(u => u.role === "vendor").length) : 0;
+  const totalOrders = !isLoading ? orders.length : 0;
 
-  // Get product counts by category (only after hydration)
+  // Get product counts by category (only after data loads)
   const getCategoryCount = (categoryName: string) => {
-    if (!isHydrated) return "Browse";
+    if (isLoading) return "Browse";
     const count = products.filter(p =>
       p.category && p.category.toLowerCase().includes(categoryName.toLowerCase())
     ).length;

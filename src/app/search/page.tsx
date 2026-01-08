@@ -61,7 +61,6 @@ function SearchPageContent() {
   const initialCategory = searchParams.get('category') || "All Categories";
 
   // Get store functions with stable references
-  const products = useProductsStore((state) => state.products);
   const getUserById = useUsersStore((state) => state.getUserById);
   const addItem = useCartStore((state) => state.addItem);
   const isInWishlist = useWishlistStore((state) => state.isInWishlist);
@@ -86,7 +85,8 @@ function SearchPageContent() {
   const [sortBy, setSortBy] = useState("relevance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [products, setProducts] = useState<Product[]>([]);
   const [isAISearching, setIsAISearching] = useState(false);
   const [aiSearchResults, setAISearchResults] = useState<Map<string, number>>(new Map());
 
@@ -96,7 +96,15 @@ function SearchPageContent() {
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
 
   useEffect(() => {
-    setIsHydrated(true);
+    fetch('/api/products?status=active', { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        setProducts(data.products || []);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        setIsLoading(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -109,9 +117,8 @@ function SearchPageContent() {
 
   // Get active products with stable reference using useMemo
   const allProducts = useMemo(() => {
-    if (!isHydrated) return [];
     return products.filter((product) => product.status === 'active');
-  }, [isHydrated, products]);
+  }, [products]);
 
   // AI-powered semantic search when available
   useEffect(() => {
@@ -271,18 +278,7 @@ function SearchPageContent() {
     inStockOnly,
   ].filter(Boolean).length, [selectedCategory, selectedVendor, priceRange, maxPrice, minRating, inStockOnly]);
 
-  // Loading state
-  if (!isHydrated) {
-    return (
-      <SiteLayout>
-        <div className="container py-8">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <Loader2 className="w-12 h-12 animate-spin text-gray-400" />
-          </div>
-        </div>
-      </SiteLayout>
-    );
-  }
+  // Removed early return for loading state - will use conditional rendering in JSX
 
   const FilterSidebar = () => (
     <div className="space-y-6">
@@ -646,7 +642,11 @@ function SearchPageContent() {
 
           {/* Products Grid */}
           <div className="flex-1">
-            {filteredAndSortedProducts.length === 0 ? (
+            {isLoading ? (
+              <div className="flex items-center justify-center min-h-[400px]">
+                <Loader2 className="w-12 h-12 animate-spin text-gray-400" />
+              </div>
+            ) : filteredAndSortedProducts.length === 0 ? (
               <div className="text-center py-16">
                 <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                 <h3 className="text-xl font-semibold mb-2">No Products Found</h3>
