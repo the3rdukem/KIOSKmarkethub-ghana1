@@ -105,3 +105,5 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - **Admin Product Dropdown**: Added Edit, Publish, and Unpublish menu items for full admin control
 - **Vendor Edit API-First**: Vendor product edit page now fetches from `/api/products/[id]` instead of Zustand store (fixes duplicate product navigation)
 - **Admin Activity Tracking**: Added `previous_login_at` column to users/admin_users tables with migration, login rotates timestamps (previous = last, last = now), `/api/admin/activity-summary` counts new items since last login, admin tabs show blue "+X" badges for new products/orders/vendors/disputes
+- **Vendor Stats API**: Created `/api/vendor/stats` endpoint that calculates vendor-specific metrics by parsing order items JSON and filtering by vendorId. Revenue is calculated from vendor's items only (price × quantity), not full order totals. Orders stored as JSON array in orders.items column.
+- **Vendor Dashboard DB-First**: Vendor dashboard now fetches stats from `/api/vendor/stats` API instead of Zustand stores, with loading state indicator
