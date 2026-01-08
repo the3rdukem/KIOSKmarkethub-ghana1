@@ -3,10 +3,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cart-store";
-import { useProductsStore } from "@/lib/products-store";
 import { useWishlistStore } from "@/lib/wishlist-store";
 import { useAuthStore } from "@/lib/auth-store";
-import { useUsersStore } from "@/lib/users-store";
 import { toast } from "sonner";
 import Link from "next/link";
 import { SiteLayout } from "@/components/layout/site-layout";
@@ -77,25 +75,54 @@ interface RatingStats {
   distribution: { [key: number]: number };
 }
 
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  comparePrice?: number;
+  images: string[];
+  category: string;
+  vendorId: string;
+  vendorName: string;
+  status: string;
+  quantity: number;
+  trackQuantity: boolean;
+  sku?: string;
+  specifications?: Record<string, string>;
+  tags?: string[];
+}
+
+interface Vendor {
+  id: string;
+  name: string;
+  email: string;
+  businessName?: string;
+  avatar?: string;
+  status?: string;
+}
+
 export default function ProductPage() {
   const params = useParams();
   const router = useRouter();
   const productId = params.id as string;
 
   const { addItem } = useCartStore();
-  const { getProductById, getActiveProducts } = useProductsStore();
   const { isInWishlist, toggleWishlist } = useWishlistStore();
   const { user, isAuthenticated } = useAuthStore();
-  const { getUserById } = useUsersStore();
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [showFullDescription, setShowFullDescription] = useState(false);
-  const [isHydrated, setIsHydrated] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  
+  const [product, setProduct] = useState<Product | null>(null);
+  const [vendor, setVendor] = useState<Vendor | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   
   const [reviews, setReviews] = useState<Review[]>([]);
   const [ratingStats, setRatingStats] = useState<RatingStats>({ average: 0, total: 0, distribution: {} });
@@ -103,8 +130,54 @@ export default function ProductPage() {
   const [hasReviewed, setHasReviewed] = useState(false);
 
   useEffect(() => {
-    setIsHydrated(true);
-  }, []);
+    if (!productId) return;
+    
+    async function fetchProduct() {
+      try {
+        setIsLoading(true);
+        const response = await fetch(`/api/products/${productId}`);
+        if (response.ok) {
+          const data = await response.json();
+          const productData = data.product || data;
+          setProduct(productData);
+          
+          if (productData.vendorId) {
+            try {
+              const vendorRes = await fetch(`/api/vendors/${productData.vendorId}`);
+              if (vendorRes.ok) {
+                const vendorData = await vendorRes.json();
+                setVendor(vendorData.user || vendorData.vendor || vendorData);
+              }
+            } catch (e) {
+              console.error('Failed to fetch vendor:', e);
+            }
+          }
+          
+          try {
+            const relatedRes = await fetch(`/api/products?status=active&category=${encodeURIComponent(productData.category)}&limit=5`);
+            if (relatedRes.ok) {
+              const relatedData = await relatedRes.json();
+              const filtered = (relatedData.products || relatedData || [])
+                .filter((p: Product) => p.id !== productId)
+                .slice(0, 4);
+              setRelatedProducts(filtered);
+            }
+          } catch (e) {
+            console.error('Failed to fetch related products:', e);
+          }
+        } else {
+          setProduct(null);
+        }
+      } catch (error) {
+        console.error('Failed to fetch product:', error);
+        setProduct(null);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    
+    fetchProduct();
+  }, [productId]);
 
   useEffect(() => {
     if (!productId) return;
@@ -133,22 +206,13 @@ export default function ProductPage() {
     fetchReviews();
   }, [productId, user]);
 
-  const product = isHydrated ? getProductById(productId) : null;
-  const vendor = product ? getUserById(product.vendorId) : null;
-
   const averageRating = ratingStats.average || 0;
   const totalReviews = ratingStats.total || 0;
   const ratingBreakdown = ratingStats.distribution || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
 
-  const isWishlisted = isHydrated && user ? isInWishlist(user.id, productId) : false;
+  const isWishlisted = user ? isInWishlist(user.id, productId) : false;
 
   const canReview = isAuthenticated && user?.role === "buyer" && !hasReviewed;
-
-  const relatedProducts = isHydrated && product
-    ? getActiveProducts()
-        .filter(p => p.category === product.category && p.id !== product.id)
-        .slice(0, 4)
-    : [];
 
   const handleAddToCart = () => {
     if (!product) return;
@@ -306,7 +370,7 @@ export default function ProductPage() {
     }
   };
 
-  if (!isHydrated) {
+  if (isLoading) {
     return (
       <SiteLayout>
         <div className="container py-8">
