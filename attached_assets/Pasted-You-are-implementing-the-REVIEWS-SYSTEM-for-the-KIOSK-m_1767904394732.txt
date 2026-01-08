@@ -1,0 +1,181 @@
+You are implementing the REVIEWS SYSTEM for the KIOSK marketplace.
+
+This task is LIMITED to reviews only.
+DO NOT modify checkout, payments, auth, cart, or unrelated UI.
+
+You MUST:
+- Use the existing PostgreSQL database
+- Follow existing project patterns
+- Double-check and TRIPLE-CHECK functionality before reporting success
+
+Partial or “mostly working” implementations are NOT acceptable.
+
+================================================
+SECTION 1 — DATABASE SCHEMA (REVIEWS + MEDIA)
+================================================
+
+Implement a robust reviews system with first-class media support.
+
+Create or update tables:
+
+REVIEWS
+- id (uuid / string)
+- product_id (FK)
+- buyer_id (FK → users)
+- vendor_id (FK → users)
+- rating (1–5)
+- comment (text, NOT NULL)
+- created_at
+- updated_at
+- edited_at (nullable)
+- is_verified_purchase (boolean, default false)
+- status (active | hidden | deleted)
+
+REVIEW_MEDIA
+- id
+- review_id (FK)
+- file_url
+- file_type (image)
+- created_at
+
+RULES:
+- Reviews MUST persist permanently
+- Media MUST be stored internally (no external URLs)
+- Foreign keys MUST be enforced
+
+================================================
+SECTION 2 — FILE UPLOADS (OPTION 2 REQUIRED)
+================================================
+
+Implement file uploads via a STORAGE ABSTRACTION layer.
+
+Rules:
+- No external image URLs
+- No base64 blobs stored in DB
+- All files must be uploaded via API
+
+Requirements:
+- Accept images only (jpg, png, webp)
+- Enforce size limits
+- Store files using internal storage (local or configured bucket)
+- Return internal file URLs
+
+The system MUST be storage-provider agnostic:
+- Today: local / dev storage
+- Later: GCS / S3 / Cloudinary (no rewrite)
+
+================================================
+SECTION 3 — BUYER REVIEW FLOW
+================================================
+
+Buyers can:
+- Create a review for a product
+- Upload multiple images
+- Edit their review
+- Delete their review (soft delete)
+
+Rules:
+- One review per buyer per product
+- Editing updates `edited_at`
+- Deleted reviews are hidden, not removed
+
+DO NOT require verified purchase yet
+(leave the boolean for future gating)
+
+================================================
+SECTION 4 — VENDOR REVIEW VISIBILITY & REPLIES
+================================================
+
+Vendors can:
+- See ALL reviews on their products
+- Reply ONCE per review (threaded reply)
+- Replies are public
+
+Rules:
+- Vendors cannot edit buyer reviews
+- Vendor replies are immutable (no editing)
+
+================================================
+SECTION 5 — ADMIN MODERATION
+================================================
+
+Admins can:
+- View all reviews
+- Hide / unhide reviews
+- Delete reviews
+- View review media
+- See vendor replies
+
+Admin actions MUST be logged to audit logs.
+
+================================================
+SECTION 6 — UI REQUIREMENTS (STRICT)
+================================================
+
+Ensure the following screens work end-to-end:
+
+- Product page shows:
+  - Reviews
+  - Ratings
+  - Images
+  - Vendor replies
+
+- Vendor dashboard shows:
+  - Reviews per product
+  - Reply interface
+
+- Buyer dashboard shows:
+  - Their reviews
+  - Edit / delete actions
+
+No placeholders.
+No broken states.
+No silent failures.
+
+================================================
+SECTION 7 — AUDIT LOGGING
+================================================
+
+Log:
+- Review created
+- Review edited
+- Review deleted
+- Vendor replied
+- Admin moderated
+
+Each log must include:
+- actor_id
+- action
+- review_id
+- timestamp
+
+================================================
+SECTION 8 — MANDATORY VERIFICATION (DO NOT SKIP)
+================================================
+
+BEFORE reporting success, you MUST manually verify:
+
+✔ Review persists after refresh
+✔ Images persist after refresh
+✔ Buyer can edit review
+✔ Buyer can delete review
+✔ Vendor sees and replies to review
+✔ Vendor reply persists
+✔ Admin moderation works
+✔ Audit logs are created
+✔ No console errors
+✔ No broken UI states
+
+If ANY check fails:
+- FIX IT
+- RE-TEST
+- ONLY THEN report success
+
+================================================
+FINAL RULE
+================================================
+
+DO NOT report “done” unless ALL checks pass.
+No assumptions.
+No partial success.
+No regressions.

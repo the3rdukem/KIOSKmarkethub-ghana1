@@ -477,6 +477,54 @@ async function runMigrations(client: PoolClient): Promise<void> {
     // Table may already exist
   }
 
+  // Create reviews table if it doesn't exist
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS reviews (
+        id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL,
+        buyer_id TEXT NOT NULL,
+        vendor_id TEXT NOT NULL,
+        rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+        comment TEXT NOT NULL,
+        is_verified_purchase INTEGER DEFAULT 0,
+        status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'hidden', 'deleted')),
+        helpful_count INTEGER DEFAULT 0,
+        edited_at TEXT,
+        vendor_reply TEXT,
+        vendor_reply_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        CONSTRAINT fk_reviews_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        CONSTRAINT fk_reviews_buyer FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(product_id, buyer_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_reviews_product ON reviews(product_id);
+      CREATE INDEX IF NOT EXISTS idx_reviews_buyer ON reviews(buyer_id);
+      CREATE INDEX IF NOT EXISTS idx_reviews_vendor ON reviews(vendor_id);
+      CREATE INDEX IF NOT EXISTS idx_reviews_status ON reviews(status);
+    `);
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // Create review_media table if it doesn't exist
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS review_media (
+        id TEXT PRIMARY KEY,
+        review_id TEXT NOT NULL,
+        file_url TEXT NOT NULL,
+        file_type TEXT NOT NULL DEFAULT 'image',
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        CONSTRAINT fk_review_media_review FOREIGN KEY (review_id) REFERENCES reviews(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_review_media_review ON review_media(review_id);
+    `);
+  } catch (e) {
+    // Table may already exist
+  }
+
   for (const migration of migrations) {
     try {
       await client.query(`
