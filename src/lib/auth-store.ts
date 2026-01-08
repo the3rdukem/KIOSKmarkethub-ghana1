@@ -13,6 +13,34 @@ import { create } from 'zustand';
 
 export type UserRole = 'buyer' | 'vendor' | 'admin' | 'master_admin';
 
+/**
+ * Silent cart merge - best-effort, non-blocking.
+ * Called after successful auth. Never throws or shows errors.
+ * Cart sync happens post-navigation via CartSheet mount.
+ */
+function silentCartMerge(): void {
+  fetch('/api/cart/merge', {
+    method: 'POST',
+    credentials: 'include',
+  })
+    .then((res) => {
+      if (res.ok && process.env.NODE_ENV === 'development') {
+        res.json().then((data) => {
+          if (data.merged) {
+            console.log('[AUTH_STORE] Cart merged successfully');
+          }
+        }).catch(() => {});
+      }
+    })
+    .catch((e) => {
+      if (e?.name === 'AbortError') return;
+      if (!e || Object.keys(e).length === 0) return;
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[AUTH_STORE] Cart merge skipped (navigation in progress)');
+      }
+    });
+}
+
 export interface User {
   id: string;
   email: string;
@@ -217,16 +245,7 @@ export async function loginViaAPI(
 
     useAuthStore.getState().login(data.user);
 
-    try {
-      await fetch('/api/cart/merge', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      const { useCartStore } = await import('./cart-store');
-      await useCartStore.getState().syncWithServer();
-    } catch (e) {
-      console.error('[AUTH_STORE] Cart merge failed:', e);
-    }
+    silentCartMerge();
 
     return {
       success: true,
@@ -328,16 +347,7 @@ export async function registerViaAPI(data: {
 
     useAuthStore.getState().login(responseData.user);
 
-    try {
-      await fetch('/api/cart/merge', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      const { useCartStore } = await import('./cart-store');
-      await useCartStore.getState().syncWithServer();
-    } catch (e) {
-      console.error('[AUTH_STORE] Cart merge after registration failed:', e);
-    }
+    silentCartMerge();
 
     return {
       success: true,
