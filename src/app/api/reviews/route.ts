@@ -93,17 +93,24 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 
-      // Check if user is this vendor
-      const vendorCheck = await query<{ id: string }>(
-        'SELECT id FROM vendors WHERE user_id = $1',
-        [session.userId]
+      // Get vendor's user_id from vendors table
+      const vendorLookup = await query<{ user_id: string }>(
+        'SELECT user_id FROM vendors WHERE id = $1',
+        [vendorId]
       );
       
-      if (vendorCheck.rows[0]?.id !== vendorId && session.role !== 'admin' && session.role !== 'master_admin') {
+      const vendorUserId = vendorLookup.rows[0]?.user_id;
+      if (!vendorUserId) {
+        return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
+      }
+      
+      // Check if user owns this vendor or is admin
+      if (session.userId !== vendorUserId && session.role !== 'admin' && session.role !== 'master_admin') {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 
-      const reviews = await getVendorProductReviews(vendorId);
+      // Query reviews using user_id (which is stored in reviews.vendor_id)
+      const reviews = await getVendorProductReviews(vendorUserId);
       return NextResponse.json({ reviews });
     }
 

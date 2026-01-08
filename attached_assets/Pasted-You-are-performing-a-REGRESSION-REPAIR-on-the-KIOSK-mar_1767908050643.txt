@@ -1,0 +1,99 @@
+You are performing a REGRESSION REPAIR on the KIOSK marketplace.
+
+DO NOT add new features.
+DO NOT refactor unrelated code.
+DO NOT “improve” anything.
+
+Your task is to:
+1) Identify what the Reviews implementation broke
+2) Restore Products, Counts, and Visibility
+3) Fix ONLY the missing Review requirements
+
+========================================
+PHASE 1 — READ-ONLY AUDIT (MANDATORY)
+========================================
+
+Before changing ANY code:
+
+- Identify ALL files modified during the reviews implementation
+- List:
+  - product queries touched
+  - joins added
+  - filters modified
+  - Zustand stores affected
+  - API routes changed
+
+Specifically inspect:
+- product list queries (admin, vendor, homepage)
+- product status filters
+- joins between products ↔ reviews
+- any INNER JOIN usage
+- any WHERE clauses referencing reviews
+
+DO NOT CHANGE CODE in this phase.
+
+========================================
+PHASE 2 — PRODUCT VISIBILITY RESTORATION
+========================================
+
+Restore product visibility so that:
+
+- Admin product list shows ALL products immediately
+- Vendor product list shows ALL vendor products immediately
+- Homepage product grid loads correctly without delay
+- Counts match visible products
+
+Rules:
+- Product queries must NOT depend on reviews
+- Reviews must NEVER filter products
+- Use LEFT JOIN only if absolutely required
+- Default product listing must ignore reviews entirely
+
+Validate by:
+✔ Creating a product
+✔ Seeing it immediately in admin, vendor, and homepage
+✔ Refreshing browser
+
+========================================
+PHASE 3 — FIX REVIEWS WITHOUT TOUCHING PRODUCTS
+========================================
+
+Fix ONLY these review issues:
+
+1) Photo uploads:
+   - Implement actual upload UI
+   - Persist media
+   - Display images on product page
+
+2) Vendor visibility:
+   - Vendors must see reviews for their products
+   - Query must resolve via product_id → vendor_id
+
+Rules:
+- Do NOT modify product queries
+- Do NOT modify product schemas
+- Do NOT modify counts logic
+
+========================================
+PHASE 4 — VERIFICATION
+========================================
+
+Manually verify:
+
+✔ Products visible everywhere
+✔ Product counts correct
+✔ Reviews show in admin
+✔ Reviews show in vendor dashboard
+✔ Review photos upload and persist
+✔ No console errors
+
+If ANY product disappears:
+STOP and FIX before reporting success.
+
+========================================
+FINAL RULE
+========================================
+
+DO NOT report success unless:
+- Products behave EXACTLY as before reviews
+- Reviews work independently

@@ -39,8 +39,18 @@ import {
   Plus,
   Minus,
   User,
-  Loader2
+  Loader2,
+  ImagePlus,
+  X
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+
+interface ReviewMedia {
+  id: string;
+  review_id: string;
+  file_url: string;
+  file_type: string;
+}
 
 interface Review {
   id: string;
@@ -58,6 +68,7 @@ interface Review {
   vendor_reply_at?: string;
   created_at: string;
   updated_at: string;
+  media?: ReviewMedia[];
 }
 
 interface RatingStats {
@@ -82,6 +93,8 @@ export default function ProductPage() {
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -174,6 +187,57 @@ export default function ProductPage() {
     }
   };
 
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    if (reviewImages.length >= 5) {
+      toast.error("Maximum 5 images allowed");
+      return;
+    }
+
+    const file = files[0];
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image must be less than 5MB");
+      return;
+    }
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      toast.error("Only JPEG, PNG, and WebP images allowed");
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('directory', 'reviews');
+
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setReviewImages(prev => [...prev, data.file.url]);
+        toast.success("Image uploaded");
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to upload image");
+      }
+    } catch {
+      toast.error("Failed to upload image");
+    } finally {
+      setIsUploadingImage(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveImage = (index: number) => {
+    setReviewImages(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSubmitReview = async () => {
     if (!user || user.role !== "buyer") {
       toast.error("Only buyers can submit reviews");
@@ -195,6 +259,7 @@ export default function ProductPage() {
           productId,
           rating: newReview.rating,
           comment: newReview.comment.trim(),
+          mediaUrls: reviewImages,
         }),
       });
 
@@ -202,6 +267,7 @@ export default function ProductPage() {
         const data = await response.json();
         toast.success("Review submitted successfully!");
         setNewReview({ rating: 5, comment: "" });
+        setReviewImages([]);
         setHasReviewed(true);
         setReviews(prev => [data.review, ...prev]);
         setRatingStats(prev => ({
@@ -651,7 +717,50 @@ export default function ProductPage() {
                             className="mt-2"
                           />
                         </div>
-                        <Button onClick={handleSubmitReview} disabled={isSubmittingReview}>
+                        <div>
+                          <Label>Add Photos (Optional)</Label>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {reviewImages.map((url, idx) => (
+                              <div key={idx} className="relative w-20 h-20">
+                                <img
+                                  src={url}
+                                  alt={`Review image ${idx + 1}`}
+                                  className="w-full h-full object-cover rounded-md border"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveImage(idx)}
+                                  className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 hover:bg-red-600"
+                                >
+                                  <X className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ))}
+                            {reviewImages.length < 5 && (
+                              <label className="w-20 h-20 border-2 border-dashed border-gray-300 rounded-md flex flex-col items-center justify-center cursor-pointer hover:border-green-500 hover:bg-gray-50 transition-colors">
+                                {isUploadingImage ? (
+                                  <Loader2 className="w-5 h-5 animate-spin text-gray-400" />
+                                ) : (
+                                  <>
+                                    <ImagePlus className="w-5 h-5 text-gray-400" />
+                                    <span className="text-xs text-gray-400 mt-1">Add</span>
+                                  </>
+                                )}
+                                <Input
+                                  type="file"
+                                  accept="image/jpeg,image/png,image/webp"
+                                  onChange={handleImageUpload}
+                                  className="hidden"
+                                  disabled={isUploadingImage}
+                                />
+                              </label>
+                            )}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Up to 5 images (JPEG, PNG, WebP, max 5MB each)
+                          </p>
+                        </div>
+                        <Button onClick={handleSubmitReview} disabled={isSubmittingReview || isUploadingImage}>
                           {isSubmittingReview ? (
                             <>
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -725,6 +834,20 @@ export default function ProductPage() {
                                 </span>
                               </div>
                               <p className="text-gray-700 mb-3">{review.comment}</p>
+                              
+                              {review.media && review.media.length > 0 && (
+                                <div className="flex flex-wrap gap-2 mb-3">
+                                  {review.media.map((m) => (
+                                    <img
+                                      key={m.id}
+                                      src={m.file_url}
+                                      alt="Review photo"
+                                      className="w-20 h-20 object-cover rounded-md border cursor-pointer hover:opacity-90"
+                                      onClick={() => window.open(m.file_url, '_blank')}
+                                    />
+                                  ))}
+                                </div>
+                              )}
                               
                               {review.vendor_reply && (
                                 <div className="mt-3 p-3 bg-gray-50 rounded-lg border-l-4 border-gray-300">
