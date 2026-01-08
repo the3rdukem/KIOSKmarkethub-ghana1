@@ -1,0 +1,103 @@
+You are fixing the Guest → Authenticated Cart Transition
+for the KIOSK Marketplace.
+
+Cart isolation and logout reset are already correct.
+DO NOT weaken cart isolation or logout behavior.
+
+This task is focused on:
+- Correctly merging guest carts on login & registration
+- Fixing auth lifecycle timing
+- Ensuring cart persistence ONLY for the correct user
+
+========================================
+SECTION 1 — AUTH SUCCESS HOOK (CRITICAL)
+========================================
+
+On BOTH:
+- successful login
+- successful registration
+
+You MUST explicitly trigger cart merge
+BEFORE any cart reset or redirect occurs.
+
+Rules:
+- Cart merge is part of auth success
+- Cart merge is NOT optional
+- Cart merge happens exactly once per auth event
+
+========================================
+SECTION 2 — MERGE EXECUTION ORDER
+========================================
+
+Correct order on login/register:
+
+1. Auth API returns success
+2. BEFORE resetting cart store:
+   - Call POST /api/cart/merge
+3. Server:
+   - Reads guest_session_id cookie
+   - Merges guest cart → user cart
+   - Deletes guest cart
+4. Client:
+   - Fetches merged user cart
+   - Initializes cart store with user cart
+5. THEN:
+   - Clear guest_session_id cookie
+   - Continue navigation
+
+DO NOT reset cart store until AFTER merge completes.
+
+========================================
+SECTION 3 — REGISTRATION FLOW FIX
+========================================
+
+Registration must follow the SAME merge path as login.
+
+Rules:
+- Registration is NOT exempt
+- Do NOT skip merge because “new user”
+- Guest cart must transfer if it exists
+
+========================================
+SECTION 4 — CART STORE INITIALIZATION
+========================================
+
+Refactor cart store initialization:
+
+- On auth change:
+  - If user is authenticated:
+    - Load cart from server
+  - NEVER assume empty cart
+- Do NOT auto-reset cart on auth change
+- Reset ONLY on explicit logout
+
+========================================
+SECTION 5 — SERVER-SIDE SAFETY
+========================================
+
+/api/cart/merge must:
+
+- Be idempotent
+- Handle empty guest carts safely
+- Return merged cart contents
+- Never fail silently
+
+If no guest cart exists:
+- Return user cart as-is
+
+========================================
+SECTION 6 — VALIDATION TESTS (MANDATORY)
+========================================
+
+This task is complete ONLY IF:
+
+- Guest adds item → logs in → item appears in user cart
+- Guest adds item → registers → item appears in user cart
+- Guest adds item → logs out → cart is empty
+- User logs out → logs back in → user cart persists
+- No cart leaks across users
+- Works in Chrome & Firefox
+
+DO NOT modify logout behavior.
+DO NOT persist guest carts beyond merge.
+DO NOT introduce localStorage hacks.

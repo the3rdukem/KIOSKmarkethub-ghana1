@@ -22,6 +22,7 @@ export function CartSheet() {
   const {
     items,
     isOpen,
+    isSynced,
     openCart,
     closeCart,
     updateQuantity,
@@ -29,11 +30,16 @@ export function CartSheet() {
     getTotalItems,
     getTotalPrice,
     getItemsByVendor,
+    syncWithServer,
   } = useCartStore();
 
   useEffect(() => {
     setHydrated(true);
-  }, []);
+    // Sync cart with server on mount if not already synced
+    if (!isSynced) {
+      syncWithServer();
+    }
+  }, [isSynced, syncWithServer]);
 
   const totalItems = hydrated ? getTotalItems() : 0;
   const totalPrice = hydrated ? getTotalPrice() : 0;
