@@ -33,7 +33,7 @@ import {
   Users, Store, Package, DollarSign, Eye, CheckCircle, XCircle, AlertTriangle,
   FileText, Search, Download, MoreHorizontal, MapPin, Flag, Ban,
   Settings, Key, Globe, CreditCard, Map, Brain, Cloud, Phone, Camera, Share2,
-  TestTube, History, ShoppingCart, Loader2, Lock, AlertCircle
+  TestTube, History, ShoppingCart, Loader2, Lock, AlertCircle, MessageSquare
 } from "lucide-react";
 import { formatDistance, format } from "date-fns";
 import { toast } from "sonner";
@@ -53,6 +53,7 @@ import {
 } from "@/lib/system-config-store";
 import { useCategoriesStore, ProductCategory, CategoryAttribute } from "@/lib/categories-store";
 import { CategoryManagement } from "@/components/admin/category-management";
+import { ReviewModeration } from "@/components/admin/review-moderation";
 import { useSiteSettingsStore } from "@/lib/site-settings-store";
 import { useApprovalWorkflowsStore, ApprovalRequest } from "@/lib/approval-workflows-store";
 import {
@@ -745,6 +746,9 @@ function AdminDashboardContent() {
               {openDisputes.length > 0 && <Badge className="ml-2" variant="destructive">{openDisputes.length}</Badge>}
               {activityCounts.disputes > 0 && <Badge className="ml-1 bg-blue-500 text-white text-xs">+{activityCounts.disputes}</Badge>}
             </TabsTrigger>
+            <TabsTrigger value="reviews">
+              <MessageSquare className="w-4 h-4 mr-1" />Reviews
+            </TabsTrigger>
             {/* API Management - Only for Master Admin */}
             {canManageAPIs && (
               <TabsTrigger value="api"><Key className="w-4 h-4 mr-1" />API Management</TabsTrigger>
@@ -984,6 +988,11 @@ function AdminDashboardContent() {
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Reviews Moderation Tab */}
+          <TabsContent value="reviews">
+            <ReviewModeration />
           </TabsContent>
 
           {/* API Management Tab - Master Admin Only */}

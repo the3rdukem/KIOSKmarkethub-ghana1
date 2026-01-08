@@ -116,3 +116,14 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - **Cart Merge on Auth**: Both `loginViaAPI` and `registerViaAPI` call `silentCartMerge()` after successful auth - a non-blocking, fire-and-forget function that never throws or shows errors. Cart sync happens post-navigation via CartSheet mount, not before redirect.
 - **Cart Persistence Flow**: Cart syncs from server on CartSheet mount. `isSynced` flag prevents redundant syncs. Reset on logout clears `isSynced` for fresh sync on next session.
 - **User Cart Persistence**: User carts (owner_type='user') are NEVER deleted on logout - they persist across sessions. Only guest carts are ephemeral. Logout clears client store but preserves database cart. deleteCart() has a safety guard requiring `force=true` for user carts.
+- **Reviews System**: Full database-backed reviews with buyer ratings, vendor replies, and admin moderation
+  - Database tables: `reviews` (ratings, comments, verified purchase badge) and `review_media` (image attachments)
+  - DAL: `src/lib/db/dal/reviews.ts` with CRUD operations, vendor reply system, admin moderation
+  - APIs: `GET/POST /api/reviews`, `GET/PATCH/DELETE /api/reviews/[id]`, `POST /api/upload` for file uploads
+  - Product page now fetches reviews from database API instead of Zustand store
+  - Buyer reviews management at `/buyer/reviews` - view, edit, delete own reviews
+  - Vendor reviews panel at `/vendor/reviews` - view and reply to customer reviews
+  - Admin reviews moderation in admin dashboard Reviews tab - hide, unhide, delete reviews with audit logging
+  - Storage abstraction: `src/lib/services/storage.ts` for provider-agnostic file uploads (local fs with cloud migration path)
+  - Review constraints: One review per buyer per product, vendor can reply once per review
+  - Review statuses: active, hidden, deleted with full moderation audit trail
