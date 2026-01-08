@@ -59,7 +59,7 @@ export default function EditProductPage() {
   const productId = params.id as string;
 
   const { user, isAuthenticated } = useAuthStore();
-  const { getProductById, updateProduct } = useProductsStore();
+  const { updateProduct } = useProductsStore();
   const { getSalesByVendor, getSalePrice, updateSale, getActiveSales } = usePromotionsStore();
 
   const [isLoading, setIsLoading] = useState(false);
@@ -90,7 +90,7 @@ export default function EditProductPage() {
     setIsHydrated(true);
   }, []);
 
-  // Load product data
+  // Load product data from API
   useEffect(() => {
     if (!isHydrated) return;
 
@@ -106,43 +106,68 @@ export default function EditProductPage() {
       return;
     }
 
-    // Fetch the product
-    const product = getProductById(productId);
+    // Fetch the product from API
+    const fetchProduct = async () => {
+      try {
+        const response = await fetch(`/api/products/${productId}`, {
+          credentials: 'include',
+        });
 
-    if (!product) {
-      setNotFound(true);
-      setIsLoadingProduct(false);
-      return;
-    }
+        if (!response.ok) {
+          if (response.status === 404) {
+            setNotFound(true);
+          } else {
+            toast.error('Failed to load product');
+          }
+          setIsLoadingProduct(false);
+          return;
+        }
 
-    // Check vendor ownership
-    if (product.vendorId !== user.id) {
-      setUnauthorized(true);
-      setIsLoadingProduct(false);
-      return;
-    }
+        const data = await response.json();
+        const product = data.product;
 
-    // Pre-fill form with real product data - NULL-SAFE initialization
-    setProductData({
-      name: product.name ?? "",
-      description: product.description ?? "",
-      category: product.category ?? "",
-      price: product.price != null ? String(product.price) : "",
-      comparePrice: product.comparePrice != null ? String(product.comparePrice) : "",
-      costPerItem: product.costPerItem != null ? String(product.costPerItem) : "",
-      sku: product.sku ?? "",
-      barcode: product.barcode ?? "",
-      quantity: product.quantity != null ? String(product.quantity) : "",
-      trackQuantity: product.trackQuantity ?? true,
-      tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
-      status: (product.status === 'active' || product.status === 'draft' || product.status === 'archived') ? product.status : 'draft'
-    });
+        if (!product) {
+          setNotFound(true);
+          setIsLoadingProduct(false);
+          return;
+        }
 
-    // Load existing product images - NULL-SAFE
-    setProductImages(Array.isArray(product.images) ? product.images : []);
+        // Check vendor ownership
+        if (product.vendorId !== user.id) {
+          setUnauthorized(true);
+          setIsLoadingProduct(false);
+          return;
+        }
 
-    setIsLoadingProduct(false);
-  }, [isHydrated, isAuthenticated, user, productId, getProductById, router]);
+        // Pre-fill form with real product data - NULL-SAFE initialization
+        setProductData({
+          name: product.name ?? "",
+          description: product.description ?? "",
+          category: product.category ?? "",
+          price: product.price != null ? String(product.price) : "",
+          comparePrice: product.comparePrice != null ? String(product.comparePrice) : "",
+          costPerItem: product.costPerItem != null ? String(product.costPerItem) : "",
+          sku: product.sku ?? "",
+          barcode: product.barcode ?? "",
+          quantity: product.quantity != null ? String(product.quantity) : "",
+          trackQuantity: product.trackQuantity ?? true,
+          tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
+          status: (product.status === 'active' || product.status === 'draft' || product.status === 'archived') ? product.status : 'draft'
+        });
+
+        // Load existing product images - NULL-SAFE
+        setProductImages(Array.isArray(product.images) ? product.images : []);
+
+        setIsLoadingProduct(false);
+      } catch (error) {
+        console.error('Error fetching product:', error);
+        toast.error('Failed to load product');
+        setIsLoadingProduct(false);
+      }
+    };
+
+    fetchProduct();
+  }, [isHydrated, isAuthenticated, user, productId, router]);
 
   // Get vendor's sales for promotional pricing
   const vendorSales = isHydrated && user ? getSalesByVendor(user.id) : [];
