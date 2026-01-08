@@ -853,29 +853,101 @@ function AdminDashboardContent() {
 
           {/* Orders Tab */}
           <TabsContent value="orders">
-            <Card>
-              <CardHeader><CardTitle>Order Management</CardTitle></CardHeader>
-              <CardContent>
-                {dbOrders.length === 0 ? (
-                  <div className="text-center py-12"><ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" /><h3 className="text-lg font-semibold">No Orders Yet</h3></div>
-                ) : (
-                  <Table>
-                    <TableHeader><TableRow><TableHead>Order ID</TableHead><TableHead>Buyer</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                      {dbOrders.map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell className="font-mono text-sm">{order.id.slice(0, 15)}...</TableCell>
-                          <TableCell>{order.buyerName}</TableCell>
-                          <TableCell>GHS {order.total.toLocaleString()}</TableCell>
-                          <TableCell>{getStatusBadge(order.status)}</TableCell>
-                          <TableCell>{formatTimestamp(order.createdAt)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+            <div className="space-y-6">
+              {/* Order Stats */}
+              <div className="grid grid-cols-6 gap-4">
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Total Orders</p>
+                        <p className="text-2xl font-bold">{dbOrders.length}</p>
+                      </div>
+                      <ShoppingCart className="w-8 h-8 text-gray-400" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Pending</p>
+                        <p className="text-2xl font-bold text-yellow-600">{dbOrders.filter(o => o.status === 'pending').length}</p>
+                      </div>
+                      <AlertTriangle className="w-8 h-8 text-yellow-400" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Processing</p>
+                        <p className="text-2xl font-bold text-blue-600">{dbOrders.filter(o => ['confirmed', 'processing', 'shipped'].includes(o.status)).length}</p>
+                      </div>
+                      <Package className="w-8 h-8 text-blue-400" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Delivered</p>
+                        <p className="text-2xl font-bold text-green-600">{dbOrders.filter(o => o.status === 'delivered').length}</p>
+                      </div>
+                      <CheckCircle className="w-8 h-8 text-green-400" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Cancelled</p>
+                        <p className="text-2xl font-bold text-red-600">{dbOrders.filter(o => o.status === 'cancelled').length}</p>
+                      </div>
+                      <XCircle className="w-8 h-8 text-red-400" />
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Revenue</p>
+                        <p className="text-2xl font-bold text-emerald-600">GHS {dbOrders.reduce((sum, o) => sum + (o.total || 0), 0).toLocaleString()}</p>
+                      </div>
+                      <DollarSign className="w-8 h-8 text-emerald-400" />
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader><CardTitle>Order Management</CardTitle></CardHeader>
+                <CardContent>
+                  {dbOrders.length === 0 ? (
+                    <div className="text-center py-12"><ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" /><h3 className="text-lg font-semibold">No Orders Yet</h3></div>
+                  ) : (
+                    <Table>
+                      <TableHeader><TableRow><TableHead>Order ID</TableHead><TableHead>Buyer</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
+                      <TableBody>
+                        {dbOrders.map((order) => (
+                          <TableRow key={order.id}>
+                            <TableCell className="font-mono text-sm">{order.id.slice(0, 15)}...</TableCell>
+                            <TableCell>{order.buyerName}</TableCell>
+                            <TableCell>GHS {order.total.toLocaleString()}</TableCell>
+                            <TableCell>{getStatusBadge(order.status)}</TableCell>
+                            <TableCell>{formatTimestamp(order.createdAt)}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Disputes Tab */}

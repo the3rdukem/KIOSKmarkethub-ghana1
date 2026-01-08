@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -30,7 +30,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, Eye, CheckCircle, XCircle, AlertTriangle,
   Search, MoreHorizontal, Ban, Trash2, RotateCcw, UserX, UserCheck,
-  Mail, Phone, MapPin, Calendar, Shield, Archive, Plus, Loader2, RefreshCw
+  Mail, Phone, MapPin, Calendar, Shield, Archive, Plus, Loader2, RefreshCw,
+  ShoppingBag, Store
 } from "lucide-react";
 import { formatDistance, format } from "date-fns";
 import { toast } from "sonner";
@@ -142,6 +143,16 @@ export function UserManagement({ currentAdmin, isMasterAdmin }: UserManagementPr
   };
 
   const filteredUsers = getFilteredUsers();
+
+  // Compute stats from users array
+  const userStats = useMemo(() => ({
+    total: users.filter(u => !u.isDeleted).length,
+    buyers: users.filter(u => u.role === 'buyer' && !u.isDeleted).length,
+    vendors: users.filter(u => u.role === 'vendor' && !u.isDeleted).length,
+    active: users.filter(u => u.status === 'active' && !u.isDeleted).length,
+    suspended: users.filter(u => u.status === 'suspended' && !u.isDeleted).length,
+    deleted: users.filter(u => u.isDeleted).length,
+  }), [users]);
 
   const getInitials = (name: string) => name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 
@@ -298,6 +309,76 @@ export function UserManagement({ currentAdmin, isMasterAdmin }: UserManagementPr
 
   return (
     <div className="space-y-6">
+      {/* Quick Stats */}
+      <div className="grid grid-cols-6 gap-4">
+        <Card className="cursor-pointer hover:border-gray-400 transition-colors" onClick={() => setUserFilter("all")}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Users</p>
+                <p className="text-2xl font-bold">{userStats.total}</p>
+              </div>
+              <Users className="w-8 h-8 text-gray-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-blue-400 transition-colors" onClick={() => setUserFilter("buyers")}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Buyers</p>
+                <p className="text-2xl font-bold text-blue-600">{userStats.buyers}</p>
+              </div>
+              <ShoppingBag className="w-8 h-8 text-blue-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-green-400 transition-colors" onClick={() => setUserFilter("vendors")}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Vendors</p>
+                <p className="text-2xl font-bold text-green-600">{userStats.vendors}</p>
+              </div>
+              <Store className="w-8 h-8 text-green-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Active</p>
+                <p className="text-2xl font-bold text-emerald-600">{userStats.active}</p>
+              </div>
+              <CheckCircle className="w-8 h-8 text-emerald-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-red-400 transition-colors" onClick={() => setUserFilter("suspended")}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Suspended</p>
+                <p className="text-2xl font-bold text-red-600">{userStats.suspended}</p>
+              </div>
+              <Ban className="w-8 h-8 text-red-400" />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="cursor-pointer hover:border-gray-400 transition-colors" onClick={() => setUserFilter("deleted")}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Deleted</p>
+                <p className="text-2xl font-bold text-gray-600">{userStats.deleted}</p>
+              </div>
+              <Trash2 className="w-8 h-8 text-gray-400" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
