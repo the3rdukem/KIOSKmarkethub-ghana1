@@ -1,0 +1,178 @@
+DO NOT MODIFY CODE.
+DO NOT APPLY FIXES.
+DO NOT REFACTOR.
+OBSERVE AND REPORT ONLY.
+
+⸻
+
+🔍 DIAGNOSTIC PROMPT — ADMIN NAVIGATION COUNTS FAILURE
+
+You are analyzing the KIOSK Marketplace codebase on Replit.
+
+Your task is READ-ONLY.
+
+❌ Do NOT change code
+❌ Do NOT “fix” anything
+❌ Do NOT refactor
+❌ Do NOT suggest future features
+
+Your ONLY goal is to identify why admin navigation tab counts do not update or reset correctly.
+
+⸻
+
+=====================================
+
+SECTION 1 — TRACE DATA FLOW (MANDATORY)
+
+=====================================
+
+For EACH admin navigation tab badge (Users, Vendors, Products, Orders):
+	1.	Identify:
+	•	Component file rendering the count
+	•	Data source (server component, client fetch, server action, API route)
+	•	Query or function name
+	2.	State explicitly:
+	•	Where the count value originates
+	•	Whether it comes from:
+	•	DB query
+	•	Cached selector
+	•	Layout-level data
+	•	Hardcoded placeholder
+	•	Derived client state
+
+Output format per tab:
+
+TAB: Products
+Component:
+Data Source:
+Query Used:
+Caching Behavior:
+Observed Issue:
+
+
+⸻
+
+=====================================
+
+SECTION 2 — LAYOUT & CACHE ANALYSIS
+
+=====================================
+
+Analyze admin layout and navigation reuse:
+	•	Is the admin layout:
+	•	Static?
+	•	Cached?
+	•	Reused across sessions?
+	•	Does it fetch data at build-time or request-time?
+	•	Does it re-run queries on login/logout?
+
+Answer explicitly:
+	•	Does the admin nav component EVER re-fetch after first render?
+	•	Is it using useMemo, useState, or persisted props?
+
+⸻
+
+=====================================
+
+SECTION 3 — SESSION & AUTH BOUNDARIES
+
+=====================================
+
+Inspect:
+	•	How last_admin_login_at is stored
+	•	Where it is read
+	•	Whether nav counts read it at all
+
+Answer:
+	•	Is last_admin_login_at read server-side or client-side?
+	•	Is it read once or per request?
+	•	Can it be stale across logins?
+
+⸻
+
+=====================================
+
+SECTION 4 — COMPARE WITH WORKING COUNTS
+
+=====================================
+
+Compare:
+	•	Navigation tab counts ❌
+	•	Dashboard tiles ✅
+	•	Per-page counts ✅
+
+Identify:
+	•	Differences in:
+	•	Queries
+	•	Filters
+	•	Cache policies
+	•	Component lifecycle
+
+Explain why dashboard tiles are correct but nav tabs are not.
+
+⸻
+
+=====================================
+
+SECTION 5 — DB VS UI CONSISTENCY CHECK
+
+=====================================
+
+For each count:
+	•	Provide the exact SQL (or query logic) used
+	•	State:
+	•	Does the DB return the expected value?
+	•	Does the UI receive it?
+	•	If yes → where does it change?
+
+⸻
+
+=====================================
+
+SECTION 6 — ROOT CAUSE STATEMENT (REQUIRED)
+
+=====================================
+
+End your report with:
+
+ROOT CAUSE:
+<single paragraph, no speculation>
+
+It must name:
+	•	The exact mechanism failing (e.g. cached layout, stale server props, client-only state)
+	•	The exact file(s) responsible
+	•	Why previous “fixes” appeared to work briefly but reverted
+
+⸻
+
+=====================================
+
+SECTION 7 — NO FIXES ALLOWED
+
+=====================================
+
+Do NOT:
+	•	Add code
+	•	Change cache settings
+	•	Propose solutions
+
+This is a forensic report only.
+
+⸻
+
+🧠 WHY THIS MATTERS (FOR YOU)
+
+Right now, you have symptoms, not clarity.
+
+This prompt will tell us:
+	•	Whether Replit is caching layouts aggressively
+	•	Whether admin nav is effectively “static”
+	•	Whether login boundaries are being crossed incorrectly
+	•	Whether you’re fighting Next.js behavior instead of a bug
+
+Once we get the report:
+	•	The fix will be small
+	•	The fix will be permanent
+	•	You won’t be charged repeatedly for “phantom fixes”
+
+⸻
