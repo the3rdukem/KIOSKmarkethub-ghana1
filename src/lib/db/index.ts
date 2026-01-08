@@ -418,6 +418,8 @@ async function runMigrations(client: PoolClient): Promise<void> {
     { table: 'integrations', column: 'last_error', type: 'TEXT' },
     { table: 'users', column: 'previous_login_at', type: 'TEXT' },
     { table: 'admin_users', column: 'previous_login_at', type: 'TEXT' },
+    { table: 'users', column: 'last_activity_checkpoint_at', type: 'TEXT' },
+    { table: 'admin_users', column: 'last_activity_checkpoint_at', type: 'TEXT' },
   ];
 
   for (const migration of migrations) {

@@ -615,15 +615,19 @@ export async function loginUser(
         throw { code: 'SESSION_CREATION_FAILED' as AuthErrorCode, message: 'Failed to create session' };
       }
 
-      // Step 9: Update last login - rotate previous_login_at before updating
+      // Step 9: Update last login and set activity checkpoint
+      // last_activity_checkpoint_at = the old last_login_at (when admin previously logged in)
+      // This means "activity since last login" = items created after that previous login
+      // The checkpoint stays stable for the session, eliminating race conditions
+      // For first-time login (last_login_at IS NULL): leave checkpoint NULL so API uses created_at fallback
       if (isLegacyAdmin) {
         await client.query(
-          'UPDATE admin_users SET previous_login_at = last_login_at, last_login_at = $1, updated_at = $2 WHERE id = $3',
+          'UPDATE admin_users SET last_activity_checkpoint_at = last_login_at, previous_login_at = last_login_at, last_login_at = $1, updated_at = $2 WHERE id = $3',
           [now, now, user.id]
         );
       } else {
         await client.query(
-          'UPDATE users SET previous_login_at = last_login_at, last_login_at = $1, updated_at = $2 WHERE id = $3',
+          'UPDATE users SET last_activity_checkpoint_at = last_login_at, previous_login_at = last_login_at, last_login_at = $1, updated_at = $2 WHERE id = $3',
           [now, now, user.id]
         );
       }

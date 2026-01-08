@@ -26,25 +26,30 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    let previousLoginAt: string | null = null;
+    // Use last_activity_checkpoint_at - a stable timestamp set ONCE per login
+    // This eliminates race conditions since it doesn't rotate during the session
+    // Fallback chain: checkpoint -> previous_login -> created_at -> epoch
+    let checkpointAt: string | null = null;
 
-    const legacyAdmin = await query<{ previous_login_at: string | null }>(
-      'SELECT previous_login_at FROM admin_users WHERE id = $1',
+    const legacyAdmin = await query<{ last_activity_checkpoint_at: string | null; previous_login_at: string | null; created_at: string | null }>(
+      'SELECT last_activity_checkpoint_at, previous_login_at, created_at FROM admin_users WHERE id = $1',
       [session.userId]
     );
     if (legacyAdmin.rows.length > 0) {
-      previousLoginAt = legacyAdmin.rows[0].previous_login_at;
+      const row = legacyAdmin.rows[0];
+      checkpointAt = row.last_activity_checkpoint_at || row.previous_login_at || row.created_at;
     } else {
-      const userAdmin = await query<{ previous_login_at: string | null }>(
-        'SELECT previous_login_at FROM users WHERE id = $1',
+      const userAdmin = await query<{ last_activity_checkpoint_at: string | null; previous_login_at: string | null; created_at: string | null }>(
+        'SELECT last_activity_checkpoint_at, previous_login_at, created_at FROM users WHERE id = $1',
         [session.userId]
       );
       if (userAdmin.rows.length > 0) {
-        previousLoginAt = userAdmin.rows[0].previous_login_at;
+        const row = userAdmin.rows[0];
+        checkpointAt = row.last_activity_checkpoint_at || row.previous_login_at || row.created_at;
       }
     }
 
-    const sinceDate = previousLoginAt || '1970-01-01T00:00:00.000Z';
+    const sinceDate = checkpointAt || '1970-01-01T00:00:00.000Z';
 
     // Count all new activity since admin's last login
     const [
@@ -82,7 +87,8 @@ export async function GET(request: NextRequest) {
     ]);
 
     const response = NextResponse.json({
-      previousLoginAt,
+      checkpointAt,
+      previousLoginAt: checkpointAt, // Backwards compatibility
       counts: {
         users: parseInt(newUsers.rows[0]?.count || '0', 10),
         vendors: parseInt(newVendors.rows[0]?.count || '0', 10),

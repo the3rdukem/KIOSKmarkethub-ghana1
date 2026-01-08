@@ -497,7 +497,7 @@ function AdminDashboardContent() {
     fetchStats();
     fetchAuditLogs();
     fetchActivityCounts();
-  }, [user?.id]); // Refetch when user changes (login transition)
+  }, []); // Fetch ONCE on mount - activity counts use stable checkpoint set at login
 
   // Wait for hydration before checking auth
   useEffect(() => {

@@ -1,0 +1,130 @@
+You are fixing the Admin Activity & Navigation Count system
+for the KIOSK Marketplace.
+
+Auth, DB persistence, and APIs are already stable.
+DO NOT modify login, logout, or session creation logic.
+
+This task fixes a React lifecycle race condition causing
+admin navigation activity counts to be incorrect or delayed.
+
+========================================
+SECTION 1 — ELIMINATE LOGIN-TIMING DEPENDENCY
+========================================
+
+STOP computing activity counts based on `previous_login_at`
+inside client-triggered effects.
+
+Instead:
+
+1. On successful admin login (server-side only):
+   - Persist a new field:
+     admin_users.last_activity_checkpoint_at = NOW()
+
+2. This value must be:
+   - Written once per login
+   - Stable for the entire session
+   - NOT rotated again until next login
+
+DO NOT rotate this value on logout.
+
+========================================
+SECTION 2 — SERVER-CANONICAL ACTIVITY SOURCE
+========================================
+
+Refactor `/api/admin/activity-summary` so that:
+
+- It reads `last_activity_checkpoint_at`
+- NOT `previous_login_at`
+- Uses it as a fixed reference point for the session
+
+Example logic (conceptual):
+
+- Users created AFTER checkpoint
+- Vendors created AFTER checkpoint
+- Products created AFTER checkpoint
+- Orders created AFTER checkpoint
+
+The API must return:
+{
+  users,
+  vendors,
+  products,
+  orders
+}
+
+========================================
+SECTION 3 — REMOVE CLIENT RACE CONDITIONS
+========================================
+
+In `src/app/admin/page.tsx`:
+
+- REMOVE any `useEffect` that depends on `user?.id`
+- DO NOT re-fetch activity counts on state changes
+
+Instead:
+
+- Fetch activity summary ONCE:
+  - On initial admin page mount
+  - When a manual “Refresh Activity” action is triggered
+
+This fetch must be independent of auth state changes.
+
+========================================
+SECTION 4 — EXPLICIT ACTIVITY RESET RULE
+========================================
+
+Activity counts MUST reset ONLY when:
+
+- A new admin login occurs
+- The server updates `last_activity_checkpoint_at`
+
+They must NOT reset:
+- On page refresh
+- On route change
+- On component remount
+- On logout/login flicker
+
+========================================
+SECTION 5 — NAVIGATION TAB BEHAVIOR
+========================================
+
+Navigation tab badges represent:
+
+- Activity since LAST ADMIN LOGIN
+- NOT total counts
+- NOT live polling values
+
+Rules:
+- Badge counts are session-scoped
+- Badge counts are read-only
+- Badge counts reset cleanly on next login
+
+========================================
+SECTION 6 — DELAYED RESET ELIMINATION
+========================================
+
+Ensure:
+- No debouncing
+- No timers
+- No delayed state updates
+
+Once admin page loads:
+- Activity counts must be immediately correct
+- No “eventual consistency” behavior
+
+========================================
+SECTION 7 — VALIDATION REQUIREMENTS
+========================================
+
+This task is complete ONLY IF:
+
+- Navigation badges reset immediately after admin login
+- Counts do not reappear after logout/login
+- Counts do not depend on `user?.id`
+- Counts do not change unless new activity occurs
+- Refreshing the page does NOT change badge values
+- Behavior is consistent across Chrome and Firefox
+
+DO NOT add new features.
+DO NOT refactor unrelated code.
+DO NOT introduce polling.
