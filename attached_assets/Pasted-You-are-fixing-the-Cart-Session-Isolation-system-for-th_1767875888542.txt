@@ -1,0 +1,139 @@
+You are fixing the Cart & Session Isolation system
+for the KIOSK Marketplace.
+
+Auth and DB persistence are stable.
+DO NOT modify product, pricing, or payment logic
+unless required for cart correctness.
+
+This task is focused on:
+- Cart ownership
+- Session isolation
+- Guest → Auth cart transitions
+- Cross-user data leakage prevention
+
+========================================
+SECTION 1 — ROOT CAUSE ELIMINATION (CRITICAL)
+========================================
+
+Eliminate ANY cart persistence that is shared across users.
+
+Rules:
+- A cart MUST belong to exactly ONE identity
+- A cart MUST NEVER leak between users
+- A cart MUST reset correctly on logout
+
+Cart identity sources allowed:
+- session_id (guest)
+- user_id (authenticated)
+
+Cart identity sources NOT allowed:
+- global Zustand store without keying
+- localStorage without ownership binding
+- server memory
+
+========================================
+SECTION 2 — CART OWNERSHIP MODEL
+========================================
+
+Implement explicit cart ownership rules:
+
+1. Guest Cart
+   - Identified by session_id only
+   - Stored in DB or server-side session
+   - No user_id attached
+
+2. Authenticated Cart
+   - Identified by user_id
+   - session_id optional but secondary
+   - Always scoped to logged-in user
+
+Schema rules:
+- cart.owner_type = 'guest' | 'user'
+- cart.owner_id = session_id OR user_id
+- NEVER reuse carts across owner_id
+
+========================================
+SECTION 3 — LOGOUT BEHAVIOR (MANDATORY)
+========================================
+
+On logout:
+
+- Destroy auth session
+- Clear cart state in client store
+- Invalidate cart owner binding
+
+DO NOT:
+- Persist cart in Zustand across logout
+- Rehydrate cart without identity validation
+
+After logout:
+- A new guest cart must be created
+- Previous cart must NOT be reused
+
+========================================
+SECTION 4 — LOGIN & REGISTRATION TRANSITIONS
+========================================
+
+On login or registration:
+
+IF guest cart exists:
+- Prompted or automatic merge is allowed
+- Merge must be EXPLICIT and SAFE
+
+Merge rules:
+- Guest cart items → new user cart
+- Guest cart is destroyed after merge
+- No duplicate items
+- No silent reuse
+
+IF no guest cart:
+- Create fresh user cart
+
+========================================
+SECTION 5 — CLIENT STATE HARD RESET
+========================================
+
+Fix client cart store (Zustand / context):
+
+- Cart store MUST reset on:
+  - logout
+  - auth user change
+- Store must key state by:
+  - user_id OR session_id
+
+Example rule:
+- cartKey = user_id ?? session_id
+- Changing cartKey = full reset
+
+NO cart state may survive cartKey change.
+
+========================================
+SECTION 6 — SERVER-SIDE GUARDS
+========================================
+
+Add server validation:
+
+- Every cart fetch must validate ownership
+- If cart.owner_id !== session/user → reject
+- Never return a cart that doesn’t match identity
+
+If mismatch detected:
+- Create new cart
+- Log security warning (audit)
+
+========================================
+SECTION 7 — VALIDATION & SECURITY TESTS
+========================================
+
+This task is complete ONLY IF:
+
+- User A adds item → logs out → User B sees EMPTY cart
+- Guest adds item → registers → cart merges correctly
+- Guest adds item → logs out → new guest sees EMPTY cart
+- Admin login NEVER inherits cart
+- No cart persists across browser sessions incorrectly
+- Behavior is consistent in Chrome & Firefox
+
+DO NOT add new features.
+DO NOT add UI changes.
+DO NOT implement promotions here.

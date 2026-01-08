@@ -375,6 +375,17 @@ async function createSchema(client: PoolClient): Promise<void> {
       updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
     );
 
+    -- Carts table - supports both guest (session_id) and authenticated (user_id) carts
+    CREATE TABLE IF NOT EXISTS carts (
+      id TEXT PRIMARY KEY,
+      owner_type TEXT NOT NULL CHECK(owner_type IN ('guest', 'user')),
+      owner_id TEXT NOT NULL,
+      items TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+      UNIQUE(owner_type, owner_id)
+    );
+
     -- Create indexes
     CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
     CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -386,6 +397,7 @@ async function createSchema(client: PoolClient): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
     CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id);
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash);
+    CREATE INDEX IF NOT EXISTS idx_carts_owner ON carts(owner_type, owner_id);
   `);
 }
 
@@ -421,6 +433,24 @@ async function runMigrations(client: PoolClient): Promise<void> {
     { table: 'users', column: 'last_activity_checkpoint_at', type: 'TEXT' },
     { table: 'admin_users', column: 'last_activity_checkpoint_at', type: 'TEXT' },
   ];
+
+  // Create carts table if it doesn't exist (for existing databases)
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS carts (
+        id TEXT PRIMARY KEY,
+        owner_type TEXT NOT NULL CHECK(owner_type IN ('guest', 'user')),
+        owner_id TEXT NOT NULL,
+        items TEXT NOT NULL DEFAULT '[]',
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        UNIQUE(owner_type, owner_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_carts_owner ON carts(owner_type, owner_id);
+    `);
+  } catch (e) {
+    // Table may already exist
+  }
 
   for (const migration of migrations) {
     try {
