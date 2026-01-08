@@ -1,0 +1,77 @@
+You are completing the Reviews system for the KIOSK marketplace.
+
+DO NOT modify:
+- Product queries
+- Product visibility logic
+- Marketplace search
+- Rating filters
+- Any unrelated features
+
+This task is ONLY about:
+1) Buyer review ownership controls
+2) Vendor review visibility
+
+========================================
+SECTION 1 — BUYER REVIEW OWNERSHIP (CRITICAL)
+========================================
+
+Buyers MUST be able to:
+
+- Edit their own review
+- Delete their own review
+
+Rules:
+- A buyer can ONLY edit or delete reviews they created
+- Editing must update text, rating, and photos
+- Deleting must soft-delete (retain for audit)
+- UI must reflect changes immediately
+
+Required:
+- PATCH /api/reviews/:id
+- DELETE /api/reviews/:id
+- Server-side ownership validation (user_id check)
+- Clear error messages if unauthorized
+
+========================================
+SECTION 2 — VENDOR REVIEW VISIBILITY (CRITICAL)
+========================================
+
+Vendors MUST be able to:
+
+- View ALL reviews for products they own
+- See review text, rating, photos, and buyer name
+- See review status (visible / hidden)
+
+Rules:
+- Reviews must be resolved via:
+  product_id → vendor.user_id
+- Do NOT query by vendor entity ID
+- Do NOT filter reviews incorrectly by status unless intentional
+
+Fix:
+- Vendor Reviews page must show the same reviews visible on product pages
+
+========================================
+SECTION 3 — DATA & ACCESS RULES
+========================================
+
+Enforce:
+- Buyer: CRUD only on own reviews
+- Vendor: Read-only access to reviews on own products
+- Admin: Full moderation powers
+
+All access control MUST be server-side.
+
+========================================
+SECTION 4 — VERIFICATION (MANDATORY)
+========================================
+
+Manually verify:
+
+✔ Buyer can edit a review
+✔ Buyer can delete a review
+✔ Vendor sees reviews immediately
+✔ Admin visibility remains unchanged
+✔ No impact to products or counts
+
+DO NOT report success unless ALL checks pass.

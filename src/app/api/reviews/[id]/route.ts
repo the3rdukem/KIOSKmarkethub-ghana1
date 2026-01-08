@@ -91,16 +91,12 @@ export async function PATCH(
       }
 
       // Check if user is the vendor for this product
-      const vendorCheck = await query<{ id: string }>(
-        'SELECT id FROM vendors WHERE user_id = $1',
-        [session.userId]
-      );
-
-      if (vendorCheck.rows[0]?.id !== review.vendor_id) {
+      // review.vendor_id stores user_id, not vendor entity id
+      if (session.userId !== review.vendor_id) {
         return NextResponse.json({ error: 'Only the vendor can reply' }, { status: 403 });
       }
 
-      const updatedReview = await addVendorReply(id, review.vendor_id, reply.trim());
+      const updatedReview = await addVendorReply(id, session.userId, reply.trim());
       if (!updatedReview) {
         return NextResponse.json({ error: 'Vendor has already replied' }, { status: 409 });
       }
