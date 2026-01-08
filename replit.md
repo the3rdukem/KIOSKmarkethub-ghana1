@@ -104,3 +104,4 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - **Product Count Labels**: Admin product stats now show "Published (X)", "Drafts (Y)", "Suspended (Z)" format
 - **Admin Product Dropdown**: Added Edit, Publish, and Unpublish menu items for full admin control
 - **Vendor Edit API-First**: Vendor product edit page now fetches from `/api/products/[id]` instead of Zustand store (fixes duplicate product navigation)
+- **Admin Activity Tracking**: Added `previous_login_at` column to users/admin_users tables with migration, login rotates timestamps (previous = last, last = now), `/api/admin/activity-summary` counts new items since last login, admin tabs show blue "+X" badges for new products/orders/vendors/disputes

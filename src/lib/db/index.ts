@@ -138,35 +138,6 @@ async function seedMasterAdmin(client: PoolClient): Promise<void> {
 }
 
 /**
- * Run database migrations for existing schemas
- */
-async function runMigrations(client: PoolClient): Promise<void> {
-  console.log('[DB] Running migrations...');
-
-  // Migration: Add previous_login_at to users table
-  const usersColCheck = await client.query(`
-    SELECT column_name FROM information_schema.columns 
-    WHERE table_name = 'users' AND column_name = 'previous_login_at'
-  `);
-  if (usersColCheck.rows.length === 0) {
-    await client.query('ALTER TABLE users ADD COLUMN previous_login_at TEXT');
-    console.log('[DB] Added previous_login_at to users table');
-  }
-
-  // Migration: Add previous_login_at to admin_users table
-  const adminColCheck = await client.query(`
-    SELECT column_name FROM information_schema.columns 
-    WHERE table_name = 'admin_users' AND column_name = 'previous_login_at'
-  `);
-  if (adminColCheck.rows.length === 0) {
-    await client.query('ALTER TABLE admin_users ADD COLUMN previous_login_at TEXT');
-    console.log('[DB] Added previous_login_at to admin_users table');
-  }
-
-  console.log('[DB] Migrations complete');
-}
-
-/**
  * Create database schema
  */
 async function createSchema(client: PoolClient): Promise<void> {
@@ -445,6 +416,8 @@ async function runMigrations(client: PoolClient): Promise<void> {
     { table: 'integrations', column: 'description', type: 'TEXT' },
     { table: 'integrations', column: 'last_tested_at', type: 'TEXT' },
     { table: 'integrations', column: 'last_error', type: 'TEXT' },
+    { table: 'users', column: 'previous_login_at', type: 'TEXT' },
+    { table: 'admin_users', column: 'previous_login_at', type: 'TEXT' },
   ];
 
   for (const migration of migrations) {
