@@ -110,6 +110,13 @@ export const useAuthStore = create<AuthState>()((set, get) => ({
       if (!response.ok) {
         console.error('[AUTH_STORE] Logout API returned error:', response.status);
       }
+
+      try {
+        const { useCartStore } = await import('./cart-store');
+        useCartStore.getState().resetCart();
+      } catch (e) {
+        console.error('[AUTH_STORE] Failed to clear cart on logout:', e);
+      }
     } catch (error) {
       console.error('[AUTH_STORE] Logout error:', error);
     } finally {
@@ -210,6 +217,17 @@ export async function loginViaAPI(
 
     useAuthStore.getState().login(data.user);
 
+    try {
+      await fetch('/api/cart/merge', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const { useCartStore } = await import('./cart-store');
+      await useCartStore.getState().syncWithServer();
+    } catch (e) {
+      console.error('[AUTH_STORE] Cart merge failed:', e);
+    }
+
     return {
       success: true,
       user: data.user,
@@ -309,6 +327,17 @@ export async function registerViaAPI(data: {
     }
 
     useAuthStore.getState().login(responseData.user);
+
+    try {
+      await fetch('/api/cart/merge', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      const { useCartStore } = await import('./cart-store');
+      await useCartStore.getState().syncWithServer();
+    } catch (e) {
+      console.error('[AUTH_STORE] Cart merge after registration failed:', e);
+    }
 
     return {
       success: true,
