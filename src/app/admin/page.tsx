@@ -432,6 +432,17 @@ function AdminDashboardContent() {
     disputes: number;
   }>({ users: 0, vendors: 0, products: 0, orders: 0, disputes: 0 });
 
+  const [dbOrders, setDbOrders] = useState<Array<{
+    id: string;
+    buyerId: string;
+    buyerName: string;
+    buyerEmail: string;
+    total: number;
+    status: string;
+    paymentStatus: string;
+    createdAt: string;
+  }>>([]);
+
   // Fetch stats and audit logs from PostgreSQL
   useEffect(() => {
     const fetchStats = async () => {
@@ -494,9 +505,29 @@ function AdminDashboardContent() {
       }
     };
 
+    const fetchOrders = async () => {
+      try {
+        const response = await fetch('/api/orders', { 
+          credentials: 'include',
+          cache: 'no-store',
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDbOrders(data.orders || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch orders:', error);
+      }
+    };
+
     fetchStats();
     fetchAuditLogs();
     fetchActivityCounts();
+    fetchOrders();
   }, []); // Fetch ONCE on mount - activity counts use stable checkpoint set at login
 
   // Wait for hydration before checking auth
@@ -692,7 +723,6 @@ function AdminDashboardContent() {
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="buyers">
               Users
-              <Badge className="ml-2" variant="secondary">{users.filter(u => !u.isDeleted).length}</Badge>
               {activityCounts.users > 0 && <Badge className="ml-1 bg-blue-500 text-white text-xs">+{activityCounts.users}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="vendors">
@@ -707,7 +737,7 @@ function AdminDashboardContent() {
             </TabsTrigger>
             <TabsTrigger value="orders">
               Orders
-              <Badge className="ml-2" variant="secondary">{orders.length}</Badge>
+              {(dbStats?.totalOrders ?? 0) > 0 && <Badge className="ml-2" variant="secondary">{dbStats?.totalOrders ?? 0}</Badge>}
               {activityCounts.orders > 0 && <Badge className="ml-1 bg-blue-500 text-white text-xs">+{activityCounts.orders}</Badge>}
             </TabsTrigger>
             <TabsTrigger value="disputes">
@@ -826,13 +856,13 @@ function AdminDashboardContent() {
             <Card>
               <CardHeader><CardTitle>Order Management</CardTitle></CardHeader>
               <CardContent>
-                {orders.length === 0 ? (
+                {dbOrders.length === 0 ? (
                   <div className="text-center py-12"><ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" /><h3 className="text-lg font-semibold">No Orders Yet</h3></div>
                 ) : (
                   <Table>
                     <TableHeader><TableRow><TableHead>Order ID</TableHead><TableHead>Buyer</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
                     <TableBody>
-                      {orders.map((order) => (
+                      {dbOrders.map((order) => (
                         <TableRow key={order.id}>
                           <TableCell className="font-mono text-sm">{order.id.slice(0, 15)}...</TableCell>
                           <TableCell>{order.buyerName}</TableCell>
