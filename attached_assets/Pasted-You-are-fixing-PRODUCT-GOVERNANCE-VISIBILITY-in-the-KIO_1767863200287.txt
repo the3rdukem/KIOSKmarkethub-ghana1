@@ -1,0 +1,77 @@
+You are fixing PRODUCT GOVERNANCE & VISIBILITY in the KIOSK marketplace.
+
+AUTH, DATABASE, DRAFT LOGIC, AND VENDOR FLOWS ARE STABLE.
+DO NOT modify authentication, database schemas, or external APIs.
+
+This task focuses on:
+- Admin product controls
+- Duplicate product navigation
+- Product count clarity
+
+========================================
+SECTION 1 — ADMIN PRODUCT MANAGEMENT (CRITICAL)
+========================================
+
+Admin MUST be able to manage ANY product.
+
+Fix Admin → Products so that admin can:
+- Edit product
+- Suspend / unsuspend product
+- Feature / unfeature product
+- Change product status (draft / published)
+
+Rules:
+- Admin actions must persist immediately
+- Admin does NOT require vendor ownership
+- UI controls must be visible and functional
+- Actions must update counts and tables in real-time
+
+========================================
+SECTION 2 — DUPLICATE PRODUCT NAVIGATION
+========================================
+
+Fix vendor "Duplicate Product" flow.
+
+Rules:
+- Server must return the NEW product ID
+- Client MUST navigate to:
+  /vendor/products/edit/{newProductId}
+
+No redirects to missing IDs.
+No "Product not found" after duplication.
+
+========================================
+SECTION 3 — PRODUCT COUNT CLARITY (ADMIN)
+========================================
+
+Fix admin product counts to reduce ambiguity.
+
+Rules:
+- Dashboard tiles may show TOTAL products
+- Product tabs must show clear labels:
+  - Published (X)
+  - Drafts (Y)
+  - Suspended (Z)
+- Do NOT repurpose counts for unrelated metrics
+- Users tab must follow same consistency rules
+
+========================================
+SECTION 4 — REAL-TIME UI CONSISTENCY
+========================================
+
+Ensure:
+- Product tables update immediately after admin actions
+- No logout/login required to see updates
+- Counts and tables always agree
+
+========================================
+FINAL VALIDATION CHECKLIST (MANDATORY)
+========================================
+
+This task is complete ONLY IF:
+
+- Admin can edit, feature, suspend products
+- Duplicate product redirects to correct edit page
+- Product counts are accurate and clearly labeled
+- No stale or misleading counters remain
+- No auth or DB logic was changed

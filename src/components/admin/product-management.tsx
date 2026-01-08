@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,7 +29,8 @@ import {
 import {
   Package, Eye, CheckCircle, XCircle, AlertTriangle,
   Search, MoreHorizontal, Ban, Trash2, Star, StarOff,
-  DollarSign, Tag, Store, Image as ImageIcon, Clock, Pause, Play, Plus, Loader2, FileEdit
+  DollarSign, Tag, Store, Image as ImageIcon, Clock, Pause, Play, Plus, Loader2, FileEdit,
+  Pencil, Send, FileX
 } from "lucide-react";
 import { formatDistance, format } from "date-fns";
 import { toast } from "sonner";
@@ -71,7 +73,7 @@ interface ProductManagementProps {
 }
 
 type ProductFilter = "all" | "active" | "draft" | "pending" | "suspended" | "rejected" | "featured";
-type ProductAction = "approve" | "reject" | "suspend" | "unsuspend" | "feature" | "unfeature" | "delete" | null;
+type ProductAction = "approve" | "reject" | "suspend" | "unsuspend" | "feature" | "unfeature" | "delete" | "publish" | "unpublish" | null;
 
 export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManagementProps) {
   const { getUserById } = useUsersStore();
@@ -326,6 +328,12 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
         case "unfeature":
           body = { action: 'unfeature' };
           break;
+        case "publish":
+          body = { action: 'publish' };
+          break;
+        case "unpublish":
+          body = { action: 'unpublish' };
+          break;
         case "delete":
           method = 'DELETE';
           break;
@@ -346,6 +354,8 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           unsuspend: `"${selectedProduct.name}" has been unsuspended`,
           feature: `"${selectedProduct.name}" is now featured`,
           unfeature: `"${selectedProduct.name}" is no longer featured`,
+          publish: `"${selectedProduct.name}" is now published`,
+          unpublish: `"${selectedProduct.name}" is now a draft`,
           delete: `"${selectedProduct.name}" has been deleted`,
         };
         toast.success(actionMessages[actionType] || 'Action completed');
@@ -418,6 +428,20 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
         buttonText: "Delete Product",
         buttonClass: "bg-red-700 hover:bg-red-800",
       },
+      publish: {
+        title: "Publish Product",
+        description: `This will publish "${selectedProduct.name}" and make it visible to customers.`,
+        requiresReason: false,
+        buttonText: "Publish Product",
+        buttonClass: "bg-green-600 hover:bg-green-700",
+      },
+      unpublish: {
+        title: "Unpublish Product",
+        description: `This will change "${selectedProduct.name}" to draft status. It will no longer be visible to customers.`,
+        requiresReason: false,
+        buttonText: "Unpublish (Draft)",
+        buttonClass: "bg-gray-600 hover:bg-gray-700",
+      },
     };
 
     return configs[actionType];
@@ -442,7 +466,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">All Products</p>
+                <p className="text-sm text-muted-foreground">All Products ({statusCounts.all})</p>
                 <p className="text-2xl font-bold">{statusCounts.all}</p>
               </div>
               <Package className="w-8 h-8 text-gray-400" />
@@ -453,7 +477,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Active</p>
+                <p className="text-sm text-muted-foreground">Published ({statusCounts.active})</p>
                 <p className="text-2xl font-bold text-green-600">{statusCounts.active}</p>
               </div>
               <CheckCircle className="w-8 h-8 text-green-400" />
@@ -464,7 +488,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Draft</p>
+                <p className="text-sm text-muted-foreground">Drafts ({statusCounts.draft})</p>
                 <p className="text-2xl font-bold text-blue-600">{statusCounts.draft}</p>
               </div>
               <FileEdit className="w-8 h-8 text-blue-400" />
@@ -475,7 +499,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="text-sm text-muted-foreground">Pending ({statusCounts.pending})</p>
                 <p className="text-2xl font-bold text-yellow-600">{statusCounts.pending}</p>
               </div>
               <Clock className="w-8 h-8 text-yellow-400" />
@@ -486,7 +510,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Suspended</p>
+                <p className="text-sm text-muted-foreground">Suspended ({statusCounts.suspended})</p>
                 <p className="text-2xl font-bold text-red-600">{statusCounts.suspended}</p>
               </div>
               <Pause className="w-8 h-8 text-red-400" />
@@ -497,7 +521,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Featured</p>
+                <p className="text-sm text-muted-foreground">Featured ({statusCounts.featured})</p>
                 <p className="text-2xl font-bold text-amber-600">{statusCounts.featured}</p>
               </div>
               <Star className="w-8 h-8 text-amber-400" />
@@ -544,8 +568,8 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="active">Published</SelectItem>
+                  <SelectItem value="draft">Drafts</SelectItem>
                   <SelectItem value="pending">Pending Approval</SelectItem>
                   <SelectItem value="suspended">Suspended</SelectItem>
                   <SelectItem value="rejected">Rejected</SelectItem>
@@ -673,7 +697,27 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                               <Eye className="w-4 h-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/admin/products/edit/${product.id}`}>
+                                <Pencil className="w-4 h-4 mr-2" />
+                                Edit Product
+                              </Link>
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
+
+                            {/* Publish/Unpublish status toggle */}
+                            {product.status === "draft" && (
+                              <DropdownMenuItem className="text-green-600" onClick={() => handleAction("publish", product)}>
+                                <Send className="w-4 h-4 mr-2" />
+                                Publish
+                              </DropdownMenuItem>
+                            )}
+                            {product.status === "active" && (
+                              <DropdownMenuItem className="text-gray-600" onClick={() => handleAction("unpublish", product)}>
+                                <FileX className="w-4 h-4 mr-2" />
+                                Unpublish (Draft)
+                              </DropdownMenuItem>
+                            )}
 
                             {/* Approval actions */}
                             {(product.status === "pending_approval" || product.approvalStatus === "pending") && (

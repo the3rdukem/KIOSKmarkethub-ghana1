@@ -310,6 +310,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         auditAction = 'PRODUCT_UNFEATURED';
         auditDetails = `Admin removed product "${product.name}" from featured`;
         break;
+      case 'publish':
+        updates = { status: 'active' };
+        auditAction = 'PRODUCT_PUBLISHED';
+        auditDetails = `Admin published product "${product.name}"`;
+        break;
+      case 'unpublish':
+        updates = { status: 'draft' };
+        auditAction = 'PRODUCT_UNPUBLISHED';
+        auditDetails = `Admin changed product "${product.name}" to draft`;
+        break;
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
