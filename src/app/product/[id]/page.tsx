@@ -4,8 +4,6 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cart-store";
 import { useProductsStore } from "@/lib/products-store";
-import { useReviewsStore, hasBuyerPurchasedProduct } from "@/lib/reviews-store";
-import { useOrdersStore } from "@/lib/orders-store";
 import { useWishlistStore } from "@/lib/wishlist-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { useUsersStore } from "@/lib/users-store";
@@ -29,12 +27,10 @@ import {
   Truck,
   Package,
   MapPin,
-  Clock,
   CheckCircle,
   AlertTriangle,
   MessageSquare,
   ThumbsUp,
-  Eye,
   Store,
   Verified,
   CreditCard,
@@ -46,6 +42,30 @@ import {
   Loader2
 } from "lucide-react";
 
+interface Review {
+  id: string;
+  product_id: string;
+  buyer_id: string;
+  buyer_name?: string;
+  buyer_avatar?: string;
+  vendor_id: string;
+  rating: number;
+  comment: string;
+  status: string;
+  is_verified_purchase: boolean;
+  helpful_count: number;
+  vendor_reply?: string;
+  vendor_reply_at?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+interface RatingStats {
+  average: number;
+  total: number;
+  distribution: { [key: number]: number };
+}
+
 export default function ProductPage() {
   const params = useParams();
   const router = useRouter();
@@ -53,11 +73,9 @@ export default function ProductPage() {
 
   const { addItem } = useCartStore();
   const { getProductById, getActiveProducts } = useProductsStore();
-  const { getReviewsByProduct, getAverageRating, getRatingBreakdown, addReview, markHelpful, canBuyerReview } = useReviewsStore();
   const { isInWishlist, toggleWishlist } = useWishlistStore();
   const { user, isAuthenticated } = useAuthStore();
   const { getUserById } = useUsersStore();
-  const { orders } = useOrdersStore();
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -65,31 +83,54 @@ export default function ProductPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: "" });
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [ratingStats, setRatingStats] = useState<RatingStats>({ average: 0, total: 0, distribution: {} });
+  const [reviewsLoading, setReviewsLoading] = useState(true);
+  const [hasReviewed, setHasReviewed] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  // Get product data
+  useEffect(() => {
+    if (!productId) return;
+    
+    async function fetchReviews() {
+      try {
+        setReviewsLoading(true);
+        const response = await fetch(`/api/reviews?productId=${productId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setReviews(data.reviews || []);
+          setRatingStats(data.stats || { average: 0, total: 0, distribution: {} });
+          
+          if (user && data.reviews) {
+            const userReview = data.reviews.find((r: Review) => r.buyer_id === user.id);
+            setHasReviewed(!!userReview);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch reviews:', error);
+      } finally {
+        setReviewsLoading(false);
+      }
+    }
+    
+    fetchReviews();
+  }, [productId, user]);
+
   const product = isHydrated ? getProductById(productId) : null;
   const vendor = product ? getUserById(product.vendorId) : null;
 
-  // Get reviews data
-  const reviews = isHydrated ? getReviewsByProduct(productId) : [];
-  const averageRating = isHydrated ? getAverageRating(productId) : 0;
-  const ratingBreakdown = isHydrated ? getRatingBreakdown(productId) : { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
-  const totalReviews = reviews.length;
+  const averageRating = ratingStats.average || 0;
+  const totalReviews = ratingStats.total || 0;
+  const ratingBreakdown = ratingStats.distribution || { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
 
-  // Check if in wishlist
   const isWishlisted = isHydrated && user ? isInWishlist(user.id, productId) : false;
 
-  // Check if buyer can review (must be buyer, not already reviewed, and has purchased)
-  const hasNotReviewed = isHydrated && user && user.role === "buyer" ? canBuyerReview(user.id, productId) : false;
-  const hasPurchased = isHydrated && user ? hasBuyerPurchasedProduct(user.id, productId, orders) : false;
-  const canReview = hasNotReviewed; // Allow review even without purchase, but mark verified status
-  const isVerifiedPurchase = hasPurchased;
+  const canReview = isAuthenticated && user?.role === "buyer" && !hasReviewed;
 
-  // Get related products (same category, different product)
   const relatedProducts = isHydrated && product
     ? getActiveProducts()
         .filter(p => p.category === product.category && p.id !== product.id)
@@ -147,22 +188,30 @@ export default function ProductPage() {
     setIsSubmittingReview(true);
 
     try {
-      const result = addReview({
-        productId,
-        buyerId: user.id,
-        buyerName: user.name,
-        buyerAvatar: user.avatar,
-        rating: newReview.rating,
-        comment: newReview.comment.trim(),
-        images: [],
-        verified: isVerifiedPurchase // Mark as verified only if buyer purchased the product
+      const response = await fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productId,
+          rating: newReview.rating,
+          comment: newReview.comment.trim(),
+        }),
       });
 
-      if (result) {
+      if (response.ok) {
+        const data = await response.json();
         toast.success("Review submitted successfully!");
         setNewReview({ rating: 5, comment: "" });
+        setHasReviewed(true);
+        setReviews(prev => [data.review, ...prev]);
+        setRatingStats(prev => ({
+          ...prev,
+          total: prev.total + 1,
+          average: ((prev.average * prev.total) + newReview.rating) / (prev.total + 1)
+        }));
       } else {
-        toast.error("You've already reviewed this product");
+        const error = await response.json();
+        toast.error(error.error || "Failed to submit review");
       }
     } catch {
       toast.error("Failed to submit review");
@@ -171,12 +220,26 @@ export default function ProductPage() {
     }
   };
 
-  const handleMarkHelpful = (reviewId: string) => {
-    markHelpful(reviewId);
-    toast.success("Marked as helpful!");
+  const handleMarkHelpful = async (reviewId: string) => {
+    try {
+      const response = await fetch(`/api/reviews/${reviewId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'helpful' }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setReviews(prev => prev.map(r => 
+          r.id === reviewId ? { ...r, helpful_count: data.review.helpful_count } : r
+        ));
+        toast.success("Marked as helpful!");
+      }
+    } catch {
+      toast.error("Failed to mark as helpful");
+    }
   };
 
-  // Loading state
   if (!isHydrated) {
     return (
       <SiteLayout>
@@ -189,7 +252,6 @@ export default function ProductPage() {
     );
   }
 
-  // Product not found
   if (!product) {
     return (
       <SiteLayout>
@@ -219,7 +281,6 @@ export default function ProductPage() {
   return (
     <SiteLayout>
       <div className="container py-8">
-        {/* Breadcrumb */}
         <nav className="flex items-center space-x-2 text-sm text-muted-foreground mb-6">
           <Link href="/" className="hover:text-foreground">Home</Link>
           <span>/</span>
@@ -232,7 +293,6 @@ export default function ProductPage() {
           <span className="text-foreground truncate max-w-[200px]">{product.name}</span>
         </nav>
 
-        {/* Back Button */}
         <Button variant="ghost" className="mb-6" asChild>
           <Link href="/search">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -241,7 +301,6 @@ export default function ProductPage() {
         </Button>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-          {/* Product Images */}
           <div className="space-y-4">
             <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden">
               {product.images.length > 0 ? (
@@ -273,9 +332,7 @@ export default function ProductPage() {
             )}
           </div>
 
-          {/* Product Info */}
           <div className="space-y-6">
-            {/* Title and Rating */}
             <div>
               <div className="flex items-start justify-between mb-2">
                 <h1 className="text-3xl font-bold">{product.name}</h1>
@@ -303,12 +360,11 @@ export default function ProductPage() {
                       }`}
                     />
                   ))}
-                  <span className="font-semibold ml-1">{averageRating || "No ratings"}</span>
+                  <span className="font-semibold ml-1">{averageRating.toFixed(1) || "No ratings"}</span>
                 </div>
                 <span className="text-muted-foreground">({totalReviews} reviews)</span>
               </div>
 
-              {/* Tags */}
               {product.tags.length > 0 && (
                 <div className="flex gap-2 mb-4 flex-wrap">
                   {product.tags.map((tag) => (
@@ -318,7 +374,6 @@ export default function ProductPage() {
               )}
             </div>
 
-            {/* Price */}
             <div className="space-y-2">
               <div className="flex items-center gap-3">
                 <span className="text-3xl font-bold text-green-600">
@@ -338,7 +393,6 @@ export default function ProductPage() {
               </p>
             </div>
 
-            {/* Vendor Info */}
             <Card>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -391,7 +445,6 @@ export default function ProductPage() {
               </CardContent>
             </Card>
 
-            {/* Quantity */}
             <div>
               <Label className="text-base font-semibold">Quantity</Label>
               <div className="flex items-center gap-3 mt-2">
@@ -420,7 +473,6 @@ export default function ProductPage() {
               </div>
             </div>
 
-            {/* Stock Status */}
             <div className="flex items-center gap-2">
               {inStock ? (
                 <>
@@ -435,7 +487,6 @@ export default function ProductPage() {
               )}
             </div>
 
-            {/* Shipping Info */}
             <Card className="border-gray-200 bg-gray-50">
               <CardContent className="p-4">
                 <div className="flex items-start gap-3">
@@ -450,7 +501,6 @@ export default function ProductPage() {
               </CardContent>
             </Card>
 
-            {/* Action Buttons */}
             <div className="space-y-3">
               <Button
                 onClick={handleBuyNow}
@@ -473,7 +523,6 @@ export default function ProductPage() {
               </Button>
             </div>
 
-            {/* Security Features */}
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="flex items-center gap-2">
                 <Shield className="w-4 h-4 text-green-600" />
@@ -495,7 +544,6 @@ export default function ProductPage() {
           </div>
         </div>
 
-        {/* Product Details Tabs */}
         <div className="mt-12">
           <Tabs defaultValue="description">
             <TabsList className="grid w-full grid-cols-3">
@@ -530,12 +578,11 @@ export default function ProductPage() {
 
             <TabsContent value="reviews" className="mt-6">
               <div className="space-y-6">
-                {/* Review Summary */}
                 <Card>
                   <CardContent className="p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="text-center">
-                        <div className="text-4xl font-bold">{averageRating || "-"}</div>
+                        <div className="text-4xl font-bold">{averageRating.toFixed(1) || "-"}</div>
                         <div className="flex justify-center mt-2">
                           {[...Array(5)].map((_, i) => (
                             <Star
@@ -571,8 +618,7 @@ export default function ProductPage() {
                   </CardContent>
                 </Card>
 
-                {/* Write a Review */}
-                {isAuthenticated && user?.role === "buyer" && canReview && (
+                {canReview && (
                   <Card>
                     <CardContent className="p-6">
                       <h3 className="font-semibold mb-4">Write a Review</h3>
@@ -620,8 +666,7 @@ export default function ProductPage() {
                   </Card>
                 )}
 
-                {/* Already reviewed message */}
-                {isAuthenticated && user?.role === "buyer" && !canReview && (
+                {isAuthenticated && user?.role === "buyer" && hasReviewed && (
                   <Card>
                     <CardContent className="p-6 text-center">
                       <CheckCircle className="w-8 h-8 text-green-600 mx-auto mb-2" />
@@ -630,8 +675,11 @@ export default function ProductPage() {
                   </Card>
                 )}
 
-                {/* Individual Reviews */}
-                {reviews.length === 0 ? (
+                {reviewsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                  </div>
+                ) : reviews.length === 0 ? (
                   <Card>
                     <CardContent className="p-6 text-center">
                       <MessageSquare className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -646,15 +694,15 @@ export default function ProductPage() {
                         <CardContent className="p-6">
                           <div className="flex items-start gap-4">
                             <Avatar>
-                              <AvatarImage src={review.buyerAvatar} />
+                              <AvatarImage src={review.buyer_avatar} />
                               <AvatarFallback>
                                 <User className="w-4 h-4" />
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-2">
-                                <h4 className="font-semibold">{review.buyerName}</h4>
-                                {review.verified && (
+                                <h4 className="font-semibold">{review.buyer_name || 'Anonymous'}</h4>
+                                {review.is_verified_purchase && (
                                   <Badge variant="outline" className="text-xs">
                                     <CheckCircle className="w-3 h-3 mr-1" />
                                     Verified Purchase
@@ -673,17 +721,33 @@ export default function ProductPage() {
                                   ))}
                                 </div>
                                 <span className="text-sm text-muted-foreground">
-                                  {new Date(review.createdAt).toLocaleDateString()}
+                                  {new Date(review.created_at).toLocaleDateString()}
                                 </span>
                               </div>
                               <p className="text-gray-700 mb-3">{review.comment}</p>
-                              <div className="flex items-center gap-4 text-sm">
+                              
+                              {review.vendor_reply && (
+                                <div className="mt-3 p-3 bg-gray-50 rounded-lg border-l-4 border-gray-300">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <Store className="w-4 h-4 text-gray-600" />
+                                    <span className="font-semibold text-sm">Vendor Response</span>
+                                    {review.vendor_reply_at && (
+                                      <span className="text-xs text-muted-foreground">
+                                        {new Date(review.vendor_reply_at).toLocaleDateString()}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-600">{review.vendor_reply}</p>
+                                </div>
+                              )}
+                              
+                              <div className="flex items-center gap-4 text-sm mt-3">
                                 <button
                                   onClick={() => handleMarkHelpful(review.id)}
                                   className="flex items-center gap-1 text-muted-foreground hover:text-foreground"
                                 >
                                   <ThumbsUp className="w-3 h-3" />
-                                  Helpful ({review.helpful})
+                                  Helpful ({review.helpful_count || 0})
                                 </button>
                               </div>
                             </div>
@@ -726,7 +790,6 @@ export default function ProductPage() {
           </Tabs>
         </div>
 
-        {/* Related Products */}
         {relatedProducts.length > 0 && (
           <div className="mt-12">
             <h3 className="text-2xl font-bold mb-6">You May Also Like</h3>
