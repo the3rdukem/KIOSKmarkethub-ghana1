@@ -424,6 +424,13 @@ function AdminDashboardContent() {
     timestamp: string;
   }>>([]);
 
+  const [activityCounts, setActivityCounts] = useState<{
+    products: number;
+    orders: number;
+    vendors: number;
+    disputes: number;
+  }>({ products: 0, orders: 0, vendors: 0, disputes: 0 });
+
   // Fetch stats and audit logs from PostgreSQL
   useEffect(() => {
     const fetchStats = async () => {
@@ -450,8 +457,21 @@ function AdminDashboardContent() {
       }
     };
 
+    const fetchActivityCounts = async () => {
+      try {
+        const response = await fetch('/api/admin/activity-summary', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          setActivityCounts(data.counts || { products: 0, orders: 0, vendors: 0, disputes: 0 });
+        }
+      } catch (error) {
+        console.error('Failed to fetch activity counts:', error);
+      }
+    };
+
     fetchStats();
     fetchAuditLogs();
+    fetchActivityCounts();
   }, []);
 
   // Wait for hydration before checking auth
@@ -646,10 +666,26 @@ function AdminDashboardContent() {
           <TabsList className="mb-6 flex-wrap h-auto gap-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="buyers">Users<Badge className="ml-2" variant="secondary">{users.filter(u => !u.isDeleted).length}</Badge></TabsTrigger>
-            <TabsTrigger value="vendors">Vendors{pendingVendors.length > 0 && <Badge className="ml-2" variant="destructive">{pendingVendors.length}</Badge>}</TabsTrigger>
-            <TabsTrigger value="products">Products<Badge className="ml-2" variant="secondary">{products.length}</Badge></TabsTrigger>
-            <TabsTrigger value="orders">Orders<Badge className="ml-2" variant="secondary">{orders.length}</Badge></TabsTrigger>
-            <TabsTrigger value="disputes">Disputes{openDisputes.length > 0 && <Badge className="ml-2" variant="destructive">{openDisputes.length}</Badge>}</TabsTrigger>
+            <TabsTrigger value="vendors">
+              Vendors
+              {pendingVendors.length > 0 && <Badge className="ml-2" variant="destructive">{pendingVendors.length}</Badge>}
+              {activityCounts.vendors > 0 && <Badge className="ml-1 bg-blue-500 text-white text-xs">+{activityCounts.vendors}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="products">
+              Products
+              <Badge className="ml-2" variant="secondary">{products.length}</Badge>
+              {activityCounts.products > 0 && <Badge className="ml-1 bg-blue-500 text-white text-xs">+{activityCounts.products}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="orders">
+              Orders
+              <Badge className="ml-2" variant="secondary">{orders.length}</Badge>
+              {activityCounts.orders > 0 && <Badge className="ml-1 bg-blue-500 text-white text-xs">+{activityCounts.orders}</Badge>}
+            </TabsTrigger>
+            <TabsTrigger value="disputes">
+              Disputes
+              {openDisputes.length > 0 && <Badge className="ml-2" variant="destructive">{openDisputes.length}</Badge>}
+              {activityCounts.disputes > 0 && <Badge className="ml-1 bg-blue-500 text-white text-xs">+{activityCounts.disputes}</Badge>}
+            </TabsTrigger>
             {/* API Management - Only for Master Admin */}
             {canManageAPIs && (
               <TabsTrigger value="api"><Key className="w-4 h-4 mr-1" />API Management</TabsTrigger>
