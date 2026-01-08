@@ -138,6 +138,35 @@ async function seedMasterAdmin(client: PoolClient): Promise<void> {
 }
 
 /**
+ * Run database migrations for existing schemas
+ */
+async function runMigrations(client: PoolClient): Promise<void> {
+  console.log('[DB] Running migrations...');
+
+  // Migration: Add previous_login_at to users table
+  const usersColCheck = await client.query(`
+    SELECT column_name FROM information_schema.columns 
+    WHERE table_name = 'users' AND column_name = 'previous_login_at'
+  `);
+  if (usersColCheck.rows.length === 0) {
+    await client.query('ALTER TABLE users ADD COLUMN previous_login_at TEXT');
+    console.log('[DB] Added previous_login_at to users table');
+  }
+
+  // Migration: Add previous_login_at to admin_users table
+  const adminColCheck = await client.query(`
+    SELECT column_name FROM information_schema.columns 
+    WHERE table_name = 'admin_users' AND column_name = 'previous_login_at'
+  `);
+  if (adminColCheck.rows.length === 0) {
+    await client.query('ALTER TABLE admin_users ADD COLUMN previous_login_at TEXT');
+    console.log('[DB] Added previous_login_at to admin_users table');
+  }
+
+  console.log('[DB] Migrations complete');
+}
+
+/**
  * Create database schema
  */
 async function createSchema(client: PoolClient): Promise<void> {
@@ -152,6 +181,9 @@ async function createSchema(client: PoolClient): Promise<void> {
 
   if (tableCheck.rows[0].exists) {
     console.log('[DB] Schema already exists, skipping creation');
+    
+    // Run migrations for existing databases
+    await runMigrations(client);
     return;
   }
 
@@ -184,6 +216,7 @@ async function createSchema(client: PoolClient): Promise<void> {
       deleted_by TEXT,
       deletion_reason TEXT,
       last_login_at TEXT,
+      previous_login_at TEXT,
       created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
       updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
     );
@@ -200,6 +233,7 @@ async function createSchema(client: PoolClient): Promise<void> {
       mfa_enabled INTEGER DEFAULT 0,
       created_by TEXT,
       last_login_at TEXT,
+      previous_login_at TEXT,
       created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
       updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
     );

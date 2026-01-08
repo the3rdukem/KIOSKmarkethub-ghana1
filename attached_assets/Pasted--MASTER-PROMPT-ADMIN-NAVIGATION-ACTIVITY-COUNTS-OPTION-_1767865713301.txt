@@ -1,0 +1,186 @@
+⸻
+
+📌 MASTER PROMPT — ADMIN NAVIGATION ACTIVITY COUNTS (OPTION B)
+
+You are implementing ADMIN NAVIGATION ACTIVITY INDICATORS for the KIOSK / MarketHub multivendor marketplace running on Replit, with auth, persistence, and PostgreSQL already stable.
+
+⚠️ IMPORTANT
+DO NOT restore or attempt to “fix” total counts in the admin navigation tabs.
+Total counts already exist elsewhere and must remain separate.
+
+This task is intentional repurposing, not a bug fix.
+
+⸻
+
+🎯 GOAL
+
+Repurpose the Admin Dashboard navigation tab counts to show:
+
+NEW ACTIVITY SINCE LAST ADMIN LOGIN
+
+These are activity badges, not totals.
+
+⸻
+
+========================================
+
+SECTION 1 — DEFINITIVE BEHAVIOR (MANDATORY)
+
+========================================
+
+Admin navigation tabs MUST show counts of new events since the admin’s last successful login.
+
+Navigation tab meanings:
+	•	Users → New buyer + vendor registrations
+	•	Vendors → New vendor registrations OR newly verified vendors
+	•	Products → New products created (any status: draft, published, pending)
+	•	Orders → New orders placed
+	•	Disputes → New disputes opened (if applicable)
+
+These counts:
+	•	Are per admin
+	•	Are time-based
+	•	Are NOT absolute totals
+	•	Reset automatically when the admin logs in again
+
+⸻
+
+========================================
+
+SECTION 2 — DATA SOURCE RULES
+
+========================================
+
+Counts MUST be computed using timestamps, not cached numbers.
+
+Allowed data sources:
+	•	created_at
+	•	verified_at
+	•	approved_at
+	•	audit logs (if already present)
+
+REQUIRED:
+	•	Each admin has last_login_at
+	•	This value updates only after successful login
+
+Query pattern example:
+
+COUNT(*) WHERE created_at > admin.last_login_at
+
+❌ DO NOT:
+	•	Use status = 'active' filters
+	•	Use hardcoded values
+	•	Share counts across admins
+	•	Store counts in frontend state
+
+⸻
+
+========================================
+
+SECTION 3 — UI RULES (STRICT)
+
+========================================
+
+Navigation tab numbers must behave like notification badges, NOT totals.
+
+UI Requirements:
+	•	Counts appear next to tab labels (e.g. Users 3)
+	•	Hide the badge entirely if count = 0
+	•	Style as secondary / muted badge
+	•	DO NOT mirror dashboard tile styling
+
+Dashboard tiles:
+	•	❌ DO NOT TOUCH
+	•	They remain absolute totals
+
+⸻
+
+========================================
+
+SECTION 4 — USERS & VENDORS EDGE CASES
+
+========================================
+
+Users tab:
+	•	Includes BOTH buyers and vendors
+	•	Count = total new users since last login
+
+Vendors tab:
+	•	Count new vendor registrations
+	•	OR newly verified vendors
+	•	OR newly approved vendors
+(choose the most meaningful based on existing workflow)
+
+This must be explicit in code comments.
+
+⸻
+
+========================================
+
+SECTION 5 — ORDERS & PRODUCTS CLARITY
+
+========================================
+	•	Products count includes:
+	•	draft
+	•	pending
+	•	published
+	•	This avoids confusion caused by approval workflows
+	•	Orders count includes:
+	•	all new orders regardless of fulfillment state
+
+⸻
+
+========================================
+
+SECTION 6 — IMPLEMENTATION CONSTRAINTS
+
+========================================
+	•	Backend must expose a single endpoint:
+	•	/admin/activity-summary
+	•	Frontend must consume this endpoint ONLY
+	•	No inline queries in components
+	•	No duplicated logic
+
+⸻
+
+========================================
+
+SECTION 7 — SAFETY & NON-REGRESSION
+
+========================================
+
+DO NOT:
+	•	Modify authentication
+	•	Modify audit logging
+	•	Modify existing dashboard tile queries
+	•	Change product status logic
+	•	Change vendor verification logic
+
+This task is read-only to existing systems except for:
+	•	admin last_login_at
+	•	new activity aggregation logic
+
+⸻
+
+========================================
+
+FINAL VALIDATION CHECKLIST (REQUIRED)
+
+========================================
+
+This task is complete ONLY IF:
+
+✅ Navigation tab counts are NOT totals
+✅ Counts reset per admin login
+✅ Counts differ between two admins logged in at different times
+✅ Users tab no longer shows “0” when activity exists
+✅ Vendors tab shows meaningful activity
+✅ Products tab count matches recent creations
+✅ Dashboard tiles remain unchanged
+✅ No duplicated count logic exists
+
+⸻
+
+END OF PROMPT
+
+⸻

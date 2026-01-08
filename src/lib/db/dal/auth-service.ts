@@ -615,11 +615,17 @@ export async function loginUser(
         throw { code: 'SESSION_CREATION_FAILED' as AuthErrorCode, message: 'Failed to create session' };
       }
 
-      // Step 9: Update last login
+      // Step 9: Update last login - rotate previous_login_at before updating
       if (isLegacyAdmin) {
-        await client.query('UPDATE admin_users SET last_login_at = $1, updated_at = $2 WHERE id = $3', [now, now, user.id]);
+        await client.query(
+          'UPDATE admin_users SET previous_login_at = last_login_at, last_login_at = $1, updated_at = $2 WHERE id = $3',
+          [now, now, user.id]
+        );
       } else {
-        await client.query('UPDATE users SET last_login_at = $1, updated_at = $2 WHERE id = $3', [now, now, user.id]);
+        await client.query(
+          'UPDATE users SET previous_login_at = last_login_at, last_login_at = $1, updated_at = $2 WHERE id = $3',
+          [now, now, user.id]
+        );
       }
 
       console.log('[AUTH_SERVICE:LOGIN] Success', { userId: user.id, role: user.role, isLegacyAdmin });
