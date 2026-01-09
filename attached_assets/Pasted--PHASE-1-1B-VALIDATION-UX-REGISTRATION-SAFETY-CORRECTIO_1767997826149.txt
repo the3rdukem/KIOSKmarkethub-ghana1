@@ -1,0 +1,224 @@
+🔐 PHASE 1.1B — VALIDATION UX & REGISTRATION SAFETY CORRECTION
+
+(MANDATORY FIX — PHASE 1 NOT COMPLETE WITHOUT THIS)
+
+You are correcting incomplete and improperly surfaced validation work from Phase 1.1.
+
+⚠️ THIS IS A CORRECTIVE PASS. DO NOT ADD FEATURES. DO NOT CHANGE BUSINESS LOGIC.
+
+⸻
+
+========================================
+
+SECTION 0 — FAILURE ACKNOWLEDGEMENT
+
+========================================
+
+The following are explicit failures that MUST be corrected:
+	•	Registration forms bypass content safety
+	•	Duplicate phone numbers are allowed
+	•	Error messages are not field-specific
+	•	Errors are rendered redundantly (toast spam)
+	•	UX does not guide users to the failing input
+
+Do NOT mark this task complete unless all failures are resolved.
+
+⸻
+
+========================================
+
+SECTION 1 — REGISTRATION CONTENT SAFETY (CRITICAL)
+
+========================================
+
+Apply ALL content safety & garbage filtering to:
+
+Buyer Registration
+	•	First name
+	•	Last name
+	•	Address fields
+
+Vendor Registration
+	•	Store name
+	•	Store description
+	•	Address fields
+
+Admin Creation (if applicable)
+	•	Name fields
+
+MUST BLOCK:
+	•	Profanity (FUCK YOU, obfuscated variants)
+	•	Garbage strings (hgdgfhsfgcgfdfgsfg)
+	•	Keyboard mashing
+	•	Placeholder values (test, xxx, asdf)
+	•	Contact info (email, phone, URLs)
+
+❌ Current behavior allowing this is UNACCEPTABLE
+
+Error Response MUST include:
+
+{
+  "code": "UNSAFE_CONTENT",
+  "field": "storeName",
+  "message": "Store name contains prohibited or unsafe content"
+}
+
+⚠️ Field attribution is REQUIRED — no generic errors.
+
+⸻
+
+========================================
+
+SECTION 2 — EMAIL GARBAGE DETECTION (STRICT)
+
+========================================
+
+In addition to RFC email validation, implement:
+
+Reject emails that:
+	•	Exceed reasonable local-part length
+	•	Contain excessive random characters
+	•	Match entropy / garbage heuristics
+	•	Look auto-generated or spam-like
+
+Example to reject:
+
+venjhshjshgsgfjdfxyhvdwvhdxvuj@gmail.com
+
+Error:
+
+{
+  "code": "INVALID_EMAIL",
+  "field": "email",
+  "message": "Please enter a valid, human-readable email address"
+}
+
+⚠️ This applies ONLY to registration, not login.
+
+⸻
+
+========================================
+
+SECTION 3 — PHONE NUMBER UNIQUENESS (CRITICAL)
+
+========================================
+
+Rules:
+	•	Phone numbers MUST be globally unique across:
+	•	Buyers
+	•	Vendors
+	•	Admins
+
+❌ Same phone number cannot exist twice under any role.
+
+On duplicate:
+
+{
+  "code": "PHONE_ALREADY_IN_USE",
+  "field": "phone",
+  "message": "This phone number is already associated with another account"
+}
+
+
+⸻
+
+========================================
+
+SECTION 4 — FIELD-LEVEL ERROR UX (MANDATORY)
+
+========================================
+
+Required UX behavior:
+	1.	Highlight the failing field (red border)
+	2.	Display error directly under the field
+	3.	Auto-scroll to the first failing field
+	4.	Focus the input on submit failure
+
+❌ Errors MUST NOT be:
+	•	Only shown in toast
+	•	Detached from the field
+	•	Ambiguous
+
+⸻
+
+========================================
+
+SECTION 5 — ERROR RENDERING RULE (NO SPAM)
+
+========================================
+
+🚫 ONLY ONE error presentation method is allowed per form submit
+
+Preferred hierarchy:
+	1.	Field-level inline error (primary)
+	2.	ONE toast only for non-field errors (optional)
+
+❌ REMOVE:
+	•	Multiple toasts
+	•	Duplicate messages in multiple UI locations
+	•	Top-right + bottom-left + inline duplicates
+
+⸻
+
+========================================
+
+SECTION 6 — STRUCTURED ERROR CONTRACT (FINAL)
+
+========================================
+
+All validation errors MUST follow:
+
+{
+  code: string
+  field?: string
+  message: string
+}
+
+Client must:
+	•	Map field → input
+	•	Render message inline
+	•	Not rewrite or generalize the message
+
+⸻
+
+========================================
+
+SECTION 7 — MANDATORY MANUAL TESTING
+
+========================================
+
+Credentials (MANDATORY):
+	•	Admin: the3rdukem@gmail.com / 123asdqweX$
+	•	Vendor: ven@kiosk.com.gh / 123asdqwe
+	•	Buyer: buy@kiosk.com.gh / 123asdqwe
+
+Tests that MUST pass:
+
+Vendor Registration
+	•	Store name: FUCK YOU → ❌ rejected, highlighted
+	•	Address: garbage string → ❌ rejected
+	•	Email: long garbage gmail → ❌ rejected
+	•	Duplicate phone → ❌ rejected
+
+Buyer Registration
+	•	Garbage names → ❌ rejected
+	•	Duplicate phone → ❌ rejected
+
+Product Creation
+	•	Unsafe content → inline field error ONLY
+	•	No duplicate error messages
+
+⸻
+
+========================================
+
+FINAL RULE — NO FALSE COMPLETION
+
+========================================
+
+🚫 DO NOT report completion unless:
+	•	Registration forms are fully content-safe
+	•	Duplicate phone numbers are impossible
+	•	Errors are field-specific and highlighted
+	•	No redundant toasts exist
+	•	UX clearly guides the user to fix issues

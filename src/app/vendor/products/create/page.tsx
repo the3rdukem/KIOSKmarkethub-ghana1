@@ -456,10 +456,21 @@ export default function CreateProductPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        // Display exact server error message
+        // Display exact server error message - inline only (no toast spam)
         const errorMessage = data.error || 'Failed to create product';
-        setErrors({ submit: errorMessage });
-        toast.error(errorMessage);
+        // Map server field to form field if provided
+        if (data.field) {
+          const fieldMap: Record<string, string> = {
+            'name': 'name',
+            'description': 'description',
+            'price': 'price'
+          };
+          const clientField = fieldMap[data.field] || data.field;
+          setErrors({ [clientField]: errorMessage });
+        } else {
+          setErrors({ submit: errorMessage });
+        }
+        // NO toast - error is shown inline only
         return;
       }
 
@@ -510,7 +521,7 @@ export default function CreateProductPage() {
       console.error("Failed to create product:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to create product";
       setErrors({ submit: errorMessage });
-      toast.error(errorMessage);
+      // NO toast - error is shown inline only
     } finally {
       setIsLoading(false);
     }

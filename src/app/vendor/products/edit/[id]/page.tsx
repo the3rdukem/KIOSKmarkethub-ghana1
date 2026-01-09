@@ -290,19 +290,22 @@ export default function EditProductPage() {
         router.push("/vendor/products");
       } else {
         const data = await response.json();
+        // Display inline error only - no duplicate toasts
         if (data.code === 'VENDOR_NOT_VERIFIED' && status === 'active') {
-          toast.error("Your vendor account must be verified to publish products");
-          setErrors({ submit: data.details || "Vendor verification required" });
+          setErrors({ submit: data.details || "Vendor verification required to publish products" });
+        } else if (data.field) {
+          // Map server field to form field
+          setErrors({ [data.field]: data.error || "Invalid value" });
         } else {
-          toast.error(data.error || "Failed to update product");
           setErrors({ submit: data.error || "Failed to update product" });
         }
+        // NO toast - error is shown inline only
       }
     } catch (error) {
       console.error("Update product error:", error);
       const errorMessage = error instanceof Error ? error.message : "Failed to update product";
       setErrors({ submit: errorMessage });
-      toast.error(errorMessage);
+      // NO toast - error is shown inline only
     } finally {
       setIsLoading(false);
     }

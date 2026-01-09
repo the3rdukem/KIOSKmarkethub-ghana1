@@ -323,7 +323,7 @@ export async function registerViaAPI(data: {
   location?: string;
   businessName?: string;
   businessType?: string;
-}): Promise<{ success: boolean; user?: User; error?: string; code?: string; redirect?: string }> {
+}): Promise<{ success: boolean; user?: User; error?: string; code?: string; field?: string; redirect?: string }> {
   try {
     useAuthStore.getState().setLoading(true);
 
@@ -341,7 +341,8 @@ export async function registerViaAPI(data: {
       return {
         success: false,
         error: responseData.error || 'Registration failed',
-        code: responseData.code || 'UNKNOWN_ERROR'
+        code: responseData.code || 'UNKNOWN_ERROR',
+        field: responseData.field // Pass field for field-specific errors
       };
     }
 

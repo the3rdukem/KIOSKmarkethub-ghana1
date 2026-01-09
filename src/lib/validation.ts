@@ -423,6 +423,151 @@ export function validateTextField(
 }
 
 /**
+ * Validate email format and detect garbage/spam-like emails
+ * - RFC-compliant email check
+ * - Reject excessively long local parts
+ * - Reject high-entropy random characters
+ * - Reject auto-generated looking emails
+ */
+export function validateEmail(email: string | null | undefined): ValidationResult {
+  if (!email || typeof email !== 'string') {
+    return { valid: false, code: 'INVALID_EMAIL', message: 'Email is required' };
+  }
+
+  const trimmed = email.trim().toLowerCase();
+  
+  // Basic RFC email check
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  if (!emailRegex.test(trimmed)) {
+    return { valid: false, code: 'INVALID_EMAIL', message: 'Please enter a valid email address' };
+  }
+
+  const [localPart] = trimmed.split('@');
+  
+  // Reject excessively long local parts (spam indicator)
+  if (localPart.length > 30) {
+    return { valid: false, code: 'INVALID_EMAIL', message: 'Please enter a valid, human-readable email address' };
+  }
+
+  // Check for high-entropy garbage (mostly consonants, no vowels, random patterns)
+  const vowelCount = (localPart.match(/[aeiou]/gi) || []).length;
+  const consonantCount = (localPart.match(/[bcdfghjklmnpqrstvwxyz]/gi) || []).length;
+  
+  // If very long and mostly consonants with few vowels, likely garbage
+  if (localPart.length > 15 && consonantCount > 0) {
+    const vowelRatio = vowelCount / consonantCount;
+    if (vowelRatio < 0.15) {
+      return { valid: false, code: 'INVALID_EMAIL', message: 'Please enter a valid, human-readable email address' };
+    }
+  }
+
+  // Check for repeated character patterns (like "aaaaa" or "xyzxyz")
+  if (/(.)\1{4,}/.test(localPart)) {
+    return { valid: false, code: 'INVALID_EMAIL', message: 'Please enter a valid, human-readable email address' };
+  }
+
+  // Check for keyboard mashing patterns
+  const keyboardPatterns = ['qwer', 'asdf', 'zxcv', 'hjkl', 'yuio'];
+  for (const pattern of keyboardPatterns) {
+    if (localPart.includes(pattern)) {
+      return { valid: false, code: 'INVALID_EMAIL', message: 'Please enter a valid, human-readable email address' };
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validate person name (first name, last name)
+ * - Min/max length
+ * - Content safety
+ * - Garbage detection
+ */
+export function validateName(name: string | null | undefined, fieldName: string = 'Name'): ValidationResult {
+  if (!name || typeof name !== 'string') {
+    return { valid: false, code: 'INVALID_NAME', message: `${fieldName} is required` };
+  }
+
+  const trimmed = name.trim();
+  
+  if (!trimmed) {
+    return { valid: false, code: 'INVALID_NAME', message: `${fieldName} is required` };
+  }
+
+  if (trimmed.length < 2) {
+    return { valid: false, code: 'INVALID_NAME', message: `${fieldName} is too short` };
+  }
+
+  if (trimmed.length > 50) {
+    return { valid: false, code: 'INVALID_NAME', message: `${fieldName} is too long` };
+  }
+
+  // Check for garbage patterns
+  for (const pattern of GARBAGE_PATTERNS) {
+    if (pattern.test(trimmed.replace(/\s/g, ''))) {
+      return { valid: false, code: 'INVALID_NAME', message: `Please enter a valid ${fieldName.toLowerCase()}` };
+    }
+  }
+
+  // Content safety check
+  const safetyResult = validateContentSafety(trimmed);
+  if (!safetyResult.valid) {
+    return { 
+      valid: false, 
+      code: 'UNSAFE_CONTENT', 
+      message: `${fieldName} contains prohibited or unsafe content` 
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
+ * Validate business/store name
+ * - Min/max length
+ * - Content safety
+ * - Garbage detection
+ */
+export function validateBusinessName(name: string | null | undefined, fieldName: string = 'Business name'): ValidationResult {
+  if (!name || typeof name !== 'string') {
+    return { valid: false, code: 'INVALID_BUSINESS_NAME', message: `${fieldName} is required` };
+  }
+
+  const trimmed = name.trim();
+  
+  if (!trimmed) {
+    return { valid: false, code: 'INVALID_BUSINESS_NAME', message: `${fieldName} is required` };
+  }
+
+  if (trimmed.length < 3) {
+    return { valid: false, code: 'INVALID_BUSINESS_NAME', message: `${fieldName} is too short` };
+  }
+
+  if (trimmed.length > 100) {
+    return { valid: false, code: 'INVALID_BUSINESS_NAME', message: `${fieldName} is too long` };
+  }
+
+  // Check for garbage patterns
+  for (const pattern of GARBAGE_PATTERNS) {
+    if (pattern.test(trimmed.replace(/\s/g, ''))) {
+      return { valid: false, code: 'INVALID_BUSINESS_NAME', message: `Please enter a valid ${fieldName.toLowerCase()}` };
+    }
+  }
+
+  // Content safety check
+  const safetyResult = validateContentSafety(trimmed);
+  if (!safetyResult.valid) {
+    return { 
+      valid: false, 
+      code: 'UNSAFE_CONTENT', 
+      message: `${fieldName} contains prohibited or unsafe content` 
+    };
+  }
+
+  return { valid: true };
+}
+
+/**
  * Validate multiple fields at once
  * Returns first error found or success
  */

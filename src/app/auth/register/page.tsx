@@ -128,31 +128,59 @@ export default function RegisterPage() {
         location: location,
         businessName: userType === "vendor" ? formData.businessName : undefined,
         businessType: userType === "vendor" ? formData.businessType : undefined,
+        address: userType === "vendor" ? formData.address : undefined,
       });
 
       if (!result.success) {
-        // Handle specific error codes
-        if (result.code === 'EMAIL_EXISTS') {
+        // Map server field errors to client field names
+        const fieldMap: Record<string, string> = {
+          'email': 'email',
+          'firstName': 'firstName',
+          'lastName': 'lastName',
+          'name': 'firstName',
+          'phone': 'phone',
+          'city': 'city',
+          'location': 'city',
+          'businessName': 'businessName',
+          'storeName': 'businessName',
+          'address': 'address',
+        };
+        
+        // Check if server returned a specific field
+        const serverField = result.field as string | undefined;
+        const clientField = serverField ? (fieldMap[serverField] || serverField) : null;
+        
+        if (clientField) {
+          // Field-specific error - set error on that field only (no toast)
+          setErrors({ [clientField]: result.error || "Invalid value" });
+          // Auto-scroll and focus on the failing field
+          setTimeout(() => {
+            const errorInput = document.getElementById(clientField) as HTMLInputElement;
+            if (errorInput) {
+              errorInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              errorInput.focus();
+            }
+          }, 100);
+        } else if (result.code === 'EMAIL_EXISTS') {
           setErrors({ email: "This email is already registered" });
-        } else if (result.code === 'INVALID_PHONE') {
-          setErrors({ phone: result.error || "Invalid phone number" });
+        } else if (result.code === 'PHONE_ALREADY_IN_USE') {
+          setErrors({ phone: result.error || "This phone number is already in use" });
         } else {
+          // Generic error - show as submit error (no toast spam)
           setErrors({ submit: result.error || "Registration failed" });
         }
         setIsLoading(false);
         return;
       }
 
+      // Success - single toast only
       toast.success(`Welcome to MarketHub, ${formData.firstName}!`);
 
       if (userType === "vendor") {
-        // Redirect to vendor verification
-        toast.info("Please complete the verification process to start selling.");
         setTimeout(() => {
           window.location.href = "/vendor/verify";
         }, 500);
       } else {
-        // Redirect to buyer dashboard
         setTimeout(() => {
           window.location.href = getRouteForRole("buyer");
         }, 500);
@@ -161,7 +189,7 @@ export default function RegisterPage() {
       console.error('[REGISTER] Error:', error);
       const errorMessage = error instanceof Error ? error.message : "Registration failed";
       setErrors({ submit: errorMessage });
-      toast.error(errorMessage);
+      // NO toast here - error is shown inline
     } finally {
       setIsLoading(false);
     }

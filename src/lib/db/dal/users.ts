@@ -131,6 +131,29 @@ export async function getUserByEmail(email: string): Promise<DbUser | null> {
   return result.rows[0] || null;
 }
 
+/**
+ * Check if a phone number is already in use by any user
+ * Returns true if phone exists, false otherwise
+ */
+export async function isPhoneInUse(phone: string): Promise<boolean> {
+  const result = await query<{ count: string }>(
+    'SELECT COUNT(*) as count FROM users WHERE phone = $1 AND is_deleted = 0',
+    [phone]
+  );
+  return parseInt(result.rows[0]?.count || '0', 10) > 0;
+}
+
+/**
+ * Get user by phone number
+ */
+export async function getUserByPhone(phone: string): Promise<DbUser | null> {
+  const result = await query<DbUser>(
+    'SELECT * FROM users WHERE phone = $1 AND is_deleted = 0',
+    [phone]
+  );
+  return result.rows[0] || null;
+}
+
 export async function getUsers(options?: {
   role?: UserRole;
   status?: UserStatus;

@@ -13,7 +13,16 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { registerUser, getRouteForRole, type AuthErrorCode } from '@/lib/db/dal/auth-service';
 import { logAuthEvent } from '@/lib/db/dal/audit';
-import { validatePhone, normalizePhone } from '@/lib/validation';
+import { isPhoneInUse } from '@/lib/db/dal/users';
+import { 
+  validatePhone, 
+  normalizePhone, 
+  validateEmail, 
+  validateName, 
+  validateBusinessName, 
+  validateAddress,
+  validateContentSafety 
+} from '@/lib/validation';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -42,14 +51,58 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { email, password, name, role, phone, location, businessName, businessType } = body;
+    const { email, password, name, role, phone, location, businessName, businessType, address } = body;
 
-    // Validate phone number if provided
+    // ===== COMPREHENSIVE VALIDATION =====
+    
+    // 1. Email validation (format + garbage detection)
+    const emailResult = validateEmail(email);
+    if (!emailResult.valid) {
+      return NextResponse.json(
+        { error: emailResult.message, code: emailResult.code, field: 'email' },
+        { status: 400 }
+      );
+    }
+
+    // 2. Name validation (content safety + garbage detection)
+    // Parse first/last name if full name is provided
+    const nameParts = (name || '').trim().split(/\s+/);
+    if (nameParts.length >= 2) {
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(' ');
+      
+      const firstNameResult = validateName(firstName, 'First name');
+      if (!firstNameResult.valid) {
+        return NextResponse.json(
+          { error: firstNameResult.message, code: firstNameResult.code, field: 'firstName' },
+          { status: 400 }
+        );
+      }
+      
+      const lastNameResult = validateName(lastName, 'Last name');
+      if (!lastNameResult.valid) {
+        return NextResponse.json(
+          { error: lastNameResult.message, code: lastNameResult.code, field: 'lastName' },
+          { status: 400 }
+        );
+      }
+    } else if (name) {
+      // Single name validation
+      const nameResult = validateName(name, 'Name');
+      if (!nameResult.valid) {
+        return NextResponse.json(
+          { error: nameResult.message, code: nameResult.code, field: 'name' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // 3. Phone validation (Ghana format)
     if (phone) {
       const phoneResult = validatePhone(phone);
       if (!phoneResult.valid) {
         return NextResponse.json(
-          { error: phoneResult.message, code: phoneResult.code },
+          { error: phoneResult.message, code: phoneResult.code, field: 'phone' },
           { status: 400 }
         );
       }
@@ -57,6 +110,75 @@ export async function POST(request: NextRequest) {
 
     // Normalize phone for storage
     const normalizedPhone = phone ? normalizePhone(phone) : undefined;
+
+    // 4. Phone uniqueness check
+    if (normalizedPhone) {
+      const phoneExists = await isPhoneInUse(normalizedPhone);
+      if (phoneExists) {
+        return NextResponse.json(
+          { 
+            error: 'This phone number is already associated with another account', 
+            code: 'PHONE_ALREADY_IN_USE', 
+            field: 'phone' 
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    // 5. Location/address validation (if provided)
+    if (location) {
+      const locationResult = validateAddress(location, 'Location');
+      if (!locationResult.valid) {
+        return NextResponse.json(
+          { error: locationResult.message, code: locationResult.code, field: 'city' },
+          { status: 400 }
+        );
+      }
+      
+      // Content safety check for location
+      const locationSafetyResult = validateContentSafety(location);
+      if (!locationSafetyResult.valid) {
+        return NextResponse.json(
+          { error: 'Location contains prohibited content', code: 'UNSAFE_CONTENT', field: 'city' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // 6. Vendor-specific validations
+    if (role === 'vendor') {
+      // Business name validation
+      if (businessName) {
+        const businessNameResult = validateBusinessName(businessName, 'Store name');
+        if (!businessNameResult.valid) {
+          return NextResponse.json(
+            { error: businessNameResult.message, code: businessNameResult.code, field: 'businessName' },
+            { status: 400 }
+          );
+        }
+      }
+      
+      // Business address validation (vendors only)
+      if (address) {
+        const addressResult = validateAddress(address, 'Business address');
+        if (!addressResult.valid) {
+          return NextResponse.json(
+            { error: addressResult.message, code: addressResult.code, field: 'address' },
+            { status: 400 }
+          );
+        }
+        
+        // Content safety check for address
+        const addressSafetyResult = validateContentSafety(address);
+        if (!addressSafetyResult.valid) {
+          return NextResponse.json(
+            { error: 'Business address contains prohibited content', code: 'UNSAFE_CONTENT', field: 'address' },
+            { status: 400 }
+          );
+        }
+      }
+    }
 
     console.log('[REGISTER_API] Starting atomic registration', { email, role });
 
