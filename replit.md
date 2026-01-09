@@ -19,6 +19,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Governance System**: Comprehensive system for vendor and product management, including vendor verification, product gating, category management with dynamic form schema, and detailed audit logging for critical administrative actions.
 - **Cart System**: Secure cart ownership model with guest and user carts, including guest-to-user cart merging on authentication and persistence for user carts.
 - **Reviews System**: Full-fledged database-backed review system allowing buyers to rate products, vendors to reply, and administrators to moderate content.
+- **Promotions System**: Database-backed coupons and sales management. Vendors create/manage their own promotions via `/vendor/promotions`. Admins view all promotions read-only at `/admin/promotions`. Coupons are validated at checkout with vendor scoping enforcement. Sales are per-product with discount type (percentage/fixed) and date ranges.
 - **API-First Approach**: All major data interactions, including product listings, search, vendor analytics, and administrative functions, are handled via dedicated API endpoints, moving away from client-side state management for data consistency.
 - **UI/UX**: Utilizes `shadcn/ui` for consistent and accessible components. The platform is designed to be intuitive for buyers, vendors, and administrators, with distinct dashboards for each user type.
 
