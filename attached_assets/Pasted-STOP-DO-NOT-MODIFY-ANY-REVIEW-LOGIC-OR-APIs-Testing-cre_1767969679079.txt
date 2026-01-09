@@ -1,0 +1,82 @@
+STOP. DO NOT MODIFY ANY REVIEW LOGIC OR APIs.
+
+Testing credentials (MANDATORY – USE THESE EXACT ACCOUNTS):
+
+Admin:
+email: the3rdukem@gmail.com
+password: 123asdqweX$
+
+Vendor:
+email: ven@kiosk.com.gh
+password: 123asdqwe
+
+Buyer:
+email: buy@kiosk.com.gh
+password: 123asdqwe
+
+========================================
+SCOPE: BUYER LAYOUT COMPOSITION FIX (UX)
+========================================
+
+THIS IS NOT A DESIGN TASK.
+THIS IS A LAYOUT / ROUTING FIX.
+
+----------------------------------------
+PROBLEM STATEMENT
+----------------------------------------
+
+The page `/buyer/reviews` renders OUTSIDE the Buyer Portal shell.
+
+Symptoms:
+- No logo
+- No buyer header
+- No user dropdown
+- No navigation
+- Page feels orphaned and non-professional
+
+Buttons do NOT fix this.
+Styling does NOT fix this.
+
+----------------------------------------
+REQUIRED FIX
+----------------------------------------
+
+1. `/buyer/reviews` MUST be rendered inside the SAME Buyer layout as:
+   - Buyer dashboard
+   - Buyer orders
+   - Buyer profile
+
+2. Ensure the page inherits:
+   - Buyer header
+   - Logo
+   - Buyer navigation
+   - User dropdown
+   - Standard buyer spacing & typography
+
+3. DO NOT create a new layout.
+4. DO NOT duplicate layout code.
+5. USE the existing Buyer layout (`app/buyer/layout.tsx` or equivalent).
+
+----------------------------------------
+ACCEPTANCE TEST (MANDATORY)
+----------------------------------------
+
+1. Login as buyer
+2. Click User Dropdown → My Reviews
+3. Page MUST:
+   - Look identical (layout-wise) to other Buyer pages
+   - Have logo, nav, dropdown
+   - Feel native, not standalone
+4. Edit & Delete review still works
+
+----------------------------------------
+DO NOT
+----------------------------------------
+
+- Do NOT touch review APIs
+- Do NOT modify backend logic
+- Do NOT add new UI components unless required for layout wiring
+- Do NOT report success without visually confirming layout consistency
+
+This task is COMPLETE only when the Buyer Reviews page is visually indistinguishable
+from other Buyer portal pages.

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/lib/auth-store";
+import { SiteLayout } from "@/components/layout/site-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -151,14 +152,19 @@ export default function BuyerReviewsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
-      </div>
+      <SiteLayout>
+        <div className="container py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+          </div>
+        </div>
+      </SiteLayout>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <SiteLayout>
+      <div className="container py-8 space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">My Reviews</h1>
@@ -356,6 +362,7 @@ export default function BuyerReviewsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </SiteLayout>
   );
 }
