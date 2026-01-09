@@ -93,24 +93,16 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 
-      // Get vendor's user_id from vendors table
-      const vendorLookup = await query<{ user_id: string }>(
-        'SELECT user_id FROM vendors WHERE id = $1',
-        [vendorId]
-      );
-      
-      const vendorUserId = vendorLookup.rows[0]?.user_id;
-      if (!vendorUserId) {
-        return NextResponse.json({ error: 'Vendor not found' }, { status: 404 });
-      }
-      
-      // Check if user owns this vendor or is admin
-      if (session.userId !== vendorUserId && session.role !== 'admin' && session.role !== 'master_admin') {
+      // vendorId param is the user.id (since products.vendor_id stores user.id)
+      // Verify the requester owns this vendor account or is admin
+      if (session.userId !== vendorId && session.role !== 'admin' && session.role !== 'master_admin') {
         return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
       }
 
-      // Query reviews using user_id (which is stored in reviews.vendor_id)
-      const reviews = await getVendorProductReviews(vendorUserId);
+      // Query reviews using vendorId directly (reviews.vendor_id stores user.id)
+      console.log('[REVIEWS_API] Fetching vendor reviews for user_id:', vendorId);
+      const reviews = await getVendorProductReviews(vendorId);
+      console.log('[REVIEWS_API] Found reviews:', reviews.length);
       return NextResponse.json({ reviews });
     }
 
