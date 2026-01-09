@@ -12,20 +12,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   ArrowLeft,
   TrendingUp,
-  TrendingDown,
   DollarSign,
   ShoppingCart,
   Package,
-  Users,
-  Eye,
   Star,
   BarChart3,
   Loader2,
   Calendar
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
-import { useProductsStore, Product } from "@/lib/products-store";
-import { useOrdersStore } from "@/lib/orders-store";
+import { Product } from "@/lib/products-store";
 
 interface ApiReview {
   id: string;
@@ -38,6 +34,8 @@ interface ApiReview {
   created_at: string;
   updated_at: string;
   product_name?: string;
+  vendor_reply?: string | null;
+  vendor_reply_at?: string | null;
 }
 
 interface NormalizedReview {
@@ -49,18 +47,24 @@ interface NormalizedReview {
   comment: string;
   productName: string;
   createdAt: string;
+  vendorReply?: string | null;
+  vendorReplyAt?: string | null;
 }
 
 export default function VendorAnalyticsPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const { syncVendorProducts } = useProductsStore();
-  const { getOrdersByVendor, getOrderStats } = useOrdersStore();
   const [isHydrated, setIsHydrated] = useState(false);
   const [timeRange, setTimeRange] = useState("30");
   const [vendorProducts, setVendorProducts] = useState<Product[]>([]);
   const [productReviews, setProductReviews] = useState<NormalizedReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [vendorStats, setVendorStats] = useState<{
+    products: { total: number; draft: number; active: number; pending: number; suspended: number };
+    orders: { total: number; pending: number; completed: number; cancelled: number };
+    revenue: number;
+    recentOrders: Array<{ id: string; status: string; total: number; createdAt: string; buyerName: string }>;
+  } | null>(null);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -81,9 +85,10 @@ export default function VendorAnalyticsPage() {
       
       setIsLoading(true);
       try {
-        const [productsRes, reviewsRes] = await Promise.all([
+        const [productsRes, reviewsRes, statsRes] = await Promise.all([
           fetch(`/api/products?vendorId=${user.id}`, { credentials: 'include' }),
-          fetch(`/api/reviews?vendorId=${user.id}`, { credentials: 'include' })
+          fetch(`/api/reviews?vendorId=${user.id}`, { credentials: 'include' }),
+          fetch('/api/vendor/stats', { credentials: 'include' })
         ]);
 
         if (productsRes.ok) {
@@ -103,8 +108,15 @@ export default function VendorAnalyticsPage() {
             comment: r.comment || '',
             productName: r.product_name || 'Unknown Product',
             createdAt: r.created_at,
+            vendorReply: r.vendor_reply,
+            vendorReplyAt: r.vendor_reply_at,
           }));
           setProductReviews(normalized);
+        }
+
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setVendorStats(statsData);
         }
       } catch (error) {
         console.error('Failed to fetch analytics data:', error);
@@ -132,38 +144,22 @@ export default function VendorAnalyticsPage() {
     return null;
   }
 
-  const vendorOrders = getOrdersByVendor(user.id);
-  const orderStats = getOrderStats(user.id);
-
   const averageStoreRating = productReviews.length > 0
     ? productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length
     : 0;
 
-  // Calculate metrics
-  const totalRevenue = orderStats.totalRevenue;
-  const totalOrders = orderStats.totalOrders;
-  const completedOrders = orderStats.completedOrders;
-  const pendingOrders = orderStats.pendingOrders;
+  // Get metrics from API
+  const totalRevenue = vendorStats?.revenue || 0;
+  const totalOrders = vendorStats?.orders.total || 0;
+  const completedOrders = vendorStats?.orders.completed || 0;
+  const pendingOrders = vendorStats?.orders.pending || 0;
 
-  // Get top products by orders
-  const productOrderCounts: Record<string, { name: string; orders: number; revenue: number }> = {};
-  for (const order of vendorOrders) {
-    for (const item of order.items) {
-      if (!productOrderCounts[item.productId]) {
-        productOrderCounts[item.productId] = { name: item.productName, orders: 0, revenue: 0 };
-      }
-      productOrderCounts[item.productId].orders += item.quantity;
-      productOrderCounts[item.productId].revenue += item.price * item.quantity;
-    }
-  }
-  const topProducts = Object.entries(productOrderCounts)
-    .sort((a, b) => b[1].revenue - a[1].revenue)
-    .slice(0, 5);
-
-  // Calculate order status distribution
+  // Calculate order status distribution from API data
   const statusCounts: Record<string, number> = {};
-  for (const order of vendorOrders) {
-    statusCounts[order.status] = (statusCounts[order.status] || 0) + 1;
+  if (vendorStats) {
+    if (vendorStats.orders.pending > 0) statusCounts['pending'] = vendorStats.orders.pending;
+    if (vendorStats.orders.completed > 0) statusCounts['delivered'] = vendorStats.orders.completed;
+    if (vendorStats.orders.cancelled > 0) statusCounts['cancelled'] = vendorStats.orders.cancelled;
   }
 
   return (
@@ -279,7 +275,7 @@ export default function VendorAnalyticsPage() {
 
         <Tabs defaultValue="products" className="space-y-6">
           <TabsList>
-            <TabsTrigger value="products">Top Products</TabsTrigger>
+            <TabsTrigger value="products">Recent Orders</TabsTrigger>
             <TabsTrigger value="orders">Order Status</TabsTrigger>
             <TabsTrigger value="reviews">Recent Reviews</TabsTrigger>
           </TabsList>
@@ -287,30 +283,42 @@ export default function VendorAnalyticsPage() {
           <TabsContent value="products">
             <Card>
               <CardHeader>
-                <CardTitle>Best Selling Products</CardTitle>
-                <CardDescription>Products generating the most revenue</CardDescription>
+                <CardTitle>Recent Orders</CardTitle>
+                <CardDescription>Your latest orders from customers</CardDescription>
               </CardHeader>
               <CardContent>
-                {topProducts.length === 0 ? (
+                {!vendorStats?.recentOrders || vendorStats.recentOrders.length === 0 ? (
                   <div className="text-center py-12">
-                    <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-muted-foreground">No sales data yet</p>
+                    <ShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-muted-foreground">No orders yet</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
-                    {topProducts.map(([productId, data], index) => (
-                      <div key={productId} className="flex items-center justify-between p-4 border rounded-lg">
+                    {vendorStats.recentOrders.map((order, index) => (
+                      <div key={order.id} className="flex items-center justify-between p-4 border rounded-lg">
                         <div className="flex items-center gap-4">
                           <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center font-bold">
                             {index + 1}
                           </div>
                           <div>
-                            <p className="font-medium">{data.name}</p>
-                            <p className="text-sm text-muted-foreground">{data.orders} units sold</p>
+                            <p className="font-medium">{order.buyerName}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {new Date(order.createdAt).toLocaleDateString()}
+                            </p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-bold text-green-600">GHS {data.revenue.toLocaleString()}</p>
+                          <Badge
+                            variant={
+                              order.status === "delivered" ? "default" :
+                              order.status === "pending" ? "secondary" :
+                              order.status === "cancelled" ? "destructive" : "outline"
+                            }
+                            className="mb-1"
+                          >
+                            {order.status}
+                          </Badge>
+                          <p className="font-bold text-green-600">GHS {order.total.toLocaleString()}</p>
                         </div>
                       </div>
                     ))}
@@ -396,6 +404,17 @@ export default function VendorAnalyticsPage() {
                         <p className="text-xs text-muted-foreground mt-2">
                           {new Date(review.createdAt).toLocaleDateString()}
                         </p>
+                        {review.vendorReply && (
+                          <div className="mt-3 pl-4 border-l-2 border-green-200 bg-green-50 p-3 rounded-r-lg">
+                            <p className="text-xs font-medium text-green-700 mb-1">Your Reply</p>
+                            <p className="text-sm text-gray-700">{review.vendorReply}</p>
+                            {review.vendorReplyAt && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(review.vendorReplyAt).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

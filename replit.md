@@ -133,3 +133,6 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - **Suspense Wrapper Fix**: Search page wrapped in Suspense boundary for Next.js App Router useSearchParams compatibility
 - **DbInitializer Pattern**: Global DbInitializer component ensures database and auth are initialized before rendering app content
 - **Product Detail Page API-First**: Product detail page now fetches from `/api/products/[id]` API instead of Zustand store, with proper handling of nested `{product:{...}}` response format
+- **MultiImageUpload Defensive Fix**: Added `safeValues = Array.isArray(values) ? values : []` to prevent crashes when values prop is undefined/null
+- **Admin Edit Product Prop Fix**: Fixed prop mismatch - changed `images={}` to `values={}` to match MultiImageUpload interface
+- **Vendor Analytics API-First**: Removed Zustand store dependencies, now fetches from `/api/vendor/stats` for order/revenue metrics and displays vendor replies in reviews

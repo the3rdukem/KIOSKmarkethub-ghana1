@@ -420,7 +420,7 @@ export default function AdminEditProductPage() {
           </CardHeader>
           <CardContent>
             <MultiImageUpload
-              images={productImages}
+              values={productImages}
               onChange={setProductImages}
               maxImages={5}
             />

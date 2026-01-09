@@ -205,10 +205,13 @@ export function MultiImageUpload({
 }: MultiImageUploadProps) {
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  
+  // Defensive: ensure values is always an array
+  const safeValues = Array.isArray(values) ? values : [];
 
   const handleFileSelect = useCallback(
     async (files: FileList) => {
-      const remainingSlots = maxImages - values.length;
+      const remainingSlots = maxImages - safeValues.length;
       if (remainingSlots <= 0) {
         toast.error(`Maximum ${maxImages} images allowed`);
         return;
@@ -246,7 +249,7 @@ export function MultiImageUpload({
         }
 
         if (newImages.length > 0) {
-          onChange([...values, ...newImages]);
+          onChange([...safeValues, ...newImages]);
           toast.success(`Added ${newImages.length} image(s)`);
         }
       } catch (error) {
@@ -255,7 +258,7 @@ export function MultiImageUpload({
         setIsLoading(false);
       }
     },
-    [values, onChange, maxImages, maxSizeMB]
+    [safeValues, onChange, maxImages, maxSizeMB]
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -270,12 +273,12 @@ export function MultiImageUpload({
   };
 
   const handleRemove = (index: number) => {
-    const newValues = values.filter((_, i) => i !== index);
+    const newValues = safeValues.filter((_, i) => i !== index);
     onChange(newValues);
   };
 
   const handleReorder = (fromIndex: number, toIndex: number) => {
-    const newValues = [...values];
+    const newValues = [...safeValues];
     const [removed] = newValues.splice(fromIndex, 1);
     newValues.splice(toIndex, 0, removed);
     onChange(newValues);
@@ -293,7 +296,7 @@ export function MultiImageUpload({
       />
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        {values.map((image, index) => (
+        {safeValues.map((image, index) => (
           <div
             key={index}
             className="relative aspect-square rounded-lg overflow-hidden border group"
@@ -321,7 +324,7 @@ export function MultiImageUpload({
           </div>
         ))}
 
-        {values.length < maxImages && (
+        {safeValues.length < maxImages && (
           <div
             onClick={() => inputRef.current?.click()}
             className="aspect-square border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-gray-400 transition-colors flex flex-col items-center justify-center"
@@ -339,7 +342,7 @@ export function MultiImageUpload({
       </div>
 
       <p className="text-xs text-muted-foreground mt-2">
-        {values.length}/{maxImages} images. First image is the main product image.
+        {safeValues.length}/{maxImages} images. First image is the main product image.
       </p>
     </div>
   );
