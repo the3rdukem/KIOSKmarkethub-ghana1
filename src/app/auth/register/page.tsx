@@ -81,7 +81,16 @@ export default function RegisterPage() {
 
     if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
     if (!formData.password) newErrors.password = "Password is required";
-    else if (formData.password.length < 6) newErrors.password = "Password must be at least 6 characters";
+    else {
+      const passwordChecks = [];
+      if (formData.password.length < 8) passwordChecks.push("at least 8 characters");
+      if (!/[A-Z]/.test(formData.password)) passwordChecks.push("one uppercase letter");
+      if (!/[a-z]/.test(formData.password)) passwordChecks.push("one lowercase letter");
+      if (!/[0-9]/.test(formData.password)) passwordChecks.push("one number");
+      if (passwordChecks.length > 0) {
+        newErrors.password = `Password must contain ${passwordChecks.join(", ")}`;
+      }
+    }
     if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = "Passwords do not match";
     if (!formData.region) newErrors.region = "Region is required";
     if (!formData.city.trim()) newErrors.city = "City is required";
@@ -399,6 +408,39 @@ export default function RegisterPage() {
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
+                {formData.password && (
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex gap-1">
+                      {[
+                        formData.password.length >= 8,
+                        /[A-Z]/.test(formData.password),
+                        /[a-z]/.test(formData.password),
+                        /[0-9]/.test(formData.password)
+                      ].map((met, i) => (
+                        <div
+                          key={i}
+                          className={`h-1.5 flex-1 rounded-full transition-colors ${
+                            met ? "bg-green-500" : "bg-gray-200"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-xs">
+                      <span className={formData.password.length >= 8 ? "text-green-600" : "text-gray-500"}>
+                        {formData.password.length >= 8 ? <CheckCircle className="inline w-3 h-3 mr-1" /> : "○ "}8+ characters
+                      </span>
+                      <span className={/[A-Z]/.test(formData.password) ? "text-green-600" : "text-gray-500"}>
+                        {/[A-Z]/.test(formData.password) ? <CheckCircle className="inline w-3 h-3 mr-1" /> : "○ "}Uppercase
+                      </span>
+                      <span className={/[a-z]/.test(formData.password) ? "text-green-600" : "text-gray-500"}>
+                        {/[a-z]/.test(formData.password) ? <CheckCircle className="inline w-3 h-3 mr-1" /> : "○ "}Lowercase
+                      </span>
+                      <span className={/[0-9]/.test(formData.password) ? "text-green-600" : "text-gray-500"}>
+                        {/[0-9]/.test(formData.password) ? <CheckCircle className="inline w-3 h-3 mr-1" /> : "○ "}Number
+                      </span>
+                    </div>
+                  </div>
+                )}
                 {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
               </div>
 

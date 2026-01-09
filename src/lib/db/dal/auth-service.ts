@@ -84,6 +84,37 @@ export type AuthErrorCode =
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 // ============================================
+// PASSWORD VALIDATION
+// ============================================
+
+export interface PasswordValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+export function validatePassword(password: string): PasswordValidationResult {
+  const errors: string[] = [];
+  
+  if (!password || password.length < 8) {
+    errors.push('Password must be at least 8 characters');
+  }
+  if (!/[A-Z]/.test(password)) {
+    errors.push('Password must contain at least one uppercase letter');
+  }
+  if (!/[a-z]/.test(password)) {
+    errors.push('Password must contain at least one lowercase letter');
+  }
+  if (!/[0-9]/.test(password)) {
+    errors.push('Password must contain at least one number');
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors,
+  };
+}
+
+// ============================================
 // SINGLE PASSWORD HASHING STRATEGY
 // ============================================
 
@@ -157,15 +188,26 @@ export async function createUser(
       error: { code: 'INVALID_INPUT', message: 'Email, password, name, and role are required' },
     };
   }
-  if (!/\S+@\S+\.\S+/.test(input.email)) {
+  
+  // Validate email format (RFC-compliant check)
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(input.email)) {
     return { success: false, error: { code: 'INVALID_INPUT', message: 'Invalid email format' } };
   }
-  if (input.password.length < 6) {
+  
+  // Strong password validation (8+ chars, 1 uppercase, 1 lowercase, 1 number)
+  const passwordValidation = validatePassword(input.password);
+  if (!passwordValidation.isValid) {
     return {
       success: false,
-      error: { code: 'INVALID_INPUT', message: 'Password must be at least 6 characters' },
+      error: { 
+        code: 'INVALID_INPUT', 
+        message: passwordValidation.errors[0],
+        details: passwordValidation.errors.join('; ')
+      },
     };
   }
+  
   if (!['buyer', 'vendor', 'admin', 'master_admin'].includes(input.role)) {
     return {
       success: false,
@@ -182,23 +224,66 @@ export async function createUser(
   try {
     const result = await runTransaction(async (client) => {
       const now = new Date().toISOString();
+      const normalizedEmail = input.email.toLowerCase().trim();
 
-      // Check email doesn't exist in users table
-      const existingUserResult = await client.query(
-        'SELECT id FROM users WHERE LOWER(email) = LOWER($1)',
-        [input.email.toLowerCase()]
-      );
-      if (existingUserResult.rows[0]) {
-        throw { code: 'EMAIL_EXISTS' as AuthErrorCode, message: 'An account with this email already exists' };
-      }
-
-      // Also check admin_users table for backward compatibility
+      // Check email uniqueness with role-specific logic
+      // RULE: Same email allowed for buyer + vendor, but NOT for same role twice
+      // Admin emails must be globally unique
+      
+      // Check admin_users table first (admin emails must be globally unique)
       const existingAdminResult = await client.query(
         'SELECT id FROM admin_users WHERE LOWER(email) = LOWER($1)',
-        [input.email.toLowerCase()]
+        [normalizedEmail]
       );
       if (existingAdminResult.rows[0]) {
-        throw { code: 'EMAIL_EXISTS' as AuthErrorCode, message: 'An account with this email already exists' };
+        throw { code: 'EMAIL_EXISTS' as AuthErrorCode, message: 'This email is already registered as an admin' };
+      }
+      
+      // If registering as admin, check that email doesn't exist anywhere
+      if (input.role === 'admin' || input.role === 'master_admin') {
+        const existingUserResult = await client.query(
+          'SELECT id, role FROM users WHERE LOWER(email) = LOWER($1)',
+          [normalizedEmail]
+        );
+        if (existingUserResult.rows[0]) {
+          throw { code: 'EMAIL_EXISTS' as AuthErrorCode, message: 'This email is already registered' };
+        }
+      } else {
+        // For buyer/vendor: check if email exists with the SAME role
+        const existingUserResult = await client.query(
+          'SELECT id, role FROM users WHERE LOWER(email) = LOWER($1) AND is_deleted = 0',
+          [normalizedEmail]
+        );
+        
+        if (existingUserResult.rows.length > 0) {
+          // Build a set of existing roles for this email
+          const existingRoles = new Set(existingUserResult.rows.map(row => row.role));
+          
+          // Check for admin/master_admin in users table - globally unique
+          if (existingRoles.has('admin') || existingRoles.has('master_admin')) {
+            throw { 
+              code: 'EMAIL_EXISTS' as AuthErrorCode, 
+              message: 'This email is already registered as an admin' 
+            };
+          }
+          
+          // Check for duplicate role - can't have two accounts with same role
+          if (existingRoles.has(input.role)) {
+            const roleLabel = input.role === 'buyer' ? 'buyer' : 'vendor';
+            throw { 
+              code: 'EMAIL_EXISTS' as AuthErrorCode, 
+              message: `This email is already registered as a ${roleLabel}` 
+            };
+          }
+          
+          // If existing has both buyer AND vendor already, reject
+          if (existingRoles.has('buyer') && existingRoles.has('vendor')) {
+            throw { 
+              code: 'EMAIL_EXISTS' as AuthErrorCode, 
+              message: 'This email already has both buyer and vendor accounts' 
+            };
+          }
+        }
       }
 
       // Hash password using SINGLE strategy

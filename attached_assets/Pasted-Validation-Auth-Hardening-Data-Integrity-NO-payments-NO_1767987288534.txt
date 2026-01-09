@@ -1,0 +1,171 @@
+Validation, Auth Hardening & Data Integrity
+
+(NO payments, NO new features, NO UI redesigns beyond validation feedback)
+
+⸻
+
+🚫 ABSOLUTE RULES (READ FIRST)
+	1.	DO NOT introduce new features
+	2.	DO NOT refactor unrelated files
+	3.	DO NOT touch payments, Paystack, coupons, sales, or checkout
+	4.	DO NOT mark anything “fixed” without reproducing and verifying
+	5.	DO NOT rely on Zustand/localStorage for validation
+	6.	ALL validation must be enforced server-side first
+	7.	Client-side validation is UX only — never the source of truth
+
+If any rule is violated, stop and report before proceeding.
+
+⸻
+
+🎯 PHASE 1 OBJECTIVE
+
+Create a production-grade validation and auth integrity layer that guarantees:
+	•	No invalid data can enter the system
+	•	No duplicate or conflicting accounts can exist
+	•	All auth flows behave deterministically
+	•	All failures return clear, user-friendly messages
+	•	No silent failures
+	•	No ghost records
+	•	No inconsistent identity states
+
+⸻
+
+📦 SCOPE OF WORK (ONLY THESE)
+
+1️⃣ AUTH & IDENTITY VALIDATION (CRITICAL)
+
+Email
+	•	Must be valid RFC email format
+	•	Case-insensitive uniqueness
+	•	Same email cannot register twice:
+	•	EXCEPT: one Buyer + one Vendor account allowed
+	•	Admin emails must be globally unique
+	•	Clear error messages:
+	•	“This email is already registered as a buyer”
+	•	“This email already exists as an admin”
+
+Password
+	•	Minimum 8 characters
+	•	Must include:
+	•	1 uppercase
+	•	1 lowercase
+	•	1 number
+	•	Enforced server-side
+	•	Client shows real-time feedback
+
+Login
+	•	Correct error differentiation:
+	•	Email not found
+	•	Wrong password
+	•	Account suspended
+	•	No generic “Invalid credentials”
+
+Logout
+	•	Fully deterministic:
+	•	Session destroyed
+	•	Cart cleared
+	•	User state reset
+	•	No cross-user leakage (already seen before — verify again)
+
+⸻
+
+2️⃣ ROLE & ACCOUNT CONSISTENCY
+	•	Buyer, Vendor, Admin identities must be:
+	•	Mutually exclusive where required
+	•	Clearly resolved at login
+	•	Admin-created users:
+	•	Must persist
+	•	Must appear in admin lists
+	•	Must login immediately
+	•	Prevent role drift (e.g. vendor logging in as buyer)
+
+⸻
+
+3️⃣ FORM VALIDATION (SYSTEM-WIDE)
+
+Apply to ALL forms, including:
+	•	Signup
+	•	Login
+	•	Product creation/edit
+	•	Reviews
+	•	Promotions
+	•	Profile edits
+
+Rules:
+	•	Required fields enforced server-side
+	•	Numeric fields validated (price > 0, quantity ≥ 0)
+	•	Dates validated (start < end)
+	•	Empty strings normalized to NULL
+	•	No null.trim() errors anywhere
+
+⸻
+
+4️⃣ DATABASE CONSTRAINTS (NON-NEGOTIABLE)
+
+Add or verify:
+	•	Unique indexes (email + role logic)
+	•	Foreign key constraints
+	•	NOT NULL where appropriate
+	•	Safe defaults
+
+If DB constraints conflict with existing data:
+	•	Report clearly
+	•	Do NOT auto-delete records
+
+⸻
+
+5️⃣ ERROR HANDLING & FEEDBACK
+
+Every failure must:
+	•	Return a structured error { code, message }
+	•	Display a user-friendly toast or inline error
+	•	Never silently fail
+	•	Never log {} as an error
+
+⸻
+
+🧪 MANDATORY TESTING (USE THESE ACCOUNTS)
+
+You MUST manually test every scenario below using:
+	•	Admin: the3rdukem@gmail.com / 123asdqweX$
+	•	Vendor: ven@kiosk.com.gh / 123asdqwe
+	•	Buyer: buy@kiosk.com.gh / 123asdqwe
+
+Required Tests (All Must Pass):
+	•	Duplicate email registration (buyer → buyer, buyer → vendor, vendor → admin)
+	•	Weak password rejection
+	•	Invalid email rejection
+	•	Admin creates admin → appears → logs in
+	•	Logout → login as different user → no state bleed
+	•	Form submission with missing required fields
+	•	Product edit with empty description (no crash)
+	•	Review edit/delete time window respected (if applicable)
+	•	Validation errors show correct messages
+
+⸻
+
+🧾 FINAL REPORT FORMAT (STRICT)
+
+You must return:
+
+✅ What Was Fixed
+
+(List with file paths and reasons)
+
+🧪 What Was Tested
+
+(Explicit scenarios + which account was used)
+
+❌ What Was NOT Touched
+
+(To confirm scope discipline)
+
+⚠️ Known Limitations
+
+(If anything is deferred)
+
+🛑 Verification Statement
+
+“I have manually verified each item above and confirm no silent failures remain.”
+
+If this statement cannot be made truthfully — STOP.

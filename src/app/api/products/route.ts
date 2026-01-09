@@ -237,23 +237,65 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Only vendors and admins can create products' }, { status: 403 });
     }
 
-    // Validate required fields
-    if (!body.name || !body.price) {
+    // Comprehensive field validation
+    const validationErrors: string[] = [];
+    
+    // Required fields validation
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    if (!name) {
+      validationErrors.push('Product name is required');
+    }
+    
+    // Price validation
+    const price = parseFloat(body.price);
+    if (isNaN(price) || price <= 0) {
+      validationErrors.push('Price must be a positive number');
+    }
+    
+    // Quantity validation - explicit parsing with default
+    const quantityInput = body.quantity !== undefined && body.quantity !== null && body.quantity !== '' 
+      ? String(body.quantity) 
+      : '0';
+    const quantity = parseInt(quantityInput, 10);
+    if (isNaN(quantity) || quantity < 0) {
+      validationErrors.push('Quantity must be zero or a positive number');
+    }
+    
+    // Compare price validation (if provided)
+    let comparePrice: number | undefined;
+    if (body.comparePrice !== undefined && body.comparePrice !== null && body.comparePrice !== '') {
+      comparePrice = parseFloat(body.comparePrice);
+      if (isNaN(comparePrice) || comparePrice < 0) {
+        validationErrors.push('Compare price must be a positive number');
+      }
+    }
+    
+    // Return all validation errors
+    if (validationErrors.length > 0) {
       return NextResponse.json(
-        { error: 'Name and price are required' },
+        { 
+          error: validationErrors[0],
+          code: 'VALIDATION_ERROR',
+          details: validationErrors.join('; '),
+          validationErrors 
+        },
         { status: 400 }
       );
     }
+    
+    // Normalize empty strings to null
+    const description = typeof body.description === 'string' && body.description.trim() ? body.description.trim() : null;
+    const category = typeof body.category === 'string' && body.category.trim() ? body.category.trim() : null;
 
     const productInput: CreateProductInput = {
       vendorId: targetVendorId,
       vendorName: targetVendor!.business_name || targetVendor!.name,
-      name: body.name,
-      description: body.description,
-      category: body.category,
-      price: parseFloat(body.price),
-      comparePrice: body.comparePrice ? parseFloat(body.comparePrice) : undefined,
-      quantity: body.quantity ? parseInt(body.quantity, 10) : 0,
+      name: name,
+      description: description,
+      category: category,
+      price: price,
+      comparePrice: comparePrice,
+      quantity: quantity,
       trackQuantity: body.trackQuantity !== false,
       images: body.images,
       tags: body.tags,

@@ -55,8 +55,59 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { productIds, name, discountType, discountValue, startDate, endDate } = body;
 
-    if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !name || !discountType || discountValue === undefined) {
-      return NextResponse.json({ error: 'Missing required fields. productIds must be a non-empty array.' }, { status: 400 });
+    // Comprehensive validation
+    const validationErrors: string[] = [];
+    
+    // Required fields
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0) {
+      validationErrors.push('At least one product must be selected');
+    }
+    
+    const saleName = typeof name === 'string' ? name.trim() : '';
+    if (!saleName) {
+      validationErrors.push('Sale name is required');
+    }
+    
+    if (!discountType || !['percentage', 'fixed'].includes(discountType)) {
+      validationErrors.push('Discount type must be "percentage" or "fixed"');
+    }
+    
+    // Discount value validation
+    const parsedDiscountValue = parseFloat(discountValue);
+    if (isNaN(parsedDiscountValue) || parsedDiscountValue <= 0) {
+      validationErrors.push('Discount value must be a positive number');
+    }
+    
+    if (discountType === 'percentage' && parsedDiscountValue > 100) {
+      validationErrors.push('Percentage discount cannot exceed 100%');
+    }
+    
+    // Date validation - require both or neither
+    const hasStartDate = startDate !== undefined && startDate !== null && startDate !== '';
+    const hasEndDate = endDate !== undefined && endDate !== null && endDate !== '';
+    
+    if (hasStartDate !== hasEndDate) {
+      validationErrors.push('Both start date and end date are required, or leave both empty');
+    } else if (hasStartDate && hasEndDate) {
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        validationErrors.push('Invalid date format');
+      } else if (start >= end) {
+        validationErrors.push('End date must be after start date');
+      }
+    }
+    
+    if (validationErrors.length > 0) {
+      return NextResponse.json(
+        { 
+          error: validationErrors[0],
+          code: 'VALIDATION_ERROR',
+          details: validationErrors.join('; '),
+          validationErrors 
+        },
+        { status: 400 }
+      );
     }
 
     const sale = await createSale({

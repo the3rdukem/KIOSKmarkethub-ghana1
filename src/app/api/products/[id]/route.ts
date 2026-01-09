@@ -145,6 +145,49 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
+    const validationErrors: string[] = [];
+    
+    // Validate fields if provided
+    if (body.name !== undefined) {
+      const name = typeof body.name === 'string' ? body.name.trim() : '';
+      if (!name) {
+        validationErrors.push('Product name cannot be empty');
+      }
+    }
+    
+    if (body.price !== undefined) {
+      const price = parseFloat(body.price);
+      if (isNaN(price) || price <= 0) {
+        validationErrors.push('Price must be a positive number');
+      }
+    }
+    
+    if (body.quantity !== undefined) {
+      const quantity = parseInt(body.quantity, 10);
+      if (isNaN(quantity) || quantity < 0) {
+        validationErrors.push('Quantity must be zero or a positive number');
+      }
+    }
+    
+    if (body.comparePrice !== undefined && body.comparePrice !== null && body.comparePrice !== '') {
+      const comparePrice = parseFloat(body.comparePrice);
+      if (isNaN(comparePrice) || comparePrice < 0) {
+        validationErrors.push('Compare price must be a positive number');
+      }
+    }
+    
+    if (validationErrors.length > 0) {
+      return NextResponse.json(
+        { 
+          error: validationErrors[0],
+          code: 'VALIDATION_ERROR',
+          details: validationErrors.join('; '),
+          validationErrors 
+        },
+        { status: 400 }
+      );
+    }
+    
     const updates: UpdateProductInput = {};
 
     // CRITICAL: Vendor verification gating for status changes to 'active'
