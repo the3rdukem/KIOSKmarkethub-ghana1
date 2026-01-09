@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { SiteLayout } from "@/components/layout/site-layout";
@@ -10,12 +10,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -25,21 +24,70 @@ import {
   AlertTriangle, Loader2, Zap, ShoppingBag, TrendingUp
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
-import { useProductsStore } from "@/lib/products-store";
-import { usePromotionsStore, Coupon, Sale, PromotionStatus } from "@/lib/promotions-store";
 import { toast } from "sonner";
 import { format } from "date-fns";
+
+interface Coupon {
+  id: string;
+  vendor_user_id: string;
+  code: string;
+  name: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  min_order_amount: number;
+  usage_limit: number | null;
+  usage_count: number;
+  starts_at: string;
+  ends_at: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface Sale {
+  id: string;
+  vendor_user_id: string;
+  product_id: string;
+  name: string;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  starts_at: string;
+  ends_at: string;
+  is_active: boolean;
+  created_at: string;
+  product_name?: string;
+}
+
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  status: string;
+}
+
+type PromotionStatus = 'active' | 'scheduled' | 'expired' | 'disabled';
+
+function getPromotionStatus(startsAt: string, endsAt: string, isActive: boolean): PromotionStatus {
+  if (!isActive) return 'disabled';
+  const now = new Date();
+  const start = new Date(startsAt);
+  const end = new Date(endsAt);
+  if (now < start) return 'scheduled';
+  if (now > end) return 'expired';
+  return 'active';
+}
 
 export default function VendorPromotionsPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const { getProductsByVendor } = useProductsStore();
-  const {
-    getCouponsByVendor, getSalesByVendor, getActiveCoupons, getActiveSales,
-    addCoupon, updateCoupon, deleteCoupon, addSale, updateSale, deleteSale, updatePromotionStatuses,
-  } = usePromotionsStore();
-
+  
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [sales, setSales] = useState<Sale[]>([]);
+  const [vendorProducts, setVendorProducts] = useState<Product[]>([]);
+  
   const [showCouponDialog, setShowCouponDialog] = useState(false);
   const [showSaleDialog, setShowSaleDialog] = useState(false);
   const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
@@ -54,28 +102,64 @@ export default function VendorPromotionsPage() {
 
   const [saleForm, setSaleForm] = useState({
     name: "", discountType: "percentage" as "percentage" | "fixed",
-    discountValue: 10, productIds: [] as string[],
+    discountValue: 10, productId: "",
     startDate: format(new Date(), "yyyy-MM-dd"),
     endDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
   });
 
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    
+    setIsLoading(true);
+    try {
+      const [couponsRes, salesRes, productsRes] = await Promise.all([
+        fetch('/api/coupons', { credentials: 'include' }),
+        fetch('/api/sales', { credentials: 'include' }),
+        fetch(`/api/products?vendorId=${user.id}`, { credentials: 'include' }),
+      ]);
+
+      if (couponsRes.ok) {
+        const data = await couponsRes.json();
+        setCoupons(data.coupons || []);
+      }
+
+      if (salesRes.ok) {
+        const data = await salesRes.json();
+        setSales(data.sales || []);
+      }
+
+      if (productsRes.ok) {
+        const data = await productsRes.json();
+        setVendorProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch promotions data:', error);
+      toast.error('Failed to load promotions');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
   useEffect(() => { setIsHydrated(true); }, []);
-  useEffect(() => { if (isHydrated) updatePromotionStatuses(); }, [isHydrated, updatePromotionStatuses]);
+  
   useEffect(() => {
     if (isHydrated && !isAuthenticated) router.push("/auth/login");
     if (isHydrated && user && user.role !== "vendor") router.push("/");
   }, [isHydrated, isAuthenticated, user, router]);
 
-  if (!isHydrated) {
+  useEffect(() => {
+    if (isHydrated && user) {
+      fetchData();
+    }
+  }, [isHydrated, user, fetchData]);
+
+  if (!isHydrated || isLoading) {
     return <SiteLayout><div className="container py-8 flex justify-center min-h-[400px]"><Loader2 className="w-12 h-12 animate-spin text-emerald-500" /></div></SiteLayout>;
   }
   if (!isAuthenticated || !user || user.role !== "vendor") return null;
 
-  const vendorProducts = getProductsByVendor(user.id);
-  const coupons = getCouponsByVendor(user.id);
-  const sales = getSalesByVendor(user.id);
-  const activeCoupons = getActiveCoupons(user.id);
-  const activeSales = getActiveSales(user.id);
+  const activeCoupons = coupons.filter(c => getPromotionStatus(c.starts_at, c.ends_at, c.is_active) === 'active');
+  const activeSales = sales.filter(s => getPromotionStatus(s.starts_at, s.ends_at, s.is_active) === 'active');
 
   const getStatusBadge = (status: PromotionStatus) => {
     const configs: Record<PromotionStatus, { className: string; icon: React.ReactNode; label: string }> = {
@@ -88,47 +172,183 @@ export default function VendorPromotionsPage() {
     return <Badge className={config.className}>{config.icon}{config.label}</Badge>;
   };
 
-  const handleSaveCoupon = () => {
-    if (!couponForm.code.trim() || !couponForm.name.trim()) { toast.error("Please fill required fields"); return; }
-    const data = {
-      code: couponForm.code.toUpperCase(), name: couponForm.name,
-      discountType: couponForm.discountType, discountValue: couponForm.discountValue,
-      scope: "store_wide" as const, minOrderAmount: couponForm.minOrderAmount || undefined,
-      usageLimit: couponForm.usageLimit || undefined,
-      startDate: new Date(couponForm.startDate).toISOString(),
-      endDate: new Date(couponForm.endDate).toISOString(),
-    };
-    if (editingCoupon) { updateCoupon(editingCoupon.id, data); toast.success("Coupon updated!"); }
-    else { addCoupon({ vendorId: user.id, ...data, status: "active" }); toast.success("Coupon created!"); }
-    setShowCouponDialog(false);
+  const resetCouponForm = () => {
     setCouponForm({ code: "", name: "", discountType: "percentage", discountValue: 10, minOrderAmount: 0, usageLimit: 0, startDate: format(new Date(), "yyyy-MM-dd"), endDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), "yyyy-MM-dd") });
     setEditingCoupon(null);
   };
 
-  const handleSaveSale = () => {
-    if (!saleForm.name.trim() || saleForm.productIds.length === 0) { toast.error("Please fill fields and select products"); return; }
-    const data = {
-      name: saleForm.name, discountType: saleForm.discountType, discountValue: saleForm.discountValue,
-      productIds: saleForm.productIds,
-      startDate: new Date(saleForm.startDate).toISOString(),
-      endDate: new Date(saleForm.endDate).toISOString(),
-    };
-    if (editingSale) { updateSale(editingSale.id, data); toast.success("Sale updated!"); }
-    else { addSale({ vendorId: user.id, ...data, status: "active" }); toast.success("Sale created!"); }
-    setShowSaleDialog(false);
-    setSaleForm({ name: "", discountType: "percentage", discountValue: 10, productIds: [], startDate: format(new Date(), "yyyy-MM-dd"), endDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd") });
+  const resetSaleForm = () => {
+    setSaleForm({ name: "", discountType: "percentage", discountValue: 10, productId: "", startDate: format(new Date(), "yyyy-MM-dd"), endDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd") });
     setEditingSale(null);
+  };
+
+  const handleSaveCoupon = async () => {
+    if (!couponForm.code.trim() || !couponForm.name.trim()) { 
+      toast.error("Please fill required fields"); 
+      return; 
+    }
+    
+    setIsSaving(true);
+    try {
+      const payload = {
+        code: couponForm.code.toUpperCase(),
+        name: couponForm.name,
+        discountType: couponForm.discountType,
+        discountValue: couponForm.discountValue,
+        minOrderAmount: couponForm.minOrderAmount || 0,
+        usageLimit: couponForm.usageLimit || null,
+        startDate: new Date(couponForm.startDate).toISOString(),
+        endDate: new Date(couponForm.endDate).toISOString(),
+      };
+
+      let response;
+      if (editingCoupon) {
+        response = await fetch(`/api/coupons/${editingCoupon.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        response = await fetch('/api/coupons', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (response.ok) {
+        toast.success(editingCoupon ? "Coupon updated!" : "Coupon created!");
+        setShowCouponDialog(false);
+        resetCouponForm();
+        fetchData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to save coupon");
+      }
+    } catch (error) {
+      console.error('Save coupon error:', error);
+      toast.error("Failed to save coupon");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteCoupon = async (id: string) => {
+    try {
+      const response = await fetch(`/api/coupons/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        toast.success("Coupon deleted");
+        fetchData();
+      } else {
+        toast.error("Failed to delete coupon");
+      }
+    } catch (error) {
+      console.error('Delete coupon error:', error);
+      toast.error("Failed to delete coupon");
+    }
+  };
+
+  const handleSaveSale = async () => {
+    if (!saleForm.name.trim() || !saleForm.productId) { 
+      toast.error("Please fill fields and select a product"); 
+      return; 
+    }
+    
+    setIsSaving(true);
+    try {
+      const payload = {
+        productId: saleForm.productId,
+        name: saleForm.name,
+        discountType: saleForm.discountType,
+        discountValue: saleForm.discountValue,
+        startDate: new Date(saleForm.startDate).toISOString(),
+        endDate: new Date(saleForm.endDate).toISOString(),
+      };
+
+      let response;
+      if (editingSale) {
+        response = await fetch(`/api/sales/${editingSale.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        response = await fetch('/api/sales', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+      }
+
+      if (response.ok) {
+        toast.success(editingSale ? "Sale updated!" : "Sale created!");
+        setShowSaleDialog(false);
+        resetSaleForm();
+        fetchData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to save sale");
+      }
+    } catch (error) {
+      console.error('Save sale error:', error);
+      toast.error("Failed to save sale");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteSale = async (id: string) => {
+    try {
+      const response = await fetch(`/api/sales/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        toast.success("Sale deleted");
+        fetchData();
+      } else {
+        toast.error("Failed to delete sale");
+      }
+    } catch (error) {
+      console.error('Delete sale error:', error);
+      toast.error("Failed to delete sale");
+    }
   };
 
   const handleEditCoupon = (c: Coupon) => {
     setEditingCoupon(c);
-    setCouponForm({ code: c.code, name: c.name, discountType: c.discountType, discountValue: c.discountValue, minOrderAmount: c.minOrderAmount || 0, usageLimit: c.usageLimit || 0, startDate: format(new Date(c.startDate), "yyyy-MM-dd"), endDate: format(new Date(c.endDate), "yyyy-MM-dd") });
+    setCouponForm({ 
+      code: c.code, 
+      name: c.name, 
+      discountType: c.discount_type, 
+      discountValue: c.discount_value, 
+      minOrderAmount: c.min_order_amount || 0, 
+      usageLimit: c.usage_limit || 0, 
+      startDate: format(new Date(c.starts_at), "yyyy-MM-dd"), 
+      endDate: format(new Date(c.ends_at), "yyyy-MM-dd") 
+    });
     setShowCouponDialog(true);
   };
 
   const handleEditSale = (s: Sale) => {
     setEditingSale(s);
-    setSaleForm({ name: s.name, discountType: s.discountType, discountValue: s.discountValue, productIds: s.productIds, startDate: format(new Date(s.startDate), "yyyy-MM-dd"), endDate: format(new Date(s.endDate), "yyyy-MM-dd") });
+    setSaleForm({ 
+      name: s.name, 
+      discountType: s.discount_type, 
+      discountValue: s.discount_value, 
+      productId: s.product_id, 
+      startDate: format(new Date(s.starts_at), "yyyy-MM-dd"), 
+      endDate: format(new Date(s.ends_at), "yyyy-MM-dd") 
+    });
     setShowSaleDialog(true);
   };
 
@@ -137,20 +357,20 @@ export default function VendorPromotionsPage() {
       <div className="container py-8">
         <div className="flex items-center gap-4 mb-8">
           <Link href="/vendor"><Button variant="outline" size="sm"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button></Link>
-          <div><h1 className="text-3xl font-bold">Promotions & Discounts</h1><p className="text-muted-foreground">Manage coupons and sales</p></div>
+          <div><h1 className="text-3xl font-bold">Promotions & Discounts</h1><p className="text-muted-foreground">Manage coupons and sales (database-backed)</p></div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "Active Coupons", value: activeCoupons.length, icon: Tag, color: "emerald" },
-            { label: "Active Sales", value: activeSales.length, icon: Zap, color: "red" },
-            { label: "Products", value: vendorProducts.length, icon: ShoppingBag, color: "blue" },
-            { label: "Coupon Uses", value: coupons.reduce((s, c) => s + c.usageCount, 0), icon: TrendingUp, color: "purple" },
-          ].map(({ label, value, icon: Icon, color }) => (
+            { label: "Active Coupons", value: activeCoupons.length, icon: Tag, color: "bg-emerald-100", iconColor: "text-emerald-600" },
+            { label: "Active Sales", value: activeSales.length, icon: Zap, color: "bg-red-100", iconColor: "text-red-600" },
+            { label: "Products", value: vendorProducts.length, icon: ShoppingBag, color: "bg-blue-100", iconColor: "text-blue-600" },
+            { label: "Coupon Uses", value: coupons.reduce((s, c) => s + c.usage_count, 0), icon: TrendingUp, color: "bg-purple-100", iconColor: "text-purple-600" },
+          ].map(({ label, value, icon: Icon, color, iconColor }) => (
             <Card key={label} className="border-0 shadow-sm">
               <CardContent className="p-4 flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full bg-${color}-100 flex items-center justify-center`}>
-                  <Icon className={`w-5 h-5 text-${color}-600`} />
+                <div className={`w-10 h-10 rounded-full ${color} flex items-center justify-center`}>
+                  <Icon className={`w-5 h-5 ${iconColor}`} />
                 </div>
                 <div><p className="text-2xl font-bold">{value}</p><p className="text-xs text-gray-500">{label}</p></div>
               </CardContent>
@@ -159,19 +379,22 @@ export default function VendorPromotionsPage() {
         </div>
 
         <Tabs defaultValue="coupons" className="space-y-6">
-          <TabsList><TabsTrigger value="coupons"><Tag className="w-4 h-4 mr-2" />Coupons ({coupons.length})</TabsTrigger><TabsTrigger value="sales"><Percent className="w-4 h-4 mr-2" />Sales ({sales.length})</TabsTrigger></TabsList>
+          <TabsList>
+            <TabsTrigger value="coupons"><Tag className="w-4 h-4 mr-2" />Coupons ({coupons.length})</TabsTrigger>
+            <TabsTrigger value="sales"><Percent className="w-4 h-4 mr-2" />Sales ({sales.length})</TabsTrigger>
+          </TabsList>
 
           <TabsContent value="coupons">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <div><CardTitle>Coupon Codes</CardTitle><CardDescription>Create discount codes</CardDescription></div>
-                <Dialog open={showCouponDialog} onOpenChange={(o) => { setShowCouponDialog(o); if (!o) { setEditingCoupon(null); setCouponForm({ code: "", name: "", discountType: "percentage", discountValue: 10, minOrderAmount: 0, usageLimit: 0, startDate: format(new Date(), "yyyy-MM-dd"), endDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), "yyyy-MM-dd") }); } }}>
+                <div><CardTitle>Coupon Codes</CardTitle><CardDescription>Create discount codes for customers</CardDescription></div>
+                <Dialog open={showCouponDialog} onOpenChange={(o) => { setShowCouponDialog(o); if (!o) resetCouponForm(); }}>
                   <DialogTrigger asChild><Button className="bg-emerald-600 hover:bg-emerald-700"><Plus className="w-4 h-4 mr-2" />Create Coupon</Button></DialogTrigger>
                   <DialogContent>
                     <DialogHeader><DialogTitle>{editingCoupon ? "Edit" : "Create"} Coupon</DialogTitle></DialogHeader>
                     <div className="space-y-4 py-4">
                       <div className="grid grid-cols-2 gap-4">
-                        <div><Label>Code *</Label><Input value={couponForm.code} onChange={e => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })} placeholder="SAVE20" /></div>
+                        <div><Label>Code *</Label><Input value={couponForm.code} onChange={e => setCouponForm({ ...couponForm, code: e.target.value.toUpperCase() })} placeholder="SAVE20" disabled={!!editingCoupon} /></div>
                         <div><Label>Name *</Label><Input value={couponForm.name} onChange={e => setCouponForm({ ...couponForm, name: e.target.value })} placeholder="Summer Sale" /></div>
                       </div>
                       <div className="grid grid-cols-2 gap-4">
@@ -187,7 +410,13 @@ export default function VendorPromotionsPage() {
                         <div><Label>End Date</Label><Input type="date" value={couponForm.endDate} onChange={e => setCouponForm({ ...couponForm, endDate: e.target.value })} /></div>
                       </div>
                     </div>
-                    <DialogFooter><Button variant="outline" onClick={() => setShowCouponDialog(false)}>Cancel</Button><Button onClick={handleSaveCoupon} className="bg-emerald-600">{editingCoupon ? "Update" : "Create"}</Button></DialogFooter>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowCouponDialog(false)}>Cancel</Button>
+                      <Button onClick={handleSaveCoupon} className="bg-emerald-600" disabled={isSaving}>
+                        {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                        {editingCoupon ? "Update" : "Create"}
+                      </Button>
+                    </DialogFooter>
                   </DialogContent>
                 </Dialog>
               </CardHeader>
@@ -200,15 +429,21 @@ export default function VendorPromotionsPage() {
                     <TableBody>
                       {coupons.map(c => (
                         <TableRow key={c.id}>
-                          <TableCell><div className="flex items-center gap-2"><code className="bg-gray-100 px-2 py-1 rounded font-mono">{c.code}</code><Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(c.code); toast.success("Copied!"); }}><Copy className="w-3 h-3" /></Button></div><p className="text-xs text-muted-foreground mt-1">{c.name}</p></TableCell>
-                          <TableCell>{c.discountType === "percentage" ? `${c.discountValue}%` : `GHS ${c.discountValue}`}</TableCell>
-                          <TableCell>{c.usageCount}{c.usageLimit ? `/${c.usageLimit}` : ""}</TableCell>
-                          <TableCell className="text-xs">{format(new Date(c.startDate), "MMM d")} - {format(new Date(c.endDate), "MMM d, yyyy")}</TableCell>
-                          <TableCell>{getStatusBadge(c.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <code className="bg-gray-100 px-2 py-1 rounded font-mono">{c.code}</code>
+                              <Button variant="ghost" size="sm" onClick={() => { navigator.clipboard.writeText(c.code); toast.success("Copied!"); }}><Copy className="w-3 h-3" /></Button>
+                            </div>
+                            <p className="text-xs text-muted-foreground mt-1">{c.name}</p>
+                          </TableCell>
+                          <TableCell>{c.discount_type === "percentage" ? `${c.discount_value}%` : `GHS ${c.discount_value}`}</TableCell>
+                          <TableCell>{c.usage_count}{c.usage_limit ? `/${c.usage_limit}` : ""}</TableCell>
+                          <TableCell className="text-xs">{format(new Date(c.starts_at), "MMM d")} - {format(new Date(c.ends_at), "MMM d, yyyy")}</TableCell>
+                          <TableCell>{getStatusBadge(getPromotionStatus(c.starts_at, c.ends_at, c.is_active))}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="sm" onClick={() => handleEditCoupon(c)}><Edit className="w-4 h-4" /></Button>
-                              <Button variant="ghost" size="sm" className="text-red-600" onClick={() => { deleteCoupon(c.id); toast.success("Deleted"); }}><Trash2 className="w-4 h-4" /></Button>
+                              <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteCoupon(c.id)}><Trash2 className="w-4 h-4" /></Button>
                             </div>
                           </TableCell>
                         </TableRow>
@@ -224,7 +459,7 @@ export default function VendorPromotionsPage() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div><CardTitle>Product Sales</CardTitle><CardDescription>Create flash sales on products</CardDescription></div>
-                <Dialog open={showSaleDialog} onOpenChange={(o) => { setShowSaleDialog(o); if (!o) { setEditingSale(null); setSaleForm({ name: "", discountType: "percentage", discountValue: 10, productIds: [], startDate: format(new Date(), "yyyy-MM-dd"), endDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd") }); } }}>
+                <Dialog open={showSaleDialog} onOpenChange={(o) => { setShowSaleDialog(o); if (!o) resetSaleForm(); }}>
                   <DialogTrigger asChild><Button className="bg-red-600 hover:bg-red-700"><Plus className="w-4 h-4 mr-2" />Create Sale</Button></DialogTrigger>
                   <DialogContent className="max-w-2xl">
                     <DialogHeader><DialogTitle>{editingSale ? "Edit" : "Create"} Sale</DialogTitle></DialogHeader>
@@ -239,20 +474,34 @@ export default function VendorPromotionsPage() {
                         <div><Label>End Date</Label><Input type="date" value={saleForm.endDate} onChange={e => setSaleForm({ ...saleForm, endDate: e.target.value })} /></div>
                       </div>
                       <div>
-                        <Label>Select Products *</Label>
-                        <div className="border rounded-lg p-4 mt-2 max-h-48 overflow-y-auto space-y-2">
-                          {vendorProducts.length === 0 ? <p className="text-muted-foreground text-sm">No products available</p> : vendorProducts.map(p => (
-                            <div key={p.id} className="flex items-center gap-3">
-                              <Checkbox checked={saleForm.productIds.includes(p.id)} onCheckedChange={() => setSaleForm(f => ({ ...f, productIds: f.productIds.includes(p.id) ? f.productIds.filter(id => id !== p.id) : [...f.productIds, p.id] }))} />
-                              <span className="text-sm">{p.name}</span>
-                              <span className="text-xs text-muted-foreground ml-auto">GHS {p.price}</span>
-                            </div>
-                          ))}
-                        </div>
-                        <p className="text-xs text-muted-foreground mt-1">{saleForm.productIds.length} product(s) selected</p>
+                        <Label>Select Product *</Label>
+                        {vendorProducts.length === 0 ? (
+                          <div className="border rounded-lg p-4 mt-2 text-center">
+                            <ShoppingBag className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-muted-foreground text-sm">No products available</p>
+                            <Link href="/vendor/products/create"><Button variant="link" size="sm">Add a product first</Button></Link>
+                          </div>
+                        ) : (
+                          <Select value={saleForm.productId} onValueChange={v => setSaleForm({ ...saleForm, productId: v })}>
+                            <SelectTrigger className="mt-2"><SelectValue placeholder="Select a product" /></SelectTrigger>
+                            <SelectContent>
+                              {vendorProducts.filter(p => p.status === 'active').map(p => (
+                                <SelectItem key={p.id} value={p.id}>
+                                  {p.name} - GHS {p.price}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
                       </div>
                     </div>
-                    <DialogFooter><Button variant="outline" onClick={() => setShowSaleDialog(false)}>Cancel</Button><Button onClick={handleSaveSale} className="bg-red-600">{editingSale ? "Update" : "Create"}</Button></DialogFooter>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setShowSaleDialog(false)}>Cancel</Button>
+                      <Button onClick={handleSaveSale} className="bg-red-600" disabled={isSaving || vendorProducts.length === 0}>
+                        {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                        {editingSale ? "Update" : "Create"}
+                      </Button>
+                    </DialogFooter>
                   </DialogContent>
                 </Dialog>
               </CardHeader>
@@ -261,19 +510,19 @@ export default function VendorPromotionsPage() {
                   <div className="text-center py-12"><Percent className="w-16 h-16 text-gray-300 mx-auto mb-4" /><h3 className="font-semibold">No Sales Yet</h3><p className="text-muted-foreground">Create flash sales to boost conversions</p></div>
                 ) : (
                   <Table>
-                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Discount</TableHead><TableHead>Products</TableHead><TableHead>Duration</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Product</TableHead><TableHead>Discount</TableHead><TableHead>Duration</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {sales.map(s => (
                         <TableRow key={s.id}>
                           <TableCell className="font-medium">{s.name}</TableCell>
-                          <TableCell>{s.discountType === "percentage" ? `${s.discountValue}%` : `GHS ${s.discountValue}`}</TableCell>
-                          <TableCell><Badge variant="outline">{s.productIds.length} products</Badge></TableCell>
-                          <TableCell className="text-xs">{format(new Date(s.startDate), "MMM d")} - {format(new Date(s.endDate), "MMM d, yyyy")}</TableCell>
-                          <TableCell>{getStatusBadge(s.status)}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{s.product_name || 'Unknown'}</TableCell>
+                          <TableCell>{s.discount_type === "percentage" ? `${s.discount_value}%` : `GHS ${s.discount_value}`}</TableCell>
+                          <TableCell className="text-xs">{format(new Date(s.starts_at), "MMM d")} - {format(new Date(s.ends_at), "MMM d, yyyy")}</TableCell>
+                          <TableCell>{getStatusBadge(getPromotionStatus(s.starts_at, s.ends_at, s.is_active))}</TableCell>
                           <TableCell>
                             <div className="flex gap-1">
                               <Button variant="ghost" size="sm" onClick={() => handleEditSale(s)}><Edit className="w-4 h-4" /></Button>
-                              <Button variant="ghost" size="sm" className="text-red-600" onClick={() => { deleteSale(s.id); toast.success("Deleted"); }}><Trash2 className="w-4 h-4" /></Button>
+                              <Button variant="ghost" size="sm" className="text-red-600" onClick={() => handleDeleteSale(s.id)}><Trash2 className="w-4 h-4" /></Button>
                             </div>
                           </TableCell>
                         </TableRow>

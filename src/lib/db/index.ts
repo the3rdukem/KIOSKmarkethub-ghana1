@@ -525,6 +525,59 @@ async function runMigrations(client: PoolClient): Promise<void> {
     // Table may already exist
   }
 
+  // Create coupons table if it doesn't exist
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS coupons (
+        id TEXT PRIMARY KEY,
+        vendor_user_id TEXT NOT NULL,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL,
+        discount_type TEXT NOT NULL CHECK(discount_type IN ('percentage', 'fixed')),
+        discount_value REAL NOT NULL,
+        min_order_amount REAL DEFAULT 0,
+        usage_limit INTEGER,
+        usage_count INTEGER DEFAULT 0,
+        starts_at TEXT NOT NULL,
+        ends_at TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        UNIQUE(vendor_user_id, code)
+      );
+      CREATE INDEX IF NOT EXISTS idx_coupons_vendor ON coupons(vendor_user_id);
+      CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(code);
+      CREATE INDEX IF NOT EXISTS idx_coupons_active ON coupons(is_active);
+    `);
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // Create sales table if it doesn't exist
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sales (
+        id TEXT PRIMARY KEY,
+        vendor_user_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        discount_type TEXT NOT NULL CHECK(discount_type IN ('percentage', 'fixed')),
+        discount_value REAL NOT NULL,
+        starts_at TEXT NOT NULL,
+        ends_at TEXT NOT NULL,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        CONSTRAINT fk_sales_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_sales_vendor ON sales(vendor_user_id);
+      CREATE INDEX IF NOT EXISTS idx_sales_product ON sales(product_id);
+      CREATE INDEX IF NOT EXISTS idx_sales_active ON sales(is_active);
+    `);
+  } catch (e) {
+    // Table may already exist
+  }
+
   for (const migration of migrations) {
     try {
       await client.query(`

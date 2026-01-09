@@ -9,7 +9,6 @@ import { useProductsStore } from "@/lib/products-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { useOrdersStore } from "@/lib/orders-store";
 import { useOrderOperations } from "@/lib/order-helpers";
-import { usePromotionsStore } from "@/lib/promotions-store";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -230,7 +229,6 @@ export default function CheckoutPage() {
   const { user, isAuthenticated } = useAuthStore();
   const { createOrder } = useOrdersStore();
   const { processNewOrder } = useOrderOperations();
-  const { validateCoupon, recordCouponUsage } = usePromotionsStore();
   const { getAddressesByUser, getDefaultAddress, addAddress } = useAddressesStore();
   const { products } = useProductsStore();
   const { updateItemPrice, updateItemMaxQuantity, removeUnavailableItems } = useCartStore();
@@ -254,6 +252,7 @@ export default function CheckoutPage() {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number; couponId: string } | null>(null);
   const [couponError, setCouponError] = useState("");
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
   // Cart validation state
   const [cartValidation, setCartValidation] = useState<CartValidationResult | null>(null);
@@ -409,9 +408,12 @@ export default function CheckoutPage() {
 
     console.log("Order created:", order);
 
-    // Record coupon usage if applied
+    // Increment coupon usage on server if coupon was applied
     if (appliedCoupon) {
-      recordCouponUsage(appliedCoupon.couponId, user.id);
+      fetch(`/api/coupons/${appliedCoupon.couponId}/use`, {
+        method: 'POST',
+        credentials: 'include',
+      }).catch(err => console.error('Failed to record coupon usage:', err));
     }
 
     // Send notifications to vendors
@@ -437,38 +439,39 @@ export default function CheckoutPage() {
   // Get unique vendor IDs from cart
   const vendorIds = [...new Set(items.map(item => item.vendorId))];
 
-  const handleApplyCoupon = () => {
+  const handleApplyCoupon = async () => {
     if (!couponCode.trim()) {
       setCouponError("Please enter a coupon code");
       return;
     }
 
-    setCouponError("");
-
-    // For simplicity, validate against first vendor in cart
-    // In production, you might want to handle multi-vendor carts differently
-    const vendorId = vendorIds[0];
-    if (!vendorId) {
+    if (items.length === 0) {
       setCouponError("No items in cart");
       return;
     }
 
-    const productIds = items.map(i => i.id);
-    const result = validateCoupon(
-      couponCode,
-      vendorId,
-      user?.id || "guest",
-      subtotal,
-      productIds,
-      [] // category IDs - would need to be fetched from products
-    );
+    setCouponError("");
+    setIsValidatingCoupon(true);
 
-    if (!result.valid) {
-      setCouponError(result.error || "Invalid coupon");
-      return;
-    }
+    try {
+      const response = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          code: couponCode,
+          orderAmount: subtotal,
+          vendorIds: vendorIds,
+        }),
+      });
 
-    if (result.coupon && result.discount) {
+      const result = await response.json();
+
+      if (!result.valid) {
+        setCouponError(result.error || "Invalid coupon");
+        return;
+      }
+
       setAppliedCoupon({
         code: result.coupon.code,
         discount: result.discount,
@@ -476,6 +479,11 @@ export default function CheckoutPage() {
       });
       setCouponCode("");
       toast.success(`Coupon applied! You save GHS ${result.discount.toFixed(2)}`);
+    } catch (error) {
+      console.error('Coupon validation error:', error);
+      setCouponError("Failed to validate coupon. Please try again.");
+    } finally {
+      setIsValidatingCoupon(false);
     }
   };
 

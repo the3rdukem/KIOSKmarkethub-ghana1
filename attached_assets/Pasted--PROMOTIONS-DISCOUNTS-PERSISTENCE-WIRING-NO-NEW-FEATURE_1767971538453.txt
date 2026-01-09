@@ -1,0 +1,224 @@
+⸻
+
+🔴 PROMOTIONS & DISCOUNTS — PERSISTENCE + WIRING (NO NEW FEATURES)
+
+⚠️ READ THIS FIRST — FAILURE CONDITIONS
+
+You are NOT allowed to:
+	•	Use Zustand, localStorage, or in-memory state for promotions
+	•	Mark any feature as “working” without logout/login verification
+	•	Add new promo types, UI redesigns, or “future improvements”
+	•	Touch payments, Paystack, checkout APIs, or order creation
+	•	Change existing UI layouts unless required to unblock functionality
+	•	Report success without manual testing using the credentials below
+
+If any of the above occurs, the task is FAILED.
+
+⸻
+
+🎯 OBJECTIVE
+
+Fix the existing Promotions & Discounts system so it is:
+	•	Fully database-backed
+	•	Vendor-owned
+	•	Persistent across logout / login
+	•	Selectable from live vendor inventory
+	•	Visible to Admin
+	•	Readable by Checkout (read-only for now)
+
+This task is FOUNDATIONAL and must be completed before payments.
+
+⸻
+
+🧩 CURRENT STATE (CONFIRMED)
+
+Vendor Promotions UI (EXISTS)
+	•	Coupons tab:
+	•	Code
+	•	Name
+	•	Type (% / fixed)
+	•	Value
+	•	Min order
+	•	Usage limit
+	•	Start / end date
+	•	Sales tab:
+	•	Sale name
+	•	Discount type (% / fixed)
+	•	Discount value
+	•	Start / end date
+	•	Product selector (currently broken)
+
+Broken Behavior
+	•	Coupons “create” but disappear after logout/login
+	•	Sales cannot be created because product selector is empty
+	•	Coupons cannot be tested in checkout
+	•	Admin has no visibility
+	•	No proof of DB persistence
+
+⸻
+
+🧱 REQUIRED IMPLEMENTATION (NO EXCEPTIONS)
+
+1️⃣ Database Persistence (MANDATORY)
+
+You MUST confirm or create real tables (Prisma / SQL):
+
+Coupons
+	•	id
+	•	vendor_user_id (NOT vendor entity id)
+	•	code (unique per vendor)
+	•	name
+	•	type (percentage | fixed)
+	•	value
+	•	min_order
+	•	usage_limit
+	•	usage_count
+	•	starts_at
+	•	ends_at
+	•	is_active
+	•	created_at
+
+Sales
+	•	id
+	•	vendor_user_id
+	•	product_id
+	•	type (percentage | fixed)
+	•	value
+	•	starts_at
+	•	ends_at
+	•	is_active
+	•	created_at
+
+🚫 Do NOT store promotions in localStorage
+🚫 Do NOT “simulate” persistence
+
+⸻
+
+2️⃣ Vendor Ownership & Access Control
+	•	Vendors may ONLY:
+	•	Create
+	•	View
+	•	Edit
+	•	Disable
+their own promotions
+	•	Vendor identity must be resolved via authenticated user_id
+	•	No client-side trust — server enforcement only
+
+⸻
+
+3️⃣ Fix Sales Product Selector (CRITICAL)
+
+The Select Product field MUST:
+	•	Load products via API:
+	•	/api/products?vendorId=<user_id>
+	•	Use live database products
+	•	Respect vendor ownership
+	•	Be selectable and creatable
+
+If no products exist, show a clear empty-state message.
+
+⸻
+
+4️⃣ Admin Visibility (READ-ONLY)
+
+Admin must be able to:
+	•	View all coupons
+	•	View all sales
+	•	See vendor ownership
+	•	See active / expired status
+
+Admin cannot edit vendor promotions.
+
+⸻
+
+5️⃣ Checkout Read-Only Wiring (NO PAYMENTS)
+
+Do NOT implement payment logic.
+
+You MUST:
+	•	Allow coupon code entry at checkout
+	•	Validate coupon via API:
+	•	Exists
+	•	Active
+	•	Within date
+	•	Usage limit not exceeded
+	•	Min order met
+	•	Return:
+	•	discount amount
+	•	updated subtotal
+
+❗ If coupon invalid → show error, do not crash
+
+⸻
+
+🔍 VERIFICATION REQUIREMENTS (MANDATORY)
+
+You MUST manually test using THESE EXACT CREDENTIALS:
+
+Vendor
+	•	Email: ven@kiosk.com.gh
+	•	Password: 123asdqwe
+
+Buyer
+	•	Email: buy@kiosk.com.gh
+	•	Password: 123asdqwe
+
+Admin
+	•	Email: the3rdukem@gmail.com
+	•	Password: 123asdqweX$
+
+⸻
+
+✅ REQUIRED MANUAL TESTS (NO SKIPPING)
+
+Vendor Tests
+	1.	Login as vendor
+	2.	Create a coupon
+	3.	Logout
+	4.	Login again
+	5.	Coupon MUST still exist
+	6.	Create a sale
+	7.	Product selector MUST list vendor products
+	8.	Sale MUST persist after logout/login
+
+Admin Tests
+	1.	Login as admin
+	2.	View promotions
+	3.	See vendor-owned coupons and sales
+
+Buyer Tests
+	1.	Login as buyer
+	2.	Add product to cart
+	3.	Apply coupon code
+	4.	Discount MUST reflect in subtotal
+	5.	Invalid coupon MUST show error
+
+⸻
+
+📸 PROOF REQUIRED IN FINAL REPORT
+
+Your final report MUST include:
+	•	Table schemas (or Prisma models)
+	•	API routes used
+	•	Confirmation of logout/login persistence
+	•	Which pages call which APIs
+	•	Confirmation that Zustand / localStorage is NOT used
+	•	Confirmation that checkout reads from DB-backed promotions
+
+If ANY section is missing → task is NOT COMPLETE
+
+⸻
+
+🛑 FINAL WARNING
+
+Do NOT say:
+	•	“Works locally”
+	•	“Should work”
+	•	“Likely fixed”
+	•	“UI complete”
+
+Only report verified, persistent, database-backed behavior.
+
+⸻
+
+✅ BEGIN IMPLEMENTATION NOW
