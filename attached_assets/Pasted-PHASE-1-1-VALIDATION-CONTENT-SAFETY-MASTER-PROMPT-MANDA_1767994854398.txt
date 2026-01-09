@@ -1,0 +1,246 @@
+PHASE 1.1 — VALIDATION & CONTENT SAFETY MASTER PROMPT
+
+(MANDATORY — DO NOT PROCEED TO PHASE 2 UNTIL COMPLETE)
+
+You are implementing Phase 1.1: Validation & Content Safety Hardening for the KIOSK Marketplace.
+
+⚠️ CRITICAL RULES
+	•	DO NOT introduce new features
+	•	DO NOT redesign UI layouts
+	•	DO NOT touch payments, checkout, OAuth, Smile ID, or APIs outside validation
+	•	DO NOT mark this task complete unless EVERY checklist item passes manual testing
+
+This phase exists to make the platform safe, compliant, and production-ready before money or identity APIs are introduced.
+
+⸻
+
+========================================
+
+SECTION 0 — NON-NEGOTIABLE PRINCIPLES
+
+========================================
+	1.	ALL validation must be enforced server-side
+	•	Client-side validation is ONLY for UX
+	•	Server is the final authority
+	2.	All validation failures must return structured errors
+
+{
+  code: string,
+  message: string
+}
+
+
+	3.	The UI MUST display the server error message verbatim
+	•	No generic “Please try again”
+	•	No swallowed errors
+	•	No console-only failures
+
+⸻
+
+========================================
+
+SECTION 1 — PHONE NUMBER VALIDATION (CRITICAL)
+
+========================================
+
+Scope:
+
+Applies to:
+	•	User registration (buyer, vendor, admin)
+	•	Profile updates
+	•	Checkout (future compatibility)
+
+Requirements:
+	•	Enforce E.164 format OR a clearly defined Ghana format
+	•	Reject:
+	•	Letters
+	•	Symbols (except + where applicable)
+	•	Too short / too long numbers
+	•	Normalize phone numbers before storage
+
+Failure Behavior:
+	•	Server rejects invalid numbers with:
+
+{
+  "code": "INVALID_PHONE",
+  "message": "Please enter a valid phone number"
+}
+
+
+	•	Client shows this message inline
+
+⸻
+
+========================================
+
+SECTION 2 — OFFENSIVE & CONTACT CONTENT FILTERING (CRITICAL)
+
+========================================
+
+MUST BLOCK the following content types:
+	•	Profanity
+	•	Sexual language
+	•	Hate speech / slurs
+	•	Harassment
+	•	Phone numbers
+	•	Email addresses
+	•	URLs
+	•	WhatsApp / Telegram / social handles
+
+Applies to ALL of the following fields:
+	•	Product name
+	•	Product description
+	•	Review text
+	•	Vendor store name
+	•	Vendor store description
+	•	Coupon names
+	•	Sale names
+	•	Any free-text promotional content
+
+Implementation Rules:
+	•	Filtering MUST occur server-side
+	•	Client-side checks are OPTIONAL but not sufficient
+	•	Use a centralized content validation utility
+	•	No hardcoded checks scattered across files
+
+Failure Response Example:
+
+{
+  "code": "UNSAFE_CONTENT",
+  "message": "This field contains prohibited or unsafe content"
+}
+
+
+⸻
+
+========================================
+
+SECTION 3 — ADDRESS VALIDATION (BASELINE)
+
+========================================
+
+⚠️ This is NOT Google Maps yet.
+
+Requirements:
+	•	Required address fields MUST NOT be empty
+	•	Reject obvious garbage input (e.g. “asdfasdf”, “123123123”)
+	•	Enforce minimum character length where applicable
+	•	Normalize whitespace
+
+Applies to:
+	•	Buyer addresses
+	•	Vendor addresses
+	•	Checkout address form
+
+⸻
+
+========================================
+
+SECTION 4 — ERROR SURFACING & UX CONSISTENCY
+
+========================================
+
+Fix ALL instances where:
+	•	Server returns a specific error
+	•	Client replaces it with a generic fallback
+
+Example of INCORRECT behavior:
+
+Server: "Quantity must be zero or a positive number"
+UI: "Failed to create product, please try again"
+
+Required Behavior:
+	•	UI MUST show "Quantity must be zero or a positive number"
+
+Audit:
+	•	Product creation
+	•	Product editing
+	•	Promotions
+	•	Reviews
+	•	Authentication flows
+
+⸻
+
+========================================
+
+SECTION 5 — CENTRALIZED VALIDATION ARCHITECTURE
+
+========================================
+
+Implement:
+	•	A shared validation module (e.g. lib/validation)
+	•	Reusable helpers for:
+	•	Phone validation
+	•	Content safety checks
+	•	Address checks
+
+❌ NO duplicated regex logic across routes
+❌ NO inline profanity lists scattered in code
+
+⸻
+
+========================================
+
+SECTION 6 — LOGGING & SECURITY
+
+========================================
+	•	Validation failures:
+	•	Must NOT log raw offensive content
+	•	May log error codes and entity type
+	•	Never log:
+	•	Passwords
+	•	Phone numbers
+	•	Emails
+	•	Review content
+
+⸻
+
+========================================
+
+SECTION 7 — MANDATORY MANUAL TESTING
+
+========================================
+
+Use THESE credentials during testing:
+	•	Admin: the3rdukem@gmail.com / 123asdqweX$
+	•	Vendor: ven@kiosk.com.gh / 123asdqwe
+	•	Buyer: buy@kiosk.com.gh / 123asdqwe
+
+Tests that MUST pass:
+
+Phone Validation
+	•	Invalid phone → rejected with clear message
+	•	Valid phone → saved correctly
+
+Offensive Content
+	•	Product name: "fuck you" → ❌ rejected
+	•	Description with phone/email → ❌ rejected
+	•	Clean content → ✅ accepted
+
+Error Messaging
+	•	Quantity = -2 → UI shows exact server message
+	•	Invalid discount → UI shows exact server message
+
+Address
+	•	Empty required address → ❌ rejected
+	•	Garbage input → ❌ rejected
+
+⸻
+
+========================================
+
+FINAL COMPLETION RULE
+
+========================================
+
+🚫 DO NOT report this task as complete unless:
+	•	Offensive content is blocked server-side
+	•	Phone numbers are strictly validated
+	•	Address fields have baseline validation
+	•	UI displays server error messages exactly
+	•	No generic “try again” messages remain
+
+
+⸻
+
+If you want, once this finishes, I’ll audit the agent’s output line-by-line before you move forward.

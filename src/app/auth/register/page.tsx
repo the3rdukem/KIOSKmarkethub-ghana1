@@ -134,8 +134,10 @@ export default function RegisterPage() {
         // Handle specific error codes
         if (result.code === 'EMAIL_EXISTS') {
           setErrors({ email: "This email is already registered" });
+        } else if (result.code === 'INVALID_PHONE') {
+          setErrors({ phone: result.error || "Invalid phone number" });
         } else {
-          setErrors({ submit: result.error || "Registration failed. Please try again." });
+          setErrors({ submit: result.error || "Registration failed" });
         }
         setIsLoading(false);
         return;
@@ -157,8 +159,9 @@ export default function RegisterPage() {
       }
     } catch (error) {
       console.error('[REGISTER] Error:', error);
-      setErrors({ submit: "Registration failed. Please try again." });
-      toast.error("Registration failed. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Registration failed";
+      setErrors({ submit: errorMessage });
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

@@ -6,6 +6,7 @@ import {
   getAllSales,
   createSale,
 } from '@/lib/db/dal/promotions';
+import { validateContentSafety } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -66,6 +67,15 @@ export async function POST(request: NextRequest) {
     const saleName = typeof name === 'string' ? name.trim() : '';
     if (!saleName) {
       validationErrors.push('Sale name is required');
+    } else {
+      // Content safety check for sale name
+      const nameResult = validateContentSafety(saleName);
+      if (!nameResult.valid) {
+        return NextResponse.json(
+          { error: nameResult.message, code: nameResult.code },
+          { status: 400 }
+        );
+      }
     }
     
     if (!discountType || !['percentage', 'fixed'].includes(discountType)) {

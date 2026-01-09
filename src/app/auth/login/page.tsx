@@ -79,7 +79,8 @@ export default function LoginPage() {
       const result = await loginViaAPI(formData.email, formData.password);
 
       if (!result.success) {
-        setErrors({ submit: result.error || "Invalid email or password. Please try again." });
+        // Display exact server error message
+        setErrors({ submit: result.error || "Invalid email or password" });
         setIsLoading(false);
         return;
       }
@@ -91,7 +92,8 @@ export default function LoginPage() {
         window.location.href = getRouteForRole(result.user?.role || 'buyer');
       }, 500);
     } catch (error) {
-      setErrors({ submit: "Login failed. Please try again." });
+      const errorMessage = error instanceof Error ? error.message : "Login failed";
+      setErrors({ submit: errorMessage });
       setIsLoading(false);
     }
   };

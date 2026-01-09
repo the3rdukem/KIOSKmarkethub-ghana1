@@ -19,6 +19,7 @@ import { getUserById } from '@/lib/db/dal/users';
 import { getVendorByUserId } from '@/lib/db/dal/vendors';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getActiveSalesForProducts } from '@/lib/db/dal/promotions';
+import { validateTextField, validateContentSafety } from '@/lib/validation';
 
 /**
  * GET /api/products
@@ -244,6 +245,27 @@ export async function POST(request: NextRequest) {
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     if (!name) {
       validationErrors.push('Product name is required');
+    } else {
+      // Content safety check for product name
+      const nameResult = validateContentSafety(name);
+      if (!nameResult.valid) {
+        return NextResponse.json(
+          { error: nameResult.message, code: nameResult.code },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Content safety check for description
+    const descriptionRaw = typeof body.description === 'string' ? body.description.trim() : '';
+    if (descriptionRaw) {
+      const descResult = validateContentSafety(descriptionRaw);
+      if (!descResult.valid) {
+        return NextResponse.json(
+          { error: descResult.message, code: descResult.code },
+          { status: 400 }
+        );
+      }
     }
     
     // Price validation

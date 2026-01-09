@@ -7,6 +7,7 @@ import {
   createCoupon,
   validateCoupon,
 } from '@/lib/db/dal/promotions';
+import { validateContentSafety } from '@/lib/validation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,6 +62,26 @@ export async function POST(request: NextRequest) {
 
     if (!code || !name || !discountType || discountValue === undefined) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    // Content safety check for coupon code and name
+    const codeClean = typeof code === 'string' ? code.trim() : '';
+    const nameClean = typeof name === 'string' ? name.trim() : '';
+    
+    const codeResult = validateContentSafety(codeClean);
+    if (!codeResult.valid) {
+      return NextResponse.json(
+        { error: codeResult.message, code: codeResult.code },
+        { status: 400 }
+      );
+    }
+    
+    const nameResult = validateContentSafety(nameClean);
+    if (!nameResult.valid) {
+      return NextResponse.json(
+        { error: nameResult.message, code: nameResult.code },
+        { status: 400 }
+      );
     }
 
     const coupon = await createCoupon({

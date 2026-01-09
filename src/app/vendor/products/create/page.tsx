@@ -456,7 +456,11 @@ export default function CreateProductPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create product');
+        // Display exact server error message
+        const errorMessage = data.error || 'Failed to create product';
+        setErrors({ submit: errorMessage });
+        toast.error(errorMessage);
+        return;
       }
 
       console.log("Product created successfully:", data.product);
@@ -504,8 +508,9 @@ export default function CreateProductPage() {
       router.push("/vendor/products");
     } catch (error) {
       console.error("Failed to create product:", error);
-      setErrors({ submit: "Failed to create product. Please try again." });
-      toast.error("Failed to create product. Please try again.");
+      const errorMessage = error instanceof Error ? error.message : "Failed to create product";
+      setErrors({ submit: errorMessage });
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

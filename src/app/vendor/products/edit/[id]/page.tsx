@@ -300,8 +300,9 @@ export default function EditProductPage() {
       }
     } catch (error) {
       console.error("Update product error:", error);
-      setErrors({ submit: "Failed to update product. Please try again." });
-      toast.error("Failed to update product");
+      const errorMessage = error instanceof Error ? error.message : "Failed to update product";
+      setErrors({ submit: errorMessage });
+      toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }

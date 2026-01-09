@@ -18,6 +18,7 @@ import {
 } from '@/lib/db/dal/reviews';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { query } from '@/lib/db';
+import { validateContentSafety } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -138,6 +139,15 @@ export async function POST(request: NextRequest) {
 
     if (!comment.trim()) {
       return NextResponse.json({ error: 'Comment is required' }, { status: 400 });
+    }
+
+    // Content safety check for review comment
+    const commentResult = validateContentSafety(comment.trim());
+    if (!commentResult.valid) {
+      return NextResponse.json(
+        { error: commentResult.message, code: commentResult.code },
+        { status: 400 }
+      );
     }
 
     // Get product to find vendor

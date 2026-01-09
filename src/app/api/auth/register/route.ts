@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { registerUser, getRouteForRole, type AuthErrorCode } from '@/lib/db/dal/auth-service';
 import { logAuthEvent } from '@/lib/db/dal/audit';
+import { validatePhone, normalizePhone } from '@/lib/validation';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -43,10 +44,24 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, password, name, role, phone, location, businessName, businessType } = body;
 
+    // Validate phone number if provided
+    if (phone) {
+      const phoneResult = validatePhone(phone);
+      if (!phoneResult.valid) {
+        return NextResponse.json(
+          { error: phoneResult.message, code: phoneResult.code },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Normalize phone for storage
+    const normalizedPhone = phone ? normalizePhone(phone) : undefined;
+
     console.log('[REGISTER_API] Starting atomic registration', { email, role });
 
     const result = await registerUser(
-      { email, password, name, role, phone, location, businessName, businessType },
+      { email, password, name, role, phone: normalizedPhone, location, businessName, businessType },
       { ipAddress, userAgent }
     );
 

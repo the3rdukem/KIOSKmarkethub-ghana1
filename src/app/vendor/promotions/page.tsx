@@ -229,7 +229,8 @@ export default function VendorPromotionsPage() {
       }
     } catch (error) {
       console.error('Save coupon error:', error);
-      toast.error("Failed to save coupon");
+      const errorMessage = error instanceof Error ? error.message : "Failed to save coupon";
+      toast.error(errorMessage);
     } finally {
       setIsSaving(false);
     }
@@ -299,7 +300,8 @@ export default function VendorPromotionsPage() {
       }
     } catch (error) {
       console.error('Save sale error:', error);
-      toast.error("Failed to save sale");
+      const errorMessage = error instanceof Error ? error.message : "Failed to save sale";
+      toast.error(errorMessage);
     } finally {
       setIsSaving(false);
     }

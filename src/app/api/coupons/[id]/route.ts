@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/db/dal/sessions';
 import { cookies } from 'next/headers';
 import { getCouponById, updateCoupon, deleteCoupon } from '@/lib/db/dal/promotions';
+import { validateContentSafety } from '@/lib/validation';
 
 export async function GET(
   request: NextRequest,
@@ -57,6 +58,20 @@ export async function PATCH(
 
     const body = await request.json();
     const { name, discountType, discountValue, minOrderAmount, usageLimit, startDate, endDate, isActive } = body;
+
+    // Content safety validation for name and code
+    if (name) {
+      const nameCheck = validateContentSafety(name);
+      if (!nameCheck.valid) {
+        return NextResponse.json({ error: nameCheck.message, code: nameCheck.code }, { status: 400 });
+      }
+    }
+    if (body.code) {
+      const codeCheck = validateContentSafety(body.code);
+      if (!codeCheck.valid) {
+        return NextResponse.json({ error: codeCheck.message, code: codeCheck.code }, { status: 400 });
+      }
+    }
 
     const coupon = await updateCoupon(id, session.user_id, {
       name,

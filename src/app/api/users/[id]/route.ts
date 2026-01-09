@@ -16,6 +16,7 @@ import {
 } from '@/lib/db/dal/users';
 import { logAdminAction } from '@/lib/db/dal/audit';
 import { getAdminById } from '@/lib/db/dal/admin';
+import { validatePhone, normalizePhone, validateContentSafety, validateAddress } from '@/lib/validation';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -115,12 +116,57 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
+    
+    // Validate phone if provided
+    if (body.phone !== undefined && body.phone !== null && body.phone !== '') {
+      const phoneResult = validatePhone(body.phone);
+      if (!phoneResult.valid) {
+        return NextResponse.json(
+          { error: phoneResult.message, code: phoneResult.code },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Validate location/address if provided
+    if (body.location !== undefined && body.location !== null && body.location !== '') {
+      const locationResult = validateAddress(body.location, 'Location');
+      if (!locationResult.valid) {
+        return NextResponse.json(
+          { error: locationResult.message, code: locationResult.code },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Content safety for store description
+    if (body.storeDescription !== undefined && body.storeDescription !== null && body.storeDescription !== '') {
+      const descResult = validateContentSafety(body.storeDescription);
+      if (!descResult.valid) {
+        return NextResponse.json(
+          { error: descResult.message, code: descResult.code },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Content safety for business name
+    if (body.businessName !== undefined && body.businessName !== null && body.businessName !== '') {
+      const nameResult = validateContentSafety(body.businessName);
+      if (!nameResult.valid) {
+        return NextResponse.json(
+          { error: nameResult.message, code: nameResult.code },
+          { status: 400 }
+        );
+      }
+    }
+    
     const updates: UpdateUserInput = {};
 
     // Fields users can update on their own profile
     if (body.name !== undefined) updates.name = body.name;
     if (body.avatar !== undefined) updates.avatar = body.avatar;
-    if (body.phone !== undefined) updates.phone = body.phone;
+    if (body.phone !== undefined) updates.phone = body.phone ? normalizePhone(body.phone) : body.phone;
     if (body.location !== undefined) updates.location = body.location;
 
     // Vendor-specific fields (vendors can update their own)

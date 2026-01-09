@@ -18,6 +18,7 @@ import { getVendorByUserId } from '@/lib/db/dal/vendors';
 import { getUserById } from '@/lib/db/dal/users';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getActiveSaleByProduct } from '@/lib/db/dal/promotions';
+import { validateContentSafety } from '@/lib/validation';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -152,6 +153,26 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
       if (!name) {
         validationErrors.push('Product name cannot be empty');
+      } else {
+        // Content safety check for product name
+        const nameResult = validateContentSafety(name);
+        if (!nameResult.valid) {
+          return NextResponse.json(
+            { error: nameResult.message, code: nameResult.code },
+            { status: 400 }
+          );
+        }
+      }
+    }
+    
+    // Content safety check for description if provided
+    if (body.description !== undefined && body.description !== null && body.description !== '') {
+      const descResult = validateContentSafety(body.description);
+      if (!descResult.valid) {
+        return NextResponse.json(
+          { error: descResult.message, code: descResult.code },
+          { status: 400 }
+        );
       }
     }
     

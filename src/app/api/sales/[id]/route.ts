@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/lib/db/dal/sessions';
 import { cookies } from 'next/headers';
 import { getSaleById, updateSale, deleteSale } from '@/lib/db/dal/promotions';
+import { validateContentSafety } from '@/lib/validation';
 
 export async function GET(
   request: NextRequest,
@@ -57,6 +58,14 @@ export async function PATCH(
 
     const body = await request.json();
     const { name, productIds, discountType, discountValue, startDate, endDate, isActive } = body;
+
+    // Content safety validation for name
+    if (name) {
+      const nameCheck = validateContentSafety(name);
+      if (!nameCheck.valid) {
+        return NextResponse.json({ error: nameCheck.message, code: nameCheck.code }, { status: 400 });
+      }
+    }
 
     const sale = await updateSale(id, session.user_id, {
       name,
