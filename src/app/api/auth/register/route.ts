@@ -182,8 +182,14 @@ export async function POST(request: NextRequest) {
 
     console.log('[REGISTER_API] Starting atomic registration', { email, role });
 
+    // For vendors, combine location with business address for full address info
+    // Only combine if both values exist to avoid 'undefined' in the string
+    const fullLocation = role === 'vendor' && address && location
+      ? `${location} | ${address}` 
+      : (location || address || undefined);
+
     const result = await registerUser(
-      { email, password, name, role, phone: normalizedPhone, location, businessName, businessType },
+      { email, password, name, role, phone: normalizedPhone, location: fullLocation, businessName, businessType },
       { ipAddress, userAgent }
     );
 

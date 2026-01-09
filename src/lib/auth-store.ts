@@ -323,6 +323,7 @@ export async function registerViaAPI(data: {
   location?: string;
   businessName?: string;
   businessType?: string;
+  address?: string;
 }): Promise<{ success: boolean; user?: User; error?: string; code?: string; field?: string; redirect?: string }> {
   try {
     useAuthStore.getState().setLoading(true);
