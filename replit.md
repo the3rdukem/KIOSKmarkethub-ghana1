@@ -14,8 +14,9 @@ I prefer clear and concise communication.
 The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui` for UI components, ensuring a modern and responsive user experience. PostgreSQL is used as the primary database, managed by Replit, with a focus on connection pooling and async data access.
 
 **Key Technical Implementations:**
-- **Database**: PostgreSQL with a dedicated Data Access Layer (DAL) using `pg` for connection pooling and async operations.
-- **Authentication**: Server-authoritative session management via a single `session_token` httpOnly cookie, centralizing authentication logic.
+- **Database**: PostgreSQL with a dedicated Data Access Layer (DAL) using `pg` for connection pooling and async operations. Schema includes proper constraints (UNIQUE, NOT NULL, CHECK, FOREIGN KEY).
+- **Authentication**: Server-authoritative session management via a single `session_token` httpOnly cookie. Strong password validation (8+ chars, 1 uppercase, 1 lowercase, 1 number). Email uniqueness allows same email for buyer+vendor accounts, but admin emails are globally unique. Login provides differentiated error codes for debugging while maintaining secure user-facing messages.
+- **Input Validation**: Comprehensive server-side validation across all API endpoints with structured error responses including code, message, details, and validationErrors array. Client-side password strength indicator on registration form provides real-time feedback.
 - **Governance System**: Comprehensive system for vendor and product management, including vendor verification, product gating, category management with dynamic form schema, and detailed audit logging for critical administrative actions.
 - **Cart System**: Secure cart ownership model with guest and user carts, including guest-to-user cart merging on authentication and persistence for user carts.
 - **Reviews System**: Full-fledged database-backed review system allowing buyers to rate products, vendors to reply, and administrators to moderate content.

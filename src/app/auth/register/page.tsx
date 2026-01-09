@@ -399,6 +399,7 @@ export default function RegisterPage() {
                     onChange={(e) => handleInputChange("password", e.target.value)}
                     className={`pl-10 pr-10 ${errors.password ? "border-red-500" : ""}`}
                     placeholder="Create a strong password"
+                    autoComplete="new-password"
                   />
                   <button
                     type="button"
@@ -455,6 +456,7 @@ export default function RegisterPage() {
                     onChange={(e) => handleInputChange("confirmPassword", e.target.value)}
                     className={`pl-10 pr-10 ${errors.confirmPassword ? "border-red-500" : ""}`}
                     placeholder="Confirm your password"
+                    autoComplete="new-password"
                   />
                   <button
                     type="button"
