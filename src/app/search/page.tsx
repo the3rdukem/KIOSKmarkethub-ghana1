@@ -233,10 +233,11 @@ function SearchPageContent() {
   }, [allProducts, debouncedSearchQuery, selectedCategory, selectedVendor, priceRange, minRating, inStockOnly, sortBy, getAverageRating, aiSearchResults]);
 
   const handleAddToCart = useCallback((product: Product) => {
+    const priceToUse = product.effectivePrice ?? product.price;
     addItem({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: priceToUse,
       image: product.images?.[0] || "",
       vendor: product.vendorName,
       vendorId: product.vendorId,
@@ -496,12 +497,28 @@ function SearchPageContent() {
           </div>
 
           {/* Price */}
-          <div className="flex items-center gap-2 mb-3">
-            <span className="font-bold text-lg">GHS {product.price.toLocaleString()}</span>
-            {product.comparePrice && (
-              <span className="text-sm text-muted-foreground line-through">
-                GHS {product.comparePrice.toLocaleString()}
-              </span>
+          <div className="flex items-center gap-2 flex-wrap mb-3">
+            {product.activeSale ? (
+              <>
+                <span className="font-bold text-lg text-green-600">GHS {(product.effectivePrice || product.price).toLocaleString()}</span>
+                <span className="text-sm text-muted-foreground line-through">
+                  GHS {product.price.toLocaleString()}
+                </span>
+                <Badge variant="destructive" className="text-xs animate-pulse">
+                  {product.activeSale.discountType === 'percentage' 
+                    ? `-${product.activeSale.discountValue}%` 
+                    : `-GHS ${product.activeSale.discountValue}`}
+                </Badge>
+              </>
+            ) : (
+              <>
+                <span className="font-bold text-lg">GHS {product.price.toLocaleString()}</span>
+                {product.comparePrice && (
+                  <span className="text-sm text-muted-foreground line-through">
+                    GHS {product.comparePrice.toLocaleString()}
+                  </span>
+                )}
+              </>
             )}
           </div>
 

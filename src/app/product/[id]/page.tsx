@@ -75,11 +75,20 @@ interface RatingStats {
   distribution: { [key: number]: number };
 }
 
+interface ActiveSale {
+  id: string;
+  name: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  endsAt: string;
+}
+
 interface Product {
   id: string;
   name: string;
   description: string;
   price: number;
+  effectivePrice?: number;
   comparePrice?: number;
   images: string[];
   category: string;
@@ -91,6 +100,7 @@ interface Product {
   sku?: string;
   specifications?: Record<string, string>;
   tags?: string[];
+  activeSale?: ActiveSale | null;
 }
 
 interface Vendor {
@@ -217,10 +227,12 @@ export default function ProductPage() {
   const handleAddToCart = () => {
     if (!product) return;
 
+    const priceToUse = product.effectivePrice ?? product.price;
+
     addItem({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: priceToUse,
       image: product.images[0] || "",
       vendor: product.vendorName,
       vendorId: product.vendorId,
@@ -505,19 +517,38 @@ export default function ProductPage() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center gap-3">
-                <span className="text-3xl font-bold text-green-600">
-                  GHS {product.price.toLocaleString()}
-                </span>
-                {product.comparePrice && (
-                  <>
-                    <span className="text-lg text-muted-foreground line-through">
-                      GHS {product.comparePrice.toLocaleString()}
-                    </span>
-                    <Badge variant="destructive">-{discount}%</Badge>
-                  </>
-                )}
-              </div>
+              {product.activeSale ? (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <span className="text-3xl font-bold text-green-600">
+                    GHS {(product.effectivePrice || product.price).toLocaleString()}
+                  </span>
+                  <span className="text-lg text-muted-foreground line-through">
+                    GHS {product.price.toLocaleString()}
+                  </span>
+                  <Badge variant="destructive" className="animate-pulse">
+                    {product.activeSale.discountType === 'percentage' 
+                      ? `-${product.activeSale.discountValue}%` 
+                      : `-GHS ${product.activeSale.discountValue}`}
+                  </Badge>
+                  <Badge variant="secondary" className="bg-red-100 text-red-800">
+                    {product.activeSale.name}
+                  </Badge>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl font-bold text-green-600">
+                    GHS {product.price.toLocaleString()}
+                  </span>
+                  {product.comparePrice && (
+                    <>
+                      <span className="text-lg text-muted-foreground line-through">
+                        GHS {product.comparePrice.toLocaleString()}
+                      </span>
+                      <Badge variant="destructive">-{discount}%</Badge>
+                    </>
+                  )}
+                </div>
+              )}
               <p className="text-sm text-muted-foreground">
                 Price includes all taxes. No hidden fees.
               </p>

@@ -17,6 +17,7 @@ import {
 import { getVendorByUserId } from '@/lib/db/dal/vendors';
 import { getUserById } from '@/lib/db/dal/users';
 import { createAuditLog } from '@/lib/db/dal/audit';
+import { getActiveSaleByProduct } from '@/lib/db/dal/promotions';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -54,6 +55,25 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     }
 
+    const activeSale = await getActiveSaleByProduct(product.id);
+    let effectivePrice = product.price;
+    let saleInfo = null;
+
+    if (activeSale) {
+      if (activeSale.discount_type === 'percentage') {
+        effectivePrice = product.price * (1 - activeSale.discount_value / 100);
+      } else {
+        effectivePrice = Math.max(0, product.price - activeSale.discount_value);
+      }
+      saleInfo = {
+        id: activeSale.id,
+        name: activeSale.name,
+        discountType: activeSale.discount_type,
+        discountValue: activeSale.discount_value,
+        endsAt: activeSale.ends_at,
+      };
+    }
+
     return NextResponse.json({
       product: {
         id: product.id,
@@ -63,6 +83,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         description: product.description,
         category: product.category,
         price: product.price,
+        effectivePrice: Math.round(effectivePrice * 100) / 100,
         comparePrice: product.compare_price,
         costPerItem: product.cost_per_item,
         sku: product.sku,
@@ -80,6 +101,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         isFeatured: product.is_featured === 1,
         createdAt: product.created_at,
         updatedAt: product.updated_at,
+        activeSale: saleInfo,
       },
     });
   } catch (error) {

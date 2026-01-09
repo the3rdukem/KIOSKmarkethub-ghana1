@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateCoupon, getCouponByCode } from '@/lib/db/dal/promotions';
+import { validateCoupon } from '@/lib/db/dal/promotions';
+
+interface CartItem {
+  id: string;
+  vendorId: string;
+  price: number;
+  quantity: number;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { code, orderAmount, vendorIds } = body;
+    const { code, orderAmount, vendorIds, cartItems } = body;
 
     if (!code) {
       return NextResponse.json({ error: 'Coupon code is required' }, { status: 400 });
@@ -30,6 +37,22 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    let eligibleSubtotal = 0;
+    let lineItemDiscount = 0;
+    
+    if (cartItems && Array.isArray(cartItems)) {
+      const eligibleItems = cartItems.filter((item: CartItem) => item.vendorId === coupon.vendor_user_id);
+      eligibleSubtotal = eligibleItems.reduce((sum: number, item: CartItem) => sum + (item.price * item.quantity), 0);
+      
+      if (coupon.discount_type === 'percentage') {
+        lineItemDiscount = (eligibleSubtotal * coupon.discount_value) / 100;
+      } else {
+        lineItemDiscount = Math.min(coupon.discount_value, eligibleSubtotal);
+      }
+    } else {
+      lineItemDiscount = result.discount || 0;
+    }
+
     return NextResponse.json({
       valid: true,
       coupon: {
@@ -40,7 +63,8 @@ export async function POST(request: NextRequest) {
         discountValue: coupon.discount_value,
         vendorId: coupon.vendor_user_id,
       },
-      discount: result.discount,
+      eligibleSubtotal,
+      discount: lineItemDiscount,
     });
   } catch (error) {
     console.error('[COUPON_VALIDATE]', error);

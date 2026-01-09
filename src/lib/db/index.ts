@@ -553,13 +553,12 @@ async function runMigrations(client: PoolClient): Promise<void> {
     // Table may already exist
   }
 
-  // Create sales table if it doesn't exist
+  // Create sales table if it doesn't exist (multi-product support via join table)
   try {
     await client.query(`
       CREATE TABLE IF NOT EXISTS sales (
         id TEXT PRIMARY KEY,
         vendor_user_id TEXT NOT NULL,
-        product_id TEXT NOT NULL,
         name TEXT NOT NULL,
         discount_type TEXT NOT NULL CHECK(discount_type IN ('percentage', 'fixed')),
         discount_value REAL NOT NULL,
@@ -567,15 +566,57 @@ async function runMigrations(client: PoolClient): Promise<void> {
         ends_at TEXT NOT NULL,
         is_active INTEGER DEFAULT 1,
         created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
-        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
-        CONSTRAINT fk_sales_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
       );
       CREATE INDEX IF NOT EXISTS idx_sales_vendor ON sales(vendor_user_id);
-      CREATE INDEX IF NOT EXISTS idx_sales_product ON sales(product_id);
       CREATE INDEX IF NOT EXISTS idx_sales_active ON sales(is_active);
     `);
   } catch (e) {
     // Table may already exist
+  }
+
+  // Create sale_products join table for multi-product sales
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sale_products (
+        id TEXT PRIMARY KEY,
+        sale_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        CONSTRAINT fk_sale_products_sale FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+        CONSTRAINT fk_sale_products_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
+        UNIQUE(sale_id, product_id)
+      );
+      CREATE INDEX IF NOT EXISTS idx_sale_products_sale ON sale_products(sale_id);
+      CREATE INDEX IF NOT EXISTS idx_sale_products_product ON sale_products(product_id);
+    `);
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // Migration: If sales table has product_id column, migrate data to sale_products
+  try {
+    const hasProductIdColumn = await client.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'sales' AND column_name = 'product_id'
+    `);
+    
+    if (hasProductIdColumn.rows.length > 0) {
+      // Migrate existing single-product sales to join table
+      await client.query(`
+        INSERT INTO sale_products (id, sale_id, product_id, created_at)
+        SELECT 'sp_' || REPLACE(CAST(gen_random_uuid() AS TEXT), '-', ''), s.id, s.product_id, s.created_at
+        FROM sales s
+        WHERE s.product_id IS NOT NULL
+        ON CONFLICT (sale_id, product_id) DO NOTHING
+      `);
+      
+      // Drop the product_id column from sales
+      await client.query(`ALTER TABLE sales DROP COLUMN IF EXISTS product_id`);
+      console.log('[DB] Migrated sales to multi-product schema');
+    }
+  } catch (e) {
+    console.log('[DB] Sales migration skipped or already done');
   }
 
   for (const migration of migrations) {

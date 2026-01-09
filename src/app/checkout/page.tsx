@@ -250,7 +250,7 @@ export default function CheckoutPage() {
 
   // Coupon state
   const [couponCode, setCouponCode] = useState("");
-  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number; couponId: string } | null>(null);
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number; couponId: string; vendorId: string; eligibleSubtotal: number } | null>(null);
   const [couponError, setCouponError] = useState("");
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
@@ -454,6 +454,13 @@ export default function CheckoutPage() {
     setIsValidatingCoupon(true);
 
     try {
+      const cartItemsPayload = items.map(item => ({
+        id: item.id,
+        vendorId: item.vendorId,
+        price: item.price,
+        quantity: item.quantity,
+      }));
+
       const response = await fetch('/api/coupons/validate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -462,6 +469,7 @@ export default function CheckoutPage() {
           code: couponCode,
           orderAmount: subtotal,
           vendorIds: vendorIds,
+          cartItems: cartItemsPayload,
         }),
       });
 
@@ -476,6 +484,8 @@ export default function CheckoutPage() {
         code: result.coupon.code,
         discount: result.discount,
         couponId: result.coupon.id,
+        vendorId: result.coupon.vendorId,
+        eligibleSubtotal: result.eligibleSubtotal || 0,
       });
       setCouponCode("");
       toast.success(`Coupon applied! You save GHS ${result.discount.toFixed(2)}`);

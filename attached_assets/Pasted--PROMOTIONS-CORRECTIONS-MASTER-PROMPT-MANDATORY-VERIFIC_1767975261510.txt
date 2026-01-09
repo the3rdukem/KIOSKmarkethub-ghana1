@@ -1,0 +1,225 @@
+
+🔥 PROMOTIONS CORRECTIONS MASTER PROMPT (MANDATORY VERIFICATION)
+
+CONTEXT
+
+We already have a database-backed Promotions & Discounts system (Coupons + Sales) with persistence.
+However, there are critical correctness bugs that must be fixed before payments, orders, or external APIs can be safely enabled.
+
+This prompt is NOT about adding new features.
+It is about fixing broken logic to industry-standard marketplace behavior.
+
+⸻
+
+🚨 CRITICAL RULES (DO NOT IGNORE)
+	1.	Do NOT overwrite product prices in the database
+	2.	Do NOT apply vendor coupons to other vendors’ products
+	3.	Do NOT rely on Zustand/localStorage for pricing
+	4.	All pricing must be computed dynamically
+	5.	Every fix must be verified using real test accounts
+
+⸻
+
+SECTION 1 — FIX SALES: MULTI-PRODUCT SUPPORT
+
+CURRENT PROBLEM
+	•	A sale can only be applied to one product
+	•	This blocks real vendor use cases
+
+REQUIRED BEHAVIOR
+	•	A single sale must support multiple products
+	•	Vendors must be able to select many of their own products
+
+REQUIRED IMPLEMENTATION
+	•	Introduce a join table:
+
+sale_products (
+  id,
+  sale_id,
+  product_id
+)
+
+	•	Remove any single product_id constraint from sales
+	•	Update sale creation UI:
+	•	Multi-select product picker
+	•	Only vendor-owned products are selectable
+	•	Update APIs:
+	•	Create sale → attach multiple products
+	•	Fetch active sales → resolve all linked products
+
+⸻
+
+SECTION 2 — FIX COUPON SCOPE (SEVERITY 1 BUG)
+
+CURRENT PROBLEM
+	•	Coupons discount products from other vendors
+	•	This is unacceptable and blocks checkout entirely
+
+REQUIRED BEHAVIOR (NON-NEGOTIABLE)
+	•	Coupons apply ONLY to:
+	•	Products sold by the vendor who created the coupon
+	•	Coupons must NOT affect:
+	•	Other vendors’ items
+	•	Cart subtotal globally
+
+REQUIRED IMPLEMENTATION
+
+Coupon Validation API
+When validating a coupon:
+	1.	Resolve coupon → get vendor_id
+	2.	Identify cart line items belonging to that vendor
+	3.	Return line-item scoped discount, NOT cart-level discount
+
+Checkout Price Calculation
+	•	Apply coupon discount per eligible cart item
+	•	Other cart items must remain unchanged
+
+📌 Example (MANDATORY BEHAVIOR):
+
+Cart:
+	•	Vendor A product → $100
+	•	Vendor B product → $50
+
+Coupon from Vendor A (10%)
+
+Correct result:
+	•	Vendor A item → $90
+	•	Vendor B item → $50
+	•	Total → $140
+
+⸻
+
+SECTION 3 — FIX SALES PRICE APPLICATION (DISPLAY & CART)
+
+CURRENT PROBLEM
+	•	Sales exist but do not affect displayed prices
+	•	Product pages, search results, and cart ignore sales
+
+REQUIRED BEHAVIOR
+
+Active sales must affect:
+	•	Homepage product cards
+	•	Marketplace search results
+	•	Product detail pages
+	•	Cart
+	•	Checkout
+	•	Order snapshots
+
+REQUIRED PRICING HIERARCHY
+
+Price priority must be:
+	1.	Active Sale (time-based, computed)
+	2.	Compare / promotional price (manual)
+	3.	Base price
+
+REQUIRED IMPLEMENTATION
+	•	Introduce computed field:
+
+effective_price
+
+	•	Never persist discounted price to DB
+	•	Resolve active sale by:
+	•	product_id
+	•	current date within sale range
+	•	Compute discount dynamically
+
+⸻
+
+SECTION 4 — ALIGN UI WITH PRICING LOGIC
+
+REQUIRED UI FIXES
+	•	Product cards must show:
+	•	Discounted price
+	•	Original price (struck-through)
+	•	Sale badge (e.g. “20% OFF”)
+	•	Product page must show:
+	•	Sale price
+	•	Original price
+	•	Sale validity (optional but preferred)
+	•	Cart must:
+	•	Show discounted line item price
+	•	Clearly indicate coupon or sale applied
+
+⸻
+
+SECTION 5 — ADMIN ROLE (CLARIFICATION)
+
+DO NOT IMPLEMENT
+	•	Admin editing vendor coupons
+	•	Admin creating vendor sales
+
+ALLOWED / OPTIONAL
+	•	Admin can:
+	•	Disable a vendor promotion
+	•	View promotions for moderation
+	•	Admin promotions (platform-wide) are OUT OF SCOPE for this prompt
+
+⸻
+
+SECTION 6 — REMOVE WRONG DEPENDENCIES
+	•	Do NOT use Zustand or localStorage for:
+	•	Promotions
+	•	Sales
+	•	Pricing
+	•	All pricing must come from API → DB → computed response
+
+⸻
+
+SECTION 7 — MANDATORY TESTING (USE THESE CREDENTIALS)
+
+Buyer
+
+Email: buy@kiosk.com.gh
+Password: 123asdqwe
+
+Vendor
+
+Email: ven@kiosk.com.gh
+Password: 123asdqwe
+
+Admin
+
+Email: the3rdukem@gmail.com
+Password: 123asdqweX$
+
+REQUIRED TEST CASES (MUST CONFIRM ALL)
+	1.	Vendor creates a sale with multiple products
+	2.	Sale prices reflect on:
+	•	Homepage
+	•	Product page
+	•	Cart
+	3.	Vendor creates coupon
+	4.	Buyer adds products from two different vendors
+	5.	Coupon discounts only vendor’s own products
+	6.	Coupon survives logout/login
+	7.	Cart totals are correct
+	8.	No console errors
+	9.	No stale state after refresh
+
+⸻
+
+SECTION 8 — REPORTING RULES
+
+The agent MUST:
+	•	Explicitly state what was broken
+	•	Explain why it was broken
+	•	Show how it was fixed
+	•	Confirm each test case passed
+	•	NOT claim success without verification
+
+🚫 Statements like:
+
+“This should now work”
+are NOT acceptable
+
+⸻
+
+SUCCESS DEFINITION
+
+✅ Promotions are safe
+✅ Pricing is correct everywhere
+✅ Coupons cannot corrupt orders
+✅ Sales behave like a real marketplace
+✅ Ready for payments & checkout flow
+
+⸻

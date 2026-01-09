@@ -18,6 +18,7 @@ import {
 import { getUserById } from '@/lib/db/dal/users';
 import { getVendorByUserId } from '@/lib/db/dal/vendors';
 import { createAuditLog } from '@/lib/db/dal/audit';
+import { getActiveSalesForProducts } from '@/lib/db/dal/promotions';
 
 /**
  * GET /api/products
@@ -74,26 +75,51 @@ export async function GET(request: NextRequest) {
 
     const products = await getProducts(options);
 
-    // Transform for client
-    const transformedProducts = products.map((product) => ({
-      id: product.id,
-      vendorId: product.vendor_id,
-      vendorName: product.vendor_name,
-      name: product.name,
-      description: product.description,
-      category: product.category,
-      price: product.price,
-      comparePrice: product.compare_price,
-      quantity: product.quantity,
-      trackQuantity: product.track_quantity === 1,
-      images: product.images ? JSON.parse(product.images) : [],
-      tags: product.tags ? JSON.parse(product.tags) : [],
-      status: product.status,
-      categoryAttributes: product.category_attributes ? JSON.parse(product.category_attributes) : {},
-      isFeatured: product.is_featured === 1,
-      createdAt: product.created_at,
-      updatedAt: product.updated_at,
-    }));
+    const productIds = products.map(p => p.id);
+    const activeSalesMap = await getActiveSalesForProducts(productIds);
+
+    const transformedProducts = products.map((product) => {
+      const activeSale = activeSalesMap.get(product.id);
+      let effectivePrice = product.price;
+      let saleInfo = null;
+
+      if (activeSale) {
+        if (activeSale.discount_type === 'percentage') {
+          effectivePrice = product.price * (1 - activeSale.discount_value / 100);
+        } else {
+          effectivePrice = Math.max(0, product.price - activeSale.discount_value);
+        }
+        saleInfo = {
+          id: activeSale.id,
+          name: activeSale.name,
+          discountType: activeSale.discount_type,
+          discountValue: activeSale.discount_value,
+          endsAt: activeSale.ends_at,
+        };
+      }
+
+      return {
+        id: product.id,
+        vendorId: product.vendor_id,
+        vendorName: product.vendor_name,
+        name: product.name,
+        description: product.description,
+        category: product.category,
+        price: product.price,
+        effectivePrice: Math.round(effectivePrice * 100) / 100,
+        comparePrice: product.compare_price,
+        quantity: product.quantity,
+        trackQuantity: product.track_quantity === 1,
+        images: product.images ? JSON.parse(product.images) : [],
+        tags: product.tags ? JSON.parse(product.tags) : [],
+        status: product.status,
+        categoryAttributes: product.category_attributes ? JSON.parse(product.category_attributes) : {},
+        isFeatured: product.is_featured === 1,
+        createdAt: product.created_at,
+        updatedAt: product.updated_at,
+        activeSale: saleInfo,
+      };
+    });
 
     return NextResponse.json({
       products: transformedProducts,

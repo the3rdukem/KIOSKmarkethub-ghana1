@@ -274,7 +274,13 @@ export default function HomePage() {
                         <Badge className="absolute top-2 left-2" variant="secondary">
                           {product.category}
                         </Badge>
-                        {product.comparePrice && product.comparePrice > product.price && (
+                        {product.activeSale ? (
+                          <Badge className="absolute top-2 right-2 animate-pulse" variant="destructive">
+                            {product.activeSale.discountType === 'percentage' 
+                              ? `-${product.activeSale.discountValue}%` 
+                              : `-GHS ${product.activeSale.discountValue}`}
+                          </Badge>
+                        ) : product.comparePrice && product.comparePrice > product.price && (
                           <Badge className="absolute top-2 right-2" variant="destructive">
                             -{Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)}%
                           </Badge>
@@ -285,12 +291,23 @@ export default function HomePage() {
                       <h3 className="font-semibold mb-2 line-clamp-2 group-hover:text-blue-600 transition-colors">
                         {product.name}
                       </h3>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-lg font-bold">GHS {product.price.toLocaleString()}</span>
-                        {product.comparePrice && product.comparePrice > product.price && (
-                          <span className="text-sm text-muted-foreground line-through">
-                            GHS {product.comparePrice.toLocaleString()}
-                          </span>
+                      <div className="flex items-center gap-2 flex-wrap mb-3">
+                        {product.activeSale ? (
+                          <>
+                            <span className="text-lg font-bold text-green-600">GHS {(product.effectivePrice || product.price).toLocaleString()}</span>
+                            <span className="text-sm text-muted-foreground line-through">
+                              GHS {product.price.toLocaleString()}
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="text-lg font-bold">GHS {product.price.toLocaleString()}</span>
+                            {product.comparePrice && product.comparePrice > product.price && (
+                              <span className="text-sm text-muted-foreground line-through">
+                                GHS {product.comparePrice.toLocaleString()}
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
                       <div className="flex items-center justify-between text-sm">

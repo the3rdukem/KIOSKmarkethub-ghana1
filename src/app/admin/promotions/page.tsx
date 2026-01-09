@@ -38,8 +38,6 @@ interface Sale {
   id: string;
   vendor_user_id: string;
   vendor_name?: string;
-  product_id: string;
-  product_name?: string;
   name: string;
   discount_type: 'percentage' | 'fixed';
   discount_value: number;
@@ -47,6 +45,8 @@ interface Sale {
   ends_at: string;
   is_active: boolean;
   created_at: string;
+  product_ids?: string[];
+  product_names?: string[];
 }
 
 type PromotionStatus = 'active' | 'scheduled' | 'expired' | 'disabled';
@@ -241,7 +241,7 @@ export default function AdminPromotionsPage() {
                       <TableRow>
                         <TableHead>Vendor</TableHead>
                         <TableHead>Sale Name</TableHead>
-                        <TableHead>Product</TableHead>
+                        <TableHead>Products</TableHead>
                         <TableHead>Discount</TableHead>
                         <TableHead>Duration</TableHead>
                         <TableHead>Status</TableHead>
@@ -252,7 +252,18 @@ export default function AdminPromotionsPage() {
                         <TableRow key={s.id}>
                           <TableCell className="font-medium">{s.vendor_name || 'Unknown Vendor'}</TableCell>
                           <TableCell>{s.name}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{s.product_name || 'Unknown'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                            {s.product_names && s.product_names.length > 0 ? (
+                              <div className="space-y-1">
+                                {s.product_names.slice(0, 2).map((name, i) => (
+                                  <Badge key={i} variant="outline" className="text-xs mr-1">{name}</Badge>
+                                ))}
+                                {s.product_names.length > 2 && (
+                                  <Badge variant="secondary" className="text-xs">+{s.product_names.length - 2} more</Badge>
+                                )}
+                              </div>
+                            ) : 'No products'}
+                          </TableCell>
                           <TableCell>{s.discount_type === "percentage" ? `${s.discount_value}%` : `GHS ${s.discount_value}`}</TableCell>
                           <TableCell className="text-xs">
                             {format(new Date(s.starts_at), "MMM d, yyyy")} - {format(new Date(s.ends_at), "MMM d, yyyy")}

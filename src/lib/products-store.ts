@@ -1,6 +1,14 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+export interface ActiveSale {
+  id: string;
+  name: string;
+  discountType: 'percentage' | 'fixed';
+  discountValue: number;
+  endsAt: string;
+}
+
 export interface Product {
   id: string;
   vendorId: string;
@@ -9,6 +17,8 @@ export interface Product {
   description: string;
   category: string;
   price: number;
+  effectivePrice?: number;
+  activeSale?: ActiveSale | null;
   comparePrice?: number;
   costPerItem?: number;
   sku?: string;

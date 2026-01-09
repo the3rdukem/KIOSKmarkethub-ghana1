@@ -46,7 +46,6 @@ interface Coupon {
 interface Sale {
   id: string;
   vendor_user_id: string;
-  product_id: string;
   name: string;
   discount_type: 'percentage' | 'fixed';
   discount_value: number;
@@ -54,7 +53,8 @@ interface Sale {
   ends_at: string;
   is_active: boolean;
   created_at: string;
-  product_name?: string;
+  product_ids?: string[];
+  product_names?: string[];
 }
 
 interface Product {
@@ -102,7 +102,7 @@ export default function VendorPromotionsPage() {
 
   const [saleForm, setSaleForm] = useState({
     name: "", discountType: "percentage" as "percentage" | "fixed",
-    discountValue: 10, productId: "",
+    discountValue: 10, productIds: [] as string[],
     startDate: format(new Date(), "yyyy-MM-dd"),
     endDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd"),
   });
@@ -178,7 +178,7 @@ export default function VendorPromotionsPage() {
   };
 
   const resetSaleForm = () => {
-    setSaleForm({ name: "", discountType: "percentage", discountValue: 10, productId: "", startDate: format(new Date(), "yyyy-MM-dd"), endDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd") });
+    setSaleForm({ name: "", discountType: "percentage", discountValue: 10, productIds: [], startDate: format(new Date(), "yyyy-MM-dd"), endDate: format(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), "yyyy-MM-dd") });
     setEditingSale(null);
   };
 
@@ -255,15 +255,15 @@ export default function VendorPromotionsPage() {
   };
 
   const handleSaveSale = async () => {
-    if (!saleForm.name.trim() || !saleForm.productId) { 
-      toast.error("Please fill fields and select a product"); 
+    if (!saleForm.name.trim() || saleForm.productIds.length === 0) { 
+      toast.error("Please fill fields and select at least one product"); 
       return; 
     }
     
     setIsSaving(true);
     try {
       const payload = {
-        productId: saleForm.productId,
+        productIds: saleForm.productIds,
         name: saleForm.name,
         discountType: saleForm.discountType,
         discountValue: saleForm.discountValue,
@@ -345,11 +345,20 @@ export default function VendorPromotionsPage() {
       name: s.name, 
       discountType: s.discount_type, 
       discountValue: s.discount_value, 
-      productId: s.product_id, 
+      productIds: s.product_ids || [], 
       startDate: format(new Date(s.starts_at), "yyyy-MM-dd"), 
       endDate: format(new Date(s.ends_at), "yyyy-MM-dd") 
     });
     setShowSaleDialog(true);
+  };
+
+  const toggleProductSelection = (productId: string) => {
+    setSaleForm(prev => ({
+      ...prev,
+      productIds: prev.productIds.includes(productId)
+        ? prev.productIds.filter(id => id !== productId)
+        : [...prev.productIds, productId]
+    }));
   };
 
   return (
@@ -474,7 +483,7 @@ export default function VendorPromotionsPage() {
                         <div><Label>End Date</Label><Input type="date" value={saleForm.endDate} onChange={e => setSaleForm({ ...saleForm, endDate: e.target.value })} /></div>
                       </div>
                       <div>
-                        <Label>Select Product *</Label>
+                        <Label>Select Products * ({saleForm.productIds.length} selected)</Label>
                         {vendorProducts.length === 0 ? (
                           <div className="border rounded-lg p-4 mt-2 text-center">
                             <ShoppingBag className="w-8 h-8 text-gray-300 mx-auto mb-2" />
@@ -482,16 +491,26 @@ export default function VendorPromotionsPage() {
                             <Link href="/vendor/products/create"><Button variant="link" size="sm">Add a product first</Button></Link>
                           </div>
                         ) : (
-                          <Select value={saleForm.productId} onValueChange={v => setSaleForm({ ...saleForm, productId: v })}>
-                            <SelectTrigger className="mt-2"><SelectValue placeholder="Select a product" /></SelectTrigger>
-                            <SelectContent>
-                              {vendorProducts.filter(p => p.status === 'active').map(p => (
-                                <SelectItem key={p.id} value={p.id}>
-                                  {p.name} - GHS {p.price}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div className="border rounded-lg mt-2 max-h-48 overflow-y-auto">
+                            {vendorProducts.filter(p => p.status === 'active').map(p => (
+                              <div 
+                                key={p.id} 
+                                className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 border-b last:border-b-0 ${saleForm.productIds.includes(p.id) ? 'bg-emerald-50' : ''}`}
+                                onClick={() => toggleProductSelection(p.id)}
+                              >
+                                <input 
+                                  type="checkbox" 
+                                  checked={saleForm.productIds.includes(p.id)} 
+                                  onChange={() => {}} 
+                                  className="w-4 h-4 text-emerald-600 rounded"
+                                />
+                                <div className="flex-1">
+                                  <p className="font-medium text-sm">{p.name}</p>
+                                  <p className="text-xs text-muted-foreground">GHS {p.price}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -510,12 +529,23 @@ export default function VendorPromotionsPage() {
                   <div className="text-center py-12"><Percent className="w-16 h-16 text-gray-300 mx-auto mb-4" /><h3 className="font-semibold">No Sales Yet</h3><p className="text-muted-foreground">Create flash sales to boost conversions</p></div>
                 ) : (
                   <Table>
-                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Product</TableHead><TableHead>Discount</TableHead><TableHead>Duration</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+                    <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Products</TableHead><TableHead>Discount</TableHead><TableHead>Duration</TableHead><TableHead>Status</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
                     <TableBody>
                       {sales.map(s => (
                         <TableRow key={s.id}>
                           <TableCell className="font-medium">{s.name}</TableCell>
-                          <TableCell className="text-sm text-muted-foreground">{s.product_name || 'Unknown'}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-[200px]">
+                            {s.product_names && s.product_names.length > 0 ? (
+                              <div className="space-y-1">
+                                {s.product_names.slice(0, 2).map((name, i) => (
+                                  <Badge key={i} variant="outline" className="text-xs mr-1">{name}</Badge>
+                                ))}
+                                {s.product_names.length > 2 && (
+                                  <Badge variant="secondary" className="text-xs">+{s.product_names.length - 2} more</Badge>
+                                )}
+                              </div>
+                            ) : 'No products'}
+                          </TableCell>
                           <TableCell>{s.discount_type === "percentage" ? `${s.discount_value}%` : `GHS ${s.discount_value}`}</TableCell>
                           <TableCell className="text-xs">{format(new Date(s.starts_at), "MMM d")} - {format(new Date(s.ends_at), "MMM d, yyyy")}</TableCell>
                           <TableCell>{getStatusBadge(getPromotionStatus(s.starts_at, s.ends_at, s.is_active))}</TableCell>

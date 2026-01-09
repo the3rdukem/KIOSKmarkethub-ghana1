@@ -53,15 +53,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { productId, name, discountType, discountValue, startDate, endDate } = body;
+    const { productIds, name, discountType, discountValue, startDate, endDate } = body;
 
-    if (!productId || !name || !discountType || discountValue === undefined) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    if (!productIds || !Array.isArray(productIds) || productIds.length === 0 || !name || !discountType || discountValue === undefined) {
+      return NextResponse.json({ error: 'Missing required fields. productIds must be a non-empty array.' }, { status: 400 });
     }
 
     const sale = await createSale({
       vendor_user_id: session.user_id,
-      product_id: productId,
+      product_ids: productIds,
       name,
       discount_type: discountType,
       discount_value: discountValue,

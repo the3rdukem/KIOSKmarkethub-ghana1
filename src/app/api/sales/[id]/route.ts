@@ -56,10 +56,11 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, discountType, discountValue, startDate, endDate, isActive } = body;
+    const { name, productIds, discountType, discountValue, startDate, endDate, isActive } = body;
 
     const sale = await updateSale(id, session.user_id, {
       name,
+      product_ids: productIds,
       discount_type: discountType,
       discount_value: discountValue,
       starts_at: startDate,
