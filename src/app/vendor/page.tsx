@@ -22,7 +22,8 @@ import {
   BarChart3,
   Settings,
   Eye,
-  Loader2
+  Loader2,
+  MessageSquare
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { VendorAuthGuard } from "@/components/auth/auth-guard";
@@ -373,6 +374,14 @@ function VendorDashboardContent() {
                 >
                   <Eye className="w-4 h-4 mr-2" />
                   View Orders
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => router.push("/vendor/analytics?tab=reviews")}
+                >
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Customer Reviews
                 </Button>
                 <Button
                   variant="outline"

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
@@ -55,11 +55,14 @@ interface NormalizedReview {
   vendorReplyAt?: string | null;
 }
 
-export default function VendorAnalyticsPage() {
+function VendorAnalyticsContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
   const [isHydrated, setIsHydrated] = useState(false);
   const [timeRange, setTimeRange] = useState("30");
+  const initialTab = searchParams.get("tab") || "products";
+  const [activeTab, setActiveTab] = useState(initialTab);
   const [vendorProducts, setVendorProducts] = useState<Product[]>([]);
   const [productReviews, setProductReviews] = useState<NormalizedReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -319,7 +322,7 @@ export default function VendorAnalyticsPage() {
           </Card>
         </div>
 
-        <Tabs defaultValue="products" className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           <TabsList>
             <TabsTrigger value="products">Recent Orders</TabsTrigger>
             <TabsTrigger value="orders">Order Status</TabsTrigger>
@@ -519,5 +522,21 @@ export default function VendorAnalyticsPage() {
         </Tabs>
       </div>
     </SiteLayout>
+  );
+}
+
+export default function VendorAnalyticsPage() {
+  return (
+    <Suspense fallback={
+      <SiteLayout>
+        <div className="container py-8">
+          <div className="flex items-center justify-center min-h-[400px]">
+            <Loader2 className="w-12 h-12 animate-spin text-gray-400" />
+          </div>
+        </div>
+      </SiteLayout>
+    }>
+      <VendorAnalyticsContent />
+    </Suspense>
   );
 }

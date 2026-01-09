@@ -159,11 +159,18 @@ export default function BuyerReviewsPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">My Reviews</h1>
-        <p className="text-muted-foreground">
-          Manage reviews you've written for products
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">My Reviews</h1>
+          <p className="text-muted-foreground">
+            Manage your product reviews
+          </p>
+        </div>
+        <Button variant="outline" asChild>
+          <Link href="/">
+            Back to Marketplace
+          </Link>
+        </Button>
       </div>
 
       {reviews.length === 0 ? (
