@@ -33,7 +33,8 @@ import {
   Tag,
   BarChart3,
   Wallet,
-  Loader2
+  Loader2,
+  Star
 } from "lucide-react";
 import { useAuthStore, UserRole } from "@/lib/auth-store";
 import { NotificationsPanel } from "@/components/notifications/notifications-panel";
@@ -164,6 +165,12 @@ export function MainNav() {
         <Link href="/buyer/wishlist" className="cursor-pointer">
           <Heart className="mr-2 h-4 w-4" />
           Wishlist
+        </Link>
+      </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/buyer/reviews" className="cursor-pointer">
+          <Star className="mr-2 h-4 w-4" />
+          My Reviews
         </Link>
       </DropdownMenuItem>
       <DropdownMenuItem asChild>

@@ -9,6 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   TrendingUp,
@@ -18,7 +20,9 @@ import {
   Star,
   BarChart3,
   Loader2,
-  Calendar
+  Calendar,
+  MessageSquare,
+  Send
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { Product } from "@/lib/products-store";
@@ -65,6 +69,9 @@ export default function VendorAnalyticsPage() {
     revenue: number;
     recentOrders: Array<{ id: string; status: string; total: number; createdAt: string; buyerName: string }>;
   } | null>(null);
+  const [replyingTo, setReplyingTo] = useState<string | null>(null);
+  const [replyText, setReplyText] = useState("");
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -127,6 +134,45 @@ export default function VendorAnalyticsPage() {
 
     fetchData();
   }, [isHydrated, user]);
+
+  const handleSubmitReply = async (reviewId: string) => {
+    if (!replyText.trim()) {
+      toast.error("Please enter a reply");
+      return;
+    }
+
+    setIsSubmittingReply(true);
+    try {
+      const response = await fetch(`/api/reviews/${reviewId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ action: "reply", reply: replyText.trim() }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setProductReviews((prev) =>
+          prev.map((r) =>
+            r.id === reviewId
+              ? { ...r, vendorReply: data.review.vendor_reply, vendorReplyAt: data.review.vendor_reply_at }
+              : r
+          )
+        );
+        toast.success("Reply posted successfully");
+        setReplyingTo(null);
+        setReplyText("");
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to post reply");
+      }
+    } catch (error) {
+      console.error("Failed to submit reply:", error);
+      toast.error("Failed to post reply");
+    } finally {
+      setIsSubmittingReply(false);
+    }
+  };
 
   if (!isHydrated || isLoading) {
     return (
@@ -404,7 +450,7 @@ export default function VendorAnalyticsPage() {
                         <p className="text-xs text-muted-foreground mt-2">
                           {new Date(review.createdAt).toLocaleDateString()}
                         </p>
-                        {review.vendorReply && (
+                        {review.vendorReply ? (
                           <div className="mt-3 pl-4 border-l-2 border-green-200 bg-green-50 p-3 rounded-r-lg">
                             <p className="text-xs font-medium text-green-700 mb-1">Your Reply</p>
                             <p className="text-sm text-gray-700">{review.vendorReply}</p>
@@ -412,6 +458,54 @@ export default function VendorAnalyticsPage() {
                               <p className="text-xs text-muted-foreground mt-1">
                                 {new Date(review.vendorReplyAt).toLocaleDateString()}
                               </p>
+                            )}
+                          </div>
+                        ) : (
+                          <div className="mt-3">
+                            {replyingTo === review.id ? (
+                              <div className="space-y-2">
+                                <Textarea
+                                  placeholder="Write your reply to this customer..."
+                                  value={replyText}
+                                  onChange={(e) => setReplyText(e.target.value)}
+                                  rows={3}
+                                  className="text-sm"
+                                />
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleSubmitReply(review.id)}
+                                    disabled={isSubmittingReply || !replyText.trim()}
+                                  >
+                                    {isSubmittingReply ? (
+                                      <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                                    ) : (
+                                      <Send className="w-4 h-4 mr-1" />
+                                    )}
+                                    Post Reply
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setReplyingTo(null);
+                                      setReplyText("");
+                                    }}
+                                    disabled={isSubmittingReply}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setReplyingTo(review.id)}
+                              >
+                                <MessageSquare className="w-4 h-4 mr-1" />
+                                Reply to Customer
+                              </Button>
                             )}
                           </div>
                         )}

@@ -136,3 +136,5 @@ MarketHub is a secure marketplace platform for Ghana with verified vendors, Mobi
 - **MultiImageUpload Defensive Fix**: Added `safeValues = Array.isArray(values) ? values : []` to prevent crashes when values prop is undefined/null
 - **Admin Edit Product Prop Fix**: Fixed prop mismatch - changed `images={}` to `values={}` to match MultiImageUpload interface
 - **Vendor Analytics API-First**: Removed Zustand store dependencies, now fetches from `/api/vendor/stats` for order/revenue metrics and displays vendor replies in reviews
+- **Vendor Reply UI**: Added reply button and textarea input to Vendor Analytics → Recent Reviews tab. Vendors can now reply to customer reviews (one reply per review)
+- **Buyer My Reviews Link**: Added "My Reviews" menu item to buyer dropdown menu, linking to `/buyer/reviews` for managing posted reviews
