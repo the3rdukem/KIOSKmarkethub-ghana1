@@ -628,6 +628,19 @@ async function runMigrations(client: PoolClient): Promise<void> {
       // Column may already exist or syntax not supported
     }
   }
+  
+  // Phase 1.1D: Data repair - Fix NULL quantity values
+  // This ensures no vendor products are bricked due to corrupted quantity data
+  try {
+    const result = await client.query(`
+      UPDATE products SET quantity = 0 WHERE quantity IS NULL
+    `);
+    if (result.rowCount && result.rowCount > 0) {
+      console.log(`[DB] Phase 1.1D: Repaired ${result.rowCount} products with NULL quantity`);
+    }
+  } catch (e) {
+    console.log('[DB] Phase 1.1D: Quantity repair skipped or already done');
+  }
 }
 
 /**
