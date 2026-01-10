@@ -213,7 +213,7 @@ export default function CreateProductPage() {
     switch (field.type) {
       case "select":
         return (
-          <div key={field.key}>
+          <div key={field.key} data-field={field.key}>
             <Label htmlFor={field.key}>
               {field.label} {field.required && "*"}
             </Label>
@@ -221,7 +221,7 @@ export default function CreateProductPage() {
               value={value as string}
               onValueChange={(val) => handleCategoryAttributeChange(field.key, val)}
             >
-              <SelectTrigger className={error ? "border-red-500" : ""}>
+              <SelectTrigger id={field.key} className={error ? "border-red-500" : ""}>
                 <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
@@ -250,7 +250,7 @@ export default function CreateProductPage() {
 
       case "multi_select":
         return (
-          <div key={field.key}>
+          <div key={field.key} data-field={field.key}>
             <Label htmlFor={field.key}>
               {field.label} {field.required && "*"}
             </Label>
@@ -258,7 +258,7 @@ export default function CreateProductPage() {
               value={value as string}
               onValueChange={(val) => handleCategoryAttributeChange(field.key, val)}
             >
-              <SelectTrigger className={error ? "border-red-500" : ""}>
+              <SelectTrigger id={field.key} className={error ? "border-red-500" : ""}>
                 <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
