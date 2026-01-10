@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Controller } from "react-hook-form";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +14,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
   Plus,
@@ -24,7 +24,6 @@ import {
   DollarSign,
   Tag,
   Truck,
-  Database,
   Loader2
 } from "lucide-react";
 import { MultiImageUpload } from "@/components/ui/image-upload";
@@ -32,8 +31,9 @@ import { toast } from "sonner";
 import { useAuthStore } from "@/lib/auth-store";
 import { useProductsStore } from "@/lib/products-store";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useProductForm } from "@/lib/forms/useProductForm";
+import { UNSET_VALUE, transformFormToApiPayload } from "@/lib/forms/product";
 
-// Category form field type from API
 interface CategoryFormField {
   key: string;
   label: string;
@@ -45,7 +45,6 @@ interface CategoryFormField {
   max?: number;
 }
 
-// API category type
 interface ApiCategory {
   id: string;
   name: string;
@@ -56,47 +55,29 @@ interface ApiCategory {
   formSchema: CategoryFormField[] | null;
 }
 
-interface ProductData {
-  name: string;
-  description: string;
-  category: string;
-  price: string;
-  comparePrice: string;
-  costPerItem: string;
-  sku: string;
-  barcode: string;
-  trackQuantity: boolean;
-  quantity: string;
-  continueSellingWhenOutOfStock: boolean;
-  weight: string;
-  dimensions: {
-    length: string;
-    width: string;
-    height: string;
-  };
-  requiresShipping: boolean;
-  tags: string[];
-  metaTitle: string;
-  metaDescription: string;
-  status: "active" | "draft";
-}
-
 export default function CreateProductPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
   const { addProduct } = useProductsStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [currentTag, setCurrentTag] = useState("");
-  const [categoryAttributes, setCategoryAttributes] = useState<Record<string, string | boolean>>({});
   const [productImages, setProductImages] = useState<string[]>([]);
   const [isHydrated, setIsHydrated] = useState(false);
-
-  // Categories from API
   const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
 
-  // Fetch categories from API
+  const { form, validateForPublish, validateForDraft, scrollToFirstError } = useProductForm({
+    mode: "create",
+  });
+
+  const { control, watch, setValue, formState: { errors }, setError, clearErrors } = form;
+  const watchCategory = watch("category");
+  const watchTrackQuantity = watch("trackQuantity");
+  const watchRequiresShipping = watch("requiresShipping");
+  const watchStatus = watch("status");
+  const watchTags = watch("tags");
+
   useEffect(() => {
     async function fetchCategories() {
       try {
@@ -114,33 +95,7 @@ export default function CreateProductPage() {
     fetchCategories();
   }, []);
 
-  // Get category names for dropdown
   const categories = apiCategories.map(c => c.name);
-
-  const [productData, setProductData] = useState<ProductData>({
-    name: "",
-    description: "",
-    category: "",
-    price: "",
-    comparePrice: "",
-    costPerItem: "",
-    sku: "",
-    barcode: "",
-    trackQuantity: true,
-    quantity: "",
-    continueSellingWhenOutOfStock: false,
-    weight: "",
-    dimensions: {
-      length: "",
-      width: "",
-      height: ""
-    },
-    requiresShipping: true,
-    tags: [],
-    metaTitle: "",
-    metaDescription: "",
-    status: "draft"
-  });
 
   useEffect(() => {
     setIsHydrated(true);
@@ -156,6 +111,26 @@ export default function CreateProductPage() {
     }
   }, [isHydrated, isAuthenticated, user, router]);
 
+  const selectedCategory = apiCategories.find(c => c.name === watchCategory);
+  const currentCategoryFields: CategoryFormField[] = selectedCategory?.formSchema || [];
+  const conditionField = currentCategoryFields.find(f => f.key === 'condition');
+
+  useEffect(() => {
+    if (watchCategory && watchCategory !== UNSET_VALUE) {
+      const newAttrs: Record<string, string | boolean> = {};
+      currentCategoryFields.forEach(field => {
+        if (field.type === 'select' || field.type === 'multi_select') {
+          newAttrs[field.key] = UNSET_VALUE;
+        } else if (field.type === 'boolean') {
+          newAttrs[field.key] = false;
+        } else {
+          newAttrs[field.key] = "";
+        }
+      });
+      setValue("categoryAttributes", newAttrs);
+    }
+  }, [watchCategory, currentCategoryFields, setValue]);
+
   if (!isHydrated) {
     return (
       <SiteLayout>
@@ -170,362 +145,140 @@ export default function CreateProductPage() {
     return null;
   }
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    if (field.includes('.')) {
-      const [parent, child] = field.split('.');
-      setProductData(prev => ({
-        ...prev,
-        [parent]: {
-          ...(prev[parent as keyof ProductData] as Record<string, string>),
-          [child]: value
-        }
-      }));
-    } else {
-      setProductData(prev => ({ ...prev, [field]: value }));
-      // Reset category-specific attributes when category changes
-      if (field === "category") {
-        setCategoryAttributes({});
-      }
-    }
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
-    }
-  };
-
-  // Handle category-specific attribute changes
-  const handleCategoryAttributeChange = (key: string, value: string | boolean) => {
-    setCategoryAttributes(prev => ({ ...prev, [key]: value }));
-    if (errors[key]) {
-      setErrors(prev => ({ ...prev, [key]: "" }));
-    }
-  };
-
-  // Get current category fields from API
-  const selectedCategory = apiCategories.find(c => c.name === productData.category);
-  const currentCategoryFields: CategoryFormField[] = selectedCategory?.formSchema || [];
-
-  // Render a dynamic field based on its type
-  const renderDynamicField = (field: CategoryFormField) => {
-    const value = categoryAttributes[field.key] || "";
-    const error = errors[field.key];
-
-    switch (field.type) {
-      case "select":
-        return (
-          <div key={field.key} data-field={field.key}>
-            <Label htmlFor={field.key}>
-              {field.label} {field.required && "*"}
-            </Label>
-            <Select
-              value={value as string}
-              onValueChange={(val) => handleCategoryAttributeChange(field.key, val)}
-            >
-              <SelectTrigger id={field.key} className={error ? "border-red-500" : ""}>
-                <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {field.options?.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-          </div>
-        );
-
-      case "boolean":
-        return (
-          <div key={field.key} className="flex items-center space-x-2">
-            <Checkbox
-              id={field.key}
-              checked={!!categoryAttributes[field.key]}
-              onCheckedChange={(checked) => handleCategoryAttributeChange(field.key, !!checked)}
-            />
-            <Label htmlFor={field.key}>{field.label}</Label>
-          </div>
-        );
-
-      case "multi_select":
-        return (
-          <div key={field.key} data-field={field.key}>
-            <Label htmlFor={field.key}>
-              {field.label} {field.required && "*"}
-            </Label>
-            <Select
-              value={value as string}
-              onValueChange={(val) => handleCategoryAttributeChange(field.key, val)}
-            >
-              <SelectTrigger id={field.key} className={error ? "border-red-500" : ""}>
-                <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {field.options?.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-          </div>
-        );
-
-      case "date":
-        return (
-          <div key={field.key}>
-            <Label htmlFor={field.key}>
-              {field.label} {field.required && "*"}
-            </Label>
-            <Input
-              id={field.key}
-              type="date"
-              value={value as string}
-              onChange={(e) => handleCategoryAttributeChange(field.key, e.target.value)}
-              className={error ? "border-red-500" : ""}
-            />
-            {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-          </div>
-        );
-
-      case "textarea":
-        return (
-          <div key={field.key}>
-            <Label htmlFor={field.key}>
-              {field.label} {field.required && "*"}
-            </Label>
-            <Textarea
-              id={field.key}
-              value={value as string}
-              onChange={(e) => handleCategoryAttributeChange(field.key, e.target.value)}
-              placeholder={field.placeholder}
-              className={error ? "border-red-500" : ""}
-            />
-            {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-          </div>
-        );
-
-      case "number":
-        return (
-          <div key={field.key}>
-            <Label htmlFor={field.key}>
-              {field.label} {field.required && "*"}
-            </Label>
-            <Input
-              id={field.key}
-              type="number"
-              value={value as string}
-              onChange={(e) => handleCategoryAttributeChange(field.key, e.target.value)}
-              placeholder={field.placeholder}
-              min={field.min}
-              max={field.max}
-              className={error ? "border-red-500" : ""}
-            />
-            {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-          </div>
-        );
-
-      default:
-        return (
-          <div key={field.key}>
-            <Label htmlFor={field.key}>
-              {field.label} {field.required && "*"}
-            </Label>
-            <Input
-              id={field.key}
-              type="text"
-              value={value as string}
-              onChange={(e) => handleCategoryAttributeChange(field.key, e.target.value)}
-              placeholder={field.placeholder}
-              className={error ? "border-red-500" : ""}
-            />
-            {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
-          </div>
-        );
-    }
-  };
-
-  const validateForm = (forPublish: boolean) => {
-    const newErrors: Record<string, string> = {};
-
-    // NULL-SAFE validation - coerce to string before trim
-    const name = (productData.name || "").trim();
-    const description = (productData.description || "").trim();
-    const category = productData.category || "";
-    const price = productData.price || "";
-    const quantity = productData.quantity || "";
-
-    // Draft saves only require a name
-    if (!name) {
-      newErrors.name = "Product name is required";
-    }
-
-    // Full validation only for publish
-    if (forPublish) {
-      if (!description) newErrors.description = "Product description is required";
-      if (!category) newErrors.category = "Category is required";
-
-      // Validate category-specific fields from API schema
-      if (category && currentCategoryFields.length > 0) {
-        for (const field of currentCategoryFields) {
-          if (field.required) {
-            const value = categoryAttributes[field.key];
-            if (value === undefined || value === null || value === '') {
-              newErrors[field.key] = `${field.label} is required`;
-            }
-          }
-        }
-      }
-
-      if (!price) {
-        newErrors.price = "Price is required";
-      } else if (isNaN(Number(price)) || Number(price) <= 0) {
-        newErrors.price = "Price must be a valid positive number";
-      }
-
-      if (productData.comparePrice && (isNaN(Number(productData.comparePrice)) || Number(productData.comparePrice) <= 0)) {
-        newErrors.comparePrice = "Compare price must be a valid positive number";
-      }
-
-      if (productData.trackQuantity && !quantity) {
-        newErrors.quantity = "Quantity is required when tracking inventory";
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
   const handleAddTag = () => {
-    if (currentTag.trim() && !productData.tags.includes(currentTag.trim())) {
-      setProductData(prev => ({
-        ...prev,
-        tags: [...prev.tags, currentTag.trim()]
-      }));
+    const currentTags = watchTags || "";
+    const tagsArray = currentTags.split(",").map(t => t.trim()).filter(t => t);
+    if (currentTag.trim() && !tagsArray.includes(currentTag.trim())) {
+      const newTags = [...tagsArray, currentTag.trim()].join(", ");
+      setValue("tags", newTags);
       setCurrentTag("");
     }
   };
 
   const handleRemoveTag = (tagToRemove: string) => {
-    setProductData(prev => ({
-      ...prev,
-      tags: prev.tags.filter(tag => tag !== tagToRemove)
-    }));
+    const currentTags = watchTags || "";
+    const tagsArray = currentTags.split(",").map(t => t.trim()).filter(t => t);
+    const newTags = tagsArray.filter(tag => tag !== tagToRemove).join(", ");
+    setValue("tags", newTags);
   };
 
-  const handleSubmit = async (e: React.FormEvent, status: "draft" | "active") => {
-    e.preventDefault();
+  const tagsArray = (watchTags || "").split(",").map(t => t.trim()).filter(t => t);
 
-    // Draft saves skip full validation, only require name
+  const validateCategoryFields = (): boolean => {
+    let isValid = true;
+    const categoryAttrs = form.getValues("categoryAttributes") || {};
+
+    for (const field of currentCategoryFields) {
+      if (field.required) {
+        const value = categoryAttrs[field.key];
+        if (value === undefined || value === null || value === '' || value === UNSET_VALUE) {
+          setError(`categoryAttributes.${field.key}` as keyof typeof errors, {
+            type: "manual",
+            message: `${field.label} is required`,
+          });
+          isValid = false;
+        }
+      }
+    }
+
+    return isValid;
+  };
+
+  const handleSubmit = async (status: "draft" | "active") => {
+    setSubmitError(null);
+    clearErrors();
+
     const forPublish = status === "active";
-    if (!validateForm(forPublish)) {
-      toast.error("Please fix the errors in the form");
+
+    let isValid: boolean;
+    if (forPublish) {
+      isValid = await validateForPublish();
+      if (isValid) {
+        isValid = validateCategoryFields();
+      }
+    } else {
+      isValid = await validateForDraft();
+    }
+
+    if (!isValid) {
+      scrollToFirstError();
       return;
     }
 
     if (!user) {
-      toast.error("You must be logged in to create a product");
+      setSubmitError("You must be logged in to create a product");
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Create product via API (persisted to database)
+      const formValues = form.getValues();
+      const payload = transformFormToApiPayload(formValues);
+
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          name: productData.name,
-          description: productData.description,
-          category: productData.category,
-          price: productData.price,
-          comparePrice: productData.comparePrice || undefined,
-          quantity: productData.trackQuantity ? productData.quantity : 0,
-          trackQuantity: productData.trackQuantity,
+          ...payload,
           images: productImages,
-          tags: productData.tags,
           status: status,
-          categoryAttributes: categoryAttributes,
         }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        // Display exact server error message - inline only (no toast spam)
         const errorMessage = data.error || 'Failed to create product';
-        // Map server field to form field if provided
         if (data.field) {
           const fieldMap: Record<string, string> = {
             'name': 'name',
             'description': 'description',
             'category': 'category',
+            'condition': 'condition',
             'price': 'price',
-            'color': 'color',
-            'brand': 'brand',
-            'tags': 'tags',
             'quantity': 'quantity',
             'comparePrice': 'comparePrice',
             'sku': 'sku',
             'barcode': 'barcode',
+            'color': 'color',
+            'brand': 'brand',
+            'tags': 'tags',
           };
           const clientField = fieldMap[data.field] || data.field;
-          setErrors({ [clientField]: errorMessage });
-          
-          // Auto-scroll and focus on the failing field
-          setTimeout(() => {
-            const fieldElement = document.querySelector(`[name="${clientField}"], #${clientField}, [data-field="${clientField}"]`);
-            if (fieldElement) {
-              fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              if (fieldElement instanceof HTMLInputElement || fieldElement instanceof HTMLTextAreaElement) {
-                fieldElement.focus();
-              }
-            }
-          }, 100);
+          setError(clientField as keyof typeof errors, {
+            type: "manual",
+            message: errorMessage,
+          });
+          setTimeout(scrollToFirstError, 100);
         } else {
-          setErrors({ submit: errorMessage });
+          setSubmitError(errorMessage);
         }
-        // NO toast - error is shown inline only
         return;
       }
 
       console.log("Product created successfully:", data.product);
 
-      // Check if the product was actually published or forced to draft
       const actualStatus = data.product?.status || status;
       const wasDowngradedToDraft = status === "active" && actualStatus === "draft";
 
-      // Also add to local store for immediate UI update
       addProduct({
         vendorId: user.id,
         vendorName: user.businessName || user.name,
-        name: productData.name,
-        description: productData.description,
-        category: productData.category,
-        price: Number(productData.price),
-        comparePrice: productData.comparePrice ? Number(productData.comparePrice) : undefined,
-        costPerItem: productData.costPerItem ? Number(productData.costPerItem) : undefined,
-        sku: productData.sku || undefined,
-        barcode: productData.barcode || undefined,
-        quantity: productData.trackQuantity ? Number(productData.quantity) : 0,
-        trackQuantity: productData.trackQuantity,
+        name: payload.name,
+        description: payload.description,
+        category: payload.category || "",
+        price: payload.price,
+        comparePrice: payload.comparePrice ?? undefined,
+        quantity: payload.quantity,
+        trackQuantity: payload.trackQuantity,
         images: productImages,
-        weight: productData.weight ? Number(productData.weight) : undefined,
-        dimensions: productData.dimensions.length ? {
-          length: Number(productData.dimensions.length),
-          width: Number(productData.dimensions.width),
-          height: Number(productData.dimensions.height),
-        } : undefined,
-        tags: productData.tags,
+        tags: payload.tags,
         status: actualStatus,
-        categoryAttributes: categoryAttributes as Record<string, string | number | boolean>,
+        categoryAttributes: payload.categoryAttributes as Record<string, string | number | boolean>,
       });
 
-      // Show appropriate message based on actual result
       if (wasDowngradedToDraft) {
         toast.warning("Product saved as draft. Your account must be verified before you can publish products.");
       } else if (actualStatus === "active") {
@@ -534,22 +287,158 @@ export default function CreateProductPage() {
         toast.success("Product saved as draft!");
       }
 
-      // Redirect to products page
       router.push("/vendor/products");
     } catch (error) {
       console.error("Failed to create product:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to create product";
-      setErrors({ submit: errorMessage });
-      // NO toast - error is shown inline only
+      setSubmitError(error instanceof Error ? error.message : "Failed to create product");
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const renderDynamicField = (field: CategoryFormField) => {
+    const categoryAttrs = form.getValues("categoryAttributes") || {};
+    const value = categoryAttrs[field.key] ?? (field.type === 'select' || field.type === 'multi_select' ? UNSET_VALUE : "");
+    const fieldError = errors.categoryAttributes?.[field.key as keyof typeof errors.categoryAttributes];
+    const errorMessage = fieldError && typeof fieldError === 'object' && 'message' in fieldError ? fieldError.message as string : undefined;
+
+    const handleChange = (key: string, val: string | boolean) => {
+      const current = form.getValues("categoryAttributes") || {};
+      setValue("categoryAttributes", { ...current, [key]: val });
+      if (errors.categoryAttributes?.[key as keyof typeof errors.categoryAttributes]) {
+        clearErrors(`categoryAttributes.${key}` as keyof typeof errors);
+      }
+    };
+
+    switch (field.type) {
+      case "select":
+      case "multi_select":
+        return (
+          <div key={field.key} data-field={field.key}>
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Select
+              value={value === UNSET_VALUE ? UNSET_VALUE : (value as string)}
+              onValueChange={(val) => handleChange(field.key, val)}
+            >
+              <SelectTrigger
+                id={field.key}
+                name={field.key}
+                data-field={field.key}
+                className={errorMessage ? "border-red-500" : ""}
+              >
+                <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+              </SelectTrigger>
+              <SelectContent>
+                {field.options?.map((option) => (
+                  <SelectItem key={option} value={option}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+          </div>
+        );
+
+      case "boolean":
+        return (
+          <div key={field.key} className="flex items-center space-x-2">
+            <Checkbox
+              id={field.key}
+              checked={!!value}
+              onCheckedChange={(checked) => handleChange(field.key, !!checked)}
+            />
+            <Label htmlFor={field.key}>{field.label}</Label>
+          </div>
+        );
+
+      case "number":
+        return (
+          <div key={field.key} data-field={field.key}>
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Input
+              id={field.key}
+              name={field.key}
+              data-field={field.key}
+              type="number"
+              value={value as string}
+              onChange={(e) => handleChange(field.key, e.target.value)}
+              placeholder={field.placeholder}
+              min={field.min}
+              max={field.max}
+              className={errorMessage ? "border-red-500" : ""}
+            />
+            {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+          </div>
+        );
+
+      case "textarea":
+        return (
+          <div key={field.key} data-field={field.key}>
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Textarea
+              id={field.key}
+              name={field.key}
+              data-field={field.key}
+              value={value as string}
+              onChange={(e) => handleChange(field.key, e.target.value)}
+              placeholder={field.placeholder}
+              className={errorMessage ? "border-red-500" : ""}
+            />
+            {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+          </div>
+        );
+
+      case "date":
+        return (
+          <div key={field.key} data-field={field.key}>
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Input
+              id={field.key}
+              name={field.key}
+              data-field={field.key}
+              type="date"
+              value={value as string}
+              onChange={(e) => handleChange(field.key, e.target.value)}
+              className={errorMessage ? "border-red-500" : ""}
+            />
+            {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+          </div>
+        );
+
+      default:
+        return (
+          <div key={field.key} data-field={field.key}>
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Input
+              id={field.key}
+              name={field.key}
+              data-field={field.key}
+              type="text"
+              value={value as string}
+              onChange={(e) => handleChange(field.key, e.target.value)}
+              placeholder={field.placeholder}
+              className={errorMessage ? "border-red-500" : ""}
+            />
+            {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+          </div>
+        );
     }
   };
 
   return (
     <SiteLayout>
       <div className="container py-8">
-        {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Link href="/vendor/products">
             <Button variant="outline" size="sm">
@@ -563,60 +452,81 @@ export default function CreateProductPage() {
           </div>
         </div>
 
-        <form className="space-y-8">
+        <form className="space-y-8" onSubmit={(e) => e.preventDefault()}>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Main Content */}
             <div className="lg:col-span-2 space-y-6">
-              {/* Basic Information */}
               <Card>
                 <CardHeader>
                   <CardTitle>Basic Information</CardTitle>
                   <CardDescription>Essential details about your product</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="name">Product Name *</Label>
-                    <Input
-                      id="name"
-                      value={productData.name}
-                      onChange={(e) => handleInputChange("name", e.target.value)}
-                      placeholder="Enter product name"
-                      className={errors.name ? "border-red-500" : ""}
+                  <div data-field="name">
+                    <Label htmlFor="name">Product Name <span className="text-red-500">*</span></Label>
+                    <Controller
+                      name="name"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          id="name"
+                          placeholder="Enter product name"
+                          className={errors.name ? "border-red-500" : ""}
+                        />
+                      )}
                     />
-                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                    {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
                   </div>
 
-                  <div>
-                    <Label htmlFor="description">Description *</Label>
-                    <Textarea
-                      id="description"
-                      value={productData.description}
-                      onChange={(e) => handleInputChange("description", e.target.value)}
-                      placeholder="Describe your product in detail"
-                      rows={6}
-                      className={errors.description ? "border-red-500" : ""}
+                  <div data-field="description">
+                    <Label htmlFor="description">Description <span className="text-red-500">*</span></Label>
+                    <Controller
+                      name="description"
+                      control={control}
+                      render={({ field }) => (
+                        <Textarea
+                          {...field}
+                          id="description"
+                          placeholder="Describe your product in detail"
+                          rows={6}
+                          className={errors.description ? "border-red-500" : ""}
+                        />
+                      )}
                     />
-                    {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
+                    {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
                   </div>
 
                   <div data-field="category">
-                    <Label htmlFor="category">Category *</Label>
-                    <Select value={productData.category || ""} onValueChange={(value) => handleInputChange("category", value)}>
-                      <SelectTrigger id="category" name="category" className={errors.category ? "border-red-500" : ""}>
-                        <SelectValue placeholder="Select a category" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categories.map((category) => (
-                          <SelectItem key={category} value={category}>
-                            {category}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
+                    <Label htmlFor="category">Category <span className="text-red-500">*</span></Label>
+                    <Controller
+                      name="category"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={field.value === UNSET_VALUE ? UNSET_VALUE : field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger
+                            id="category"
+                            name="category"
+                            data-field="category"
+                            className={errors.category ? "border-red-500" : ""}
+                          >
+                            <SelectValue placeholder="Select a category" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {categories.map((category) => (
+                              <SelectItem key={category} value={category}>
+                                {category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>}
                   </div>
 
-                  {/* Dynamic category fields */}
                   {currentCategoryFields.length > 0 && (
                     <div className="space-y-4 mt-4">
                       <Separator />
@@ -627,7 +537,6 @@ export default function CreateProductPage() {
                 </CardContent>
               </Card>
 
-              {/* Media and Upload */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -648,7 +557,6 @@ export default function CreateProductPage() {
                 </CardContent>
               </Card>
 
-              {/* Pricing */}
               <Card>
                 <CardHeader>
                   <CardTitle>Pricing</CardTitle>
@@ -656,59 +564,74 @@ export default function CreateProductPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="price">Price (GHS) *</Label>
+                    <div data-field="price">
+                      <Label htmlFor="price">Price (GHS) <span className="text-red-500">*</span></Label>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <Input
-                          id="price"
-                          type="number"
-                          value={productData.price}
-                          onChange={(e) => handleInputChange("price", e.target.value)}
-                          placeholder="0.00"
-                          className={`pl-10 ${errors.price ? "border-red-500" : ""}`}
-                          min="0"
-                          step="0.01"
+                        <Controller
+                          name="price"
+                          control={control}
+                          render={({ field }) => (
+                            <Input
+                              {...field}
+                              id="price"
+                              type="number"
+                              placeholder="0.00"
+                              className={`pl-10 ${errors.price ? "border-red-500" : ""}`}
+                              min="0"
+                              step="0.01"
+                            />
+                          )}
                         />
                       </div>
-                      {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+                      {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price.message}</p>}
                     </div>
 
-                    <div>
+                    <div data-field="comparePrice">
                       <Label htmlFor="comparePrice">Compare at Price (GHS)</Label>
                       <div className="relative">
                         <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                        <Input
-                          id="comparePrice"
-                          type="number"
-                          value={productData.comparePrice}
-                          onChange={(e) => handleInputChange("comparePrice", e.target.value)}
-                          placeholder="0.00"
-                          className={`pl-10 ${errors.comparePrice ? "border-red-500" : ""}`}
-                          min="0"
-                          step="0.01"
+                        <Controller
+                          name="comparePrice"
+                          control={control}
+                          render={({ field }) => (
+                            <Input
+                              {...field}
+                              id="comparePrice"
+                              type="number"
+                              placeholder="0.00"
+                              className={`pl-10 ${errors.comparePrice ? "border-red-500" : ""}`}
+                              min="0"
+                              step="0.01"
+                            />
+                          )}
                         />
                       </div>
-                      {errors.comparePrice && <p className="text-red-500 text-xs mt-1">{errors.comparePrice}</p>}
+                      {errors.comparePrice && <p className="text-red-500 text-xs mt-1">{errors.comparePrice.message}</p>}
                       <p className="text-xs text-muted-foreground mt-1">
                         Show customers the original price for sales
                       </p>
                     </div>
                   </div>
 
-                  <div>
+                  <div data-field="costPerItem">
                     <Label htmlFor="costPerItem">Cost per Item (GHS)</Label>
                     <div className="relative">
                       <DollarSign className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <Input
-                        id="costPerItem"
-                        type="number"
-                        value={productData.costPerItem}
-                        onChange={(e) => handleInputChange("costPerItem", e.target.value)}
-                        placeholder="0.00"
-                        className="pl-10"
-                        min="0"
-                        step="0.01"
+                      <Controller
+                        name="costPerItem"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            id="costPerItem"
+                            type="number"
+                            placeholder="0.00"
+                            className="pl-10"
+                            min="0"
+                            step="0.01"
+                          />
+                        )}
                       />
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -718,7 +641,6 @@ export default function CreateProductPage() {
                 </CardContent>
               </Card>
 
-              {/* Inventory */}
               <Card>
                 <CardHeader>
                   <CardTitle>Inventory</CardTitle>
@@ -726,62 +648,89 @@ export default function CreateProductPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
+                    <div data-field="sku">
                       <Label htmlFor="sku">SKU</Label>
-                      <Input
-                        id="sku"
-                        value={productData.sku}
-                        onChange={(e) => handleInputChange("sku", e.target.value)}
-                        placeholder="SKU-123"
+                      <Controller
+                        name="sku"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            id="sku"
+                            placeholder="SKU-123"
+                          />
+                        )}
                       />
                     </div>
 
-                    <div>
+                    <div data-field="barcode">
                       <Label htmlFor="barcode">Barcode</Label>
-                      <Input
-                        id="barcode"
-                        value={productData.barcode}
-                        onChange={(e) => handleInputChange("barcode", e.target.value)}
-                        placeholder="1234567890123"
+                      <Controller
+                        name="barcode"
+                        control={control}
+                        render={({ field }) => (
+                          <Input
+                            {...field}
+                            id="barcode"
+                            placeholder="1234567890123"
+                          />
+                        )}
                       />
                     </div>
                   </div>
 
                   <div className="space-y-3">
                     <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="trackQuantity"
-                        checked={productData.trackQuantity}
-                        onChange={(e) => handleInputChange("trackQuantity", e.target.checked)}
-                        className="rounded"
+                      <Controller
+                        name="trackQuantity"
+                        control={control}
+                        render={({ field }) => (
+                          <input
+                            type="checkbox"
+                            id="trackQuantity"
+                            checked={field.value}
+                            onChange={(e) => field.onChange(e.target.checked)}
+                            className="rounded"
+                          />
+                        )}
                       />
                       <Label htmlFor="trackQuantity">Track quantity</Label>
                     </div>
 
-                    {productData.trackQuantity && (
-                      <div>
-                        <Label htmlFor="quantity">Quantity *</Label>
-                        <Input
-                          id="quantity"
-                          type="number"
-                          value={productData.quantity}
-                          onChange={(e) => handleInputChange("quantity", e.target.value)}
-                          placeholder="0"
-                          className={errors.quantity ? "border-red-500" : ""}
-                          min="0"
+                    {watchTrackQuantity && (
+                      <div data-field="quantity">
+                        <Label htmlFor="quantity">Quantity <span className="text-red-500">*</span></Label>
+                        <Controller
+                          name="quantity"
+                          control={control}
+                          render={({ field }) => (
+                            <Input
+                              {...field}
+                              id="quantity"
+                              type="number"
+                              placeholder="0"
+                              className={errors.quantity ? "border-red-500" : ""}
+                              min="0"
+                            />
+                          )}
                         />
-                        {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>}
+                        {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity.message}</p>}
                       </div>
                     )}
 
                     <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="continueSellingWhenOutOfStock"
-                        checked={productData.continueSellingWhenOutOfStock}
-                        onChange={(e) => handleInputChange("continueSellingWhenOutOfStock", e.target.checked)}
-                        className="rounded"
+                      <Controller
+                        name="continueSellingWhenOutOfStock"
+                        control={control}
+                        render={({ field }) => (
+                          <input
+                            type="checkbox"
+                            id="continueSellingWhenOutOfStock"
+                            checked={field.value}
+                            onChange={(e) => field.onChange(e.target.checked)}
+                            className="rounded"
+                          />
+                        )}
                       />
                       <Label htmlFor="continueSellingWhenOutOfStock">Continue selling when out of stock</Label>
                     </div>
@@ -789,7 +738,6 @@ export default function CreateProductPage() {
                 </CardContent>
               </Card>
 
-              {/* Shipping */}
               <Card>
                 <CardHeader>
                   <CardTitle>Shipping</CardTitle>
@@ -797,54 +745,80 @@ export default function CreateProductPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="requiresShipping"
-                      checked={productData.requiresShipping}
-                      onChange={(e) => handleInputChange("requiresShipping", e.target.checked)}
-                      className="rounded"
+                    <Controller
+                      name="requiresShipping"
+                      control={control}
+                      render={({ field }) => (
+                        <input
+                          type="checkbox"
+                          id="requiresShipping"
+                          checked={field.value}
+                          onChange={(e) => field.onChange(e.target.checked)}
+                          className="rounded"
+                        />
+                      )}
                     />
                     <Label htmlFor="requiresShipping">This is a physical product</Label>
                   </div>
 
-                  {productData.requiresShipping && (
+                  {watchRequiresShipping && (
                     <div className="space-y-4">
-                      <div>
+                      <div data-field="weight">
                         <Label htmlFor="weight">Weight (kg)</Label>
-                        <Input
-                          id="weight"
-                          type="number"
-                          value={productData.weight}
-                          onChange={(e) => handleInputChange("weight", e.target.value)}
-                          placeholder="0.0"
-                          min="0"
-                          step="0.1"
+                        <Controller
+                          name="weight"
+                          control={control}
+                          render={({ field }) => (
+                            <Input
+                              {...field}
+                              id="weight"
+                              type="number"
+                              placeholder="0.0"
+                              min="0"
+                              step="0.1"
+                            />
+                          )}
                         />
                       </div>
 
                       <div>
                         <Label>Dimensions (cm)</Label>
                         <div className="grid grid-cols-3 gap-4 mt-2">
-                          <Input
-                            type="number"
-                            value={productData.dimensions.length}
-                            onChange={(e) => handleInputChange("dimensions.length", e.target.value)}
-                            placeholder="Length"
-                            min="0"
+                          <Controller
+                            name="dimensions.length"
+                            control={control}
+                            render={({ field }) => (
+                              <Input
+                                {...field}
+                                type="number"
+                                placeholder="Length"
+                                min="0"
+                              />
+                            )}
                           />
-                          <Input
-                            type="number"
-                            value={productData.dimensions.width}
-                            onChange={(e) => handleInputChange("dimensions.width", e.target.value)}
-                            placeholder="Width"
-                            min="0"
+                          <Controller
+                            name="dimensions.width"
+                            control={control}
+                            render={({ field }) => (
+                              <Input
+                                {...field}
+                                type="number"
+                                placeholder="Width"
+                                min="0"
+                              />
+                            )}
                           />
-                          <Input
-                            type="number"
-                            value={productData.dimensions.height}
-                            onChange={(e) => handleInputChange("dimensions.height", e.target.value)}
-                            placeholder="Height"
-                            min="0"
+                          <Controller
+                            name="dimensions.height"
+                            control={control}
+                            render={({ field }) => (
+                              <Input
+                                {...field}
+                                type="number"
+                                placeholder="Height"
+                                min="0"
+                              />
+                            )}
                           />
                         </div>
                       </div>
@@ -853,35 +827,44 @@ export default function CreateProductPage() {
                 </CardContent>
               </Card>
 
-              {/* SEO */}
               <Card>
                 <CardHeader>
                   <CardTitle>Search Engine Optimization</CardTitle>
                   <CardDescription>Improve your product's search visibility</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
+                  <div data-field="metaTitle">
                     <Label htmlFor="metaTitle">Meta Title</Label>
-                    <Input
-                      id="metaTitle"
-                      value={productData.metaTitle}
-                      onChange={(e) => handleInputChange("metaTitle", e.target.value)}
-                      placeholder="Product title for search engines"
+                    <Controller
+                      name="metaTitle"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          id="metaTitle"
+                          placeholder="Product title for search engines"
+                        />
+                      )}
                     />
                   </div>
 
-                  <div>
+                  <div data-field="metaDescription">
                     <Label htmlFor="metaDescription">Meta Description</Label>
-                    <Textarea
-                      id="metaDescription"
-                      value={productData.metaDescription}
-                      onChange={(e) => handleInputChange("metaDescription", e.target.value)}
-                      placeholder="Brief description for search results"
-                      rows={3}
+                    <Controller
+                      name="metaDescription"
+                      control={control}
+                      render={({ field }) => (
+                        <Textarea
+                          {...field}
+                          id="metaDescription"
+                          placeholder="Brief description for search results"
+                          rows={3}
+                        />
+                      )}
                     />
                   </div>
 
-                  <div>
+                  <div data-field="tags">
                     <Label htmlFor="tags">Product Tags</Label>
                     <div className="flex gap-2 mb-2">
                       <Input
@@ -896,7 +879,7 @@ export default function CreateProductPage() {
                       </Button>
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {productData.tags.map((tag, index) => (
+                      {tagsArray.map((tag, index) => (
                         <Badge key={index} variant="secondary" className="flex items-center gap-1">
                           {tag}
                           <button
@@ -914,25 +897,29 @@ export default function CreateProductPage() {
               </Card>
             </div>
 
-            {/* Sidebar */}
             <div className="space-y-6">
-              {/* Status */}
               <Card>
                 <CardHeader>
                   <CardTitle>Product Status</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <Select value={productData.status} onValueChange={(value) => handleInputChange("status", value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="draft">Draft</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Controller
+                    name="status"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="active">Active</SelectItem>
+                          <SelectItem value="draft">Draft</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                   <p className="text-xs text-muted-foreground mt-2">
-                    {productData.status === "active"
+                    {watchStatus === "active"
                       ? "Product will be visible to customers"
                       : "Product will be saved as draft"
                     }
@@ -940,7 +927,6 @@ export default function CreateProductPage() {
                 </CardContent>
               </Card>
 
-              {/* Organization */}
               <Card>
                 <CardHeader>
                   <CardTitle>Organization</CardTitle>
@@ -948,7 +934,7 @@ export default function CreateProductPage() {
                 <CardContent className="space-y-3">
                   <div className="flex items-center gap-2 text-sm">
                     <Package className="w-4 h-4 text-gray-500" />
-                    <span>Category: {productData.category || "Not selected"}</span>
+                    <span>Category: {watchCategory && watchCategory !== UNSET_VALUE ? watchCategory : "Not selected"}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <ImageIcon className="w-4 h-4 text-gray-500" />
@@ -956,28 +942,26 @@ export default function CreateProductPage() {
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Tag className="w-4 h-4 text-gray-500" />
-                    <span>Tags: {productData.tags.length}</span>
+                    <span>Tags: {tagsArray.length}</span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Truck className="w-4 h-4 text-gray-500" />
-                    <span>Shipping: {productData.requiresShipping ? "Required" : "Not required"}</span>
+                    <span>Shipping: {watchRequiresShipping ? "Required" : "Not required"}</span>
                   </div>
                 </CardContent>
               </Card>
 
-              {/* Actions */}
               <Card>
                 <CardContent className="p-4 space-y-3">
-                  {errors.submit && (
+                  {submitError && (
                     <Alert className="border-red-200 bg-red-50">
                       <AlertTriangle className="h-4 w-4 text-red-600" />
                       <AlertDescription className="text-red-800">
-                        {errors.submit}
+                        {submitError}
                       </AlertDescription>
                     </Alert>
                   )}
 
-                  {/* Verification Warning for Unverified Vendors */}
                   {user && user.verificationStatus !== 'verified' && (
                     <Alert className="border-amber-200 bg-amber-50">
                       <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -989,7 +973,7 @@ export default function CreateProductPage() {
 
                   <Button
                     type="button"
-                    onClick={(e) => handleSubmit(e, "active")}
+                    onClick={() => handleSubmit("active")}
                     className="w-full"
                     disabled={isLoading || (user?.verificationStatus !== 'verified')}
                     title={user?.verificationStatus !== 'verified' ? "Account verification required to publish" : undefined}
@@ -1008,7 +992,7 @@ export default function CreateProductPage() {
 
                   <Button
                     type="button"
-                    onClick={(e) => handleSubmit(e, "draft")}
+                    onClick={() => handleSubmit("draft")}
                     variant="outline"
                     className="w-full"
                     disabled={isLoading}

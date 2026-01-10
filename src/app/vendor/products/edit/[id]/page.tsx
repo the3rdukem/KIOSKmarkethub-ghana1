@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
+import { Controller } from "react-hook-form";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +38,8 @@ import { usePromotionsStore, Sale } from "@/lib/promotions-store";
 import { MultiImageUpload } from "@/components/ui/image-upload";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useProductForm } from "@/lib/forms/useProductForm";
+import { UNSET_VALUE, transformFormToApiPayload, transformApiToFormValues } from "@/lib/forms/product";
 
 const categories = [
   "Electronics",
@@ -64,49 +67,40 @@ export default function EditProductPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
   const [productImages, setProductImages] = useState<string[]>([]);
+  const [productLoaded, setProductLoaded] = useState(false);
 
-  const [productData, setProductData] = useState({
-    name: "",
-    description: "",
-    category: "",
-    price: "",
-    comparePrice: "",
-    costPerItem: "",
-    sku: "",
-    barcode: "",
-    quantity: "",
-    trackQuantity: true,
-    tags: "",
-    status: "active" as "active" | "draft" | "archived"
+  const { form, validateForPublish, validateForDraft, scrollToFirstError } = useProductForm({
+    mode: "edit",
   });
 
-  // Hydration check
+  const { control, watch, setValue, formState: { errors }, setError, clearErrors, reset } = form;
+  const watchCategory = watch("category");
+  const watchTrackQuantity = watch("trackQuantity");
+  const watchStatus = watch("status");
+  const watchPrice = watch("price");
+
   useEffect(() => {
     setIsHydrated(true);
   }, []);
 
-  // Load product data from API
   useEffect(() => {
     if (!isHydrated) return;
 
-    // Check authentication
     if (!isAuthenticated || !user) {
       router.push("/auth/login");
       return;
     }
 
-    // Check if user is a vendor
     if (user.role !== "vendor") {
       router.push("/");
       return;
     }
 
-    // Fetch the product from API
     const fetchProduct = async () => {
       try {
         const response = await fetch(`/api/products/${productId}`, {
@@ -132,32 +126,16 @@ export default function EditProductPage() {
           return;
         }
 
-        // Check vendor ownership
         if (product.vendorId !== user.id) {
           setUnauthorized(true);
           setIsLoadingProduct(false);
           return;
         }
 
-        // Pre-fill form with real product data - NULL-SAFE initialization
-        setProductData({
-          name: product.name ?? "",
-          description: product.description ?? "",
-          category: product.category ?? "",
-          price: product.price != null ? String(product.price) : "",
-          comparePrice: product.comparePrice != null ? String(product.comparePrice) : "",
-          costPerItem: product.costPerItem != null ? String(product.costPerItem) : "",
-          sku: product.sku ?? "",
-          barcode: product.barcode ?? "",
-          quantity: product.quantity != null ? String(product.quantity) : "",
-          trackQuantity: product.trackQuantity ?? true,
-          tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
-          status: (product.status === 'active' || product.status === 'draft' || product.status === 'archived') ? product.status : 'draft'
-        });
-
-        // Load existing product images - NULL-SAFE
+        const formValues = transformApiToFormValues(product);
+        reset(formValues);
         setProductImages(Array.isArray(product.images) ? product.images : []);
-
+        setProductLoaded(true);
         setIsLoadingProduct(false);
       } catch (error) {
         console.error('Error fetching product:', error);
@@ -167,18 +145,15 @@ export default function EditProductPage() {
     };
 
     fetchProduct();
-  }, [isHydrated, isAuthenticated, user, productId, router]);
+  }, [isHydrated, isAuthenticated, user, productId, router, reset]);
 
-  // Get vendor's sales for promotional pricing
   const vendorSales = isHydrated && user ? getSalesByVendor(user.id) : [];
   const activeSales = isHydrated && user ? getActiveSales(user.id) : [];
 
-  // Check if product is currently on sale
-  const currentPrice = productData.price ? parseFloat(productData.price) : 0;
+  const currentPrice = watchPrice ? parseFloat(watchPrice) : 0;
   const { salePrice, discount, sale: activeSale } = isHydrated ? getSalePrice(productId, currentPrice) : { salePrice: currentPrice, discount: 0, sale: undefined };
   const isOnSale = discount > 0;
 
-  // Handle adding/removing product from a sale
   const handleSaleToggle = (sale: Sale) => {
     const isInSale = sale.productIds.includes(productId);
     const newProductIds = isInSale
@@ -194,149 +169,81 @@ export default function EditProductPage() {
     }
   };
 
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setProductData(prev => ({ ...prev, [field]: value }));
+  const handleSubmit = async (status: "draft" | "active") => {
+    setSubmitError(null);
+    clearErrors();
 
-    // Clear error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
-    }
-  };
-
-  const validateForm = (forPublish: boolean) => {
-    const newErrors: Record<string, string> = {};
-
-    // NULL-SAFE validation - coerce to string before trim
-    const name = (productData.name || "").trim();
-    const description = (productData.description || "").trim();
-    const category = productData.category || "";
-    const price = productData.price || "";
-    const quantity = productData.quantity || "";
-
-    // Draft saves only require a name
-    if (!name) {
-      newErrors.name = "Product name is required";
-    }
-
-    // Full validation only for publish
-    if (forPublish) {
-      if (!description) newErrors.description = "Product description is required";
-      if (!category) newErrors.category = "Category is required";
-      if (!price) {
-        newErrors.price = "Price is required";
-      } else if (Number.isNaN(Number(price)) || Number(price) <= 0) {
-        newErrors.price = "Price must be a valid positive number";
-      }
-      if (productData.trackQuantity && !quantity) {
-        newErrors.quantity = "Quantity is required when tracking inventory";
-      }
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = async (e: React.FormEvent, status: "draft" | "active") => {
-    e.preventDefault();
-
-    // Draft saves skip full validation, only require name
     const forPublish = status === "active";
-    if (!validateForm(forPublish)) return;
+
+    let isValid: boolean;
+    if (forPublish) {
+      isValid = await validateForPublish();
+    } else {
+      isValid = await validateForDraft();
+    }
+
+    if (!isValid) {
+      scrollToFirstError();
+      return;
+    }
 
     setIsLoading(true);
 
     try {
-      // NULL-SAFE: Parse tags with fallback
-      const tagsString = productData.tags || "";
-      const tagsArray = tagsString
-        .split(",")
-        .map(tag => (tag || "").trim())
-        .filter(tag => tag.length > 0);
+      const formValues = form.getValues();
+      const payload = transformFormToApiPayload(formValues);
 
-      // NULL-SAFE: Parse numeric values
-      const name = (productData.name || "").trim();
-      const description = (productData.description || "").trim();
-      const sku = (productData.sku || "").trim();
-      const barcode = (productData.barcode || "").trim();
-      const priceValue = productData.price ? Number.parseFloat(productData.price) : 0;
-      const comparePriceValue = productData.comparePrice ? Number.parseFloat(productData.comparePrice) : undefined;
-      const costPerItemValue = productData.costPerItem ? Number.parseFloat(productData.costPerItem) : undefined;
-      const quantityValue = productData.quantity ? Number.parseInt(productData.quantity, 10) : 0;
-
-      // Update the product via API
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          name,
-          description,
-          category: productData.category || "",
-          price: priceValue,
-          comparePrice: comparePriceValue,
-          costPerItem: costPerItemValue,
-          sku: sku || undefined,
-          barcode: barcode || undefined,
-          quantity: productData.trackQuantity ? quantityValue : 0,
-          trackQuantity: productData.trackQuantity ?? true,
+          ...payload,
           images: productImages,
-          tags: tagsArray,
-          status
+          status: status,
         }),
       });
 
       if (response.ok) {
-        toast.success(`Product "${name}" updated successfully!`);
+        toast.success(`Product "${payload.name}" updated successfully!`);
         router.push("/vendor/products");
       } else {
         const data = await response.json();
-        // Display inline error only - no duplicate toasts
         if (data.code === 'VENDOR_NOT_VERIFIED' && status === 'active') {
-          setErrors({ submit: data.details || "Vendor verification required to publish products" });
+          setSubmitError(data.details || "Vendor verification required to publish products");
         } else if (data.field) {
-          // Map server field to form field
           const fieldMap: Record<string, string> = {
             'name': 'name',
             'description': 'description',
             'category': 'category',
+            'condition': 'condition',
             'price': 'price',
-            'color': 'color',
-            'brand': 'brand',
-            'tags': 'tags',
             'quantity': 'quantity',
             'comparePrice': 'comparePrice',
             'sku': 'sku',
             'barcode': 'barcode',
+            'color': 'color',
+            'brand': 'brand',
+            'tags': 'tags',
           };
           const clientField = fieldMap[data.field] || data.field;
-          setErrors({ [clientField]: data.error || "Invalid value" });
-          
-          // Auto-scroll and focus on the failing field
-          setTimeout(() => {
-            const fieldElement = document.querySelector(`[name="${clientField}"], #${clientField}, [data-field="${clientField}"]`);
-            if (fieldElement) {
-              fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              if (fieldElement instanceof HTMLInputElement || fieldElement instanceof HTMLTextAreaElement) {
-                fieldElement.focus();
-              }
-            }
-          }, 100);
+          setError(clientField as keyof typeof errors, {
+            type: "manual",
+            message: data.error || "Invalid value",
+          });
+          setTimeout(scrollToFirstError, 100);
         } else {
-          setErrors({ submit: data.error || "Failed to update product" });
+          setSubmitError(data.error || "Failed to update product");
         }
-        // NO toast - error is shown inline only
       }
     } catch (error) {
       console.error("Update product error:", error);
-      const errorMessage = error instanceof Error ? error.message : "Failed to update product";
-      setErrors({ submit: errorMessage });
-      // NO toast - error is shown inline only
+      setSubmitError(error instanceof Error ? error.message : "Failed to update product");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Loading state
   if (!isHydrated || isLoadingProduct) {
     return (
       <SiteLayout>
@@ -352,7 +259,6 @@ export default function EditProductPage() {
     );
   }
 
-  // Not found state
   if (notFound) {
     return (
       <SiteLayout>
@@ -373,7 +279,6 @@ export default function EditProductPage() {
     );
   }
 
-  // Unauthorized state
   if (unauthorized) {
     return (
       <SiteLayout>
@@ -397,7 +302,6 @@ export default function EditProductPage() {
   return (
     <SiteLayout>
       <div className="container py-8">
-        {/* Header */}
         <div className="flex items-center gap-4 mb-8">
           <Link href="/vendor/products">
             <Button variant="outline" size="sm">
@@ -412,70 +316,96 @@ export default function EditProductPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Basic Information */}
             <Card>
               <CardHeader>
                 <CardTitle>Product Information</CardTitle>
                 <CardDescription>Update your product details</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Product Name *</Label>
-                  <Input
-                    id="name"
-                    value={productData.name}
-                    onChange={(e) => handleInputChange("name", e.target.value)}
-                    placeholder="Enter product name"
-                    className={errors.name ? "border-red-500" : ""}
+                <div data-field="name">
+                  <Label htmlFor="name">Product Name <span className="text-red-500">*</span></Label>
+                  <Controller
+                    name="name"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        id="name"
+                        placeholder="Enter product name"
+                        className={errors.name ? "border-red-500" : ""}
+                      />
+                    )}
                   />
-                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
                 </div>
 
-                <div>
-                  <Label htmlFor="description">Description *</Label>
-                  <Textarea
-                    id="description"
-                    value={productData.description}
-                    onChange={(e) => handleInputChange("description", e.target.value)}
-                    placeholder="Describe your product in detail"
-                    rows={6}
-                    className={errors.description ? "border-red-500" : ""}
+                <div data-field="description">
+                  <Label htmlFor="description">Description <span className="text-red-500">*</span></Label>
+                  <Controller
+                    name="description"
+                    control={control}
+                    render={({ field }) => (
+                      <Textarea
+                        {...field}
+                        id="description"
+                        placeholder="Describe your product in detail"
+                        rows={6}
+                        className={errors.description ? "border-red-500" : ""}
+                      />
+                    )}
                   />
-                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
+                  {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
                 </div>
 
                 <div data-field="category">
-                  <Label htmlFor="category">Category *</Label>
-                  <Select value={productData.category || ""} onValueChange={(value) => handleInputChange("category", value)}>
-                    <SelectTrigger id="category" name="category" className={errors.category ? "border-red-500" : ""}>
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category} value={category}>
-                          {category}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
+                  <Label htmlFor="category">Category <span className="text-red-500">*</span></Label>
+                  <Controller
+                    name="category"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        value={field.value === UNSET_VALUE ? UNSET_VALUE : field.value}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger
+                          id="category"
+                          name="category"
+                          data-field="category"
+                          className={errors.category ? "border-red-500" : ""}
+                        >
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.map((category) => (
+                            <SelectItem key={category} value={category}>
+                              {category}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>}
                 </div>
 
-                <div>
+                <div data-field="tags">
                   <Label htmlFor="tags">Tags (comma-separated)</Label>
-                  <Input
-                    id="tags"
-                    value={productData.tags}
-                    onChange={(e) => handleInputChange("tags", e.target.value)}
-                    placeholder="e.g. new arrival, best seller, premium"
+                  <Controller
+                    name="tags"
+                    control={control}
+                    render={({ field }) => (
+                      <Input
+                        {...field}
+                        id="tags"
+                        placeholder="e.g. new arrival, best seller, premium"
+                      />
+                    )}
                   />
                 </div>
               </CardContent>
             </Card>
 
-            {/* Product Images */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -496,7 +426,6 @@ export default function EditProductPage() {
               </CardContent>
             </Card>
 
-            {/* Pricing */}
             <Card>
               <CardHeader>
                 <CardTitle>Pricing</CardTitle>
@@ -504,51 +433,65 @@ export default function EditProductPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <Label htmlFor="price">Price (GHS) *</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      value={productData.price}
-                      onChange={(e) => handleInputChange("price", e.target.value)}
-                      placeholder="0.00"
-                      className={errors.price ? "border-red-500" : ""}
-                      min="0"
-                      step="0.01"
+                  <div data-field="price">
+                    <Label htmlFor="price">Price (GHS) <span className="text-red-500">*</span></Label>
+                    <Controller
+                      name="price"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          id="price"
+                          type="number"
+                          placeholder="0.00"
+                          className={errors.price ? "border-red-500" : ""}
+                          min="0"
+                          step="0.01"
+                        />
+                      )}
                     />
-                    {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+                    {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price.message}</p>}
                   </div>
 
-                  <div>
+                  <div data-field="comparePrice">
                     <Label htmlFor="comparePrice">Compare at Price (GHS)</Label>
-                    <Input
-                      id="comparePrice"
-                      type="number"
-                      value={productData.comparePrice}
-                      onChange={(e) => handleInputChange("comparePrice", e.target.value)}
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
+                    <Controller
+                      name="comparePrice"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          id="comparePrice"
+                          type="number"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                        />
+                      )}
                     />
                   </div>
 
-                  <div>
+                  <div data-field="costPerItem">
                     <Label htmlFor="costPerItem">Cost per Item (GHS)</Label>
-                    <Input
-                      id="costPerItem"
-                      type="number"
-                      value={productData.costPerItem}
-                      onChange={(e) => handleInputChange("costPerItem", e.target.value)}
-                      placeholder="0.00"
-                      min="0"
-                      step="0.01"
+                    <Controller
+                      name="costPerItem"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          id="costPerItem"
+                          type="number"
+                          placeholder="0.00"
+                          min="0"
+                          step="0.01"
+                        />
+                      )}
                     />
                   </div>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Promotional Pricing - NEW SECTION */}
             <Card className={isOnSale ? "border-red-200 bg-red-50/30" : ""}>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -566,7 +509,6 @@ export default function EditProductPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Current Sale Status */}
                 {isOnSale && activeSale && (
                   <div className="p-4 bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-lg">
                     <div className="flex items-start justify-between">
@@ -608,7 +550,6 @@ export default function EditProductPage() {
                   </div>
                 )}
 
-                {/* Price Preview Card */}
                 {currentPrice > 0 && (
                   <div className="p-4 bg-gray-50 border rounded-lg">
                     <div className="flex items-center justify-between">
@@ -641,7 +582,6 @@ export default function EditProductPage() {
 
                 <Separator />
 
-                {/* Available Sales to Add Product To */}
                 <div>
                   <Label className="text-base font-medium mb-3 block">Add to Sales</Label>
                   {vendorSales.length === 0 ? (
@@ -736,7 +676,6 @@ export default function EditProductPage() {
               </CardContent>
             </Card>
 
-            {/* Inventory */}
             <Card>
               <CardHeader>
                 <CardTitle>Inventory</CardTitle>
@@ -748,74 +687,99 @@ export default function EditProductPage() {
                     <Label>Track Quantity</Label>
                     <p className="text-sm text-muted-foreground">Enable inventory tracking for this product</p>
                   </div>
-                  <Switch
-                    checked={productData.trackQuantity}
-                    onCheckedChange={(checked) => handleInputChange("trackQuantity", checked)}
+                  <Controller
+                    name="trackQuantity"
+                    control={control}
+                    render={({ field }) => (
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    )}
                   />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
+                  <div data-field="sku">
                     <Label htmlFor="sku">SKU</Label>
-                    <Input
-                      id="sku"
-                      value={productData.sku}
-                      onChange={(e) => handleInputChange("sku", e.target.value)}
-                      placeholder="SKU-123"
+                    <Controller
+                      name="sku"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          id="sku"
+                          placeholder="SKU-123"
+                        />
+                      )}
                     />
                   </div>
 
-                  <div>
+                  <div data-field="barcode">
                     <Label htmlFor="barcode">Barcode</Label>
-                    <Input
-                      id="barcode"
-                      value={productData.barcode}
-                      onChange={(e) => handleInputChange("barcode", e.target.value)}
-                      placeholder="Barcode number"
+                    <Controller
+                      name="barcode"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          id="barcode"
+                          placeholder="Barcode number"
+                        />
+                      )}
                     />
                   </div>
 
-                  <div>
-                    <Label htmlFor="quantity">Quantity {productData.trackQuantity ? "*" : ""}</Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      value={productData.quantity}
-                      onChange={(e) => handleInputChange("quantity", e.target.value)}
-                      placeholder="0"
-                      min="0"
-                      disabled={!productData.trackQuantity}
-                      className={errors.quantity ? "border-red-500" : ""}
+                  <div data-field="quantity">
+                    <Label htmlFor="quantity">Quantity {watchTrackQuantity ? <span className="text-red-500">*</span> : ""}</Label>
+                    <Controller
+                      name="quantity"
+                      control={control}
+                      render={({ field }) => (
+                        <Input
+                          {...field}
+                          id="quantity"
+                          type="number"
+                          placeholder="0"
+                          min="0"
+                          disabled={!watchTrackQuantity}
+                          className={errors.quantity ? "border-red-500" : ""}
+                        />
+                      )}
                     />
-                    {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>}
+                    {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity.message}</p>}
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Sidebar */}
           <div className="space-y-6">
-            {/* Status */}
             <Card>
               <CardHeader>
                 <CardTitle>Product Status</CardTitle>
               </CardHeader>
               <CardContent>
-                <Select value={productData.status} onValueChange={(value) => handleInputChange("status", value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="active">Active</SelectItem>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="archived">Archived</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Controller
+                  name="status"
+                  control={control}
+                  render={({ field }) => (
+                    <Select value={field.value} onValueChange={field.onChange}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="draft">Draft</SelectItem>
+                        <SelectItem value="archived">Archived</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
+                />
                 <p className="text-xs text-muted-foreground mt-2">
-                  {productData.status === "active"
+                  {watchStatus === "active"
                     ? "Product is visible to customers"
-                    : productData.status === "draft"
+                    : watchStatus === "draft"
                     ? "Product is saved as draft"
                     : "Product is archived"
                   }
@@ -823,7 +787,6 @@ export default function EditProductPage() {
               </CardContent>
             </Card>
 
-            {/* Sale Status Badge in Sidebar */}
             {isOnSale && activeSale && (
               <Card className="border-red-200 bg-gradient-to-br from-red-50 to-pink-50">
                 <CardContent className="p-4">
@@ -850,7 +813,6 @@ export default function EditProductPage() {
               </Card>
             )}
 
-            {/* Product Info */}
             <Card>
               <CardHeader>
                 <CardTitle>Product Details</CardTitle>
@@ -864,31 +826,30 @@ export default function EditProductPage() {
                 <div className="flex items-center gap-2 text-sm">
                   <Package className="w-4 h-4 text-gray-500" />
                   <span className="text-muted-foreground">Category:</span>
-                  <span>{productData.category || "Not selected"}</span>
+                  <span>{watchCategory && watchCategory !== UNSET_VALUE ? watchCategory : "Not selected"}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Package className="w-4 h-4 text-gray-500" />
                   <span className="text-muted-foreground">Status:</span>
-                  <span className="capitalize">{productData.status}</span>
+                  <span className="capitalize">{watchStatus}</span>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Actions */}
             <Card>
               <CardContent className="p-4 space-y-3">
-                {errors.submit && (
+                {submitError && (
                   <Alert className="border-red-200 bg-red-50">
                     <AlertTriangle className="h-4 w-4 text-red-600" />
                     <AlertDescription className="text-red-800">
-                      {errors.submit}
+                      {submitError}
                     </AlertDescription>
                   </Alert>
                 )}
 
                 <Button
                   type="button"
-                  onClick={(e) => handleSubmit(e, "active")}
+                  onClick={() => handleSubmit("active")}
                   className="w-full"
                   disabled={isLoading}
                 >
@@ -907,7 +868,7 @@ export default function EditProductPage() {
 
                 <Button
                   type="button"
-                  onClick={(e) => handleSubmit(e, "draft")}
+                  onClick={() => handleSubmit("draft")}
                   variant="outline"
                   className="w-full"
                   disabled={isLoading}
