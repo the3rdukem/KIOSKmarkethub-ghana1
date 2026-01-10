@@ -86,7 +86,7 @@ export default function EditProductPage() {
     mode: "edit",
   });
 
-  const { control, watch, setValue, formState: { errors }, setError, clearErrors, reset } = form;
+  const { control, watch, setValue, getValues, formState: { errors }, setError, clearErrors, reset } = form;
   const watchCategory = watch("category");
   const watchTrackQuantity = watch("trackQuantity");
   const watchStatus = watch("status");
@@ -141,7 +141,7 @@ export default function EditProductPage() {
     prevCategoryRef.current = watchCategory;
     prevSchemaKeysRef.current = currentSchemaKeys;
     
-    const existingAttrs = form.getValues("categoryAttributes") || {};
+    const existingAttrs = getValues("categoryAttributes") || {};
     const reconciledAttrs: Record<string, string | boolean> = {};
     
     currentCategoryFields.forEach(field => {
@@ -167,7 +167,8 @@ export default function EditProductPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setValue(`categoryAttributes.${key}` as any, value, { shouldDirty: false });
     });
-  }, [watchCategory, currentCategoryFields, setValue, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoriesLoading, watchCategory, currentCategoryFields, setValue]);
 
   useEffect(() => {
     if (!isHydrated) return;

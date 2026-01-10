@@ -71,7 +71,7 @@ export default function CreateProductPage() {
     mode: "create",
   });
 
-  const { control, watch, setValue, formState: { errors }, setError, clearErrors, register } = form;
+  const { control, watch, setValue, getValues, formState: { errors }, setError, clearErrors, register } = form;
   const watchCategory = watch("category");
   const watchTrackQuantity = watch("trackQuantity");
   const watchRequiresShipping = watch("requiresShipping");
@@ -144,7 +144,7 @@ export default function CreateProductPage() {
     prevSchemaKeysRef.current = currentSchemaKeys;
     
     // Get current attribute values
-    const existingAttrs = form.getValues("categoryAttributes") || {};
+    const existingAttrs = getValues("categoryAttributes") || {};
     
     // Build reconciled attributes object with only valid schema keys
     const reconciledAttrs: Record<string, string | boolean> = {};
@@ -176,7 +176,8 @@ export default function CreateProductPage() {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       setValue(`categoryAttributes.${key}` as any, value, { shouldDirty: false });
     });
-  }, [watchCategory, currentCategoryFields, setValue, form]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoriesLoading, watchCategory, currentCategoryFields, setValue]);
 
   if (!isHydrated) {
     return (
