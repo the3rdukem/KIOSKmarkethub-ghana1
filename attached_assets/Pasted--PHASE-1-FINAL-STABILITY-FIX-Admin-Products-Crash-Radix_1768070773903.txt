@@ -1,0 +1,156 @@
+
+🔒 PHASE 1 — FINAL STABILITY FIX
+
+Admin Products Crash (Radix Select / Empty Category) — MASTER PROMPT
+
+CONTEXT (READ CAREFULLY — DO NOT SKIP)
+
+There is a confirmed root cause for the Admin → Products Management crash:
+	•	Admin Products page renders a Category Filter <Select> on load
+	•	Categories are derived from existing products
+	•	Some products (drafts / legacy) have category = "" (empty string) in the database
+	•	Radix UI hard-crashes when any <Select.Item value=""> is rendered
+	•	This propagates through ClientProvider → RootLayout → ErrorBoundary
+
+This is NOT a form issue.
+This is a read-side data normalization failure.
+
+⸻
+
+🎯 OBJECTIVE (NON-NEGOTIABLE)
+
+Eliminate all possible paths where an empty string category can crash the UI — now and in the future.
+
+This fix must be:
+	•	Database-safe
+	•	API-defensive
+	•	UI-hardened
+	•	Regression-proof
+
+⸻
+
+✅ REQUIRED FIXES (ALL MUST BE DONE)
+
+PART A — DATABASE SANITIZATION (ONE-TIME FIX)
+
+Run a safe, idempotent cleanup to remove illegal empty-string categories:
+
+UPDATE products
+SET category = NULL
+WHERE category = '';
+
+	•	Do NOT introduce defaults
+	•	NULL is the only allowed “unset” state
+	•	This prevents future crashes from legacy data
+
+⸻
+
+PART B — READ API NORMALIZATION (MANDATORY)
+
+On all product list APIs (including admin endpoints):
+	•	NEVER return empty strings for enum-like fields
+	•	Normalize product.category on read
+
+Rule:
+
+category: product.category || null
+
+This must apply to:
+	•	/api/products
+	•	/api/admin/products
+	•	Any endpoint returning product lists
+
+⚠️ Even if the DB is clean, the API must remain defensive.
+
+⸻
+
+PART C — ADMIN UI HARDENING (CRITICAL)
+
+In Admin → Products Management:
+	•	When building Category Filter <Select> options:
+	•	Ignore null
+	•	Ignore ""
+	•	Ignore whitespace-only values
+	•	Deduplicate safely
+
+No <Select.Item> may EVER receive:
+
+value === ""
+
+If a category is invalid, it must simply not render.
+
+❌ Do NOT use try/catch
+❌ Do NOT weaken Radix
+❌ Do NOT default empty strings to “All”
+
+⸻
+
+PART D — REGRESSION PROTECTION
+
+Add a guard (test or runtime assertion) to ensure:
+	•	No <Select.Item value=""> can be rendered anywhere in admin
+	•	Draft products with category = NULL do NOT crash admin pages
+
+This can be:
+	•	A simple invariant check
+	•	Or a small unit/integration test
+
+⸻
+
+🧪 MANDATORY TESTING (USE THESE CREDENTIALS)
+
+You MUST manually test with the following accounts:
+
+Admin
+	•	Email: the3rdukem@gmail.com
+	•	Password: 123asdqweX$
+
+Vendor
+	•	Email: ven@kiosk.com.gh
+	•	Password: 123asdqwe
+
+Buyer
+	•	Email: buy@kiosk.com.gh
+	•	Password: 123asdqwe
+
+Test Checklist (ALL REQUIRED):
+	•	Admin → Products page loads without crash
+	•	Category filter renders correctly
+	•	Products with NULL category do not appear in filter
+	•	Vendor draft products do not crash admin
+	•	No Radix Select errors in console
+	•	No ErrorBoundary triggers
+
+⸻
+
+🚨 REPORTING RULES (STRICT)
+
+When you report completion:
+	•	Do NOT say “should work”
+	•	Do NOT say “likely fixed”
+	•	Explicitly confirm:
+	•	DB cleanup executed
+	•	API normalization applied
+	•	Admin Select hardened
+	•	Manual tests completed with credentials above
+
+If any part is incomplete, report it as FAILED, not “partial”.
+
+⸻
+
+🧱 SCOPE LOCK
+	•	❌ No new features
+	•	❌ No UI redesign
+	•	❌ No form changes
+	•	❌ No category admin changes
+
+This task exists only to close Phase 1 stability.
+
+⸻
+
+✅ SUCCESS CRITERIA
+
+Admin Products Management never crashes, regardless of:
+	•	Draft products
+	•	Legacy data
+	•	Missing categories

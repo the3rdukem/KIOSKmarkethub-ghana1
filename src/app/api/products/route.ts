@@ -100,13 +100,14 @@ export async function GET(request: NextRequest) {
       }
 
       // Section 3: UI Safety - Normalize null values in API response layer
+      // CRITICAL: category must NEVER be empty string (crashes Radix Select)
       return {
         id: product.id,
         vendorId: product.vendor_id,
         vendorName: product.vendor_name,
         name: product.name,
         description: product.description,
-        category: product.category,
+        category: product.category || null,
         price: product.price ?? 0, // Normalize null to 0
         effectivePrice: Math.round(effectivePrice * 100) / 100,
         comparePrice: product.compare_price, // null is valid for comparePrice

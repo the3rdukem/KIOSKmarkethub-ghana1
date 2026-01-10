@@ -15,7 +15,7 @@ export interface Product {
   vendorName: string;
   name: string;
   description: string;
-  category: string;
+  category: string | null;
   price: number;
   effectivePrice?: number;
   activeSale?: ActiveSale | null;

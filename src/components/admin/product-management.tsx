@@ -192,7 +192,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           vendorId: newProduct.vendorId,
           name: newProduct.name,
           description: newProduct.description,
-          category: newProduct.category === ADMIN_UNSET ? "" : newProduct.category,
+          category: newProduct.category === ADMIN_UNSET ? null : newProduct.category,
           price: newProduct.price,
           quantity: newProduct.quantity,
           status: newProduct.status,
@@ -229,9 +229,13 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
     }
   };
 
-  // Get unique categories from products
+  // Get unique categories from products - HARDENED: filter out null/empty/whitespace values
   const categories = useMemo(() => {
-    const cats = new Set(products.map(p => p.category));
+    const cats = new Set(
+      products
+        .map(p => p.category)
+        .filter((cat): cat is string => typeof cat === 'string' && cat.trim().length > 0)
+    );
     return Array.from(cats).sort();
   }, [products]);
 

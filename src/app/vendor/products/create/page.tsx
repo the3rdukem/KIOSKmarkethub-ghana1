@@ -316,7 +316,7 @@ export default function CreateProductPage() {
         vendorName: user.businessName || user.name,
         name: payload.name,
         description: payload.description,
-        category: payload.category || "",
+        category: payload.category || null,
         price: payload.price,
         comparePrice: payload.comparePrice ?? undefined,
         quantity: payload.quantity,

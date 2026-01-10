@@ -86,10 +86,25 @@ export async function initializeDatabase(): Promise<void> {
     await runMigrations(client);
     await seedDefaultCategories(client);
     await seedMasterAdmin(client);
+    await sanitizeEmptyCategories(client);
     isInitialized = true;
     console.log('[DB] PostgreSQL database initialized successfully');
   } finally {
     client.release();
+  }
+}
+
+/**
+ * Sanitize empty category strings to NULL
+ * CRITICAL: Radix Select crashes if any SelectItem has value=""
+ * This ensures legacy/draft products with empty categories don't crash the admin UI
+ */
+async function sanitizeEmptyCategories(client: PoolClient): Promise<void> {
+  const result = await client.query(`
+    UPDATE products SET category = NULL WHERE category = ''
+  `);
+  if (result.rowCount && result.rowCount > 0) {
+    console.log(`[DB] Sanitized ${result.rowCount} products with empty category strings`);
   }
 }
 
