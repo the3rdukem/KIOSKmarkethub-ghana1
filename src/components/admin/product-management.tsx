@@ -38,6 +38,9 @@ import { Product, useProductsStore } from "@/lib/products-store";
 import { useUsersStore } from "@/lib/users-store";
 import { MultiImageUpload } from "@/components/ui/image-upload";
 
+// Sentinel value for unset Select fields to prevent Radix crashes
+const ADMIN_UNSET = "__unset__";
+
 // Types for API data
 interface ApiVendor {
   id: string;
@@ -117,10 +120,10 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
   const [vendors, setVendors] = useState<ApiVendor[]>([]);
   const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
   const [newProduct, setNewProduct] = useState({
-    vendorId: "",
+    vendorId: ADMIN_UNSET,
     name: "",
     description: "",
-    category: "",
+    category: ADMIN_UNSET,
     price: "",
     quantity: "0",
     status: "active" as "active" | "draft",
@@ -154,13 +157,14 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
 
   // Get selected category form schema
   const selectedCategorySchema = useMemo(() => {
+    if (newProduct.category === ADMIN_UNSET) return [];
     const cat = apiCategories.find(c => c.name === newProduct.category);
     return cat?.formSchema || [];
   }, [apiCategories, newProduct.category]);
 
   // Handle admin product creation
   const handleCreateProduct = async () => {
-    if (!newProduct.vendorId) {
+    if (!newProduct.vendorId || newProduct.vendorId === ADMIN_UNSET) {
       toast.error("Please select a vendor");
       return;
     }
@@ -175,6 +179,11 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
 
     setCreateLoading(true);
     try {
+      // Filter out ADMIN_UNSET values from categoryAttributes
+      const cleanedCategoryAttributes = Object.fromEntries(
+        Object.entries(categoryAttributes).filter(([_, v]) => v !== ADMIN_UNSET && v !== "")
+      );
+
       const response = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -183,12 +192,12 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           vendorId: newProduct.vendorId,
           name: newProduct.name,
           description: newProduct.description,
-          category: newProduct.category,
+          category: newProduct.category === ADMIN_UNSET ? "" : newProduct.category,
           price: newProduct.price,
           quantity: newProduct.quantity,
           status: newProduct.status,
           images: newProduct.images,
-          categoryAttributes,
+          categoryAttributes: cleanedCategoryAttributes,
         }),
       });
 
@@ -201,10 +210,10 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
       toast.success(`Product "${newProduct.name}" created successfully`);
       setShowCreateDialog(false);
       setNewProduct({
-        vendorId: "",
+        vendorId: ADMIN_UNSET,
         name: "",
         description: "",
-        category: "",
+        category: ADMIN_UNSET,
         price: "",
         quantity: "0",
         status: "active",
@@ -949,7 +958,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
             <div>
               <Label>Vendor *</Label>
               <Select
-                value={newProduct.vendorId}
+                value={newProduct.vendorId === ADMIN_UNSET ? undefined : newProduct.vendorId}
                 onValueChange={(v) => setNewProduct(p => ({ ...p, vendorId: v }))}
               >
                 <SelectTrigger>
@@ -995,7 +1004,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
             <div>
               <Label>Category</Label>
               <Select
-                value={newProduct.category}
+                value={newProduct.category === ADMIN_UNSET ? undefined : newProduct.category}
                 onValueChange={(v) => {
                   setNewProduct(p => ({ ...p, category: v }));
                   setCategoryAttributes({});
@@ -1023,7 +1032,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                     <Label>{field.label} {field.required && "*"}</Label>
                     {field.type === 'select' && field.options ? (
                       <Select
-                        value={categoryAttributes[field.key] as string || ""}
+                        value={categoryAttributes[field.key] ? (categoryAttributes[field.key] as string) : undefined}
                         onValueChange={(v) => setCategoryAttributes(a => ({ ...a, [field.key]: v }))}
                       >
                         <SelectTrigger>

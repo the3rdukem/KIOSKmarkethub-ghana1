@@ -36,6 +36,9 @@ import {
 import { formatDistance, format } from "date-fns";
 import { toast } from "sonner";
 
+// Sentinel value for unset Select fields to prevent Radix crashes
+const ADMIN_UNSET = "__unset__";
+
 interface UserManagementProps {
   currentAdmin: {
     id: string;
@@ -86,7 +89,7 @@ export function UserManagement({ currentAdmin, isMasterAdmin }: UserManagementPr
     phone: "",
     location: "",
     businessName: "",
-    businessType: "",
+    businessType: ADMIN_UNSET,
   });
   const [isCreating, setIsCreating] = useState(false);
 
@@ -222,10 +225,16 @@ export function UserManagement({ currentAdmin, isMasterAdmin }: UserManagementPr
     setIsCreating(true);
 
     try {
+      // Filter out ADMIN_UNSET values before sending to API
+      const cleanedData = {
+        ...createUserData,
+        businessType: createUserData.businessType === ADMIN_UNSET ? "" : createUserData.businessType,
+      };
+
       const response = await fetch('/api/admin/users', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(createUserData),
+        body: JSON.stringify(cleanedData),
       });
 
       const data = await response.json();
@@ -244,7 +253,7 @@ export function UserManagement({ currentAdmin, isMasterAdmin }: UserManagementPr
         phone: "",
         location: "",
         businessName: "",
-        businessType: "",
+        businessType: ADMIN_UNSET,
       });
       fetchUsers(); // Refresh the list
     } catch (error) {
@@ -672,7 +681,7 @@ export function UserManagement({ currentAdmin, isMasterAdmin }: UserManagementPr
                   <div className="col-span-2">
                     <Label>Business Type</Label>
                     <Select
-                      value={createUserData.businessType}
+                      value={createUserData.businessType === ADMIN_UNSET ? undefined : createUserData.businessType}
                       onValueChange={(v) => setCreateUserData({ ...createUserData, businessType: v })}
                     >
                       <SelectTrigger>
