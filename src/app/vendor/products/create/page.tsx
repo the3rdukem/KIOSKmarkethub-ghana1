@@ -463,12 +463,15 @@ export default function CreateProductPage() {
           const fieldMap: Record<string, string> = {
             'name': 'name',
             'description': 'description',
+            'category': 'category',
             'price': 'price',
             'color': 'color',
             'brand': 'brand',
             'tags': 'tags',
             'quantity': 'quantity',
             'comparePrice': 'comparePrice',
+            'sku': 'sku',
+            'barcode': 'barcode',
           };
           const clientField = fieldMap[data.field] || data.field;
           setErrors({ [clientField]: errorMessage });
@@ -596,10 +599,10 @@ export default function CreateProductPage() {
                     {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
                   </div>
 
-                  <div>
+                  <div data-field="category">
                     <Label htmlFor="category">Category *</Label>
-                    <Select value={productData.category} onValueChange={(value) => handleInputChange("category", value)}>
-                      <SelectTrigger className={errors.category ? "border-red-500" : ""}>
+                    <Select value={productData.category || ""} onValueChange={(value) => handleInputChange("category", value)}>
+                      <SelectTrigger id="category" name="category" className={errors.category ? "border-red-500" : ""}>
                         <SelectValue placeholder="Select a category" />
                       </SelectTrigger>
                       <SelectContent>

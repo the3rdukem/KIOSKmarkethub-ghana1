@@ -1,0 +1,140 @@
+PHASE 1.1D — FORM COMPLETENESS & STATE INVARIANT MASTER PROMPT
+
+(FINAL PHASE 1 LOCK — ABSOLUTE)
+
+⸻
+
+========================================
+
+SECTION 1 — FORM FIELD REGISTRATION PARITY
+
+========================================
+
+All Product Create/Edit fields MUST:
+	•	Have id
+	•	Have name
+	•	Have data-field
+	•	Be registered in the error-to-field map
+	•	Support scroll + focus
+
+Fields REQUIRED to be fixed:
+	•	price
+	•	quantity
+	•	SKU
+	•	category select
+	•	inventory status
+	•	any Radix <Select />
+
+❌ No field may fallback to “error above publish button”
+
+⸻
+
+========================================
+
+SECTION 2 — NUMERIC FIELD NORMALIZATION (CRITICAL)
+
+========================================
+
+BEFORE persistence (server-side):
+
+Field	Rule
+quantity	If empty → default to 0
+price	Required → reject empty
+comparePrice	If empty → null
+discount fields	If empty → null
+
+🚫 undefined or "" MUST NEVER reach the database
+
+⸻
+
+========================================
+
+SECTION 3 — UI SAFETY GUARANTEE (HARD RULE)
+
+========================================
+
+All UI components consuming product data MUST assume:
+
+quantity: number
+price: number
+
+If DB returns null:
+	•	Normalize in API response layer
+	•	NOT in component render
+
+⸻
+
+========================================
+
+SECTION 4 — RADIX SELECT SAFETY FIX
+
+========================================
+
+For every <Select />:
+
+✅ Always pass a non-empty string value
+✅ Use explicit placeholder state
+❌ Never bind raw DB values directly
+
+Example pattern:
+
+const safeValue = value ?? "default"
+
+
+⸻
+
+========================================
+
+SECTION 5 — DATA REPAIR SCRIPT (MANDATORY)
+
+========================================
+
+Because corrupted products already exist:
+	•	Write a one-time repair:
+
+UPDATE products
+SET quantity = 0
+WHERE quantity IS NULL;
+
+This is non-negotiable.
+
+⸻
+
+========================================
+
+SECTION 6 — REGRESSION TESTS (REQUIRED)
+
+========================================
+
+Using vendor login:
+
+ven@kiosk.com.gh / 123asdqwe
+	1.	Edit product
+	2.	Clear quantity field
+	3.	Save
+	4.	Reload product page
+	5.	Homepage
+	6.	Vendor products list
+
+✅ App MUST NOT crash
+✅ Quantity defaults to 0
+✅ No console errors
+
+⸻
+
+========================================
+
+FINAL EXIT RULE — PHASE 1 CERTIFICATION
+
+========================================
+
+Phase 1 is COMPLETE ONLY IF:
+
+✅ All product form fields scroll & highlight correctly
+✅ No empty persisted numeric fields
+✅ No Select crashes possible
+✅ Corrupted data repaired
+✅ No vendor can brick their products
+
+⸻
+

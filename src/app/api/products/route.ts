@@ -99,6 +99,7 @@ export async function GET(request: NextRequest) {
         };
       }
 
+      // Section 3: UI Safety - Normalize null values in API response layer
       return {
         id: product.id,
         vendorId: product.vendor_id,
@@ -106,10 +107,10 @@ export async function GET(request: NextRequest) {
         name: product.name,
         description: product.description,
         category: product.category,
-        price: product.price,
+        price: product.price ?? 0, // Normalize null to 0
         effectivePrice: Math.round(effectivePrice * 100) / 100,
-        comparePrice: product.compare_price,
-        quantity: product.quantity,
+        comparePrice: product.compare_price, // null is valid for comparePrice
+        quantity: product.quantity ?? 0, // Normalize null to 0
         trackQuantity: product.track_quantity === 1,
         images: product.images ? JSON.parse(product.images) : [],
         tags: product.tags ? JSON.parse(product.tags) : [],

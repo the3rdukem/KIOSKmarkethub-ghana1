@@ -75,6 +75,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       };
     }
 
+    // Section 3: UI Safety - Normalize null values in API response layer
     return NextResponse.json({
       product: {
         id: product.id,
@@ -83,13 +84,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         name: product.name,
         description: product.description,
         category: product.category,
-        price: product.price,
+        price: product.price ?? 0, // Normalize null to 0
         effectivePrice: Math.round(effectivePrice * 100) / 100,
-        comparePrice: product.compare_price,
+        comparePrice: product.compare_price, // null is valid for comparePrice
         costPerItem: product.cost_per_item,
         sku: product.sku,
         barcode: product.barcode,
-        quantity: product.quantity,
+        quantity: product.quantity ?? 0, // Normalize null to 0
         trackQuantity: product.track_quantity === 1,
         images: product.images ? JSON.parse(product.images) : [],
         weight: product.weight,
@@ -227,23 +228,32 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
     
+    // Section 2: Numeric Field Normalization - quantity defaults to 0 if empty
     if (body.quantity !== undefined) {
-      const quantity = parseInt(body.quantity, 10);
+      const quantityInput = body.quantity === '' || body.quantity === null ? '0' : String(body.quantity);
+      const quantity = parseInt(quantityInput, 10);
       if (isNaN(quantity) || quantity < 0) {
         return NextResponse.json(
           { error: 'Quantity must be zero or a positive number', code: 'VALIDATION_ERROR', field: 'quantity' },
           { status: 400 }
         );
       }
+      // Normalize to ensure we store 0 not empty
+      body.quantity = quantity;
     }
     
-    if (body.comparePrice !== undefined && body.comparePrice !== null && body.comparePrice !== '') {
-      const comparePrice = parseFloat(body.comparePrice);
-      if (isNaN(comparePrice) || comparePrice < 0) {
-        return NextResponse.json(
-          { error: 'Compare price must be a positive number', code: 'VALIDATION_ERROR', field: 'comparePrice' },
-          { status: 400 }
-        );
+    // Section 2: Numeric Field Normalization - comparePrice becomes null if empty
+    if (body.comparePrice !== undefined) {
+      if (body.comparePrice === null || body.comparePrice === '') {
+        body.comparePrice = null; // Normalize empty to null
+      } else {
+        const comparePrice = parseFloat(body.comparePrice);
+        if (isNaN(comparePrice) || comparePrice < 0) {
+          return NextResponse.json(
+            { error: 'Compare price must be a positive number', code: 'VALIDATION_ERROR', field: 'comparePrice' },
+            { status: 400 }
+          );
+        }
       }
     }
     
