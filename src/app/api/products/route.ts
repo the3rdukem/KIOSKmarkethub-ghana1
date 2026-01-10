@@ -19,7 +19,7 @@ import { getUserById } from '@/lib/db/dal/users';
 import { getVendorByUserId } from '@/lib/db/dal/vendors';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getActiveSalesForProducts } from '@/lib/db/dal/promotions';
-import { validateTextField, validateContentSafety, validateName } from '@/lib/validation';
+import { validateTextField, validateContentSafety, validateProductName } from '@/lib/validation';
 
 /**
  * GET /api/products
@@ -243,7 +243,21 @@ export async function POST(request: NextRequest) {
     // Comprehensive field validation with field attribution
     const validationErrors: string[] = [];
     
-    // Required fields validation - Product name with content safety + garbage detection
+    // PHASE 1.2: Sentinel value rejection for required fields when publishing
+    const UNSET_SENTINEL = '__unset__';
+    const isPublishing = body.status === 'active';
+
+    // PART E: Category validation FIRST when publishing
+    // If category is required and missing, only show category error (no other field errors)
+    const categoryInput = typeof body.category === 'string' ? body.category.trim() : '';
+    if (isPublishing && (categoryInput === UNSET_SENTINEL || !categoryInput)) {
+      return NextResponse.json(
+        { error: 'Please select a category', code: 'REQUIRED_FIELD', field: 'category' },
+        { status: 400 }
+      );
+    }
+
+    // Required fields validation - Product name (always required, not just when publishing)
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     if (!name) {
       return NextResponse.json(
@@ -252,24 +266,11 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Content safety + garbage check for product name
-    const nameResult = validateName(name, 'Product name');
+    // Product name validation using relaxed rules (allows brand names like "Mercedes Benz")
+    const nameResult = validateProductName(name);
     if (!nameResult.valid) {
       return NextResponse.json(
         { error: nameResult.message, code: nameResult.code, field: 'name' },
-        { status: 400 }
-      );
-    }
-
-    // PHASE 1.2: Sentinel value rejection for required fields when publishing
-    const UNSET_SENTINEL = '__unset__';
-    const isPublishing = body.status === 'active';
-
-    // Category validation - required for publish, reject sentinel value only when publishing
-    const categoryInput = typeof body.category === 'string' ? body.category.trim() : '';
-    if (isPublishing && (categoryInput === UNSET_SENTINEL || !categoryInput)) {
-      return NextResponse.json(
-        { error: 'Please select a category', code: 'REQUIRED_FIELD', field: 'category' },
         { status: 400 }
       );
     }
@@ -316,25 +317,25 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Validate color if provided (garbage detection)
+    // Validate color if provided (content safety only - no over-aggressive garbage detection)
     const colorAttr = body.categoryAttributes?.color;
     if (colorAttr && typeof colorAttr === 'string' && colorAttr.trim()) {
-      const colorResult = validateName(colorAttr.trim(), 'Color');
+      const colorResult = validateContentSafety(colorAttr.trim());
       if (!colorResult.valid) {
         return NextResponse.json(
-          { error: colorResult.message, code: colorResult.code, field: 'color' },
+          { error: 'Color contains prohibited content', code: colorResult.code, field: 'color' },
           { status: 400 }
         );
       }
     }
     
-    // Validate brand if provided (garbage + profanity)
+    // Validate brand if provided (content safety only - allows brand names like "Mercedes Benz")
     const brandAttr = body.categoryAttributes?.brand;
     if (brandAttr && typeof brandAttr === 'string' && brandAttr.trim()) {
-      const brandResult = validateName(brandAttr.trim(), 'Brand');
+      const brandResult = validateContentSafety(brandAttr.trim());
       if (!brandResult.valid) {
         return NextResponse.json(
-          { error: brandResult.message, code: brandResult.code, field: 'brand' },
+          { error: 'Brand contains prohibited content', code: brandResult.code, field: 'brand' },
           { status: 400 }
         );
       }

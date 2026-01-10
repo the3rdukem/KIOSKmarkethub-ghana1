@@ -130,6 +130,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
     images: [] as string[],
   });
   const [categoryAttributes, setCategoryAttributes] = useState<Record<string, string | boolean>>({});
+  const [createFormErrors, setCreateFormErrors] = useState<Record<string, string>>({});
 
   // Fetch vendors and categories for admin product creation
   useEffect(() => {
@@ -204,9 +205,26 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create product');
+        // Handle validation errors gracefully without throwing (PART B: no console errors)
+        // PART C: Map server field errors to form state for inline highlighting
+        if (data.field) {
+          setCreateFormErrors({ [data.field]: data.error || 'Invalid value' });
+          // Scroll to the error field
+          setTimeout(() => {
+            const fieldEl = document.querySelector(`[data-field="${data.field}"]`);
+            if (fieldEl) {
+              fieldEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              const input = fieldEl.querySelector('input, select, textarea');
+              if (input) (input as HTMLElement).focus();
+            }
+          }, 100);
+        }
+        toast.error(data.error || 'Failed to create product');
+        return;
       }
 
+      // Clear errors on success
+      setCreateFormErrors({});
       toast.success(`Product "${newProduct.name}" created successfully`);
       setShowCreateDialog(false);
       setNewProduct({
@@ -222,8 +240,11 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
       setCategoryAttributes({});
       fetchProducts();
     } catch (error) {
-      console.error('Failed to create product:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create product');
+      // Only log network/unexpected errors (not validation errors)
+      if (error instanceof TypeError) {
+        console.error('Network error:', error);
+      }
+      toast.error('Failed to create product. Please try again.');
     } finally {
       setCreateLoading(false);
     }
@@ -984,37 +1005,48 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
             </div>
 
             {/* Product Name */}
-            <div>
+            <div data-field="name">
               <Label>Product Name *</Label>
               <Input
                 value={newProduct.name}
-                onChange={(e) => setNewProduct(p => ({ ...p, name: e.target.value }))}
+                onChange={(e) => {
+                  setNewProduct(p => ({ ...p, name: e.target.value }));
+                  setCreateFormErrors(e => ({ ...e, name: '' }));
+                }}
                 placeholder="Enter product name"
+                className={createFormErrors.name ? "border-red-500" : ""}
               />
+              {createFormErrors.name && <p className="text-red-500 text-xs mt-1">{createFormErrors.name}</p>}
             </div>
 
             {/* Description */}
-            <div>
+            <div data-field="description">
               <Label>Description</Label>
               <Textarea
                 value={newProduct.description}
-                onChange={(e) => setNewProduct(p => ({ ...p, description: e.target.value }))}
+                onChange={(e) => {
+                  setNewProduct(p => ({ ...p, description: e.target.value }));
+                  setCreateFormErrors(e => ({ ...e, description: '' }));
+                }}
                 placeholder="Product description"
                 rows={3}
+                className={createFormErrors.description ? "border-red-500" : ""}
               />
+              {createFormErrors.description && <p className="text-red-500 text-xs mt-1">{createFormErrors.description}</p>}
             </div>
 
             {/* Category */}
-            <div>
+            <div data-field="category">
               <Label>Category</Label>
               <Select
                 value={newProduct.category === ADMIN_UNSET ? undefined : newProduct.category}
                 onValueChange={(v) => {
                   setNewProduct(p => ({ ...p, category: v }));
                   setCategoryAttributes({});
+                  setCreateFormErrors(e => ({ ...e, category: '' }));
                 }}
               >
-                <SelectTrigger>
+                <SelectTrigger className={createFormErrors.category ? "border-red-500" : ""}>
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1025,6 +1057,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                   ))}
                 </SelectContent>
               </Select>
+              {createFormErrors.category && <p className="text-red-500 text-xs mt-1">{createFormErrors.category}</p>}
             </div>
 
             {/* Category-specific fields */}
@@ -1083,26 +1116,36 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
 
             {/* Price and Quantity */}
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div data-field="price">
                 <Label>Price (GHS) *</Label>
                 <Input
                   type="number"
                   value={newProduct.price}
-                  onChange={(e) => setNewProduct(p => ({ ...p, price: e.target.value }))}
+                  onChange={(e) => {
+                    setNewProduct(p => ({ ...p, price: e.target.value }));
+                    setCreateFormErrors(er => ({ ...er, price: '' }));
+                  }}
                   placeholder="0.00"
                   min="0"
                   step="0.01"
+                  className={createFormErrors.price ? "border-red-500" : ""}
                 />
+                {createFormErrors.price && <p className="text-red-500 text-xs mt-1">{createFormErrors.price}</p>}
               </div>
-              <div>
+              <div data-field="quantity">
                 <Label>Quantity</Label>
                 <Input
                   type="number"
                   value={newProduct.quantity}
-                  onChange={(e) => setNewProduct(p => ({ ...p, quantity: e.target.value }))}
+                  onChange={(e) => {
+                    setNewProduct(p => ({ ...p, quantity: e.target.value }));
+                    setCreateFormErrors(er => ({ ...er, quantity: '' }));
+                  }}
                   placeholder="0"
                   min="0"
+                  className={createFormErrors.quantity ? "border-red-500" : ""}
                 />
+                {createFormErrors.quantity && <p className="text-red-500 text-xs mt-1">{createFormErrors.quantity}</p>}
               </div>
             </div>
 

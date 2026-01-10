@@ -1,0 +1,138 @@
+PHASE 1.3 — PRODUCT VALIDATION CORRECTION (SURGICAL & FINAL)
+
+READ CAREFULLY. THIS IS A CORRECTIVE PASS, NOT A FEATURE ADD.
+DO NOT EXPAND SCOPE. DO NOT “IMPROVE” BEYOND SPECIFICATION.
+
+⸻
+
+OBJECTIVE (NON-NEGOTIABLE)
+
+Fix over-aggressive validation, runtime crashes, and misattributed errors in Product Create/Edit (Vendor + Admin) forms.
+
+This phase must:
+	•	Remove false validation failures
+	•	Eliminate console errors for expected user mistakes
+	•	Make validation predictable, explainable, and field-specific
+	•	Preserve all existing product, search, admin, and homepage behavior
+
+⸻
+
+HARD RULES (FAIL IF VIOLATED)
+	1.	DO NOT rebuild forms
+	2.	DO NOT change database schema
+	3.	DO NOT introduce new validation heuristics
+	4.	DO NOT throw runtime errors for validation failures
+	5.	DO NOT affect read APIs, search, homepage, or admin listings
+	6.	DO NOT tighten rules — ONLY relax incorrect ones
+
+⸻
+
+PART A — PRODUCT NAME VALIDATION (CRITICAL)
+
+Replace current product name validation with EXACTLY this logic:
+
+Product name is VALID if:
+	•	Length: 2–120 characters
+	•	Contains letters, numbers, spaces, and: - & / ( )
+	•	Allows proper nouns and brand names (e.g. “Mercedes Benz”, “iPhone 14 Pro”)
+
+Product name is INVALID ONLY IF:
+	•	Contains profanity
+	•	Contains contact info (email, phone, URL, social handles)
+	•	Is pure garbage (e.g. single repeated character, random keyboard mash)
+
+❌ REMOVE:
+	•	Entropy checks
+	•	“Spam-like” detection
+	•	Business-name heuristics
+	•	Capitalization or dictionary checks
+
+If “Mercedes Benz” fails, THIS TASK IS NOT COMPLETE.
+
+⸻
+
+PART B — VALIDATION ERRORS MUST NEVER THROW
+
+ABSOLUTE RULE:
+
+Expected validation errors MUST NOT throw JavaScript errors.
+
+REMOVE or refactor all patterns like:
+
+throw new Error(data.error)
+
+REPLACE with:
+	•	Structured error handling
+	•	Inline field errors only
+	•	Zero red console errors for invalid user input
+
+The browser console must remain clean when a user submits an invalid form.
+
+⸻
+
+PART C — FIELD-ACCURATE ERROR MAPPING
+
+Every validation error must include:
+
+{ field: string; message: string }
+
+Frontend must:
+	•	Highlight ONLY the failing field
+	•	Auto-scroll to THAT field
+	•	Focus THAT input
+	•	Show NO generic or misleading messages
+
+❌ “Please enter a valid product name” when the issue is category or condition is a FAIL.
+
+⸻
+
+PART D — CONDITION FIELD ENFORCEMENT (CHOOSE ONE, IMPLEMENT CONSISTENTLY)
+
+Pick ONE and apply everywhere:
+
+Option A (Preferred)
+	•	Condition is required only if the category supports condition
+	•	If required, the field MUST be visible in the form
+
+Option B
+	•	Condition is globally required and ALWAYS rendered
+
+❌ Enforcing condition when the field is not present is a HARD FAIL.
+
+⸻
+
+PART E — CATEGORY NOT SELECTED BEHAVIOR
+
+If category is required and missing:
+	•	Error must be attributed to category
+	•	No other field may show errors
+	•	No runtime exceptions
+	•	No console errors
+
+⸻
+
+VERIFICATION REQUIREMENTS (MANDATORY)
+
+Test using these credentials:
+	•	Admin: the3rdukem@gmail.com / 123asdqweX$
+	•	Vendor: ven@kiosk.com.gh / 123asdqwe
+	•	Buyer: buy@kiosk.com.gh / 123asdqwe
+
+REQUIRED MANUAL TESTS:
+	1.	Create product named “Mercedes Benz” → MUST PASS
+	2.	Leave required field empty → inline error ONLY, no console error
+	3.	Do not select category → category error only
+	4.	Trigger validation errors → ZERO console errors
+	5.	Admin + Vendor create/edit forms behave identically
+
+⸻
+
+COMPLETION STANDARD
+
+This task is ONLY complete when:
+	•	No validation-related console errors exist
+	•	Legitimate product names are accepted
+	•	Errors are precise, calm, and field-specific
+	•	Admin, Vendor, Search, and Homepage remain unaffected
+
+DO NOT REPORT SUCCESS WITHOUT MANUAL VERIFICATION OF ALL TESTS ABOVE.

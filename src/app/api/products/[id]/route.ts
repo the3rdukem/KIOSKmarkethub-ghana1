@@ -18,7 +18,7 @@ import { getVendorByUserId } from '@/lib/db/dal/vendors';
 import { getUserById } from '@/lib/db/dal/users';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getActiveSaleByProduct } from '@/lib/db/dal/promotions';
-import { validateContentSafety, validateName } from '@/lib/validation';
+import { validateContentSafety, validateProductName } from '@/lib/validation';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -150,6 +150,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const validationErrors: string[] = [];
     
+    // PHASE 1.2: Sentinel value rejection for required fields when publishing
+    const UNSET_SENTINEL = '__unset__';
+    const isPublishing = body.status === 'active';
+
+    // PART E: Category validation FIRST when publishing
+    // If category is required and missing, only show category error (no other field errors)
+    if (body.category !== undefined) {
+      const categoryInput = typeof body.category === 'string' ? body.category.trim() : '';
+      if (isPublishing && (categoryInput === UNSET_SENTINEL || !categoryInput)) {
+        return NextResponse.json(
+          { error: 'Please select a category', code: 'REQUIRED_FIELD', field: 'category' },
+          { status: 400 }
+        );
+      }
+    }
+
     // Validate fields if provided with field attribution
     if (body.name !== undefined) {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
@@ -159,8 +175,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           { status: 400 }
         );
       }
-      // Content safety + garbage check for product name
-      const nameResult = validateName(name, 'Product name');
+      // Product name validation using relaxed rules (allows brand names like "Mercedes Benz")
+      const nameResult = validateProductName(name);
       if (!nameResult.valid) {
         return NextResponse.json(
           { error: nameResult.message, code: nameResult.code, field: 'name' },
@@ -175,21 +191,6 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       if (!descResult.valid) {
         return NextResponse.json(
           { error: `Description ${descResult.message?.toLowerCase() || 'contains prohibited content'}`, code: descResult.code, field: 'description' },
-          { status: 400 }
-        );
-      }
-    }
-
-    // PHASE 1.2: Sentinel value rejection for required fields when publishing
-    const UNSET_SENTINEL = '__unset__';
-    const isPublishing = body.status === 'active';
-
-    // Category validation - reject sentinel value only when publishing
-    if (body.category !== undefined) {
-      const categoryInput = typeof body.category === 'string' ? body.category.trim() : '';
-      if (isPublishing && (categoryInput === UNSET_SENTINEL || !categoryInput)) {
-        return NextResponse.json(
-          { error: 'Please select a category', code: 'REQUIRED_FIELD', field: 'category' },
           { status: 400 }
         );
       }
@@ -224,25 +225,25 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
     
-    // Validate color if provided (garbage detection)
+    // Validate color if provided (content safety only - no over-aggressive garbage detection)
     const colorAttr = body.categoryAttributes?.color;
     if (colorAttr && typeof colorAttr === 'string' && colorAttr.trim()) {
-      const colorResult = validateName(colorAttr.trim(), 'Color');
+      const colorResult = validateContentSafety(colorAttr.trim());
       if (!colorResult.valid) {
         return NextResponse.json(
-          { error: colorResult.message, code: colorResult.code, field: 'color' },
+          { error: 'Color contains prohibited content', code: colorResult.code, field: 'color' },
           { status: 400 }
         );
       }
     }
     
-    // Validate brand if provided (garbage + profanity)
+    // Validate brand if provided (content safety only - allows brand names like "Mercedes Benz")
     const brandAttr = body.categoryAttributes?.brand;
     if (brandAttr && typeof brandAttr === 'string' && brandAttr.trim()) {
-      const brandResult = validateName(brandAttr.trim(), 'Brand');
+      const brandResult = validateContentSafety(brandAttr.trim());
       if (!brandResult.valid) {
         return NextResponse.json(
-          { error: brandResult.message, code: brandResult.code, field: 'brand' },
+          { error: 'Brand contains prohibited content', code: brandResult.code, field: 'brand' },
           { status: 400 }
         );
       }

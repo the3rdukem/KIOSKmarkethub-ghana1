@@ -166,14 +166,27 @@ export default function AdminEditProductPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to update product');
+        // Handle validation errors gracefully without throwing (PART B: no console errors)
+        // If the server returned a field, we could set field-specific errors here
+        if (data.field) {
+          form.setError(data.field as keyof typeof form.formState.errors, {
+            type: 'server',
+            message: data.error,
+          });
+          scrollToFirstError();
+        }
+        toast.error(data.error || 'Failed to update product');
+        return;
       }
 
       toast.success('Product updated successfully!');
       router.push('/admin');
     } catch (error) {
-      console.error('Update error:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update product');
+      // Only log network/unexpected errors (not validation errors)
+      if (error instanceof TypeError) {
+        console.error('Network error:', error);
+      }
+      toast.error('Failed to update product. Please try again.');
     } finally {
       setIsLoading(false);
     }

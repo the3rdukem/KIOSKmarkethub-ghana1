@@ -523,6 +523,72 @@ export function validateName(name: string | null | undefined, fieldName: string 
 }
 
 /**
+ * Validate product name - RELAXED validation for marketplace products
+ * 
+ * VALID product names:
+ * - 2-120 characters
+ * - Letters, numbers, spaces, and common symbols: - & / ( ) . ' "
+ * - Brand names like "Mercedes Benz", "iPhone 14 Pro", etc.
+ * 
+ * INVALID only if:
+ * - Contains profanity
+ * - Contains contact info (email, phone, URL, social handles)
+ * - Is pure garbage (single repeated character 8+ times, keyboard mashing at START)
+ */
+export function validateProductName(name: string | null | undefined): ValidationResult {
+  if (!name || typeof name !== 'string') {
+    return { valid: false, code: 'REQUIRED_FIELD', message: 'Product name is required' };
+  }
+
+  const trimmed = name.trim();
+  
+  if (!trimmed) {
+    return { valid: false, code: 'REQUIRED_FIELD', message: 'Product name is required' };
+  }
+
+  // Length check: 2-120 characters
+  if (trimmed.length < 2) {
+    return { valid: false, code: 'INVALID_NAME', message: 'Product name must be at least 2 characters' };
+  }
+
+  if (trimmed.length > 120) {
+    return { valid: false, code: 'INVALID_NAME', message: 'Product name must be 120 characters or less' };
+  }
+
+  // Content safety check (profanity, contact info, URLs, social handles)
+  // This is important and should be kept
+  const safetyResult = validateContentSafety(trimmed);
+  if (!safetyResult.valid) {
+    return { 
+      valid: false, 
+      code: 'UNSAFE_CONTENT', 
+      message: 'Product name contains prohibited or unsafe content' 
+    };
+  }
+
+  // MINIMAL garbage detection - only catch obvious garbage, not brand names
+  // Only reject: single character repeated 8+ times at start
+  if (/^(.)\1{7,}/.test(trimmed)) {
+    return { valid: false, code: 'INVALID_NAME', message: 'Please enter a valid product name' };
+  }
+
+  // Only reject keyboard mashing if the ENTIRE name is keyboard mash (not just starts with)
+  const keyboardPatterns = [
+    /^asdf+$/i,
+    /^qwer+$/i,
+    /^zxcv+$/i,
+    /^hjkl+$/i,
+  ];
+  for (const pattern of keyboardPatterns) {
+    if (pattern.test(trimmed.replace(/\s/g, ''))) {
+      return { valid: false, code: 'INVALID_NAME', message: 'Please enter a valid product name' };
+    }
+  }
+
+  return { valid: true };
+}
+
+/**
  * Validate business/store name
  * - Min/max length
  * - Content safety
