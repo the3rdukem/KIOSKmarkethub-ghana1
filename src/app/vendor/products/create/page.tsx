@@ -112,12 +112,13 @@ export default function CreateProductPage() {
   }, [isHydrated, isAuthenticated, user, router]);
 
   const selectedCategory = apiCategories.find(c => c.name === watchCategory);
-  const currentCategoryFields: CategoryFormField[] = selectedCategory?.formSchema || [];
-  const conditionField = currentCategoryFields.find(f => f.key === 'condition');
+  // Filter out 'condition' from dynamic category fields - it's now a dedicated top-level field
+  const currentCategoryFields: CategoryFormField[] = (selectedCategory?.formSchema || []).filter(f => f.key !== 'condition');
 
   useEffect(() => {
     if (watchCategory && watchCategory !== UNSET_VALUE) {
       const newAttrs: Record<string, string | boolean> = {};
+      // Only seed non-condition fields into categoryAttributes
       currentCategoryFields.forEach(field => {
         if (field.type === 'select' || field.type === 'multi_select') {
           newAttrs[field.key] = UNSET_VALUE;
@@ -525,6 +526,37 @@ export default function CreateProductPage() {
                       )}
                     />
                     {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>}
+                  </div>
+
+                  <div data-field="condition">
+                    <Label htmlFor="condition">Condition <span className="text-red-500">*</span></Label>
+                    <Controller
+                      name="condition"
+                      control={control}
+                      render={({ field }) => (
+                        <Select
+                          value={field.value === UNSET_VALUE ? UNSET_VALUE : field.value}
+                          onValueChange={field.onChange}
+                        >
+                          <SelectTrigger
+                            id="condition"
+                            name="condition"
+                            data-field="condition"
+                            className={errors.condition ? "border-red-500" : ""}
+                          >
+                            <SelectValue placeholder="Select condition" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="New">New</SelectItem>
+                            <SelectItem value="Like New">Like New</SelectItem>
+                            <SelectItem value="Good">Good</SelectItem>
+                            <SelectItem value="Fair">Fair</SelectItem>
+                            <SelectItem value="Used">Used</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {errors.condition && <p className="text-red-500 text-xs mt-1">{errors.condition.message}</p>}
                   </div>
 
                   {currentCategoryFields.length > 0 && (

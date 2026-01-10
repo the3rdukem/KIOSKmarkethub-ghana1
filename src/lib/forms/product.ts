@@ -190,11 +190,22 @@ export function transformFormToApiPayload(values: DefaultProductValues) {
         .filter((tag) => tag.length > 0)
     : [];
 
+  // PHASE 1.2: Filter out __unset__ values from categoryAttributes
+  // This prevents optional fields from blocking server submission
+  // Required fields (category, condition) are top-level and validated separately
+  const categoryAttrsTransformed: Record<string, string | boolean> = {};
+  for (const [key, value] of Object.entries(values.categoryAttributes || {})) {
+    // Only include values that are actually set (not sentinel values)
+    if (value !== UNSET_VALUE && value !== "") {
+      categoryAttrsTransformed[key] = value;
+    }
+  }
+
   return {
     name: values.name.trim(),
     description: values.description.trim(),
-    category: values.category === UNSET_VALUE ? null : values.category,
-    condition: values.condition === UNSET_VALUE ? null : values.condition,
+    category: values.category, // Pass through as-is, server will reject __unset__
+    condition: values.condition, // Pass through as-is, server will reject __unset__
     price: parseFloat(values.price) || 0,
     comparePrice: values.comparePrice ? parseFloat(values.comparePrice) : null,
     costPerItem: values.costPerItem ? parseFloat(values.costPerItem) : null,
@@ -212,16 +223,32 @@ export function transformFormToApiPayload(values: DefaultProductValues) {
     color: values.color?.trim() || null,
     brand: values.brand?.trim() || null,
     continueSellingWhenOutOfStock: values.continueSellingWhenOutOfStock,
-    categoryAttributes: values.categoryAttributes,
+    categoryAttributes: categoryAttrsTransformed,
   };
 }
 
 export function transformApiToFormValues(product: Record<string, unknown>): DefaultProductValues {
+  // Handle condition from both top-level field and legacy categoryAttributes
+  const topLevelCondition = product.condition as string | undefined;
+  const categoryAttrs = product.categoryAttributes as Record<string, string | boolean> | undefined;
+  const legacyCondition = categoryAttrs?.condition as string | undefined;
+  const conditionValue = topLevelCondition || legacyCondition || UNSET_VALUE;
+
+  // Filter out condition from categoryAttributes to avoid duplicates
+  const cleanCategoryAttributes: Record<string, string | boolean> = {};
+  if (categoryAttrs) {
+    for (const [key, value] of Object.entries(categoryAttrs)) {
+      if (key !== 'condition') {
+        cleanCategoryAttributes[key] = value;
+      }
+    }
+  }
+
   return {
     name: (product.name as string) ?? "",
     description: (product.description as string) ?? "",
     category: (product.category as string) || UNSET_VALUE,
-    condition: (product.condition as string) || UNSET_VALUE,
+    condition: conditionValue,
     price: product.price != null ? String(product.price) : "",
     comparePrice: product.comparePrice != null ? String(product.comparePrice) : "",
     costPerItem: product.costPerItem != null ? String(product.costPerItem) : "",
@@ -247,7 +274,7 @@ export function transformApiToFormValues(product: Record<string, unknown>): Defa
     color: (product.color as string) ?? "",
     brand: (product.brand as string) ?? "",
     continueSellingWhenOutOfStock: (product.continueSellingWhenOutOfStock as boolean) ?? false,
-    categoryAttributes: (product.categoryAttributes as Record<string, string | boolean>) ?? {},
+    categoryAttributes: cleanCategoryAttributes,
   };
 }
 

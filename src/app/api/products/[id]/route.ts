@@ -178,6 +178,50 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
         );
       }
     }
+
+    // PHASE 1.2: Sentinel value rejection for required fields when publishing
+    const UNSET_SENTINEL = '__unset__';
+    const isPublishing = body.status === 'active';
+
+    // Category validation - reject sentinel value only when publishing
+    if (body.category !== undefined) {
+      const categoryInput = typeof body.category === 'string' ? body.category.trim() : '';
+      if (isPublishing && (categoryInput === UNSET_SENTINEL || !categoryInput)) {
+        return NextResponse.json(
+          { error: 'Please select a category', code: 'REQUIRED_FIELD', field: 'category' },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Condition validation - check both top-level and categoryAttributes
+    const conditionTopLevel = body.condition;
+    const conditionAttr = body.categoryAttributes?.condition;
+    const conditionValue = conditionTopLevel ?? conditionAttr;
+
+    // When publishing, require condition to be set (either top-level or in categoryAttributes)
+    // This enforces that ALL published products must have a condition, regardless of category
+    // Reject sentinel value or empty/null only when publishing
+    if (isPublishing && (!conditionValue || conditionValue === '' || conditionValue === null || conditionValue === UNSET_SENTINEL)) {
+      return NextResponse.json(
+        { error: 'Please select a condition', code: 'REQUIRED_FIELD', field: 'condition' },
+        { status: 400 }
+      );
+    }
+
+    // Check categoryAttributes for sentinel values only when publishing
+    // Note: Client-side transform now filters out __unset__ for optional fields
+    // This check is a safety net for any required category attributes that slip through
+    if (isPublishing && body.categoryAttributes && typeof body.categoryAttributes === 'object') {
+      for (const [key, value] of Object.entries(body.categoryAttributes)) {
+        if (value === UNSET_SENTINEL) {
+          return NextResponse.json(
+            { error: `Please select a value for ${key}`, code: 'REQUIRED_FIELD', field: key },
+            { status: 400 }
+          );
+        }
+      }
+    }
     
     // Validate color if provided (garbage detection)
     const colorAttr = body.categoryAttributes?.color;
