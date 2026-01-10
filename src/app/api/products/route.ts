@@ -19,7 +19,7 @@ import { getUserById } from '@/lib/db/dal/users';
 import { getVendorByUserId } from '@/lib/db/dal/vendors';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getActiveSalesForProducts } from '@/lib/db/dal/promotions';
-import { validateTextField, validateContentSafety } from '@/lib/validation';
+import { validateTextField, validateContentSafety, validateName } from '@/lib/validation';
 
 /**
  * GET /api/products
@@ -238,22 +238,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Only vendors and admins can create products' }, { status: 403 });
     }
 
-    // Comprehensive field validation
+    // Comprehensive field validation with field attribution
     const validationErrors: string[] = [];
     
-    // Required fields validation
+    // Required fields validation - Product name with content safety + garbage detection
     const name = typeof body.name === 'string' ? body.name.trim() : '';
     if (!name) {
-      validationErrors.push('Product name is required');
-    } else {
-      // Content safety check for product name
-      const nameResult = validateContentSafety(name);
-      if (!nameResult.valid) {
-        return NextResponse.json(
-          { error: nameResult.message, code: nameResult.code },
-          { status: 400 }
-        );
-      }
+      return NextResponse.json(
+        { error: 'Product name is required', code: 'REQUIRED_FIELD', field: 'name' },
+        { status: 400 }
+      );
+    }
+    
+    // Content safety + garbage check for product name
+    const nameResult = validateName(name, 'Product name');
+    if (!nameResult.valid) {
+      return NextResponse.json(
+        { error: nameResult.message, code: nameResult.code, field: 'name' },
+        { status: 400 }
+      );
     }
     
     // Content safety check for description
@@ -262,9 +265,48 @@ export async function POST(request: NextRequest) {
       const descResult = validateContentSafety(descriptionRaw);
       if (!descResult.valid) {
         return NextResponse.json(
-          { error: descResult.message, code: descResult.code },
+          { error: `Description ${descResult.message?.toLowerCase() || 'contains prohibited content'}`, code: descResult.code, field: 'description' },
           { status: 400 }
         );
+      }
+    }
+    
+    // Validate color if provided (garbage detection)
+    const colorAttr = body.categoryAttributes?.color;
+    if (colorAttr && typeof colorAttr === 'string' && colorAttr.trim()) {
+      const colorResult = validateName(colorAttr.trim(), 'Color');
+      if (!colorResult.valid) {
+        return NextResponse.json(
+          { error: colorResult.message, code: colorResult.code, field: 'color' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Validate brand if provided (garbage + profanity)
+    const brandAttr = body.categoryAttributes?.brand;
+    if (brandAttr && typeof brandAttr === 'string' && brandAttr.trim()) {
+      const brandResult = validateName(brandAttr.trim(), 'Brand');
+      if (!brandResult.valid) {
+        return NextResponse.json(
+          { error: brandResult.message, code: brandResult.code, field: 'brand' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Validate tags if provided (garbage + profanity for each tag)
+    if (body.tags && Array.isArray(body.tags)) {
+      for (const tag of body.tags) {
+        if (typeof tag === 'string' && tag.trim()) {
+          const tagResult = validateContentSafety(tag.trim());
+          if (!tagResult.valid) {
+            return NextResponse.json(
+              { error: `Tag "${tag}" contains prohibited content`, code: tagResult.code, field: 'tags' },
+              { status: 400 }
+            );
+          }
+        }
       }
     }
     

@@ -295,7 +295,29 @@ export default function EditProductPage() {
           setErrors({ submit: data.details || "Vendor verification required to publish products" });
         } else if (data.field) {
           // Map server field to form field
-          setErrors({ [data.field]: data.error || "Invalid value" });
+          const fieldMap: Record<string, string> = {
+            'name': 'name',
+            'description': 'description',
+            'price': 'price',
+            'color': 'color',
+            'brand': 'brand',
+            'tags': 'tags',
+            'quantity': 'quantity',
+            'comparePrice': 'comparePrice',
+          };
+          const clientField = fieldMap[data.field] || data.field;
+          setErrors({ [clientField]: data.error || "Invalid value" });
+          
+          // Auto-scroll and focus on the failing field
+          setTimeout(() => {
+            const fieldElement = document.querySelector(`[name="${clientField}"], #${clientField}, [data-field="${clientField}"]`);
+            if (fieldElement) {
+              fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              if (fieldElement instanceof HTMLInputElement || fieldElement instanceof HTMLTextAreaElement) {
+                fieldElement.focus();
+              }
+            }
+          }, 100);
         } else {
           setErrors({ submit: data.error || "Failed to update product" });
         }

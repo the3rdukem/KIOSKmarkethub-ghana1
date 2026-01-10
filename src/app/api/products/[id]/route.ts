@@ -18,7 +18,7 @@ import { getVendorByUserId } from '@/lib/db/dal/vendors';
 import { getUserById } from '@/lib/db/dal/users';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getActiveSaleByProduct } from '@/lib/db/dal/promotions';
-import { validateContentSafety } from '@/lib/validation';
+import { validateContentSafety, validateName } from '@/lib/validation';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -148,20 +148,22 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const validationErrors: string[] = [];
     
-    // Validate fields if provided
+    // Validate fields if provided with field attribution
     if (body.name !== undefined) {
       const name = typeof body.name === 'string' ? body.name.trim() : '';
       if (!name) {
-        validationErrors.push('Product name cannot be empty');
-      } else {
-        // Content safety check for product name
-        const nameResult = validateContentSafety(name);
-        if (!nameResult.valid) {
-          return NextResponse.json(
-            { error: nameResult.message, code: nameResult.code },
-            { status: 400 }
-          );
-        }
+        return NextResponse.json(
+          { error: 'Product name cannot be empty', code: 'REQUIRED_FIELD', field: 'name' },
+          { status: 400 }
+        );
+      }
+      // Content safety + garbage check for product name
+      const nameResult = validateName(name, 'Product name');
+      if (!nameResult.valid) {
+        return NextResponse.json(
+          { error: nameResult.message, code: nameResult.code, field: 'name' },
+          { status: 400 }
+        );
       }
     }
     
@@ -170,43 +172,79 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       const descResult = validateContentSafety(body.description);
       if (!descResult.valid) {
         return NextResponse.json(
-          { error: descResult.message, code: descResult.code },
+          { error: `Description ${descResult.message?.toLowerCase() || 'contains prohibited content'}`, code: descResult.code, field: 'description' },
           { status: 400 }
         );
+      }
+    }
+    
+    // Validate color if provided (garbage detection)
+    const colorAttr = body.categoryAttributes?.color;
+    if (colorAttr && typeof colorAttr === 'string' && colorAttr.trim()) {
+      const colorResult = validateName(colorAttr.trim(), 'Color');
+      if (!colorResult.valid) {
+        return NextResponse.json(
+          { error: colorResult.message, code: colorResult.code, field: 'color' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Validate brand if provided (garbage + profanity)
+    const brandAttr = body.categoryAttributes?.brand;
+    if (brandAttr && typeof brandAttr === 'string' && brandAttr.trim()) {
+      const brandResult = validateName(brandAttr.trim(), 'Brand');
+      if (!brandResult.valid) {
+        return NextResponse.json(
+          { error: brandResult.message, code: brandResult.code, field: 'brand' },
+          { status: 400 }
+        );
+      }
+    }
+    
+    // Validate tags if provided (garbage + profanity for each tag)
+    if (body.tags && Array.isArray(body.tags)) {
+      for (const tag of body.tags) {
+        if (typeof tag === 'string' && tag.trim()) {
+          const tagResult = validateContentSafety(tag.trim());
+          if (!tagResult.valid) {
+            return NextResponse.json(
+              { error: `Tag "${tag}" contains prohibited content`, code: tagResult.code, field: 'tags' },
+              { status: 400 }
+            );
+          }
+        }
       }
     }
     
     if (body.price !== undefined) {
       const price = parseFloat(body.price);
       if (isNaN(price) || price <= 0) {
-        validationErrors.push('Price must be a positive number');
+        return NextResponse.json(
+          { error: 'Price must be a positive number', code: 'VALIDATION_ERROR', field: 'price' },
+          { status: 400 }
+        );
       }
     }
     
     if (body.quantity !== undefined) {
       const quantity = parseInt(body.quantity, 10);
       if (isNaN(quantity) || quantity < 0) {
-        validationErrors.push('Quantity must be zero or a positive number');
+        return NextResponse.json(
+          { error: 'Quantity must be zero or a positive number', code: 'VALIDATION_ERROR', field: 'quantity' },
+          { status: 400 }
+        );
       }
     }
     
     if (body.comparePrice !== undefined && body.comparePrice !== null && body.comparePrice !== '') {
       const comparePrice = parseFloat(body.comparePrice);
       if (isNaN(comparePrice) || comparePrice < 0) {
-        validationErrors.push('Compare price must be a positive number');
+        return NextResponse.json(
+          { error: 'Compare price must be a positive number', code: 'VALIDATION_ERROR', field: 'comparePrice' },
+          { status: 400 }
+        );
       }
-    }
-    
-    if (validationErrors.length > 0) {
-      return NextResponse.json(
-        { 
-          error: validationErrors[0],
-          code: 'VALIDATION_ERROR',
-          details: validationErrors.join('; '),
-          validationErrors 
-        },
-        { status: 400 }
-      );
     }
     
     const updates: UpdateProductInput = {};

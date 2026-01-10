@@ -463,10 +463,26 @@ export default function CreateProductPage() {
           const fieldMap: Record<string, string> = {
             'name': 'name',
             'description': 'description',
-            'price': 'price'
+            'price': 'price',
+            'color': 'color',
+            'brand': 'brand',
+            'tags': 'tags',
+            'quantity': 'quantity',
+            'comparePrice': 'comparePrice',
           };
           const clientField = fieldMap[data.field] || data.field;
           setErrors({ [clientField]: errorMessage });
+          
+          // Auto-scroll and focus on the failing field
+          setTimeout(() => {
+            const fieldElement = document.querySelector(`[name="${clientField}"], #${clientField}, [data-field="${clientField}"]`);
+            if (fieldElement) {
+              fieldElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              if (fieldElement instanceof HTMLInputElement || fieldElement instanceof HTMLTextAreaElement) {
+                fieldElement.focus();
+              }
+            }
+          }, 100);
         } else {
           setErrors({ submit: errorMessage });
         }

@@ -1,0 +1,189 @@
+
+🔐 PHASE 1.1C — FORM PARITY & FIELD-LEVEL SAFETY ENFORCEMENT
+
+(FINAL PHASE 1 CORRECTION — NO ESCAPE HATCHES)
+
+You are fixing remaining validation & UX parity gaps across ALL forms, ensuring registration-level rigor applies everywhere.
+
+🚫 No new features
+🚫 No schema changes
+🚫 No deferrals
+✅ Full parity only
+
+⸻
+
+========================================
+
+SECTION 1 — ABSOLUTE RULE (NON-NEGOTIABLE)
+
+========================================
+
+If a field accepts user input, it MUST be:
+
+	•	Content-safe
+	•	Garbage-filtered
+	•	Field-attributed on error
+	•	Highlighted on failure
+	•	Auto-scrolled into view
+
+❌ There are NO exceptions for:
+	•	Product forms
+	•	Edit forms
+	•	Optional fields
+	•	“Non-critical” inputs
+
+⸻
+
+========================================
+
+SECTION 2 — PRODUCT FORM VALIDATION PARITY
+
+========================================
+
+Apply the SAME validation logic used in registration to:
+
+Product Create & Edit Forms
+
+Fields that MUST be validated:
+
+Field	Required Rules
+Product name	profanity, garbage, contact info, URLs
+Description	profanity, contact info, URLs
+Color	garbage detection (no keyboard mash)
+Brand	garbage + profanity
+SKU (if present)	reasonable length & charset
+Tags (if present)	garbage + profanity
+
+❌ Current behavior allowing garbage in color is UNACCEPTABLE
+
+⸻
+
+========================================
+
+SECTION 3 — FIELD-SPECIFIC ERROR CONTRACT (FIX THIS BUG)
+
+========================================
+
+❌ CURRENT (WRONG)
+
+"This field contains prohibited or unsafe content"
+
+✅ REQUIRED (CORRECT)
+
+{
+  "code": "UNSAFE_CONTENT",
+  "field": "name",
+  "message": "Product name contains prohibited or unsafe content"
+}
+
+Mandatory mapping:
+	•	field = name → highlight product name input
+	•	field = description → highlight description textarea
+	•	field = color → highlight color input
+
+🚫 Generic, fieldless errors are forbidden
+
+⸻
+
+========================================
+
+SECTION 4 — PRODUCT FORM UX BEHAVIOR (MANDATORY)
+
+========================================
+
+When validation fails on Product Create/Edit:
+	1.	Highlight the specific field (red border)
+	2.	Render error directly below the field
+	3.	Auto-scroll to the first invalid field
+	4.	Focus the input
+	5.	❌ NO toasts for validation errors
+
+👉 The behavior must match registration UX exactly
+
+⸻
+
+========================================
+
+SECTION 5 — ADDRESS & CITY VALIDATION (FIX REGRESSION)
+
+========================================
+
+Apply garbage filtering to:
+	•	City
+	•	Address lines
+
+Must reject:
+	•	Keyboard mash (ghyyhcwsyttedswgtuev)
+	•	Repeated characters
+	•	Placeholder values (test, n/a)
+	•	Excessively long nonsense strings
+
+Error example:
+
+{
+  "code": "INVALID_ADDRESS",
+  "field": "city",
+  "message": "Please enter a valid city name"
+}
+
+❌ Registration accepting garbage city/address is NOT allowed
+
+⸻
+
+========================================
+
+SECTION 6 — VALIDATION COVERAGE CHECKLIST
+
+========================================
+
+By the end of this task, ALL of the following must be true:
+
+✅ Registration forms — already working
+✅ Product create form — now parity-complete
+✅ Product edit form — now parity-complete
+✅ No generic validation errors anywhere
+✅ No fieldless errors anywhere
+✅ No toast spam anywhere
+
+If even one field violates this → task is FAILED
+
+⸻
+
+========================================
+
+SECTION 7 — MANDATORY MANUAL TESTING
+
+========================================
+
+Credentials (REQUIRED):
+	•	Admin: the3rdukem@gmail.com / 123asdqweX$
+	•	Vendor: ven@kiosk.com.gh / 123asdqwe
+	•	Buyer: buy@kiosk.com.gh / 123asdqwe
+
+Tests that MUST PASS:
+
+Product Creation
+	•	Name: fuck you → ❌ rejected, name field highlighted
+	•	Description with phone/email → ❌ rejected, description highlighted
+	•	Color: ghdfhsfgdfg → ❌ rejected, color highlighted
+
+Product Edit
+	•	Same tests as above → identical behavior
+
+Registration
+	•	Garbage city/address → ❌ rejected (regression check)
+
+⸻
+
+========================================
+
+FINAL RULE — PHASE 1 EXIT GATE
+
+========================================
+
+🚫 DO NOT declare Phase 1 complete unless:
+	•	Every user input field is validated
+	•	Every error is field-specific
+	•	UX behavior is consistent across ALL forms
+
+Once this passes, Phase 1 is CERTIFIED COMPLETE.
