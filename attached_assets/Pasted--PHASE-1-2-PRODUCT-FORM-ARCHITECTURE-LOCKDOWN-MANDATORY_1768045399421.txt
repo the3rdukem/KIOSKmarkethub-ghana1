@@ -1,0 +1,166 @@
+🔐 PHASE 1.2 — PRODUCT FORM ARCHITECTURE LOCKDOWN
+
+(MANDATORY · NO PARTIAL FIXES · NO UX PATCHES)
+
+⸻
+
+🚫 ABSOLUTE RULE
+
+DO NOT FIX SYMPTOMS.
+REBUILD THE PRODUCT FORM CONTRACT.
+
+⸻
+
+================================
+
+SECTION 1 — SINGLE SOURCE OF TRUTH FORM
+
+================================
+
+The Product Create/Edit form MUST be rebuilt to use:
+	•	ONE form controller (React Hook Form or equivalent)
+	•	ONE schema (Zod or equivalent)
+	•	NO uncontrolled inputs
+	•	NO field outside the schema
+
+❌ Mixing controlled + uncontrolled inputs is FORBIDDEN
+
+⸻
+
+================================
+
+SECTION 2 — REQUIRED FIELD ENFORCEMENT (HARD)
+
+================================
+
+Any field marked with * MUST:
+	•	Block form submission if empty
+	•	Highlight red
+	•	Scroll into view
+	•	Receive focus
+	•	Return field-specific error
+
+Required fields (minimum):
+	•	name
+	•	category
+	•	condition (Select)
+	•	price
+	•	quantity
+
+❌ Visual indicators without enforcement are NOT allowed
+
+⸻
+
+================================
+
+SECTION 3 — RADIX SELECT SAFETY (NON-NEGOTIABLE)
+
+================================
+
+For every <Select /> component:
+
+Rules:
+	•	Must be registered in the form schema
+	•	Must have an explicit default value
+	•	Must NEVER receive:
+	•	""
+	•	null
+	•	undefined
+
+Mandatory pattern:
+
+value = formValue ?? "__unset__"
+
+And:
+	•	"__unset__" is NEVER persisted
+	•	Server rejects "__unset__" as invalid
+
+⸻
+
+================================
+
+SECTION 4 — SERVER-SIDE INVARIANTS
+
+================================
+
+The server MUST enforce:
+
+Field	Rule
+price	Required, > 0
+quantity	Required, ≥ 0
+condition	Required
+category	Required
+
+❌ Client-only validation is NOT acceptable
+
+⸻
+
+================================
+
+SECTION 5 — ERROR PRESENTATION RULE
+
+================================
+
+ONLY ONE error presentation style is allowed:
+	•	Inline under field
+	•	Red border on field
+	•	Auto-scroll to FIRST error
+	•	Focus FIRST error input
+
+❌ No generic error above Publish button
+❌ No toast errors for validation
+
+⸻
+
+================================
+
+SECTION 6 — CRASH PREVENTION GUARANTEE
+
+================================
+
+You MUST guarantee:
+	•	No <Select /> crash is possible
+	•	No product edit can brick vendor dashboard
+	•	No invalid product state can be persisted
+
+This includes:
+	•	Editing existing products
+	•	Partial updates
+	•	Draft products
+
+⸻
+
+================================
+
+SECTION 7 — MANDATORY TEST CASES
+
+================================
+
+Use vendor credentials:
+ven@kiosk.com.gh / 123asdqwe
+
+Tests (ALL MUST PASS):
+	1.	Submit with empty condition → blocked, scrolls, highlights
+	2.	Submit with empty quantity → blocked, scrolls, highlights
+	3.	Submit with empty category → blocked, scrolls, highlights
+	4.	Clear Select field manually → NO crash
+	5.	Reload product page → NO crash
+	6.	Logout / login → NO crash
+
+⸻
+
+================================
+
+EXIT CONDITION (STRICT)
+
+================================
+
+DO NOT REPORT SUCCESS unless:
+
+✅ No Select crash possible
+✅ Required fields enforced client + server
+✅ All errors scroll & highlight correctly
+✅ No generic publish-button errors
+✅ Product form behaves as ONE unified form
+
+⸻
