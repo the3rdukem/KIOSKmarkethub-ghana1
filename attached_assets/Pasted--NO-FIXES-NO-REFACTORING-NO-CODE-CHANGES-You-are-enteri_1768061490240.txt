@@ -1,0 +1,173 @@
+(NO FIXES, NO REFACTORING, NO CODE CHANGES)
+
+You are entering INVESTIGATION MODE ONLY.
+
+🚫 DO NOT
+	•	Fix anything
+	•	Refactor anything
+	•	Change schemas
+	•	Rename values
+	•	“Quick patch” the issue
+	•	Silence the error
+
+If you make any code change, the task is considered FAILED.
+
+⸻
+
+🧨 PROBLEM TO INVESTIGATE
+
+The application crashes in Admin → Products Management with the following global error:
+
+A <Select.Item /> must have a value prop that is not an empty string.
+
+Stack trace:
+
+ClientProvider → RootLayout → ErrorBoundary
+
+This confirms the bug is NOT localized to the product form and is coming from a globally rendered Radix Select.
+
+⸻
+
+🎯 INVESTIGATION OBJECTIVE
+
+Identify EVERY location in the codebase where:
+	•	<Select.Item value=""> is used
+	•	OR a Select receives an empty string ("") as value or defaultValue
+	•	OR backend data with "" is passed into a Select
+	•	OR “All / None / Unset” options are implemented incorrectly
+
+You must prove which one(s) are responsible for the crash.
+
+⸻
+
+🔬 REQUIRED INVESTIGATION STEPS (ALL MANDATORY)
+
+STEP 1 — GLOBAL SEARCH (NO EXCEPTIONS)
+
+Search the entire repo for:
+
+value=""
+defaultValue=""
+<Select.Item value=""
+
+Include:
+	•	/components
+	•	/app
+	•	/admin
+	•	/providers
+	•	/layout
+	•	/ui
+
+📌 OUTPUT REQUIRED:
+A list of file paths + line numbers for every match.
+If there are none, explicitly state “No empty string Select values found”.
+
+⸻
+
+STEP 2 — GLOBAL SELECT INVENTORY
+
+Create a list of every Radix Select component that renders outside product forms, including:
+	•	Header dropdowns
+	•	User menus
+	•	Admin filters
+	•	Category selectors
+	•	Status selectors
+	•	Vendor selectors
+	•	Search filters
+	•	Any Select rendered inside:
+	•	ClientProvider
+	•	RootLayout
+	•	Layout components
+	•	Shared UI components
+
+📌 OUTPUT REQUIRED:
+A table with:
+
+File	Component	Purpose	Value Source
+
+
+
+⸻
+
+STEP 3 — DATA FLOW TRACE (CRITICAL)
+
+For each Select identified above:
+	•	Where does its value come from?
+	•	Local state?
+	•	Zustand?
+	•	API response?
+	•	URL params?
+	•	Database fields?
+
+Specifically check for:
+	•	Empty strings ("")
+	•	Nullable fields not normalized
+	•	Legacy data (old products, old categories)
+
+📌 OUTPUT REQUIRED:
+Explicit YES / NO for:
+	•	Can this Select receive an empty string at runtime?
+
+⸻
+
+STEP 4 — ADMIN PRODUCTS PAGE ENTRY TRACE
+
+Without changing code:
+	1.	Identify what components mount when navigating to:
+
+/admin/products
+
+
+	2.	Identify which Selects render immediately (before user interaction)
+
+📌 OUTPUT REQUIRED:
+List of components rendered on page entry.
+
+⸻
+
+STEP 5 — CRASH CONFIRMATION MATRIX
+
+For every suspected Select, answer:
+
+Component	Can value=”” occur?	Rendered on admin/products?	Crash plausible?
+
+
+You must justify each answer.
+
+⸻
+
+📤 FINAL REPORT FORMAT (STRICT)
+
+You MUST return:
+
+1️⃣ Root Cause Candidates
+
+(Numbered, ordered by likelihood)
+
+2️⃣ Primary Offender (if identifiable)
+
+Include:
+	•	File path
+	•	Component name
+	•	How empty string enters the Select
+
+3️⃣ Secondary Risks
+
+Other places that could cause the same crash later
+
+4️⃣ Confirmation Level
+
+One of:
+	•	✅ Root cause confirmed
+	•	⚠️ Multiple candidates, needs runtime trace
+	•	❌ Cause not yet isolated (explain why)
+
+⸻
+
+🛑 FINAL RULES
+	•	Do NOT fix the issue
+	•	Do NOT add sentinel values
+	•	Do NOT change Selects
+	•	Do NOT rewrite forms
+
+This is a pure diagnostic exercise.
