@@ -1,0 +1,111 @@
+ADMIN PRODUCT MANAGEMENT — SELECT CRASH ERADICATION (LOCKDOWN)
+
+CONTEXT
+Vendor product forms are now stable.
+Admin product management is still crashing due to Radix Select receiving empty string values.
+
+This task is ADMIN-ONLY.
+Do NOT touch vendor product forms unless explicitly required to remove shared crashes.
+
+--------------------------------------------------
+ABSOLUTE RULES
+- Do NOT refactor vendor forms
+- Do NOT add features
+- Do NOT change database schema
+- Do NOT re-architect product forms again
+- Do NOT declare success until Admin pages no longer crash
+
+--------------------------------------------------
+OBJECTIVE
+Eliminate ALL empty-string Select values from the ADMIN surface.
+
+After this task:
+- Admin product management must NEVER crash
+- No <Select.Item value=""> may exist
+- No Select value may resolve to ""
+
+--------------------------------------------------
+MANDATORY AUDIT (DO ALL)
+
+Search the ENTIRE codebase for:
+
+1) <Select.Item value="">
+2) value=""
+3) defaultValue=""
+4) placeholder Select options mapped as ""
+
+This includes:
+- Admin product edit pages
+- Admin product tables
+- Admin filters
+- Admin bulk actions
+- Any shared Select component used by Admin
+
+--------------------------------------------------
+PART A — ADMIN PRODUCT EDIT FORM
+
+If Admin uses:
+- A separate form from vendor → fix it
+- A shared form → confirm sentinel logic is respected
+
+MANDATORY RULES:
+- All Select components must use "__unset__" sentinel
+- defaultValue MUST be "__unset__" (never "")
+- When hydrating existing product data:
+  - Normalize "" → "__unset__"
+  - Normalize null → "__unset__"
+
+--------------------------------------------------
+PART B — ADMIN PRODUCT LIST / FILTERS (MOST LIKELY CAUSE)
+
+Admin tables often use Select filters.
+
+MANDATORY FIX:
+- Any filter dropdown MUST:
+  - Use "__all__" or "__unset__"
+  - NEVER use empty string as option value
+- Placeholder options must NOT have a value prop at all
+
+--------------------------------------------------
+PART C — HARD GUARD (REQUIRED)
+
+Add a defensive assertion in Admin-only Select wrappers:
+
+If a Select value resolves to "":
+→ throw a controlled error in development
+→ normalize to "__unset__" in production
+
+This prevents future regressions.
+
+--------------------------------------------------
+VERIFICATION (MANDATORY)
+
+Login as Admin:
+Email: the3rdukem@gmail.com
+Password: 123asdqweX$
+
+MANUALLY CONFIRM:
+
+1) Open Admin → Products
+2) Open Product Edit
+3) Change category / condition / any Select
+4) Use filters and dropdowns
+5) Refresh page
+6) Navigate away and back
+
+RESULTS REQUIRED:
+- NO console errors
+- NO Radix Select crashes
+- NO empty string Select values anywhere
+
+--------------------------------------------------
+SUCCESS CRITERIA (STRICT)
+
+You may ONLY report success if:
+- Admin product pages load consistently
+- No Radix Select empty string errors appear
+- Vendor product forms remain untouched
+- You explicitly list every file where empty string Selects were removed
+
+Do NOT declare success early.
+Fix until Admin is fully stable.
