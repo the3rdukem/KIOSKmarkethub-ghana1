@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Controller } from "react-hook-form";
@@ -71,7 +71,7 @@ export default function CreateProductPage() {
     mode: "create",
   });
 
-  const { control, watch, setValue, formState: { errors }, setError, clearErrors } = form;
+  const { control, watch, setValue, formState: { errors }, setError, clearErrors, register } = form;
   const watchCategory = watch("category");
   const watchTrackQuantity = watch("trackQuantity");
   const watchRequiresShipping = watch("requiresShipping");
@@ -112,25 +112,71 @@ export default function CreateProductPage() {
   }, [isHydrated, isAuthenticated, user, router]);
 
   const selectedCategory = apiCategories.find(c => c.name === watchCategory);
+  // Memoize category fields to prevent unnecessary effect re-runs
   // Filter out 'condition' from dynamic category fields - it's now a dedicated top-level field
-  const currentCategoryFields: CategoryFormField[] = (selectedCategory?.formSchema || []).filter(f => f.key !== 'condition');
+  const currentCategoryFields = useMemo<CategoryFormField[]>(() => {
+    return (selectedCategory?.formSchema || []).filter(f => f.key !== 'condition');
+  }, [selectedCategory?.formSchema]);
 
+  // Track previous category and schema keys to detect changes
+  const prevCategoryRef = useRef<string | undefined>(undefined);
+  const prevSchemaKeysRef = useRef<string>("");
+
+  // Reconcile categoryAttributes with current schema:
+  // - Preserve existing values for keys that still exist in schema
+  // - Remove obsolete keys that are no longer in schema  
+  // - Seed defaults for new keys that don't have values
+  // Triggers on both category change AND schema change (e.g., edit loads, admin adds new fields)
+  // Gate on categoriesLoading to prevent wiping values before schema is available
   useEffect(() => {
-    if (watchCategory && watchCategory !== UNSET_VALUE) {
-      const newAttrs: Record<string, string | boolean> = {};
-      // Only seed non-condition fields into categoryAttributes
-      currentCategoryFields.forEach(field => {
+    if (categoriesLoading) return; // Wait for categories to load
+    if (!watchCategory || watchCategory === UNSET_VALUE) return;
+    
+    // Create a stable key string to detect schema changes
+    const currentSchemaKeys = currentCategoryFields.map(f => f.key).sort().join(",");
+    const categoryChanged = prevCategoryRef.current !== watchCategory;
+    const schemaChanged = prevSchemaKeysRef.current !== currentSchemaKeys;
+    
+    // Only reconcile if category OR schema has changed
+    if (!categoryChanged && !schemaChanged) return;
+    
+    prevCategoryRef.current = watchCategory;
+    prevSchemaKeysRef.current = currentSchemaKeys;
+    
+    // Get current attribute values
+    const existingAttrs = form.getValues("categoryAttributes") || {};
+    
+    // Build reconciled attributes object with only valid schema keys
+    const reconciledAttrs: Record<string, string | boolean> = {};
+    
+    currentCategoryFields.forEach(field => {
+      const existingValue = existingAttrs[field.key];
+      const hasExistingValue = existingValue !== undefined && existingValue !== null && existingValue !== "";
+      
+      if (hasExistingValue && existingValue !== UNSET_VALUE) {
+        // Preserve existing valid value
+        reconciledAttrs[field.key] = existingValue;
+      } else {
+        // Seed default value for missing/empty keys
         if (field.type === 'select' || field.type === 'multi_select') {
-          newAttrs[field.key] = UNSET_VALUE;
+          reconciledAttrs[field.key] = UNSET_VALUE;
         } else if (field.type === 'boolean') {
-          newAttrs[field.key] = false;
+          reconciledAttrs[field.key] = false;
         } else {
-          newAttrs[field.key] = "";
+          reconciledAttrs[field.key] = "";
         }
-      });
-      setValue("categoryAttributes", newAttrs);
-    }
-  }, [watchCategory, currentCategoryFields, setValue]);
+      }
+    });
+    
+    // First clear all attributes, then set the reconciled object
+    setValue("categoryAttributes", {}, { shouldDirty: false });
+    
+    // Set each field individually so Controllers are properly registered
+    Object.entries(reconciledAttrs).forEach(([key, value]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setValue(`categoryAttributes.${key}` as any, value, { shouldDirty: false });
+    });
+  }, [watchCategory, currentCategoryFields, setValue, form]);
 
   if (!isHydrated) {
     return (
@@ -297,139 +343,191 @@ export default function CreateProductPage() {
     }
   };
 
-  const renderDynamicField = (field: CategoryFormField) => {
-    const categoryAttrs = form.getValues("categoryAttributes") || {};
-    const value = categoryAttrs[field.key] ?? (field.type === 'select' || field.type === 'multi_select' ? UNSET_VALUE : "");
+  // Dynamic Category Attribute Field Component using per-attribute RHF registration
+  // Uses 'any' type cast for dynamic nested paths (recommended RHF workaround for Record types)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const DynamicAttributeField = ({ field }: { field: CategoryFormField }) => {
+    const fieldPath = `categoryAttributes.${field.key}`;
     const fieldError = errors.categoryAttributes?.[field.key as keyof typeof errors.categoryAttributes];
     const errorMessage = fieldError && typeof fieldError === 'object' && 'message' in fieldError ? fieldError.message as string : undefined;
-
-    const handleChange = (key: string, val: string | boolean) => {
-      const current = form.getValues("categoryAttributes") || {};
-      setValue("categoryAttributes", { ...current, [key]: val });
-      if (errors.categoryAttributes?.[key as keyof typeof errors.categoryAttributes]) {
-        clearErrors(`categoryAttributes.${key}` as keyof typeof errors);
-      }
-    };
 
     switch (field.type) {
       case "select":
       case "multi_select":
+        // Select components require Controller for controlled value/onChange handling
         return (
-          <div key={field.key} data-field={field.key}>
+          <div data-field={fieldPath}>
             <Label htmlFor={field.key}>
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </Label>
-            <Select
-              value={value === UNSET_VALUE ? UNSET_VALUE : (value as string)}
-              onValueChange={(val) => handleChange(field.key, val)}
-            >
-              <SelectTrigger
-                id={field.key}
-                name={field.key}
-                data-field={field.key}
-                className={errorMessage ? "border-red-500" : ""}
-              >
-                <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {field.options?.map((option) => (
-                  <SelectItem key={option} value={option}>
-                    {option}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => {
+                const currentValue = rhfField.value ?? UNSET_VALUE;
+                return (
+                  <Select
+                    value={currentValue === UNSET_VALUE ? UNSET_VALUE : String(currentValue)}
+                    onValueChange={rhfField.onChange}
+                  >
+                    <SelectTrigger
+                      id={field.key}
+                      name={fieldPath}
+                      data-field={fieldPath}
+                      ref={rhfField.ref}
+                      className={errorMessage ? "border-red-500" : ""}
+                    >
+                      <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {field.options?.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              }}
+            />
             {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
           </div>
         );
 
       case "boolean":
+        // Checkbox requires Controller for checked state handling
+        // Note: data-field is ONLY on the Checkbox (focusable element), not the wrapper
         return (
-          <div key={field.key} className="flex items-center space-x-2">
-            <Checkbox
-              id={field.key}
-              checked={!!value}
-              onCheckedChange={(checked) => handleChange(field.key, !!checked)}
+          <div className="flex items-center space-x-2">
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => (
+                <Checkbox
+                  id={field.key}
+                  name={rhfField.name}
+                  ref={rhfField.ref}
+                  checked={!!rhfField.value}
+                  onCheckedChange={rhfField.onChange}
+                  data-field={fieldPath}
+                />
+              )}
             />
             <Label htmlFor={field.key}>{field.label}</Label>
           </div>
         );
 
       case "number":
+        // Number inputs use Controller for proper RHF binding with dynamic paths
         return (
-          <div key={field.key} data-field={field.key}>
+          <div data-field={fieldPath}>
             <Label htmlFor={field.key}>
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </Label>
-            <Input
-              id={field.key}
-              name={field.key}
-              data-field={field.key}
-              type="number"
-              value={value as string}
-              onChange={(e) => handleChange(field.key, e.target.value)}
-              placeholder={field.placeholder}
-              min={field.min}
-              max={field.max}
-              className={errorMessage ? "border-red-500" : ""}
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => (
+                <Input
+                  id={field.key}
+                  type="number"
+                  name={rhfField.name}
+                  ref={rhfField.ref}
+                  value={rhfField.value ?? ""}
+                  onChange={rhfField.onChange}
+                  onBlur={rhfField.onBlur}
+                  data-field={fieldPath}
+                  placeholder={field.placeholder}
+                  min={field.min}
+                  max={field.max}
+                  className={errorMessage ? "border-red-500" : ""}
+                />
+              )}
             />
             {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
           </div>
         );
 
       case "textarea":
+        // Textarea uses Controller for proper RHF binding with dynamic paths
         return (
-          <div key={field.key} data-field={field.key}>
+          <div data-field={fieldPath}>
             <Label htmlFor={field.key}>
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </Label>
-            <Textarea
-              id={field.key}
-              name={field.key}
-              data-field={field.key}
-              value={value as string}
-              onChange={(e) => handleChange(field.key, e.target.value)}
-              placeholder={field.placeholder}
-              className={errorMessage ? "border-red-500" : ""}
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => (
+                <Textarea
+                  id={field.key}
+                  name={rhfField.name}
+                  ref={rhfField.ref}
+                  value={rhfField.value ?? ""}
+                  onChange={rhfField.onChange}
+                  onBlur={rhfField.onBlur}
+                  data-field={fieldPath}
+                  placeholder={field.placeholder}
+                  className={errorMessage ? "border-red-500" : ""}
+                />
+              )}
             />
             {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
           </div>
         );
 
       case "date":
+        // Date inputs use Controller for proper RHF binding with dynamic paths
         return (
-          <div key={field.key} data-field={field.key}>
+          <div data-field={fieldPath}>
             <Label htmlFor={field.key}>
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </Label>
-            <Input
-              id={field.key}
-              name={field.key}
-              data-field={field.key}
-              type="date"
-              value={value as string}
-              onChange={(e) => handleChange(field.key, e.target.value)}
-              className={errorMessage ? "border-red-500" : ""}
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => (
+                <Input
+                  id={field.key}
+                  type="date"
+                  name={rhfField.name}
+                  ref={rhfField.ref}
+                  value={rhfField.value ?? ""}
+                  onChange={rhfField.onChange}
+                  onBlur={rhfField.onBlur}
+                  data-field={fieldPath}
+                  className={errorMessage ? "border-red-500" : ""}
+                />
+              )}
             />
             {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
           </div>
         );
 
       default:
+        // Text input uses Controller for proper RHF binding with dynamic paths
         return (
-          <div key={field.key} data-field={field.key}>
+          <div data-field={fieldPath}>
             <Label htmlFor={field.key}>
               {field.label} {field.required && <span className="text-red-500">*</span>}
             </Label>
-            <Input
-              id={field.key}
-              name={field.key}
-              data-field={field.key}
-              type="text"
-              value={value as string}
-              onChange={(e) => handleChange(field.key, e.target.value)}
-              placeholder={field.placeholder}
-              className={errorMessage ? "border-red-500" : ""}
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => (
+                <Input
+                  id={field.key}
+                  type="text"
+                  name={rhfField.name}
+                  ref={rhfField.ref}
+                  value={rhfField.value ?? ""}
+                  onChange={rhfField.onChange}
+                  onBlur={rhfField.onBlur}
+                  data-field={fieldPath}
+                  placeholder={field.placeholder}
+                  className={errorMessage ? "border-red-500" : ""}
+                />
+              )}
             />
             {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
           </div>
@@ -563,7 +661,9 @@ export default function CreateProductPage() {
                     <div className="space-y-4 mt-4">
                       <Separator />
                       <h4 className="font-semibold text-base">Category Details</h4>
-                      {currentCategoryFields.map(renderDynamicField)}
+                      {currentCategoryFields.map((field) => (
+                        <DynamicAttributeField key={field.key} field={field} />
+                      ))}
                     </div>
                   )}
                 </CardContent>

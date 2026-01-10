@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
+import { Controller } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,8 @@ import {
 import { useAuthStore } from "@/lib/auth-store";
 import { MultiImageUpload } from "@/components/ui/image-upload";
 import { toast } from "sonner";
+import { useProductForm } from "@/lib/forms/useProductForm";
+import { UNSET_VALUE, transformFormToApiPayload, transformApiToFormValues } from "@/lib/forms/product";
 
 interface ApiCategory {
   id: string;
@@ -41,29 +44,21 @@ export default function AdminEditProductPage() {
 
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingProduct, setIsLoadingProduct] = useState(true);
-  const [errors, setErrors] = useState<Record<string, string>>({});
   const [isHydrated, setIsHydrated] = useState(false);
   const [notFound, setNotFound] = useState(false);
   const [unauthorized, setUnauthorized] = useState(false);
   const [productImages, setProductImages] = useState<string[]>([]);
   const [vendorInfo, setVendorInfo] = useState<{ id: string; name: string } | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<"active" | "draft" | "archived" | "suspended">("draft");
 
   const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
 
-  const [productData, setProductData] = useState({
-    name: "",
-    description: "",
-    category: "",
-    price: "",
-    comparePrice: "",
-    costPerItem: "",
-    sku: "",
-    barcode: "",
-    quantity: "",
-    trackQuantity: true,
-    tags: "",
-    status: "active" as "active" | "draft" | "archived" | "suspended"
+  const { form, validateForPublish, validateForDraft, scrollToFirstError } = useProductForm({
+    mode: "edit",
   });
+
+  const { control, watch, reset, formState: { errors } } = form;
+  const watchTrackQuantity = watch("trackQuantity");
 
   useEffect(() => {
     setIsHydrated(true);
@@ -122,20 +117,11 @@ export default function AdminEditProductPage() {
           name: product.vendorName
         });
 
-        setProductData({
-          name: product.name ?? "",
-          description: product.description ?? "",
-          category: product.category ?? "",
-          price: product.price != null ? String(product.price) : "",
-          comparePrice: product.comparePrice != null ? String(product.comparePrice) : "",
-          costPerItem: product.costPerItem != null ? String(product.costPerItem) : "",
-          sku: product.sku ?? "",
-          barcode: product.barcode ?? "",
-          quantity: product.quantity != null ? String(product.quantity) : "",
-          trackQuantity: product.trackQuantity ?? true,
-          tags: Array.isArray(product.tags) ? product.tags.join(", ") : "",
-          status: product.status ?? 'draft'
-        });
+        setCurrentStatus(product.status ?? 'draft');
+
+        // Transform API data to form values and reset the form
+        const formValues = transformApiToFormValues(product);
+        reset(formValues);
 
         setProductImages(Array.isArray(product.images) ? product.images : []);
         setIsLoadingProduct(false);
@@ -147,46 +133,15 @@ export default function AdminEditProductPage() {
     }
 
     fetchProduct();
-  }, [isHydrated, isAuthenticated, user, productId, router]);
-
-  const handleInputChange = (field: string, value: string | boolean) => {
-    setProductData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
-    }
-  };
-
-  const validateForm = () => {
-    const newErrors: Record<string, string> = {};
-
-    const name = (productData.name || "").trim();
-    const description = (productData.description || "").trim();
-    const category = productData.category || "";
-    const price = productData.price || "";
-    const quantity = productData.quantity || "";
-
-    if (!name) newErrors.name = "Product name is required";
-    if (!description) newErrors.description = "Product description is required";
-    if (!category) newErrors.category = "Category is required";
-
-    if (!price) {
-      newErrors.price = "Price is required";
-    } else if (isNaN(Number(price)) || Number(price) <= 0) {
-      newErrors.price = "Price must be a valid positive number";
-    }
-
-    if (productData.trackQuantity && !quantity) {
-      newErrors.quantity = "Quantity is required when tracking inventory";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
+  }, [isHydrated, isAuthenticated, user, productId, router, reset]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    // Use publish validation since admin edits should enforce all required fields
+    const isValid = await validateForPublish();
+    if (!isValid) {
+      scrollToFirstError();
       toast.error("Please fix the errors in the form");
       return;
     }
@@ -194,24 +149,17 @@ export default function AdminEditProductPage() {
     setIsLoading(true);
 
     try {
+      const formValues = form.getValues();
+      const payload = transformFormToApiPayload(formValues);
+
       const response = await fetch(`/api/products/${productId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          name: productData.name,
-          description: productData.description,
-          category: productData.category,
-          price: parseFloat(productData.price) || 0,
-          comparePrice: productData.comparePrice ? parseFloat(productData.comparePrice) : undefined,
-          costPerItem: productData.costPerItem ? parseFloat(productData.costPerItem) : undefined,
-          sku: productData.sku || undefined,
-          barcode: productData.barcode || undefined,
-          quantity: productData.trackQuantity ? parseInt(productData.quantity, 10) || 0 : 0,
-          trackQuantity: productData.trackQuantity,
+          ...payload,
           images: productImages,
-          tags: productData.tags.split(',').map(t => t.trim()).filter(Boolean),
-          status: productData.status,
+          status: currentStatus,
         }),
       });
 
@@ -242,7 +190,7 @@ export default function AdminEditProductPage() {
 
       if (response.ok) {
         const data = await response.json();
-        setProductData(prev => ({ ...prev, status: data.product.status }));
+        setCurrentStatus(data.product.status);
 
         const messages: Record<string, string> = {
           publish: 'Product published successfully',
@@ -327,34 +275,34 @@ export default function AdminEditProductPage() {
         </div>
         <div className="flex items-center gap-2">
           <Badge variant={
-            productData.status === 'active' ? 'default' :
-            productData.status === 'draft' ? 'secondary' :
-            productData.status === 'suspended' ? 'destructive' : 'outline'
+            currentStatus === 'active' ? 'default' :
+            currentStatus === 'draft' ? 'secondary' :
+            currentStatus === 'suspended' ? 'destructive' : 'outline'
           }>
-            {productData.status}
+            {currentStatus}
           </Badge>
         </div>
       </div>
 
       <div className="flex gap-2 mb-6">
-        {productData.status === 'draft' && (
+        {currentStatus === 'draft' && (
           <Button onClick={() => handleStatusAction('publish')} className="bg-green-600 hover:bg-green-700">
             <Send className="w-4 h-4 mr-2" />
             Publish
           </Button>
         )}
-        {productData.status === 'active' && (
+        {currentStatus === 'active' && (
           <Button onClick={() => handleStatusAction('unpublish')} variant="outline">
             <FileX className="w-4 h-4 mr-2" />
             Unpublish (Draft)
           </Button>
         )}
-        {productData.status === 'suspended' && (
+        {currentStatus === 'suspended' && (
           <Button onClick={() => handleStatusAction('unsuspend')} className="bg-green-600 hover:bg-green-700">
             Unsuspend
           </Button>
         )}
-        {productData.status === 'active' && (
+        {currentStatus === 'active' && (
           <Button onClick={() => handleStatusAction('suspend')} variant="destructive">
             Suspend
           </Button>
@@ -368,47 +316,99 @@ export default function AdminEditProductPage() {
             <CardDescription>Product details and description</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="name">Product Name *</Label>
-              <Input
-                id="name"
-                value={productData.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                className={errors.name ? "border-red-500" : ""}
+            <div data-field="name">
+              <Label htmlFor="name">Product Name <span className="text-red-500">*</span></Label>
+              <Controller
+                name="name"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    id="name"
+                    className={errors.name ? "border-red-500" : ""}
+                  />
+                )}
               />
-              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
             </div>
 
-            <div>
-              <Label htmlFor="description">Description *</Label>
-              <Textarea
-                id="description"
-                value={productData.description}
-                onChange={(e) => handleInputChange("description", e.target.value)}
-                rows={4}
-                className={errors.description ? "border-red-500" : ""}
+            <div data-field="description">
+              <Label htmlFor="description">Description <span className="text-red-500">*</span></Label>
+              <Controller
+                name="description"
+                control={control}
+                render={({ field }) => (
+                  <Textarea
+                    {...field}
+                    id="description"
+                    rows={4}
+                    className={errors.description ? "border-red-500" : ""}
+                  />
+                )}
               />
-              {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description}</p>}
+              {errors.description && <p className="text-red-500 text-xs mt-1">{errors.description.message}</p>}
             </div>
 
-            <div>
-              <Label htmlFor="category">Category *</Label>
-              <Select
-                value={productData.category}
-                onValueChange={(value) => handleInputChange("category", value)}
-              >
-                <SelectTrigger className={errors.category ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select a category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {categories.map((category) => (
-                    <SelectItem key={category} value={category}>
-                      {category}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category}</p>}
+            <div data-field="category">
+              <Label htmlFor="category">Category <span className="text-red-500">*</span></Label>
+              <Controller
+                name="category"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value === UNSET_VALUE ? UNSET_VALUE : field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger
+                      id="category"
+                      name="category"
+                      data-field="category"
+                      className={errors.category ? "border-red-500" : ""}
+                    >
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories.map((category) => (
+                        <SelectItem key={category} value={category}>
+                          {category}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>}
+            </div>
+
+            <div data-field="condition">
+              <Label htmlFor="condition">Condition <span className="text-red-500">*</span></Label>
+              <Controller
+                name="condition"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value === UNSET_VALUE ? UNSET_VALUE : field.value}
+                    onValueChange={field.onChange}
+                  >
+                    <SelectTrigger
+                      id="condition"
+                      name="condition"
+                      data-field="condition"
+                      className={errors.condition ? "border-red-500" : ""}
+                    >
+                      <SelectValue placeholder="Select condition" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="New">New</SelectItem>
+                      <SelectItem value="Like New">Like New</SelectItem>
+                      <SelectItem value="Good">Good</SelectItem>
+                      <SelectItem value="Fair">Fair</SelectItem>
+                      <SelectItem value="Used">Used</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              {errors.condition && <p className="text-red-500 text-xs mt-1">{errors.condition.message}</p>}
             </div>
           </CardContent>
         </Card>
@@ -434,37 +434,52 @@ export default function AdminEditProductPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="price">Price (GHS) *</Label>
-                <Input
-                  id="price"
-                  type="number"
-                  step="0.01"
-                  value={productData.price}
-                  onChange={(e) => handleInputChange("price", e.target.value)}
-                  className={errors.price ? "border-red-500" : ""}
+              <div data-field="price">
+                <Label htmlFor="price">Price (GHS) <span className="text-red-500">*</span></Label>
+                <Controller
+                  name="price"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      id="price"
+                      type="number"
+                      step="0.01"
+                      className={errors.price ? "border-red-500" : ""}
+                    />
+                  )}
                 />
-                {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price}</p>}
+                {errors.price && <p className="text-red-500 text-xs mt-1">{errors.price.message}</p>}
               </div>
-              <div>
+              <div data-field="comparePrice">
                 <Label htmlFor="comparePrice">Compare at Price (optional)</Label>
-                <Input
-                  id="comparePrice"
-                  type="number"
-                  step="0.01"
-                  value={productData.comparePrice}
-                  onChange={(e) => handleInputChange("comparePrice", e.target.value)}
+                <Controller
+                  name="comparePrice"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      id="comparePrice"
+                      type="number"
+                      step="0.01"
+                    />
+                  )}
                 />
               </div>
             </div>
-            <div>
+            <div data-field="costPerItem">
               <Label htmlFor="costPerItem">Cost per Item (optional)</Label>
-              <Input
-                id="costPerItem"
-                type="number"
-                step="0.01"
-                value={productData.costPerItem}
-                onChange={(e) => handleInputChange("costPerItem", e.target.value)}
+              <Controller
+                name="costPerItem"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    id="costPerItem"
+                    type="number"
+                    step="0.01"
+                  />
+                )}
               />
             </div>
           </CardContent>
@@ -481,39 +496,60 @@ export default function AdminEditProductPage() {
                 <Label>Track Quantity</Label>
                 <p className="text-sm text-muted-foreground">Enable inventory tracking</p>
               </div>
-              <Switch
-                checked={productData.trackQuantity}
-                onCheckedChange={(checked) => handleInputChange("trackQuantity", checked)}
+              <Controller
+                name="trackQuantity"
+                control={control}
+                render={({ field }) => (
+                  <Switch
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                )}
               />
             </div>
-            {productData.trackQuantity && (
-              <div>
-                <Label htmlFor="quantity">Quantity *</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  value={productData.quantity}
-                  onChange={(e) => handleInputChange("quantity", e.target.value)}
-                  className={errors.quantity ? "border-red-500" : ""}
+            {watchTrackQuantity && (
+              <div data-field="quantity">
+                <Label htmlFor="quantity">Quantity <span className="text-red-500">*</span></Label>
+                <Controller
+                  name="quantity"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      id="quantity"
+                      type="number"
+                      className={errors.quantity ? "border-red-500" : ""}
+                    />
+                  )}
                 />
-                {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity}</p>}
+                {errors.quantity && <p className="text-red-500 text-xs mt-1">{errors.quantity.message}</p>}
               </div>
             )}
             <div className="grid grid-cols-2 gap-4">
-              <div>
+              <div data-field="sku">
                 <Label htmlFor="sku">SKU</Label>
-                <Input
-                  id="sku"
-                  value={productData.sku}
-                  onChange={(e) => handleInputChange("sku", e.target.value)}
+                <Controller
+                  name="sku"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      id="sku"
+                    />
+                  )}
                 />
               </div>
-              <div>
+              <div data-field="barcode">
                 <Label htmlFor="barcode">Barcode</Label>
-                <Input
-                  id="barcode"
-                  value={productData.barcode}
-                  onChange={(e) => handleInputChange("barcode", e.target.value)}
+                <Controller
+                  name="barcode"
+                  control={control}
+                  render={({ field }) => (
+                    <Input
+                      {...field}
+                      id="barcode"
+                    />
+                  )}
                 />
               </div>
             </div>
@@ -526,12 +562,19 @@ export default function AdminEditProductPage() {
             <CardDescription>Add searchable tags (comma-separated)</CardDescription>
           </CardHeader>
           <CardContent>
-            <Input
-              id="tags"
-              value={productData.tags}
-              onChange={(e) => handleInputChange("tags", e.target.value)}
-              placeholder="e.g. electronics, wireless, bluetooth"
-            />
+            <div data-field="tags">
+              <Controller
+                name="tags"
+                control={control}
+                render={({ field }) => (
+                  <Input
+                    {...field}
+                    id="tags"
+                    placeholder="e.g. electronics, wireless, bluetooth"
+                  />
+                )}
+              />
+            </div>
           </CardContent>
         </Card>
 

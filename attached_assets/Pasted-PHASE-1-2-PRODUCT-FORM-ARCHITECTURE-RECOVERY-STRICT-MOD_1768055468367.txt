@@ -1,0 +1,159 @@
+PHASE 1.2 — PRODUCT FORM ARCHITECTURE RECOVERY (STRICT MODE)
+
+CONTEXT
+We are in a confirmed form architecture regression caused by an incomplete migration to React Hook Form + Zod.
+Incremental fixes have failed. This task is a corrective alignment pass, not feature work.
+
+ABSOLUTE RULES
+- Do NOT add features
+- Do NOT change database schema
+- Do NOT touch checkout, payments, or APIs unrelated to products
+- Do NOT refactor unrelated components
+- Do NOT report success until ALL verification steps pass
+
+Your ONLY goal is to restore a stable, unified, production-safe product form system.
+
+--------------------------------------------------
+OBJECTIVE
+Unify ALL product-editing surfaces (Vendor + Admin) under a SINGLE, consistent form contract:
+
+- React Hook Form (Controller-based)
+- Central Zod schema
+- Sentinel-safe Select handling
+- Correct error mapping, highlighting, and auto-scroll
+- Zero Radix Select crashes
+- Zero broken category attribute inputs
+
+--------------------------------------------------
+SCOPE (MANDATORY)
+You MUST audit and fix ALL of the following:
+
+1) Vendor Product Create Form
+2) Vendor Product Edit Form
+3) Admin Product Edit / Management Form
+4) Dynamic Category Attribute Inputs
+5) All Select components related to products (category, condition, etc.)
+
+--------------------------------------------------
+PART A — CATEGORY ATTRIBUTE INPUTS (CRITICAL BUG)
+
+CURRENT FAILURE:
+Category attribute text inputs (e.g. Color, Brand, Size) do not accept typing.
+
+MANDATORY FIX:
+- Every dynamic category attribute input MUST be wrapped in a React Hook Form <Controller>
+- Inputs MUST spread {...field}
+- Inputs MUST NOT:
+  - Use local React state
+  - Override value manually
+  - Mix controlled/uncontrolled patterns
+
+REQUIREMENT:
+Typing into category attribute fields must update form state in real time.
+
+--------------------------------------------------
+PART B — ERROR HIGHLIGHTING & AUTO-SCROLL (ALL SECTIONS)
+
+CURRENT FAILURE:
+Only “Basic Information” fields highlight and auto-scroll. Pricing, Inventory, Shipping, SEO do NOT.
+
+MANDATORY FIX:
+- ALL fields must be registered with RHF
+- ALL inputs must forward refs
+- Field names MUST exactly match Zod schema paths
+- data-field attributes MUST exist for scroll targeting
+
+AUTO-SCROLL RULE:
+On submit, scroll to and focus the FIRST failing field across the ENTIRE form (not section-limited).
+
+--------------------------------------------------
+PART C — SELECT / RADIX CRASH ELIMINATION (ADMIN + VENDOR)
+
+CURRENT FAILURE:
+Admin product pages crash with:
+“A <Select.Item /> must have a value prop that is not an empty string”
+
+MANDATORY FIX:
+- ZERO <Select.Item value=""> anywhere in product-related UI
+- Use sentinel value "__unset__" for all Select defaults
+- Sentinel values must:
+  - Be allowed for drafts
+  - Be rejected server-side when publishing (status === 'active')
+
+THIS APPLIES TO:
+- Vendor forms
+- Admin product edit
+- Admin product filters or selects
+
+--------------------------------------------------
+PART D — ADMIN PRODUCT FORM ALIGNMENT (NON-NEGOTIABLE)
+
+CURRENT FAILURE:
+Admin product management is not aligned with vendor form logic.
+
+MANDATORY FIX:
+- Admin product edit MUST use the SAME:
+  - Zod schema
+  - Sentinel logic
+  - Transform utilities
+  - Select handling
+- If Admin has a separate legacy form:
+  → Migrate it OR remove it. No partial compatibility.
+
+--------------------------------------------------
+PART E — CATEGORY SAFETY CONFIRMATION
+
+You MUST explicitly verify and confirm:
+- Categories are fetched dynamically from /api/categories
+- Category deletion does NOT auto-normalize existing products
+- Form rebuild does NOT alter admin category management logic
+
+--------------------------------------------------
+VERIFICATION REQUIREMENTS (MANDATORY)
+
+You must MANUALLY test using these accounts:
+
+Admin:
+Email: the3rdukem@gmail.com
+Password: 123asdqweX$
+
+Vendor:
+Email: ven@kiosk.com.gh
+Password: 123asdqwe
+
+Buyer:
+Email: buy@kiosk.com.gh
+Password: 123asdqwe
+
+MANUAL TEST CHECKLIST (ALL MUST PASS):
+
+1) Vendor:
+- Create product
+- Type into category attribute fields (Color, Brand, etc.)
+- Submit with invalid price → auto-scrolls to price + red highlight
+- Save draft with unset Selects → succeeds
+- Publish with unset Selects → fails with correct field error
+
+2) Admin:
+- Open product management
+- Edit product WITHOUT crashes
+- Select components never use empty string values
+- Invalid fields highlight and scroll correctly
+
+3) Global:
+- No Radix Select errors
+- No console errors
+- No product visibility regressions (homepage, search, admin, vendor)
+
+--------------------------------------------------
+SUCCESS CRITERIA (STRICT)
+
+You may ONLY report success if:
+- Category attribute inputs accept typing
+- Error highlighting + auto-scroll works across ALL sections
+- Admin product pages do NOT crash
+- Vendor and Admin forms share ONE unified contract
+- All verification steps above are manually confirmed
+
+If ANY item fails, continue fixing.
+Do NOT declare success early.

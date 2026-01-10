@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import { Controller } from "react-hook-form";
@@ -41,20 +41,26 @@ import { format } from "date-fns";
 import { useProductForm } from "@/lib/forms/useProductForm";
 import { UNSET_VALUE, transformFormToApiPayload, transformApiToFormValues } from "@/lib/forms/product";
 
-const categories = [
-  "Electronics",
-  "Fashion & Clothing",
-  "Home & Garden",
-  "Sports & Outdoors",
-  "Health & Beauty",
-  "Books & Media",
-  "Toys & Games",
-  "Automotive",
-  "Food & Beverages",
-  "Jewelry & Accessories",
-  "Arts & Crafts",
-  "Other"
-];
+interface CategoryFormField {
+  key: string;
+  label: string;
+  type: 'text' | 'number' | 'select' | 'multi_select' | 'boolean' | 'date' | 'textarea';
+  required: boolean;
+  placeholder?: string;
+  options?: string[];
+  min?: number;
+  max?: number;
+}
+
+interface ApiCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  icon: string | null;
+  isActive: boolean;
+  formSchema: CategoryFormField[] | null;
+}
 
 export default function EditProductPage() {
   const router = useRouter();
@@ -73,6 +79,8 @@ export default function EditProductPage() {
   const [unauthorized, setUnauthorized] = useState(false);
   const [productImages, setProductImages] = useState<string[]>([]);
   const [productLoaded, setProductLoaded] = useState(false);
+  const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
 
   const { form, validateForPublish, validateForDraft, scrollToFirstError } = useProductForm({
     mode: "edit",
@@ -87,6 +95,79 @@ export default function EditProductPage() {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  // Fetch categories from API
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const response = await fetch('/api/categories');
+        const data = await response.json();
+        if (data.categories) {
+          setApiCategories(data.categories);
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    }
+    fetchCategories();
+  }, []);
+
+  const categories = apiCategories.map(c => c.name);
+  const selectedCategory = apiCategories.find(c => c.name === watchCategory);
+  
+  // Memoize category fields to prevent unnecessary effect re-runs
+  const currentCategoryFields = useMemo<CategoryFormField[]>(() => {
+    return (selectedCategory?.formSchema || []).filter(f => f.key !== 'condition');
+  }, [selectedCategory?.formSchema]);
+
+  // Track previous category and schema keys to detect changes
+  const prevCategoryRef = useRef<string | undefined>(undefined);
+  const prevSchemaKeysRef = useRef<string>("");
+
+  // Reconcile categoryAttributes with current schema
+  // Gate on categoriesLoading to prevent wiping values before schema is available
+  useEffect(() => {
+    if (categoriesLoading) return; // Wait for categories to load
+    if (!watchCategory || watchCategory === UNSET_VALUE) return;
+    
+    const currentSchemaKeys = currentCategoryFields.map(f => f.key).sort().join(",");
+    const categoryChanged = prevCategoryRef.current !== watchCategory;
+    const schemaChanged = prevSchemaKeysRef.current !== currentSchemaKeys;
+    
+    if (!categoryChanged && !schemaChanged) return;
+    
+    prevCategoryRef.current = watchCategory;
+    prevSchemaKeysRef.current = currentSchemaKeys;
+    
+    const existingAttrs = form.getValues("categoryAttributes") || {};
+    const reconciledAttrs: Record<string, string | boolean> = {};
+    
+    currentCategoryFields.forEach(field => {
+      const existingValue = existingAttrs[field.key];
+      const hasExistingValue = existingValue !== undefined && existingValue !== null && existingValue !== "";
+      
+      if (hasExistingValue && existingValue !== UNSET_VALUE) {
+        reconciledAttrs[field.key] = existingValue;
+      } else {
+        if (field.type === 'select' || field.type === 'multi_select') {
+          reconciledAttrs[field.key] = UNSET_VALUE;
+        } else if (field.type === 'boolean') {
+          reconciledAttrs[field.key] = false;
+        } else {
+          reconciledAttrs[field.key] = "";
+        }
+      }
+    });
+    
+    setValue("categoryAttributes", {}, { shouldDirty: false });
+    
+    Object.entries(reconciledAttrs).forEach(([key, value]) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      setValue(`categoryAttributes.${key}` as any, value, { shouldDirty: false });
+    });
+  }, [watchCategory, currentCategoryFields, setValue, form]);
 
   useEffect(() => {
     if (!isHydrated) return;
@@ -153,6 +234,190 @@ export default function EditProductPage() {
   const currentPrice = watchPrice ? parseFloat(watchPrice) : 0;
   const { salePrice, discount, sale: activeSale } = isHydrated ? getSalePrice(productId, currentPrice) : { salePrice: currentPrice, discount: 0, sale: undefined };
   const isOnSale = discount > 0;
+
+  // Dynamic Category Attribute Field Component using per-attribute RHF registration
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const DynamicAttributeField = ({ field }: { field: CategoryFormField }) => {
+    const fieldPath = `categoryAttributes.${field.key}`;
+    const fieldError = errors.categoryAttributes?.[field.key as keyof typeof errors.categoryAttributes];
+    const errorMessage = fieldError && typeof fieldError === 'object' && 'message' in fieldError ? fieldError.message as string : undefined;
+
+    switch (field.type) {
+      case "select":
+      case "multi_select":
+        return (
+          <div data-field={fieldPath}>
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => {
+                const currentValue = rhfField.value ?? UNSET_VALUE;
+                return (
+                  <Select
+                    value={currentValue === UNSET_VALUE ? UNSET_VALUE : String(currentValue)}
+                    onValueChange={rhfField.onChange}
+                  >
+                    <SelectTrigger
+                      id={field.key}
+                      name={fieldPath}
+                      data-field={fieldPath}
+                      ref={rhfField.ref}
+                      className={errorMessage ? "border-red-500" : ""}
+                    >
+                      <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {field.options?.map((option) => (
+                        <SelectItem key={option} value={option}>
+                          {option}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                );
+              }}
+            />
+            {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+          </div>
+        );
+
+      case "boolean":
+        return (
+          <div className="flex items-center space-x-2">
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => (
+                <Checkbox
+                  id={field.key}
+                  name={rhfField.name}
+                  ref={rhfField.ref}
+                  checked={!!rhfField.value}
+                  onCheckedChange={rhfField.onChange}
+                  data-field={fieldPath}
+                />
+              )}
+            />
+            <Label htmlFor={field.key}>{field.label}</Label>
+          </div>
+        );
+
+      case "number":
+        return (
+          <div data-field={fieldPath}>
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => (
+                <Input
+                  id={field.key}
+                  type="number"
+                  name={rhfField.name}
+                  ref={rhfField.ref}
+                  value={rhfField.value ?? ""}
+                  onChange={rhfField.onChange}
+                  onBlur={rhfField.onBlur}
+                  data-field={fieldPath}
+                  placeholder={field.placeholder}
+                  min={field.min}
+                  max={field.max}
+                  className={errorMessage ? "border-red-500" : ""}
+                />
+              )}
+            />
+            {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+          </div>
+        );
+
+      case "textarea":
+        return (
+          <div data-field={fieldPath}>
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => (
+                <Textarea
+                  id={field.key}
+                  name={rhfField.name}
+                  ref={rhfField.ref}
+                  value={rhfField.value ?? ""}
+                  onChange={rhfField.onChange}
+                  onBlur={rhfField.onBlur}
+                  data-field={fieldPath}
+                  placeholder={field.placeholder}
+                  className={errorMessage ? "border-red-500" : ""}
+                />
+              )}
+            />
+            {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+          </div>
+        );
+
+      case "date":
+        return (
+          <div data-field={fieldPath}>
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => (
+                <Input
+                  id={field.key}
+                  type="date"
+                  name={rhfField.name}
+                  ref={rhfField.ref}
+                  value={rhfField.value ?? ""}
+                  onChange={rhfField.onChange}
+                  onBlur={rhfField.onBlur}
+                  data-field={fieldPath}
+                  className={errorMessage ? "border-red-500" : ""}
+                />
+              )}
+            />
+            {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+          </div>
+        );
+
+      default:
+        return (
+          <div data-field={fieldPath}>
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => (
+                <Input
+                  id={field.key}
+                  type="text"
+                  name={rhfField.name}
+                  ref={rhfField.ref}
+                  value={rhfField.value ?? ""}
+                  onChange={rhfField.onChange}
+                  onBlur={rhfField.onBlur}
+                  data-field={fieldPath}
+                  placeholder={field.placeholder}
+                  className={errorMessage ? "border-red-500" : ""}
+                />
+              )}
+            />
+            {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+          </div>
+        );
+    }
+  };
 
   const handleSaleToggle = (sale: Sale) => {
     const isInSale = sale.productIds.includes(productId);
@@ -419,6 +684,16 @@ export default function EditProductPage() {
                   />
                   {errors.condition && <p className="text-red-500 text-xs mt-1">{errors.condition.message}</p>}
                 </div>
+
+                {currentCategoryFields.length > 0 && (
+                  <div className="space-y-4 mt-4">
+                    <Separator />
+                    <h4 className="font-semibold text-base">Category Details</h4>
+                    {currentCategoryFields.map((field) => (
+                      <DynamicAttributeField key={field.key} field={field} />
+                    ))}
+                  </div>
+                )}
 
                 <div data-field="tags">
                   <Label htmlFor="tags">Tags (comma-separated)</Label>

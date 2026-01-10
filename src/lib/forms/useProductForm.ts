@@ -40,10 +40,29 @@ export function useProductForm(options: UseProductFormOptions = {}) {
     const errors = form.formState.errors;
     const errorKeys = Object.keys(errors);
     
-    if (errorKeys.length > 0) {
-      const firstErrorField = errorKeys[0];
+    if (errorKeys.length === 0) return;
+
+    // Build a flat list of all error paths (including nested categoryAttributes)
+    const errorPaths: string[] = [];
+    
+    for (const key of errorKeys) {
+      if (key === "categoryAttributes" && errors.categoryAttributes) {
+        // Handle nested categoryAttributes errors
+        const attrErrors = errors.categoryAttributes as Record<string, unknown>;
+        for (const nestedKey of Object.keys(attrErrors)) {
+          if (nestedKey !== 'message' && nestedKey !== 'type' && nestedKey !== 'ref') {
+            errorPaths.push(`categoryAttributes.${nestedKey}`);
+          }
+        }
+      } else {
+        errorPaths.push(key);
+      }
+    }
+
+    // Try to find and scroll to the first error field
+    for (const fieldPath of errorPaths) {
       const element = document.querySelector(
-        `[name="${firstErrorField}"], [data-field="${firstErrorField}"], #${firstErrorField}`
+        `[name="${fieldPath}"], [data-field="${fieldPath}"], #${fieldPath}`
       );
       
       if (element) {
@@ -53,6 +72,7 @@ export function useProductForm(options: UseProductFormOptions = {}) {
             element.focus();
           }
         }, 300);
+        return;
       }
     }
   }, [form.formState.errors]);
