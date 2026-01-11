@@ -1,6 +1,7 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -15,15 +16,28 @@ import {
   AlertTriangle,
   User,
   Store,
-  Shield
+  Shield,
+  Loader2
 } from "lucide-react";
-import { useAuthStore, loginViaAPI, getRouteForRole } from "@/lib/auth-store";
+import { useAuthStore, loginViaAPI, getRouteForRole, type UserRole } from "@/lib/auth-store";
 import { toast } from "sonner";
 import { GoogleSignInButton, GoogleAuthFallback } from "@/components/integrations/google-sign-in-button";
 import { Separator } from "@/components/ui/separator";
+import { getSafeRedirectUrl } from "@/lib/utils/safe-redirect";
 
-export default function LoginPage() {
+const VALID_ROLES: UserRole[] = ['buyer', 'vendor', 'admin', 'master_admin'];
+
+function resolveRole(role?: string): UserRole {
+  if (role && VALID_ROLES.includes(role as UserRole)) {
+    return role as UserRole;
+  }
+  return 'buyer';
+}
+
+function LoginPageContent() {
   const [isHydrated, setIsHydrated] = useState(false);
+  const searchParams = useSearchParams();
+  const redirectUrl = getSafeRedirectUrl(searchParams.get('redirect'));
 
   // Get auth state safely
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
@@ -43,13 +57,22 @@ export default function LoginPage() {
     setIsHydrated(true);
   }, []);
 
+  // Helper to get redirect destination
+  const getRedirectDestination = (role: UserRole) => {
+    // If there's a redirect URL in query params, use it
+    if (redirectUrl) {
+      return redirectUrl;
+    }
+    // Otherwise use role-based default
+    return getRouteForRole(role);
+  };
+
   // Redirect if already authenticated (only after hydration)
-  // CRITICAL: Use window.location.href for HARD redirect to prevent chunk load errors
   useEffect(() => {
     if (isHydrated && isAuthenticated && user) {
-      window.location.href = getRouteForRole(user.role);
+      window.location.href = getRedirectDestination(user.role);
     }
-  }, [isHydrated, isAuthenticated, user]);
+  }, [isHydrated, isAuthenticated, user, redirectUrl]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -87,9 +110,9 @@ export default function LoginPage() {
 
       toast.success(`Welcome back, ${result.user?.name}!`);
 
-      // CRITICAL: Use window.location.href for HARD redirect to prevent chunk load errors
+      // Redirect to specified URL or role-based default
       setTimeout(() => {
-        window.location.href = getRouteForRole(result.user?.role || 'buyer');
+        window.location.href = getRedirectDestination(resolveRole(result.user?.role));
       }, 500);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Login failed";
@@ -248,5 +271,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+      </div>
+    }>
+      <LoginPageContent />
+    </Suspense>
   );
 }

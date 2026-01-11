@@ -71,6 +71,7 @@ interface Order {
   buyerName: string;
   buyerEmail: string;
   items: OrderItem[];
+  orderItems: OrderItem[];
   subtotal: number;
   discountTotal: number;
   shippingFee: number;
@@ -114,7 +115,7 @@ export default function VendorOrdersPage() {
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isFulfilling, setIsFulfilling] = useState(false);
+  const [fulfillingItemId, setFulfillingItemId] = useState<string | null>(null);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -153,7 +154,7 @@ export default function VendorOrdersPage() {
   };
 
   const handleFulfillItem = async (orderId: string, itemId: string) => {
-    setIsFulfilling(true);
+    setFulfillingItemId(itemId);
     try {
       const response = await fetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
@@ -183,7 +184,7 @@ export default function VendorOrdersPage() {
       console.error('Failed to fulfill item:', error);
       toast.error('Failed to fulfill item');
     } finally {
-      setIsFulfilling(false);
+      setFulfillingItemId(null);
     }
   };
 
@@ -227,17 +228,17 @@ export default function VendorOrdersPage() {
   };
 
   const getVendorItemsTotal = (order: Order) => {
-    return order.items
-      .filter(item => item.vendorId === user.id)
+    return (order.orderItems || order.items)
+      .filter(item => item.vendorId === user?.id)
       .reduce((sum, item) => sum + item.price * item.quantity, 0);
   };
 
   const getVendorItems = (order: Order) => {
-    return order.items.filter(item => item.vendorId === user.id);
+    return (order.orderItems || order.items).filter(item => item.vendorId === user?.id);
   };
 
   const hasPendingItems = (order: Order) => {
-    return getVendorItems(order).some(item => item.fulfillmentStatus === 'pending');
+    return getVendorItems(order).some(item => item.fulfillmentStatus === 'pending' || !item.fulfillmentStatus);
   };
 
   return (
@@ -472,9 +473,9 @@ export default function VendorOrdersPage() {
                               <Button
                                 size="sm"
                                 onClick={() => handleFulfillItem(selectedOrder.id, item.id)}
-                                disabled={isFulfilling}
+                                disabled={fulfillingItemId !== null}
                               >
-                                {isFulfilling ? (
+                                {fulfillingItemId === item.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
                                   <>

@@ -48,6 +48,7 @@ interface Order {
   buyerName: string;
   buyerEmail: string;
   items: OrderItem[];
+  orderItems?: OrderItem[];
   subtotal: number;
   discountTotal: number;
   shippingFee: number;
@@ -100,10 +101,10 @@ export default function BuyerOrdersPage() {
   }, [isHydrated, isAuthenticated, router]);
 
   useEffect(() => {
-    if (isHydrated && isAuthenticated) {
+    if (isHydrated && isAuthenticated && user?.id) {
       fetchOrders();
     }
-  }, [isHydrated, isAuthenticated]);
+  }, [isHydrated, isAuthenticated, user?.id]);
 
   const fetchOrders = async () => {
     setLoading(true);

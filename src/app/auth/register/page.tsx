@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,15 +24,19 @@ import {
   CheckCircle,
   AlertTriangle,
   Eye,
-  EyeOff
+  EyeOff,
+  Loader2
 } from "lucide-react";
 import { toast } from "sonner";
-import { registerViaAPI, getRouteForRole } from "@/lib/auth-store";
+import { registerViaAPI, getRouteForRole, type UserRole } from "@/lib/auth-store";
 import { GoogleSignInButton, GoogleAuthFallback } from "@/components/integrations/google-sign-in-button";
 import { AddressAutocomplete } from "@/components/integrations/address-autocomplete";
 import { Separator } from "@/components/ui/separator";
+import { getSafeRedirectUrl } from "@/lib/utils/safe-redirect";
 
-export default function RegisterPage() {
+function RegisterPageContent() {
+  const searchParams = useSearchParams();
+  const redirectUrl = getSafeRedirectUrl(searchParams.get('redirect'));
   const [userType, setUserType] = useState<"buyer" | "vendor">("buyer");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -181,8 +186,9 @@ export default function RegisterPage() {
           window.location.href = "/vendor/verify";
         }, 500);
       } else {
+        // Redirect to specified URL or buyer dashboard
         setTimeout(() => {
-          window.location.href = getRouteForRole("buyer");
+          window.location.href = redirectUrl || getRouteForRole("buyer");
         }, 500);
       }
     } catch (error) {
@@ -596,5 +602,17 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-green-600" />
+      </div>
+    }>
+      <RegisterPageContent />
+    </Suspense>
   );
 }

@@ -71,6 +71,7 @@ interface Order {
   buyerName: string;
   buyerEmail: string;
   items: OrderItem[];
+  orderItems?: OrderItem[];
   subtotal: number;
   discountTotal: number;
   shippingFee: number;
@@ -425,8 +426,8 @@ export default function AdminOrdersPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {selectedOrder.items.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between py-2 border-b last:border-0">
+                      {(selectedOrder.orderItems || selectedOrder.items).map((item, index) => (
+                        <div key={item.id || index} className="flex items-center justify-between py-2 border-b last:border-0">
                           <div>
                             <p className="font-medium">{item.productName}</p>
                             <p className="text-sm text-muted-foreground">by {item.vendorName}</p>
