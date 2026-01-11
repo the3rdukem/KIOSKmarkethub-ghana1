@@ -61,7 +61,9 @@ interface OrderItem {
   vendorId: string;
   vendorName: string;
   quantity: number;
-  price: number;
+  unitPrice: number;
+  finalPrice?: number | null;
+  appliedDiscount?: number | null;
   fulfillmentStatus: string;
 }
 
@@ -136,6 +138,19 @@ export default function AdminOrdersPage() {
     if (isHydrated && isAuthenticated && (user?.role === "admin" || user?.role === "master_admin")) {
       fetchOrders();
     }
+  }, [isHydrated, isAuthenticated, user]);
+
+  useEffect(() => {
+    if (!isHydrated || !isAuthenticated || (user?.role !== "admin" && user?.role !== "master_admin")) return;
+    
+    const interval = setInterval(() => {
+      fetch('/api/orders?role=admin', { credentials: 'include' })
+        .then(res => res.ok ? res.json() : { orders: [] })
+        .then(data => setOrders(data.orders || []))
+        .catch(console.error);
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [isHydrated, isAuthenticated, user]);
 
   const fetchOrders = async () => {
@@ -217,6 +232,13 @@ export default function AdminOrdersPage() {
         {config.label}
       </Badge>
     );
+  };
+
+  const getOrderItems = (order: Order) => {
+    if (order.orderItems && order.orderItems.length > 0) {
+      return order.orderItems;
+    }
+    return order.items || [];
   };
 
   const canCancel = (order: Order) => {
@@ -326,7 +348,7 @@ export default function AdminOrdersPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span>{order.items.length} item(s)</span>
+                            <span>{getOrderItems(order).length} item(s)</span>
                           </TableCell>
                           <TableCell>
                             <span className="font-medium">GHS {order.total.toFixed(2)}</span>
@@ -428,7 +450,7 @@ export default function AdminOrdersPage() {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {(selectedOrder.orderItems || selectedOrder.items).map((item, index) => (
+                      {getOrderItems(selectedOrder).map((item, index) => (
                         <div key={item.id || index} className="flex items-center justify-between py-2 border-b last:border-0">
                           <div>
                             <p className="font-medium">{item.productName}</p>
@@ -436,7 +458,7 @@ export default function AdminOrdersPage() {
                             <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                           </div>
                           <div className="text-right">
-                            <p className="font-medium">GHS {(item.price * item.quantity).toFixed(2)}</p>
+                            <p className="font-medium">GHS {(item.finalPrice != null ? item.finalPrice : item.unitPrice * item.quantity).toFixed(2)}</p>
                             <Badge variant="outline" className="text-xs">
                               {item.fulfillmentStatus || 'pending'}
                             </Badge>

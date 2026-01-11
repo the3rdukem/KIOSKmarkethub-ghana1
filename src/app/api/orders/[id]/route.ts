@@ -65,13 +65,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       ? orderItems.filter(item => item.vendor_id === session.user_id)
       : orderItems;
 
+    // Normalize legacy items to have same fields for backwards compatibility
+    const normalizedLegacyItems = items.map((item: any) => ({
+      ...item,
+      unitPrice: item.unitPrice ?? item.price ?? 0,
+      finalPrice: item.finalPrice ?? (item.price ? item.price * item.quantity : null),
+    }));
+
     return NextResponse.json({
       order: {
         id: order.id,
         buyerId: order.buyer_id,
         buyerName: order.buyer_name,
         buyerEmail: order.buyer_email,
-        items,
+        items: normalizedLegacyItems,
         orderItems: vendorItems.map(item => ({
           id: item.id,
           productId: item.product_id,

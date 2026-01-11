@@ -31,15 +31,17 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 
 interface OrderItem {
-  id: string;
+  id?: string;
   productId: string;
   productName: string;
   vendorId: string;
   vendorName: string;
   quantity: number;
-  price: number;
+  unitPrice?: number;
+  finalPrice?: number | null;
+  price?: number;
   image?: string;
-  fulfillmentStatus: string;
+  fulfillmentStatus?: string;
 }
 
 interface Order {
@@ -47,7 +49,8 @@ interface Order {
   buyerId: string;
   buyerName: string;
   buyerEmail: string;
-  items: OrderItem[];
+  items: any[];
+  orderItems?: OrderItem[];
   subtotal: number;
   discountTotal: number;
   shippingFee: number;
@@ -221,8 +224,9 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
   const config = statusConfig[order.status] || statusConfig.pending_payment;
 
-  const fulfilledCount = order.items.filter(i => i.fulfillmentStatus === 'fulfilled').length;
-  const totalItems = order.items.length;
+  const orderItems = order.orderItems || order.items || [];
+  const fulfilledCount = orderItems.filter(i => i.fulfillmentStatus === 'fulfilled').length;
+  const totalItems = orderItems.length;
 
   return (
     <SiteLayout>
@@ -311,10 +315,12 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   <Package className="w-5 h-5" />
                   Order Items
                 </CardTitle>
-                <CardDescription>{order.items.length} item(s)</CardDescription>
+                <CardDescription>{orderItems.length} item(s)</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {order.items.map((item, index) => (
+                {orderItems.map((item, index) => {
+                  const itemTotal = item.finalPrice != null ? item.finalPrice : ((item.unitPrice || item.price || 0) * item.quantity);
+                  return (
                   <div key={index}>
                     <div className="flex gap-4">
                       <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
@@ -336,16 +342,17 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                         </Link>
                         <div className="flex items-center gap-4 mt-2">
                           <span className="text-sm">Qty: {item.quantity}</span>
-                          <span className="font-medium">GHS {(item.price * item.quantity).toFixed(2)}</span>
+                          <span className="font-medium">GHS {itemTotal.toFixed(2)}</span>
                           <Badge variant="outline" className={item.fulfillmentStatus === 'fulfilled' ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}>
                             {item.fulfillmentStatus === 'fulfilled' ? 'Fulfilled' : 'Pending'}
                           </Badge>
                         </div>
                       </div>
                     </div>
-                    {index < order.items.length - 1 && <Separator className="my-4" />}
+                    {index < orderItems.length - 1 && <Separator className="my-4" />}
                   </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
 

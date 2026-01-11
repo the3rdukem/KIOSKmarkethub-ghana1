@@ -65,26 +65,37 @@ export async function GET(request: NextRequest) {
     const transformedOrders = await Promise.all(orders.map(async (order) => {
       const orderItems = await getOrderItemsByOrderId(order.id);
       
+      // Normalize orderItems to consistent format
+      const normalizedOrderItems = orderItems.map(item => ({
+        id: item.id,
+        productId: item.product_id,
+        productName: item.product_name,
+        vendorId: item.vendor_id,
+        vendorName: item.vendor_name,
+        quantity: item.quantity,
+        unitPrice: item.unit_price,
+        appliedDiscount: item.applied_discount,
+        finalPrice: item.final_price,
+        fulfillmentStatus: item.fulfillment_status,
+        fulfilledAt: item.fulfilled_at,
+        image: item.image,
+      }));
+
+      // Also normalize legacy items to have same fields for backwards compatibility
+      const legacyItems = parseOrderItems(order);
+      const normalizedLegacyItems = legacyItems.map((item: any) => ({
+        ...item,
+        unitPrice: item.unitPrice ?? item.price ?? 0,
+        finalPrice: item.finalPrice ?? (item.price ? item.price * item.quantity : null),
+      }));
+      
       return {
         id: order.id,
         buyerId: order.buyer_id,
         buyerName: order.buyer_name,
         buyerEmail: order.buyer_email,
-        items: parseOrderItems(order),
-        orderItems: orderItems.map(item => ({
-          id: item.id,
-          productId: item.product_id,
-          productName: item.product_name,
-          vendorId: item.vendor_id,
-          vendorName: item.vendor_name,
-          quantity: item.quantity,
-          unitPrice: item.unit_price,
-          appliedDiscount: item.applied_discount,
-          finalPrice: item.final_price,
-          fulfillmentStatus: item.fulfillment_status,
-          fulfilledAt: item.fulfilled_at,
-          image: item.image,
-        })),
+        items: normalizedLegacyItems,
+        orderItems: normalizedOrderItems,
         subtotal: order.subtotal,
         discountTotal: order.discount_total || 0,
         shippingFee: order.shipping_fee,

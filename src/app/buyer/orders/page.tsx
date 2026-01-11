@@ -34,12 +34,16 @@ import { useAuthStore } from "@/lib/auth-store";
 import { formatDistance } from "date-fns";
 
 interface OrderItem {
+  id?: string;
   productId: string;
   productName: string;
   vendorId: string;
   vendorName: string;
   quantity: number;
-  price: number;
+  unitPrice: number;
+  finalPrice?: number | null;
+  appliedDiscount?: number | null;
+  fulfillmentStatus?: string;
 }
 
 interface Order {
@@ -47,7 +51,7 @@ interface Order {
   buyerId: string;
   buyerName: string;
   buyerEmail: string;
-  items: OrderItem[];
+  items: any[];
   orderItems?: OrderItem[];
   subtotal: number;
   discountTotal: number;
@@ -106,6 +110,19 @@ export default function BuyerOrdersPage() {
     }
   }, [isHydrated, isAuthenticated, user?.id]);
 
+  useEffect(() => {
+    if (!isHydrated || !isAuthenticated || !user?.id) return;
+    
+    const interval = setInterval(() => {
+      fetch('/api/orders?role=buyer', { credentials: 'include' })
+        .then(res => res.ok ? res.json() : { orders: [] })
+        .then(data => setOrders(data.orders || []))
+        .catch(console.error);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [isHydrated, isAuthenticated, user?.id]);
+
   const fetchOrders = async () => {
     setLoading(true);
     try {
@@ -137,10 +154,13 @@ export default function BuyerOrdersPage() {
     return null;
   }
 
+  const getOrderItems = (order: Order) => order.orderItems || order.items || [];
+
   const filteredOrders = orders.filter(order => {
+    const items = getOrderItems(order);
     const matchesSearch =
       order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      order.items.some(item => item.productName.toLowerCase().includes(searchQuery.toLowerCase()));
+      items.some(item => item.productName?.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesStatus = statusFilter === "all" || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -251,6 +271,7 @@ export default function BuyerOrdersPage() {
                   <TableBody>
                     {filteredOrders.map((order) => {
                       const orderNumber = order.id.slice(-8).toUpperCase();
+                      const items = getOrderItems(order);
                       return (
                         <TableRow key={order.id}>
                           <TableCell>
@@ -258,9 +279,9 @@ export default function BuyerOrdersPage() {
                           </TableCell>
                           <TableCell>
                             <div>
-                              <p className="font-medium">{order.items.length} item(s)</p>
+                              <p className="font-medium">{items.length} item(s)</p>
                               <p className="text-sm text-muted-foreground truncate max-w-[200px]">
-                                {order.items.map(i => i.productName).join(', ')}
+                                {items.map(i => i.productName).join(', ')}
                               </p>
                             </div>
                           </TableCell>

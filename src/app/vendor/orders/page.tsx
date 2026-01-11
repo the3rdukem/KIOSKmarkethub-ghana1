@@ -60,7 +60,9 @@ interface OrderItem {
   vendorId: string;
   vendorName: string;
   quantity: number;
-  price: number;
+  unitPrice: number;
+  finalPrice?: number | null;
+  appliedDiscount?: number | null;
   image?: string;
   fulfillmentStatus: string;
 }
@@ -134,6 +136,19 @@ export default function VendorOrdersPage() {
     if (isHydrated && isAuthenticated && user?.role === "vendor") {
       fetchOrders();
     }
+  }, [isHydrated, isAuthenticated, user]);
+
+  useEffect(() => {
+    if (!isHydrated || !isAuthenticated || user?.role !== "vendor") return;
+    
+    const interval = setInterval(() => {
+      fetch('/api/orders?role=vendor', { credentials: 'include' })
+        .then(res => res.ok ? res.json() : { orders: [] })
+        .then(data => setOrders(data.orders || []))
+        .catch(console.error);
+    }, 30000);
+
+    return () => clearInterval(interval);
   }, [isHydrated, isAuthenticated, user]);
 
   const fetchOrders = async () => {
@@ -227,14 +242,24 @@ export default function VendorOrdersPage() {
     return <Badge className={config.color}>{config.label}</Badge>;
   };
 
+  const getOrderItems = (order: Order) => {
+    if (order.orderItems && order.orderItems.length > 0) {
+      return order.orderItems;
+    }
+    return order.items || [];
+  };
+
   const getVendorItemsTotal = (order: Order) => {
-    return (order.orderItems || order.items)
+    return getOrderItems(order)
       .filter(item => item.vendorId === user?.id)
-      .reduce((sum, item) => sum + item.price * item.quantity, 0);
+      .reduce((sum, item) => {
+        const lineTotal = item.finalPrice != null ? item.finalPrice : (item.unitPrice * item.quantity);
+        return sum + lineTotal;
+      }, 0);
   };
 
   const getVendorItems = (order: Order) => {
-    return (order.orderItems || order.items).filter(item => item.vendorId === user?.id);
+    return getOrderItems(order).filter(item => item.vendorId === user?.id);
   };
 
   const hasPendingItems = (order: Order) => {
@@ -465,7 +490,7 @@ export default function VendorOrdersPage() {
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <p className="font-medium">GHS {(item.price * item.quantity).toFixed(2)}</p>
+                              <p className="font-medium">GHS {(item.finalPrice != null ? item.finalPrice : item.unitPrice * item.quantity).toFixed(2)}</p>
                               {getItemStatusBadge(item.fulfillmentStatus || 'pending')}
                             </div>
                             {(item.fulfillmentStatus === 'pending' || !item.fulfillmentStatus) && 

@@ -19,7 +19,6 @@ import {
   MapPin, Bell, Settings, Star, ArrowRight, AlertTriangle, CreditCard, Store
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
-import { useOrdersStore, Order } from "@/lib/orders-store";
 import { useCartStore } from "@/lib/cart-store";
 import { useWishlistStore } from "@/lib/wishlist-store";
 import { useAddressesStore } from "@/lib/addresses-store";
@@ -28,6 +27,32 @@ import { useProductsStore } from "@/lib/products-store";
 import { useReviewsStore } from "@/lib/reviews-store";
 import { BuyerAuthGuard } from "@/components/auth/auth-guard";
 import { formatDistance, format } from "date-fns";
+
+interface Order {
+  id: string;
+  buyerId: string;
+  buyerName: string;
+  buyerEmail: string;
+  items: any[];
+  orderItems?: any[];
+  subtotal: number;
+  discountTotal?: number;
+  shippingFee: number;
+  tax: number;
+  total: number;
+  status: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  shippingAddress: {
+    fullName: string;
+    phone: string;
+    address: string;
+    city: string;
+    region: string;
+  };
+  createdAt: string;
+  updatedAt: string;
+}
 
 const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
   pending: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Pending" },
@@ -45,7 +70,6 @@ function BuyerDashboardContent() {
   const initialTab = searchParams.get("tab") || "overview";
 
   const { user, isAuthenticated } = useAuthStore();
-  const { getOrdersByBuyer, setOrders } = useOrdersStore();
   const { items: cartItems, getTotalPrice } = useCartStore();
   const { getWishlistByBuyer, getWishlistProductIds } = useWishlistStore();
   const { getAddressesByUser, getDefaultAddress } = useAddressesStore();
@@ -55,6 +79,8 @@ function BuyerDashboardContent() {
 
   const [isHydrated, setIsHydrated] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [buyerOrders, setBuyerOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -62,17 +88,29 @@ function BuyerDashboardContent() {
 
   useEffect(() => {
     if (isHydrated && user?.id) {
+      setOrdersLoading(true);
       fetch('/api/orders?role=buyer', { credentials: 'include' })
         .then(res => res.ok ? res.json() : { orders: [] })
         .then(data => {
-          setOrders(data.orders ?? []);
+          setBuyerOrders(data.orders ?? []);
         })
-        .catch(console.error);
+        .catch(console.error)
+        .finally(() => setOrdersLoading(false));
     }
-  }, [isHydrated, user?.id, setOrders]);
+  }, [isHydrated, user?.id]);
 
-  // Auth is now handled by the buyer layout
-  // No need for explicit redirect logic here
+  useEffect(() => {
+    if (!isHydrated || !user?.id) return;
+    
+    const interval = setInterval(() => {
+      fetch('/api/orders?role=buyer', { credentials: 'include' })
+        .then(res => res.ok ? res.json() : { orders: [] })
+        .then(data => setBuyerOrders(data.orders ?? []))
+        .catch(console.error);
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [isHydrated, user?.id]);
 
   // Auth is handled by buyer layout - just wait for user data
   if (!isHydrated || !user) {
@@ -85,8 +123,7 @@ function BuyerDashboardContent() {
     );
   }
 
-  // Get REAL buyer-specific data
-  const buyerOrders = getOrdersByBuyer(user.id);
+  // Get buyer-specific data from API response (already filtered by user ID on server)
   const pendingOrders = buyerOrders.filter((o) => ["pending", "confirmed", "processing"].includes(o.status));
   const shippedOrders = buyerOrders.filter((o) => o.status === "shipped");
   const deliveredOrders = buyerOrders.filter((o) => o.status === "delivered");
