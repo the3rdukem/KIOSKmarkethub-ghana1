@@ -191,23 +191,58 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
     return cat?.formSchema || [];
   }, [apiCategories, editProduct.category]);
 
-  // Handle opening edit dialog
+  // Handle opening edit dialog - fetch fresh product data from API
   const handleOpenEditDialog = async (product: Product) => {
     setEditProductId(product.id);
-    setEditProduct({
-      name: product.name,
-      description: product.description || "",
-      category: product.category || ADMIN_UNSET,
-      price: String(product.price || 0),
-      quantity: String(product.quantity || 0),
-      sku: product.sku || "",
-      barcode: product.barcode || "",
-      status: (product.status === "active" || product.status === "draft") ? product.status : "draft",
-      images: Array.isArray(product.images) ? product.images : [],
-    });
-    setEditCategoryAttributes(product.categoryAttributes || {});
     setEditFormErrors({});
+    setEditLoading(true);
     setShowEditDialog(true);
+
+    try {
+      const response = await fetch(`/api/products/${product.id}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        toast.error('Failed to load product details');
+        setShowEditDialog(false);
+        return;
+      }
+
+      const data = await response.json();
+      const freshProduct = data.product || data;
+
+      setEditProduct({
+        name: freshProduct.name || "",
+        description: freshProduct.description || "",
+        category: freshProduct.category || ADMIN_UNSET,
+        price: String(freshProduct.price || 0),
+        quantity: String(freshProduct.quantity || 0),
+        sku: freshProduct.sku || "",
+        barcode: freshProduct.barcode || "",
+        status: (freshProduct.status === "active" || freshProduct.status === "draft") ? freshProduct.status : "draft",
+        images: Array.isArray(freshProduct.images) ? freshProduct.images : [],
+      });
+
+      // Filter to only string/boolean values for the edit form
+      const attrs: Record<string, string | boolean> = {};
+      if (freshProduct.categoryAttributes) {
+        for (const [key, val] of Object.entries(freshProduct.categoryAttributes)) {
+          if (typeof val === 'string' || typeof val === 'boolean') {
+            attrs[key] = val;
+          } else if (typeof val === 'number') {
+            attrs[key] = String(val);
+          }
+        }
+      }
+      setEditCategoryAttributes(attrs);
+    } catch (error) {
+      console.error('Failed to fetch product:', error);
+      toast.error('Failed to load product details');
+      setShowEditDialog(false);
+    } finally {
+      setEditLoading(false);
+    }
   };
 
   // Handle admin product edit
