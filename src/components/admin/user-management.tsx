@@ -573,10 +573,13 @@ export function UserManagement({ currentAdmin, isMasterAdmin }: UserManagementPr
                                   </DropdownMenuItem>
                                 )}
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem className="text-red-600" onClick={() => handleAction("delete", user)}>
-                                  <Archive className="w-4 h-4 mr-2" />
-                                  Delete User
-                                </DropdownMenuItem>
+                                {/* Only show delete for admin users if current user is master_admin */}
+                                {(user.role !== 'admin' && user.role !== 'master_admin') || isMasterAdmin ? (
+                                  <DropdownMenuItem className="text-red-600" onClick={() => handleAction("delete", user)}>
+                                    <Archive className="w-4 h-4 mr-2" />
+                                    Delete User
+                                  </DropdownMenuItem>
+                                ) : null}
                               </>
                             )}
                           </DropdownMenuContent>

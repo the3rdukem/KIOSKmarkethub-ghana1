@@ -32,6 +32,14 @@ const optionalTextField = () =>
       message: "Contains prohibited or unsafe content",
     });
 
+// Simple optional text field without content safety validation
+// Used for color names like "Midnight Blue" that may be falsely flagged
+const simpleOptionalTextField = () =>
+  z
+    .string()
+    .optional()
+    .transform((val) => (val?.trim() === "" ? undefined : val));
+
 const machineIdentifierField = () =>
   z
     .string()
@@ -66,7 +74,7 @@ const optionalPriceField = () =>
 
 export const productFormSchema = z.object({
   name: requiredTextField("Product name", 2),
-  description: requiredTextField("Description", 10),
+  description: requiredTextField("Description", 1),
   category: requiredSelectField("Category"),
   // CONDITION REFACTOR: Condition now lives in categoryAttributes when category schema defines it
   price: requiredPriceField(),
@@ -89,8 +97,8 @@ export const productFormSchema = z.object({
   metaTitle: z.string().optional(),
   metaDescription: z.string().optional(),
   status: z.enum(["active", "draft", "archived"]).default("draft"),
-  color: optionalTextField(),
-  brand: optionalTextField(),
+  color: simpleOptionalTextField(),
+  brand: simpleOptionalTextField(),
   continueSellingWhenOutOfStock: z.boolean().default(false),
   categoryAttributes: z.record(z.string(), z.union([z.string(), z.boolean()])).optional(),
 });

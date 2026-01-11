@@ -135,6 +135,24 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
   const [categoryAttributes, setCategoryAttributes] = useState<Record<string, string | boolean>>({});
   const [createFormErrors, setCreateFormErrors] = useState<Record<string, string>>({});
 
+  // Admin edit product state
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editLoading, setEditLoading] = useState(false);
+  const [editProductId, setEditProductId] = useState<string | null>(null);
+  const [editProduct, setEditProduct] = useState({
+    name: "",
+    description: "",
+    category: ADMIN_UNSET,
+    price: "",
+    quantity: "0",
+    sku: "",
+    barcode: "",
+    status: "active" as "active" | "draft",
+    images: [] as string[],
+  });
+  const [editCategoryAttributes, setEditCategoryAttributes] = useState<Record<string, string | boolean>>({});
+  const [editFormErrors, setEditFormErrors] = useState<Record<string, string>>({});
+
   // Fetch vendors and categories for admin product creation
   useEffect(() => {
     async function fetchData() {
@@ -159,12 +177,99 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
     fetchData();
   }, []);
 
-  // Get selected category form schema
+  // Get selected category form schema for create
   const selectedCategorySchema = useMemo(() => {
     if (newProduct.category === ADMIN_UNSET) return [];
     const cat = apiCategories.find(c => c.name === newProduct.category);
     return cat?.formSchema || [];
   }, [apiCategories, newProduct.category]);
+
+  // Get selected category form schema for edit
+  const editCategorySchema = useMemo(() => {
+    if (editProduct.category === ADMIN_UNSET) return [];
+    const cat = apiCategories.find(c => c.name === editProduct.category);
+    return cat?.formSchema || [];
+  }, [apiCategories, editProduct.category]);
+
+  // Handle opening edit dialog
+  const handleOpenEditDialog = async (product: Product) => {
+    setEditProductId(product.id);
+    setEditProduct({
+      name: product.name,
+      description: product.description || "",
+      category: product.category || ADMIN_UNSET,
+      price: String(product.price || 0),
+      quantity: String(product.quantity || 0),
+      sku: product.sku || "",
+      barcode: product.barcode || "",
+      status: (product.status === "active" || product.status === "draft") ? product.status : "draft",
+      images: Array.isArray(product.images) ? product.images : [],
+    });
+    setEditCategoryAttributes(product.categoryAttributes || {});
+    setEditFormErrors({});
+    setShowEditDialog(true);
+  };
+
+  // Handle admin product edit
+  const handleEditProduct = async () => {
+    if (!editProductId) return;
+    if (!editProduct.name.trim()) {
+      toast.error("Please enter a product name");
+      return;
+    }
+    if (!editProduct.price || parseFloat(editProduct.price) <= 0) {
+      toast.error("Please enter a valid price");
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const cleanedCategoryAttributes = Object.fromEntries(
+        Object.entries(editCategoryAttributes).filter(([_, v]) => v !== ADMIN_UNSET && v !== "")
+      );
+
+      const response = await fetch(`/api/products/${editProductId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: editProduct.name,
+          description: editProduct.description,
+          category: editProduct.category === ADMIN_UNSET ? null : editProduct.category,
+          price: parseFloat(editProduct.price),
+          quantity: parseInt(editProduct.quantity, 10) || 0,
+          sku: editProduct.sku.trim() || null,
+          barcode: editProduct.barcode.trim() || null,
+          status: editProduct.status,
+          images: editProduct.images,
+          categoryAttributes: cleanedCategoryAttributes,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.field) {
+          setEditFormErrors({ [data.field]: data.error || 'Invalid value' });
+        }
+        toast.error(data.error || 'Failed to update product');
+        return;
+      }
+
+      setEditFormErrors({});
+      toast.success(`Product "${editProduct.name}" updated successfully`);
+      setShowEditDialog(false);
+      setEditProductId(null);
+      fetchProducts();
+    } catch (error) {
+      if (error instanceof TypeError) {
+        console.error('Network error:', error);
+      }
+      toast.error('Failed to update product. Please try again.');
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   // Handle admin product creation
   const handleCreateProduct = async () => {
@@ -741,11 +846,9 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                               <Eye className="w-4 h-4 mr-2" />
                               View Details
                             </DropdownMenuItem>
-                            <DropdownMenuItem asChild>
-                              <Link href={`/admin/products/edit/${product.id}`}>
-                                <Pencil className="w-4 h-4 mr-2" />
-                                Edit Product
-                              </Link>
+                            <DropdownMenuItem onClick={() => handleOpenEditDialog(product)}>
+                              <Pencil className="w-4 h-4 mr-2" />
+                              Edit Product
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
 
@@ -1219,6 +1322,229 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                 </>
               ) : (
                 "Create Product"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Product Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={setShowEditDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="w-5 h-5" />
+              Edit Product
+            </DialogTitle>
+            <DialogDescription>
+              Update product details. Changes will be applied immediately.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Name */}
+            <div data-field="name">
+              <Label>Product Name *</Label>
+              <Input
+                value={editProduct.name}
+                onChange={(e) => {
+                  setEditProduct(p => ({ ...p, name: e.target.value }));
+                  setEditFormErrors(er => ({ ...er, name: '' }));
+                }}
+                placeholder="Product name"
+                className={editFormErrors.name ? "border-red-500" : ""}
+              />
+              {editFormErrors.name && <p className="text-red-500 text-xs mt-1">{editFormErrors.name}</p>}
+            </div>
+
+            {/* Description */}
+            <div data-field="description">
+              <Label>Description</Label>
+              <Textarea
+                value={editProduct.description}
+                onChange={(e) => {
+                  setEditProduct(p => ({ ...p, description: e.target.value }));
+                  setEditFormErrors(er => ({ ...er, description: '' }));
+                }}
+                placeholder="Product description"
+                rows={3}
+                className={editFormErrors.description ? "border-red-500" : ""}
+              />
+              {editFormErrors.description && <p className="text-red-500 text-xs mt-1">{editFormErrors.description}</p>}
+            </div>
+
+            {/* Category */}
+            <div data-field="category">
+              <Label>Category</Label>
+              <Select
+                value={editProduct.category === ADMIN_UNSET ? undefined : editProduct.category}
+                onValueChange={(v) => {
+                  setEditProduct(p => ({ ...p, category: v }));
+                  setEditCategoryAttributes({});
+                  setEditFormErrors(e => ({ ...e, category: '' }));
+                }}
+              >
+                <SelectTrigger className={editFormErrors.category ? "border-red-500" : ""}>
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {apiCategories.map(c => (
+                    <SelectItem key={c.id} value={c.name}>
+                      {c.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {editFormErrors.category && <p className="text-red-500 text-xs mt-1">{editFormErrors.category}</p>}
+            </div>
+
+            {/* Category-specific fields */}
+            {editCategorySchema.length > 0 && (
+              <div className="space-y-3 p-4 bg-gray-50 rounded-lg">
+                <p className="text-sm font-medium text-gray-700">Category Fields</p>
+                {editCategorySchema.map(field => (
+                  <div key={field.key}>
+                    <Label>{field.label} {field.required && "*"}</Label>
+                    {field.type === 'select' && field.options ? (
+                      <Select
+                        value={editCategoryAttributes[field.key] ? (editCategoryAttributes[field.key] as string) : undefined}
+                        onValueChange={(v) => setEditCategoryAttributes(a => ({ ...a, [field.key]: v }))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder={field.placeholder || `Select ${field.label}`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {field.options.map(opt => (
+                            <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : field.type === 'boolean' ? (
+                      <div className="flex items-center gap-2 mt-1">
+                        <Checkbox
+                          checked={!!editCategoryAttributes[field.key]}
+                          onCheckedChange={(c) => setEditCategoryAttributes(a => ({ ...a, [field.key]: !!c }))}
+                        />
+                        <span className="text-sm">Yes</span>
+                      </div>
+                    ) : (
+                      <Input
+                        type={field.type === 'number' ? 'number' : field.type === 'date' ? 'date' : 'text'}
+                        value={editCategoryAttributes[field.key] as string || ""}
+                        onChange={(e) => setEditCategoryAttributes(a => ({ ...a, [field.key]: e.target.value }))}
+                        placeholder={field.placeholder}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Product Images */}
+            <div>
+              <Label>Product Images</Label>
+              <MultiImageUpload
+                values={editProduct.images}
+                onChange={(images) => setEditProduct(p => ({ ...p, images }))}
+                maxImages={5}
+                maxSizeMB={5}
+              />
+              <p className="text-xs text-muted-foreground mt-1">Upload up to 5 product images</p>
+            </div>
+
+            {/* Price and Quantity */}
+            <div className="grid grid-cols-2 gap-4">
+              <div data-field="price">
+                <Label>Price (GHS) *</Label>
+                <Input
+                  type="number"
+                  value={editProduct.price}
+                  onChange={(e) => {
+                    setEditProduct(p => ({ ...p, price: e.target.value }));
+                    setEditFormErrors(er => ({ ...er, price: '' }));
+                  }}
+                  placeholder="0.00"
+                  min="0"
+                  step="0.01"
+                  className={editFormErrors.price ? "border-red-500" : ""}
+                />
+                {editFormErrors.price && <p className="text-red-500 text-xs mt-1">{editFormErrors.price}</p>}
+              </div>
+              <div data-field="quantity">
+                <Label>Quantity</Label>
+                <Input
+                  type="number"
+                  value={editProduct.quantity}
+                  onChange={(e) => {
+                    setEditProduct(p => ({ ...p, quantity: e.target.value }));
+                    setEditFormErrors(er => ({ ...er, quantity: '' }));
+                  }}
+                  placeholder="0"
+                  min="0"
+                  className={editFormErrors.quantity ? "border-red-500" : ""}
+                />
+                {editFormErrors.quantity && <p className="text-red-500 text-xs mt-1">{editFormErrors.quantity}</p>}
+              </div>
+            </div>
+
+            {/* SKU and Barcode */}
+            <div className="grid grid-cols-2 gap-4">
+              <div data-field="sku">
+                <Label>SKU</Label>
+                <Input
+                  value={editProduct.sku}
+                  onChange={(e) => {
+                    setEditProduct(p => ({ ...p, sku: e.target.value }));
+                    setEditFormErrors(er => ({ ...er, sku: '' }));
+                  }}
+                  placeholder="Stock Keeping Unit"
+                  className={editFormErrors.sku ? "border-red-500" : ""}
+                />
+                {editFormErrors.sku && <p className="text-red-500 text-xs mt-1">{editFormErrors.sku}</p>}
+              </div>
+              <div data-field="barcode">
+                <Label>Barcode</Label>
+                <Input
+                  value={editProduct.barcode}
+                  onChange={(e) => {
+                    setEditProduct(p => ({ ...p, barcode: e.target.value }));
+                    setEditFormErrors(er => ({ ...er, barcode: '' }));
+                  }}
+                  placeholder="UPC/EAN code"
+                  className={editFormErrors.barcode ? "border-red-500" : ""}
+                />
+                {editFormErrors.barcode && <p className="text-red-500 text-xs mt-1">{editFormErrors.barcode}</p>}
+              </div>
+            </div>
+
+            {/* Status */}
+            <div>
+              <Label>Status</Label>
+              <Select
+                value={editProduct.status}
+                onValueChange={(v: "active" | "draft") => setEditProduct(p => ({ ...p, status: v }))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active (Published)</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowEditDialog(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditProduct} disabled={editLoading}>
+              {editLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
               )}
             </Button>
           </DialogFooter>
