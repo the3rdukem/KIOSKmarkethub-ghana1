@@ -134,24 +134,59 @@ export async function getUserByEmail(email: string): Promise<DbUser | null> {
 }
 
 /**
+ * Generate all possible phone format variants for matching
+ * This handles the mismatch between stored formats (0244...) and normalized formats (+233244...)
+ */
+function getPhoneVariants(phone: string): string[] {
+  const cleaned = phone.replace(/[\s\-\(\)]/g, '');
+  const variants: string[] = [cleaned];
+  
+  // If it's E.164 format (+233...), also check local format (0...)
+  if (cleaned.startsWith('+233') && cleaned.length === 13) {
+    variants.push('0' + cleaned.substring(4)); // +233244... → 0244...
+  }
+  
+  // If it's local format (0...), also check E.164 format (+233...)
+  if (cleaned.startsWith('0') && cleaned.length === 10) {
+    variants.push('+233' + cleaned.substring(1)); // 0244... → +233244...
+  }
+  
+  // If it's 9 digits (without leading 0), add both formats
+  if (!cleaned.startsWith('+') && !cleaned.startsWith('0') && cleaned.length === 9) {
+    variants.push('0' + cleaned);         // 244... → 0244...
+    variants.push('+233' + cleaned);      // 244... → +233244...
+  }
+  
+  return [...new Set(variants)]; // Remove duplicates
+}
+
+/**
  * Check if a phone number is already in use by any user
+ * Checks all possible format variants to handle legacy data inconsistencies
  * Returns true if phone exists, false otherwise
  */
 export async function isPhoneInUse(phone: string): Promise<boolean> {
+  const variants = getPhoneVariants(phone);
+  
+  // Build parameterized query with all variants
+  const placeholders = variants.map((_, i) => `$${i + 1}`).join(', ');
   const result = await query<{ count: string }>(
-    'SELECT COUNT(*) as count FROM users WHERE phone = $1 AND is_deleted = 0',
-    [phone]
+    `SELECT COUNT(*) as count FROM users WHERE phone IN (${placeholders}) AND is_deleted = 0`,
+    variants
   );
   return parseInt(result.rows[0]?.count || '0', 10) > 0;
 }
 
 /**
  * Get user by phone number
+ * Checks all possible format variants to handle legacy data inconsistencies
  */
 export async function getUserByPhone(phone: string): Promise<DbUser | null> {
+  const variants = getPhoneVariants(phone);
+  const placeholders = variants.map((_, i) => `$${i + 1}`).join(', ');
   const result = await query<DbUser>(
-    'SELECT * FROM users WHERE phone = $1 AND is_deleted = 0',
-    [phone]
+    `SELECT * FROM users WHERE phone IN (${placeholders}) AND is_deleted = 0 LIMIT 1`,
+    variants
   );
   return result.rows[0] || null;
 }
