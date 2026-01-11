@@ -35,6 +35,7 @@ export interface DbUser {
   store_logo: string | null;
   is_deleted: number;
   last_login_at: string | null;
+  created_by: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -69,6 +70,7 @@ export interface UpdateUserInput {
   storeLogo?: string;
   isDeleted?: boolean;
   lastLoginAt?: string;
+  createdBy?: string;
 }
 
 export function hashPassword(password: string): string {
@@ -268,6 +270,10 @@ export async function updateUser(id: string, updates: UpdateUserInput): Promise<
   if (updates.lastLoginAt !== undefined) {
     fields.push(`last_login_at = $${paramIndex++}`);
     values.push(updates.lastLoginAt);
+  }
+  if (updates.createdBy !== undefined) {
+    fields.push(`created_by = $${paramIndex++}`);
+    values.push(updates.createdBy);
   }
 
   values.push(id);

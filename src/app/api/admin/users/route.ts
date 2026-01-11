@@ -171,6 +171,11 @@ export async function POST(request: NextRequest) {
 
     const createdUser = result.data.user;
 
+    // Set created_by for admin accounts (for deletion permission tracking)
+    if (role === 'admin') {
+      await updateUser(createdUser.id, { createdBy: session.user_id });
+    }
+
     // Get admin info for audit log
     const adminUser = await getUserById(session.user_id);
 
@@ -334,6 +339,22 @@ export async function PATCH(request: NextRequest) {
         if (targetUser.id === session.user_id) {
           return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 403 });
         }
+        // Admin accounts can only be deleted by the master admin who created them
+        if (targetUser.role === 'admin') {
+          if (session.user_role !== 'master_admin') {
+            return NextResponse.json({ error: 'Only master admin can delete admin accounts' }, { status: 403 });
+          }
+          // Master admin can only delete admins they created
+          // Legacy admins (created_by is null) must be claimed first by updating their created_by
+          if (!targetUser.created_by) {
+            return NextResponse.json({ 
+              error: 'This admin account has no recorded creator. Please contact support to transfer ownership before deletion.' 
+            }, { status: 403 });
+          }
+          if (targetUser.created_by !== session.user_id) {
+            return NextResponse.json({ error: 'You can only delete admin accounts you created' }, { status: 403 });
+          }
+        }
         if (!reason) {
           return NextResponse.json({ error: 'Reason is required for deletion' }, { status: 400 });
         }
@@ -355,6 +376,17 @@ export async function PATCH(request: NextRequest) {
         }
         if (targetUser.id === session.user_id) {
           return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 403 });
+        }
+        // Admin accounts can only be permanently deleted by the master admin who created them
+        if (targetUser.role === 'admin') {
+          if (!targetUser.created_by) {
+            return NextResponse.json({ 
+              error: 'This admin account has no recorded creator. Please contact support to transfer ownership before deletion.' 
+            }, { status: 403 });
+          }
+          if (targetUser.created_by !== session.user_id) {
+            return NextResponse.json({ error: 'You can only delete admin accounts you created' }, { status: 403 });
+          }
         }
         // For now, implement as hard delete flag - actual data deletion would require more work
         updates = {
