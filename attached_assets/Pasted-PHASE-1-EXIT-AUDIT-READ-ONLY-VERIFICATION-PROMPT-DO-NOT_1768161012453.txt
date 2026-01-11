@@ -1,0 +1,174 @@
+PHASE 1 EXIT AUDIT — READ-ONLY VERIFICATION PROMPT
+
+DO NOT IMPLEMENT FEATURES.
+DO NOT REFACTOR.
+DO NOT CHANGE UX.
+DO NOT ADD VALIDATION.
+DO NOT TOUCH SCHEMAS UNLESS A CRASH IS FOUND.
+
+Your task is VERIFICATION ONLY.
+
+⸻
+
+🎯 OBJECTIVE
+
+Confirm that Phase 1 (Validation, Auth Hardening, Product Integrity) is stable, regression-free, and safe to lock.
+
+This is a read-only audit.
+If something is broken, report exact cause and file/line only.
+
+⸻
+
+SCOPE (STRICT — DO NOT GO BEYOND THIS)
+
+1. Authentication & Roles
+
+Verify ONLY:
+	•	Buyer signup/login works
+	•	Vendor signup/login works
+	•	Admin login works
+	•	Role separation enforced (buyer ≠ vendor ≠ admin)
+	•	Email + phone uniqueness rules respected
+	•	No console errors during auth flows
+
+❌ Do NOT redesign auth
+❌ Do NOT add OAuth
+
+⸻
+
+2. Product Lifecycle (CRITICAL)
+
+Verify:
+	•	Vendor: create draft → publish → edit → unpublish
+	•	Admin: create → edit → publish/unpublish
+	•	SKU & barcode persist across:
+	•	create
+	•	edit
+	•	reload
+	•	Condition field:
+	•	stored once
+	•	consistent across admin/vendor
+	•	no duplicate condition fields
+	•	Category attributes:
+	•	editable
+	•	persist correctly
+	•	No Radix <Select> crashes
+	•	No console errors
+
+❌ Do NOT change validation rules
+❌ Do NOT refactor forms
+❌ Do NOT touch categories
+
+⸻
+
+3. Product Visibility
+
+Verify:
+	•	Homepage shows products
+	•	Vendor dashboard shows products
+	•	Admin dashboard shows products
+	•	Counts match API results
+	•	Draft products not publicly visible
+
+❌ Do NOT optimize queries
+❌ Do NOT change stores
+
+⸻
+
+4. Cart Integrity
+
+Verify:
+	•	Guest add to cart
+	•	Guest → login cart merge
+	•	Logout clears cart
+	•	New user sees empty cart
+	•	No cart bleed between users
+
+❌ Do NOT change cart logic
+
+⸻
+
+5. Reviews
+
+Verify:
+	•	Buyer can post review
+	•	Buyer can edit/delete within allowed window
+	•	Vendor can view & reply
+	•	Admin can moderate
+	•	Reviews persist after reload
+
+❌ Do NOT change review rules
+
+⸻
+
+6. Promotions & Pricing
+
+Verify:
+	•	Coupons persist after logout/login
+	•	Coupons apply only to issuing vendor’s products
+	•	Sales pricing reflects on:
+	•	homepage
+	•	product page
+	•	search
+	•	No cross-vendor discount leakage
+
+❌ Do NOT redesign promotions
+
+⸻
+
+7. System Health
+
+Verify:
+	•	No red console errors
+	•	No 500 API errors on normal flows
+	•	No empty Select values rendered
+	•	No hydration errors
+
+⸻
+
+OUTPUT FORMAT (MANDATORY)
+
+For each section, report ONLY ONE of the following:
+
+✅ PASS
+
+[SECTION NAME]: PASS
+No issues detected.
+
+❌ FAIL
+
+[SECTION NAME]: FAIL
+Exact cause:
+- File:
+- Line:
+- Why it fails:
+- User flow affected:
+
+❌ Do NOT propose fixes
+❌ Do NOT speculate
+❌ Do NOT bundle multiple issues
+
+⸻
+
+TEST ACCOUNTS (MANDATORY)
+
+Use ONLY these accounts during verification:
+	•	Admin: the3rdukem@gmail.com / 123asdqweX$
+	•	Vendor: ven@kiosk.com.gh / 123asdqwe
+	•	Buyer: buy@kiosk.com.gh / 123asdqwe
+
+⸻
+
+COMPLETION RULE
+
+If all sections PASS, conclude with:
+
+PHASE 1 STATUS: STABLE — SAFE TO LOCK
+
+If any section FAILS, stop immediately and report only the failures.
+
+⸻
+
+⚠️ FINAL WARNING
+
+Any feature work, refactor, or UX change will be considered a failed audit.
