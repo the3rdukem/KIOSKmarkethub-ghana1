@@ -1,0 +1,173 @@
+
+🔍 PHASE 1 — SYSTEMIC INVESTIGATION ONLY (NO FIXES)
+
+ABSOLUTE RULES (NON-NEGOTIABLE)
+	•	❌ Do NOT modify any code
+	•	❌ Do NOT refactor
+	•	❌ Do NOT “quick-fix” anything
+	•	❌ Do NOT change validation rules
+	•	❌ Do NOT touch UI behavior
+	•	❌ Do NOT remove or add fields
+
+👉 This task is READ-ONLY investigation and reporting only.
+
+If any fix is made, the task is considered FAILED.
+
+⸻
+
+🎯 OBJECTIVE
+
+Produce a single consolidated root-cause report explaining why the following issues exist, not how to fix them.
+
+We are identifying architectural breaks, not symptoms.
+
+⸻
+
+🧩 ISSUES TO INVESTIGATE (ALL REQUIRED)
+
+1️⃣ Product Model Contract Drift
+
+Identify:
+	•	The canonical product schema
+	•	All places where product shape differs across:
+	•	Vendor Create
+	•	Vendor Edit
+	•	Admin Create
+	•	Admin Edit
+	•	API (POST / PUT)
+	•	API (GET /admin, GET /products)
+	•	Database table
+
+Report:
+	•	Missing fields
+	•	Fields present in UI but not persisted
+	•	Fields persisted but not rendered
+	•	Fields validated but not editable
+
+⸻
+
+2️⃣ Condition Field Chaos
+
+Trace Condition across the system:
+	•	Is it:
+	•	A top-level field?
+	•	A category attribute?
+	•	Both?
+	•	Where is it:
+	•	Rendered
+	•	Required
+	•	Validated
+	•	Normalized
+	•	Transformed
+	•	Why does:
+	•	Admin edit always fail validation?
+	•	Electronics load two condition fields?
+	•	Condition validation trigger even when field is not rendered?
+
+📌 Produce a timeline of how Condition flows from DB → API → Form → Validation.
+
+⸻
+
+3️⃣ SKU & Barcode Non-Persistence
+
+Investigate:
+	•	Where SKU & Barcode exist in UI
+	•	Whether they exist in:
+	•	Zod schema
+	•	transformFormToApiPayload
+	•	transformApiToFormValues
+	•	Database columns
+	•	Whether Admin Create ever sends them
+	•	Whether Admin Edit overwrites or drops them
+
+📌 Explicitly answer:
+
+“Why does SKU/Barcode appear editable but never persist?”
+
+⸻
+
+4️⃣ Admin Delete Permissions Mismatch
+
+Investigate:
+	•	Frontend assumptions vs backend enforcement
+	•	Role logic for:
+	•	Admin deleting users
+	•	Admin deleting admins
+	•	Super Admin deleting admins it created
+	•	Difference between:
+	•	Delete
+	•	Revoke
+	•	Soft-disable
+
+📌 Identify exact rule conflicts, not opinions.
+
+⸻
+
+5️⃣ Validation Over-Restriction
+
+Identify:
+	•	Where garbage detection is applied
+	•	Why legitimate values like:
+	•	“Mercedes Benz”
+	•	“Theory Business”
+	•	Ghanaian addresses without numbers
+are rejected
+
+Trace:
+	•	Regex rules
+	•	Entropy checks
+	•	Reuse of product-name rules on business names
+	•	Any numeric enforcement on address fields
+
+📌 Report which validation layer is responsible (client / server / schema).
+
+⸻
+
+6️⃣ Admin UI Stability Risks
+
+Explain:
+	•	Why Admin pages are more fragile than Vendor pages
+	•	Which Admin components:
+	•	Render Selects from raw data
+	•	Assume non-null values
+	•	Why Admin Edit behaves differently from Create
+	•	Why errors still surface in console instead of UI
+
+⸻
+
+📄 REQUIRED OUTPUT FORMAT (STRICT)
+
+Produce ONE report with these sections in order:
+	1.	Executive Summary (max 10 lines)
+	2.	Confirmed Root Causes (bullet points, no speculation)
+	3.	Schema & Contract Mismatches Table
+	4.	Condition Field Trace (End-to-End)
+	5.	SKU & Barcode Persistence Failure Trace
+	6.	Admin Permission Rule Conflicts
+	7.	Validation Rule Overreach Map
+	8.	Risk Assessment if Left Unfixed
+	9.	DO NOT FIX YET — Recommended Fix Order (High Level Only)
+
+❗ No code snippets
+❗ No fixes
+❗ No refactors
+❗ No “I went ahead and…”
+
+⸻
+
+🧠 SUCCESS CRITERIA
+
+This investigation is successful only if:
+	•	Every issue above has a clear root cause
+	•	No fixes were applied
+	•	The findings explain why previous fixes caused new bugs
+
+⸻
+
+🛑 FAILURE CONDITIONS
+	•	Any code change
+	•	Any validation adjustment
+	•	Any “I fixed X while investigating”
+	•	Any missing section in the report
+
+⸻
