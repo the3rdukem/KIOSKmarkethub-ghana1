@@ -180,6 +180,12 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
       toast.error("Please enter a valid price");
       return;
     }
+    // When publishing (status=active), require condition
+    if (newProduct.status === "active" && (!newProduct.condition || newProduct.condition === ADMIN_UNSET)) {
+      toast.error("Please select a condition to publish");
+      setCreateFormErrors({ condition: "Condition is required to publish" });
+      return;
+    }
 
     setCreateLoading(true);
     try {

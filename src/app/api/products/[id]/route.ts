@@ -339,10 +339,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (body.name !== undefined) updates.name = body.name;
     if (body.description !== undefined) updates.description = body.description;
     if (body.category !== undefined) updates.category = body.category;
-    if (conditionValue !== undefined && conditionValue !== UNSET_VALUE) {
-      updates.condition = conditionValue || undefined;
-    } else if (body.condition !== undefined) {
-      updates.condition = body.condition === UNSET_VALUE ? undefined : body.condition;
+    // Normalize condition: UNSET_VALUE and empty strings become null/undefined
+    const rawCondition = conditionValue ?? body.condition;
+    if (rawCondition !== undefined) {
+      updates.condition = (rawCondition && rawCondition !== UNSET_VALUE && rawCondition.trim()) 
+        ? rawCondition.trim() 
+        : undefined;
     }
     if (body.price !== undefined) updates.price = parseFloat(body.price);
     if (body.comparePrice !== undefined)

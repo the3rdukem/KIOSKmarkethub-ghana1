@@ -104,6 +104,22 @@ function normalizeNullable(val: unknown): string | null {
   return String(val);
 }
 
+function normalizeCondition(val: unknown): string | null {
+  if (val === undefined || val === null || val === "") return null;
+  const strVal = String(val).toLowerCase().trim();
+  // Map legacy capitalized/spaced values to canonical lowercase
+  const conditionMap: Record<string, string> = {
+    "new": "new",
+    "like new": "like_new",
+    "like_new": "like_new",
+    "good": "good",
+    "fair": "fair",
+    "poor": "poor",
+    "used": "poor", // Legacy mapping
+  };
+  return conditionMap[strVal] || (CONDITION_VALUES.includes(strVal as any) ? strVal : null);
+}
+
 function normalizeNumber(val: unknown): number | null {
   if (val === undefined || val === null || val === "") return null;
   const num = Number(val);
@@ -132,7 +148,7 @@ export function normalizeProductForApi(product: ProductLike): Product {
   }
 
   const topLevelCondition = p.condition as string | undefined | null;
-  const finalCondition = topLevelCondition || (extractedCondition as string | undefined) || null;
+  const rawFinalCondition = topLevelCondition || (extractedCondition as string | undefined) || null;
 
   const parsedImages = parseJsonArray(p.images);
   const parsedTags = parseJsonArray(p.tags);
@@ -150,7 +166,7 @@ export function normalizeProductForApi(product: ProductLike): Product {
     name: String(p.name || ""),
     description: normalizeNullable(p.description),
     category: normalizeNullable(p.category),
-    condition: normalizeNullable(finalCondition),
+    condition: normalizeCondition(rawFinalCondition),
     price: Number(p.price) || 0,
     comparePrice: normalizeNumber(p.compare_price ?? p.comparePrice),
     costPerItem: normalizeNumber(p.cost_per_item ?? p.costPerItem),
