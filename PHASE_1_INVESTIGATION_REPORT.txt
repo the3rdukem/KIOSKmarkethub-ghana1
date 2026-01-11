@@ -1,0 +1,271 @@
+================================================================================
+                    PHASE 1 SYSTEMIC INVESTIGATION REPORT
+                         MarketHub (Sabi Market V3)
+                            January 11, 2026
+================================================================================
+
+1. EXECUTIVE SUMMARY
+================================================================================
+
+The MarketHub codebase suffers from CONTRACT DRIFT across product management 
+surfaces. The `condition` field exists as both a top-level form field AND 
+potentially inside `categoryAttributes`, causing validation conflicts. 
+SKU/barcode fields render in forms but were not being sent to API in certain 
+code paths. Admin delete permissions lacked explicit action handlers. 
+Validation logic was overly aggressive, applying product-name garbage 
+detection to business names. Admin pages lack the shared form hook 
+infrastructure that stabilizes vendor pages.
+
+
+2. CONFIRMED ROOT CAUSES
+================================================================================
+
+Product Model Contract Drift:
+- No single source of truth for product shape across vendor/admin create/edit
+- Admin create dialog maintains its own inline state vs. vendor pages using 
+  useProductForm hook
+- GET /api/products returns camelCase; database stores snake_case with JSON
+
+Condition Field:
+- Condition originally lived inside category_attributes JSON blob
+- Later promoted to dedicated top-level form field
+- Some category schemas still define condition in formSchema, causing 
+  duplicate rendering
+- API accepts condition from BOTH body.condition AND 
+  body.categoryAttributes.condition
+- Electronics and other categories with condition in their formSchema render 
+  two condition fields
+
+SKU/Barcode:
+- Fields exist in DB schema, DAL input types, form schema, and UI
+- Admin create dialog never sent sku/barcode to API (missing from POST body)
+- PUT handler only recently added these fields to the updates object
+
+Admin Delete Permissions:
+- Frontend shows delete buttons without role-gated logic
+- Backend lacked delete, permanent_delete, restore action handlers until 
+  recent patch
+- No distinction between soft-delete and hard-delete in original code
+
+Validation Over-Restriction:
+- validateBusinessName was using strict GARBAGE_PATTERNS array
+- Patterns like /^[a-z]{10,}$/i rejected "Theory Business" (11 letters)
+- Business names should have matched relaxed product-name rules
+
+Admin UI Stability:
+- Admin product-management uses raw React state instead of shared 
+  useProductForm hook
+- Select fields crash if value is empty string (Radix bug)
+- Admin edit page uses useProductForm hook, but admin create dialog does not
+
+
+3. SCHEMA & CONTRACT MISMATCHES TABLE
+================================================================================
+
+Field           | DB Column | CreateInput | API POST | Vendor UI | Admin UI | GET Response
+----------------|-----------|-------------|----------|-----------|----------|-------------
+condition       | NO*       | NO          | YES      | YES       | YES      | NO*
+sku             | YES       | YES         | YES(now) | YES       | NO       | YES
+barcode         | YES       | YES         | YES(now) | YES       | NO       | YES
+color           | NO        | NO          | YES**    | YES       | YES**    | YES
+brand           | NO        | NO          | YES**    | YES       | YES**    | YES
+
+* Stored inside category_attributes JSON blob
+** Sent within categoryAttributes object
+
+Key Observations:
+- condition is NOT a dedicated database column; stored in category_attributes
+- SKU/barcode exist in DB but admin create dialog UI doesn't expose inputs
+- Vendor pages have SKU/barcode inputs; admin create dialog does not
+
+
+4. CONDITION FIELD TRACE (END-TO-END)
+================================================================================
+
+DATABASE:
+- No `condition` column in products table
+- Stored as category_attributes.condition JSON blob
+
+API GET RESPONSE:
+  product.categoryAttributes = JSON.parse(product.category_attributes)
+  // condition is inside categoryAttributes, NOT top-level
+
+transformApiToFormValues:
+- Extracts condition from BOTH product.condition (top-level) AND 
+  categoryAttributes.condition (legacy)
+- Filters out condition from categoryAttributes to avoid duplicates
+
+FORM STATE:
+- condition is a dedicated top-level field in productFormSchema
+- Default value: UNSET_VALUE = "__unset__"
+
+transformFormToApiPayload:
+- Sends condition as top-level field in payload
+- Sends remaining fields in categoryAttributes (with __unset__ filtered out)
+
+API POST/PUT:
+- Reads condition from body.condition OR body.categoryAttributes.condition
+- Validates on publish: rejects __unset__, empty, or null
+
+CATEGORY FORMSCHEMA:
+- Some categories (e.g., Electronics) may still define condition in formSchema
+- Vendor create page filters out condition from dynamic fields
+- Admin create dialog does NOT filter; may render duplicate condition field
+
+WHY ADMIN EDIT FAILS:
+- Admin edit uses useProductForm hook which calls validateForPublish
+- If condition in DB is stored as categoryAttributes.condition (legacy), 
+  transformApiToFormValues populates top-level condition
+- However, if transformApiToFormValues doesn't find either, defaults to 
+  UNSET_VALUE
+- On submit, validation rejects UNSET_VALUE
+
+WHY ELECTRONICS SHOWS TWO CONDITION FIELDS:
+- Vendor create filters out condition from currentCategoryFields
+- Admin create dialog does NOT perform this filtering
+- If Electronics category's formSchema includes condition, admin sees both
+
+
+5. SKU & BARCODE PERSISTENCE FAILURE TRACE
+================================================================================
+
+WHERE THEY EXIST:
+
+Layer                      | SKU | Barcode
+---------------------------|-----|--------
+DB Schema (products)       | YES | YES
+DbProduct interface        | YES | YES
+CreateProductInput         | YES | YES
+UpdateProductInput         | YES | YES
+Zod Schema                 | YES | YES
+transformFormToApiPayload  | YES | YES
+transformApiToFormValues   | YES | YES
+Vendor Create UI           | YES | YES
+Vendor Edit UI             | YES | YES
+Admin Create Dialog UI     | NO  | NO
+Admin Edit Page UI         | YES | YES
+POST /api/products         | YES (now) | YES (now)
+PUT /api/products/[id]     | YES (now) | YES (now)
+
+WHY SKU/BARCODE DIDN'T PERSIST (BEFORE FIX):
+
+1. Vendor Create: Form fields exist, transformFormToApiPayload includes them, 
+   but POST handler wasn't extracting them from body
+2. Admin Create: No input fields in dialog UI at all
+3. POST handler: Did NOT include sku or barcode in productInput object
+4. PUT handler: Did NOT include sku or barcode in updates object
+
+ROOT CAUSE: The API route handlers simply omitted these fields from the 
+objects passed to DAL functions. The DAL itself supported them; the API 
+layer did not pass them through.
+
+
+6. ADMIN PERMISSION RULE CONFLICTS
+================================================================================
+
+Action           | Frontend | Backend | Who Can Execute
+-----------------|----------|---------|----------------------------------
+delete (soft)    | YES      | YES(now)| Admin, Master (not self/master)
+permanent_delete | NO       | YES(now)| Master Admin only (not self)
+restore          | NO       | YES(now)| Admin, Master Admin
+suspend          | YES      | YES     | Admin, Master Admin
+ban              | YES      | YES     | Admin, Master Admin
+
+RULE CONFLICTS IDENTIFIED:
+
+1. Regular admin cannot delete super admin: Backend enforces; frontend may 
+   not hide button
+2. Self-deletion blocked: Backend rejects; frontend may still show button
+3. Permanent delete: Only master_admin in backend; no frontend UI exposed
+4. Restore: Backend handler exists; no frontend UI exposed
+
+FRONTEND ASSUMPTIONS:
+- Delete buttons shown to all admin roles
+- No role-based conditional rendering for sensitive actions
+- No confirmation flow for permanent deletion
+
+BACKEND ENFORCEMENT:
+- Correct: master_admin cannot be deleted
+- Correct: self-deletion blocked
+- Correct: regular admin cannot create other admins (POST handler)
+- Missing (before fix): delete/permanent_delete/restore handlers
+
+
+7. VALIDATION RULE OVERREACH MAP
+================================================================================
+
+Validation Function   | Applied To                | Over-Restriction Issue
+----------------------|---------------------------|---------------------------
+validateBusinessName  | Vendor registration       | Was using GARBAGE_PATTERNS
+GARBAGE_PATTERNS      | Multiple fields           | /^[a-z]{10,}$/i too strict
+validateName          | Person first/last name    | Uses full GARBAGE_PATTERNS
+validateProductName   | Product names             | Relaxed (only 8+ repeat)
+validateAddress       | Address fields            | May reject valid addresses
+
+WHY "THEORY BUSINESS" WAS REJECTED:
+1. Input: "Theory Business"
+2. GARBAGE_PATTERNS check runs on cleaned.replace(/\s/g, '') -> "TheoryBusiness"
+3. Pattern /^[a-z]{10,}$/i matches strings that are 10+ letters
+4. "TheoryBusiness" is 14 characters, all letters -> REJECTED
+
+WHY "MERCEDES BENZ" WAS REJECTED:
+1. Same pattern: 12 letters after space removal
+2. Pattern /^[a-z]{10,}$/i matches -> REJECTED
+
+VALIDATION LAYER RESPONSIBILITY:
+- Server-side: validateBusinessName, validateProductName in validation.ts
+- Client-side Zod: productFormSchema calls validateContentSafety
+- Both layers can reject; server is authoritative
+
+
+8. RISK ASSESSMENT IF LEFT UNFIXED
+================================================================================
+
+Issue                                    | Severity | Impact
+-----------------------------------------|----------|---------------------------
+Condition dual-path (top-level + attrs)  | HIGH     | Unpredictable validation
+SKU/barcode not persisting               | MEDIUM   | Inventory tracking broken
+Admin create missing SKU/barcode UI      | LOW      | Admin cannot set SKU
+Business name over-restriction           | HIGH     | Vendors cannot register
+Admin delete permissions                 | MEDIUM   | Cannot manage users
+Admin pages fragile (no shared hook)     | MEDIUM   | More bugs, harder maint.
+Category formSchema includes condition   | MEDIUM   | Duplicate fields in admin
+
+COMPOUNDING EFFECTS:
+- Each "quick fix" to condition created new edge cases
+- Validation tightening blocked legitimate users without blocking spam
+- Admin and vendor surfaces diverged in implementation, multiplying bugs
+
+
+9. RECOMMENDED FIX ORDER (DO NOT FIX YET)
+================================================================================
+
+1. Establish single source of truth for product shape
+   - Create TypeScript interface that all surfaces import
+
+2. Decide condition's canonical location
+   - Either add DB column OR commit to categoryAttributes; not both
+
+3. Unify admin create with useProductForm hook
+   - Eliminate inline state; use shared validation
+
+4. Remove condition from all category formSchemas
+   - Prevent duplicate rendering
+
+5. Add SKU/barcode inputs to admin create dialog
+   - Match vendor create parity
+
+6. Relax business name validation
+   - Match product name rules (content safety only)
+
+7. Add frontend role guards for delete actions
+   - Hide buttons based on role capabilities
+
+8. Add frontend UI for restore action
+   - Expose existing backend capability
+
+
+================================================================================
+                         INVESTIGATION COMPLETE
+                      NO CODE WAS MODIFIED
+================================================================================
