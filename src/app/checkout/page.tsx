@@ -3,8 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SiteLayout } from "@/components/layout/site-layout";
-import { useCartStore, validateCartItems, syncCartWithProducts, CartValidationResult } from "@/lib/cart-store";
-import { useProductsStore } from "@/lib/products-store";
+import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +17,6 @@ import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import {
   ShoppingCart,
   Package,
@@ -36,11 +34,7 @@ import {
   CheckCircle,
   Loader2,
   Tag,
-  X,
-  RefreshCw,
-  Trash2,
-  TrendingUp,
-  TrendingDown
+  X
 } from "lucide-react";
 import { isPaystackEnabled, openPaystackPopup, formatAmount, generatePaymentReference, fetchPaystackConfig } from "@/lib/services/paystack";
 import { AddressAutocomplete } from "@/components/integrations/address-autocomplete";
@@ -225,12 +219,9 @@ export default function CheckoutPage() {
   const { items, getTotalPrice, clearCart } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
   const { getAddressesByUser, getDefaultAddress, addAddress } = useAddressesStore();
-  const { products } = useProductsStore();
-  const { updateItemPrice, updateItemMaxQuantity, removeUnavailableItems } = useCartStore();
 
   const [hydrated, setHydrated] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [showRegistration, setShowRegistration] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [useNewAddress, setUseNewAddress] = useState(false);
   const [saveNewAddress, setSaveNewAddress] = useState(true);
@@ -249,33 +240,20 @@ export default function CheckoutPage() {
   const [couponError, setCouponError] = useState("");
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
 
-  // Cart validation state
-  const [cartValidation, setCartValidation] = useState<CartValidationResult | null>(null);
-  const [showValidationDialog, setShowValidationDialog] = useState(false);
 
   useEffect(() => {
     setHydrated(true);
   }, []);
 
-  // Validate cart when items or products change
-  useEffect(() => {
-    if (hydrated && items.length > 0 && products.length > 0) {
-      const validation = validateCartItems(items, products);
-      setCartValidation(validation);
+  // Sign in handler - redirect to login page
+  const handleSignIn = () => {
+    router.push('/login?redirect=/checkout');
+  };
 
-      // Show validation dialog for critical issues (out of stock, unavailable)
-      if (!validation.isValid) {
-        const hasCriticalIssues = validation.issues.some(
-          i => i.type === 'out_of_stock' || i.type === 'product_unavailable'
-        );
-        if (hasCriticalIssues) {
-          setShowValidationDialog(true);
-        }
-      }
-    } else if (hydrated && items.length === 0) {
-      setCartValidation(null);
-    }
-  }, [hydrated, items, products]);
+  // Sign up handler - redirect to registration page
+  const handleSignUp = () => {
+    router.push('/auth/register?redirect=/checkout');
+  };
 
   useEffect(() => {
     if (hydrated && isAuthenticated && user) {
@@ -336,20 +314,6 @@ export default function CheckoutPage() {
     if (items.length === 0) {
       toast.error("Your cart is empty");
       return;
-    }
-
-    const finalValidation = validateCartItems(items, products);
-    if (!finalValidation.isValid) {
-      const criticalIssues = finalValidation.issues.filter(
-        i => i.type === 'out_of_stock' || i.type === 'product_unavailable'
-      );
-      if (criticalIssues.length > 0) {
-        setCartValidation(finalValidation);
-        setShowValidationDialog(true);
-        toast.error("Some items in your cart are no longer available. Please review and update your cart.");
-        return;
-      }
-      syncCartWithProducts(items, products, updateItemPrice, updateItemMaxQuantity, removeUnavailableItems);
     }
 
     const shippingAddress = getShippingAddress();
@@ -506,24 +470,6 @@ export default function CheckoutPage() {
     toast.info("Coupon removed");
   };
 
-  // Check if cart has validation issues that need user attention
-  const hasCartIssues = cartValidation && !cartValidation.isValid && cartValidation.issues.length > 0;
-  const priceChangeIssues = cartValidation?.issues.filter(i => i.type === 'price_changed') || [];
-  const stockIssues = cartValidation?.issues.filter(i => i.type === 'out_of_stock' || i.type === 'insufficient_stock') || [];
-  const unavailableIssues = cartValidation?.issues.filter(i => i.type === 'product_unavailable') || [];
-
-  const handleResolveIssues = () => {
-    // Re-sync cart with products to fix issues
-    syncCartWithProducts(
-      items,
-      products,
-      updateItemPrice,
-      updateItemMaxQuantity,
-      removeUnavailableItems
-    );
-    setShowValidationDialog(false);
-    toast.success("Cart updated with latest product information");
-  };
 
   return (
     <SiteLayout>
@@ -532,125 +478,6 @@ export default function CheckoutPage() {
           <h1 className="text-3xl font-bold mb-2">Checkout</h1>
           <p className="text-muted-foreground">Complete your purchase with Mobile Money</p>
         </div>
-
-        {/* Cart Validation Alert */}
-        {hasCartIssues && (
-          <Alert className="mb-6 border-amber-200 bg-amber-50">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertDescription className="flex items-center justify-between">
-              <div className="text-amber-800">
-                <span className="font-medium">Some items in your cart need attention.</span>
-                <span className="ml-1">
-                  {priceChangeIssues.length > 0 && `${priceChangeIssues.length} price change(s)`}
-                  {priceChangeIssues.length > 0 && (stockIssues.length > 0 || unavailableIssues.length > 0) && ", "}
-                  {stockIssues.length > 0 && `${stockIssues.length} stock issue(s)`}
-                  {stockIssues.length > 0 && unavailableIssues.length > 0 && ", "}
-                  {unavailableIssues.length > 0 && `${unavailableIssues.length} unavailable item(s)`}
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-amber-300 text-amber-700 hover:bg-amber-100"
-                onClick={() => setShowValidationDialog(true)}
-              >
-                Review Issues
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Cart Validation Dialog */}
-        <Dialog open={showValidationDialog} onOpenChange={setShowValidationDialog}>
-          <DialogContent className="max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-amber-500" />
-                Cart Updates Required
-              </DialogTitle>
-              <DialogDescription>
-                The following items in your cart have changed since you added them
-              </DialogDescription>
-            </DialogHeader>
-            <div className="max-h-[400px] overflow-y-auto space-y-3">
-              {/* Price Changes */}
-              {priceChangeIssues.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-blue-500" />
-                    Price Changes
-                  </h4>
-                  {priceChangeIssues.map((issue, idx) => (
-                    <div key={idx} className="p-3 bg-blue-50 rounded-lg text-sm">
-                      <p className="font-medium">{issue.itemName}</p>
-                      <p className="text-muted-foreground flex items-center gap-2 mt-1">
-                        <span className="line-through">GHS {issue.oldValue?.toLocaleString()}</span>
-                        <span>→</span>
-                        <span className={issue.newValue && issue.oldValue && issue.newValue < issue.oldValue ? "text-green-600" : "text-red-600"}>
-                          GHS {issue.newValue?.toLocaleString()}
-                        </span>
-                        {issue.newValue && issue.oldValue && issue.newValue < issue.oldValue ? (
-                          <Badge className="bg-green-100 text-green-700 text-xs">Price Dropped!</Badge>
-                        ) : (
-                          <Badge variant="secondary" className="text-xs">Price Increased</Badge>
-                        )}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Stock Issues */}
-              {stockIssues.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm flex items-center gap-2">
-                    <Package className="w-4 h-4 text-orange-500" />
-                    Stock Issues
-                  </h4>
-                  {stockIssues.map((issue, idx) => (
-                    <div key={idx} className="p-3 bg-orange-50 rounded-lg text-sm">
-                      <p className="font-medium">{issue.itemName}</p>
-                      <p className="text-orange-700">{issue.message}</p>
-                      {issue.type === 'insufficient_stock' && issue.newValue && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Quantity will be adjusted to {issue.newValue}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Unavailable Items */}
-              {unavailableIssues.length > 0 && (
-                <div className="space-y-2">
-                  <h4 className="font-medium text-sm flex items-center gap-2">
-                    <Trash2 className="w-4 h-4 text-red-500" />
-                    Unavailable Items
-                  </h4>
-                  {unavailableIssues.map((issue, idx) => (
-                    <div key={idx} className="p-3 bg-red-50 rounded-lg text-sm">
-                      <p className="font-medium">{issue.itemName}</p>
-                      <p className="text-red-700">{issue.message}</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        This item will be removed from your cart
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-            <DialogFooter className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowValidationDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleResolveIssues}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Update Cart
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Left Column - Checkout Steps */}
@@ -663,27 +490,18 @@ export default function CheckoutPage() {
                     <User className="w-5 h-5" />
                     Sign in or Create Account
                   </CardTitle>
-                  <CardDescription>Sign in for faster checkout or continue as guest</CardDescription>
+                  <CardDescription>Sign in for faster checkout</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <Button onClick={() => setIsLoggedIn(true)}>
+                    <Button onClick={handleSignIn}>
                       <User className="w-4 h-4 mr-2" />
                       Sign In
                     </Button>
-                    <Button variant="outline" onClick={() => setShowRegistration(true)}>
+                    <Button variant="outline" onClick={handleSignUp}>
                       <Mail className="w-4 h-4 mr-2" />
-                      Quick Sign Up
+                      Create Account
                     </Button>
-                  </div>
-
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">Or continue as guest</span>
-                    </div>
                   </div>
 
                   <Alert>
@@ -695,61 +513,6 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
             )}
-
-            {/* Quick Registration Dialog */}
-            <Dialog open={showRegistration} onOpenChange={setShowRegistration}>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Quick Account Creation</DialogTitle>
-                  <DialogDescription>
-                    Create an account to save your information for future orders
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <Button className="w-full" onClick={() => setShowRegistration(false)}>
-                    <Mail className="w-4 h-4 mr-2" />
-                    Continue with Gmail
-                  </Button>
-
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">Or</span>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="firstName">First Name</Label>
-                      <Input id="firstName" />
-                    </div>
-                    <div>
-                      <Label htmlFor="lastName">Last Name</Label>
-                      <Input id="lastName" />
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="password">Password</Label>
-                    <Input id="password" type="password" />
-                  </div>
-
-                  <Button className="w-full" onClick={() => {
-                    setIsLoggedIn(true);
-                    setShowRegistration(false);
-                  }}>
-                    Create Account & Continue
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
 
             {/* Shipping Address */}
             <Card>
