@@ -135,12 +135,13 @@ const CONTACT_PATTERNS = {
   phoneGhana: /(?:0|\+233)\s*\d{2}\s*\d{3}\s*\d{4}/,
   // URL patterns
   url: /(?:https?:\/\/|www\.)[^\s]+/i,
-  // Social media handles
-  whatsapp: /whatsapp\s*[:\-]?\s*[\d\+]+|wa\.me\/\d+/i,
-  telegram: /telegram\s*[:\-]?\s*@?\w+|t\.me\/\w+/i,
-  instagram: /instagram\s*[:\-]?\s*@?\w+|ig\s*[:\-]?\s*@?\w+/i,
-  facebook: /facebook\s*[:\-]?\s*@?\w+|fb\s*[:\-]?\s*@?\w+/i,
-  twitter: /twitter\s*[:\-]?\s*@?\w+|@\w+/i,
+  // Social media handles - use word boundaries to avoid false positives like "Midnight" matching "ig"
+  // The shorthand patterns (ig, fb) require whitespace, punctuation, or @ after the keyword to distinguish from words
+  whatsapp: /\bwhatsapp\s*[:\-]?\s*[\d\+]+|wa\.me\/\d+/i,
+  telegram: /\btelegram\s*[:\-]?\s*@?\w+|t\.me\/\w+/i,
+  instagram: /\binstagram\s*[:\-]?\s*@?\w+|\big(?:\s+|[:\-]|@)\s*@?\w+/i,  // "ig handle", "ig: handle", "ig@handle" but not "midnight"
+  facebook: /\bfacebook\s*[:\-]?\s*@?\w+|\bfb(?:\s+|[:\-]|@)\s*@?\w+/i,   // "fb handle", "fb: handle", "fb@page" but not words ending in fb
+  twitter: /\btwitter\s*[:\-]?\s*@?\w+|(?:^|[^\w])@\w{3,}/i,  // @handle at word boundary (min 3 chars to avoid false positives)
 };
 
 // Hate speech patterns
@@ -258,7 +259,8 @@ export function validateContentSafety(content: string | null | undefined): Conte
   if (CONTACT_PATTERNS.whatsapp.test(content) ||
       CONTACT_PATTERNS.telegram.test(content) ||
       CONTACT_PATTERNS.instagram.test(content) ||
-      CONTACT_PATTERNS.facebook.test(content)) {
+      CONTACT_PATTERNS.facebook.test(content) ||
+      CONTACT_PATTERNS.twitter.test(content)) {
     return {
       valid: false,
       code: 'UNSAFE_CONTENT',
