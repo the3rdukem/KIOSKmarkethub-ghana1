@@ -1,0 +1,236 @@
+ PRODUCT CONTRACT UNIFICATION — MASTER PROMPT (PHASE 1 FINAL)
+
+🚨 READ THIS CAREFULLY — NO PARTIAL FIXES ALLOWED
+
+You are entering a root-cause corrective task, not a feature task.
+You must NOT add workarounds, conditional hacks, or “quick fixes”.
+
+Your job is to UNIFY THE PRODUCT DATA CONTRACT across database → API → forms → UI.
+
+If any part deviates, the task is considered FAILED.
+
+⸻
+
+🎯 CORE OBJECTIVE (NON-NEGOTIABLE)
+
+There must be ONE canonical Product contract shared by:
+	•	Vendor Create Product
+	•	Vendor Edit Product
+	•	Admin Create Product
+	•	Admin Edit Product
+	•	Admin Product Management table
+	•	Search results
+	•	Product detail page
+	•	API POST / PUT / GET
+	•	Database persistence
+
+No duplicate logic.
+No divergent schemas.
+No silent fallbacks.
+
+⸻
+
+🧱 STEP 1 — DEFINE THE CANONICAL PRODUCT CONTRACT (MANDATORY)
+
+Create ONE shared Product schema (TypeScript + Zod) located at:
+
+src/lib/contracts/product.contract.ts
+
+This contract MUST define:
+
+id
+name
+description
+price
+quantity
+category (string | null)
+condition (string | null)   // see Step 2
+sku (string | null)
+barcode (string | null)
+brand (string | null)
+color (string | null)
+categoryAttributes (Record<string, any>)
+status ('draft' | 'active')
+createdAt
+updatedAt
+
+🚫 NO other product shape is allowed anywhere in the app.
+
+All forms, APIs, and stores must import this contract.
+
+⸻
+
+🧠 STEP 2 — CONDITION FIELD CANONICALIZATION (CRITICAL)
+
+You MUST make one irreversible decision:
+
+✅ RULE (FINAL):
+	•	condition is a top-level product field
+	•	condition is NOT allowed inside categoryAttributes
+	•	Categories must NEVER define condition
+	•	Any legacy condition inside categoryAttributes must be:
+	•	Migrated to top-level condition
+	•	Then deleted from categoryAttributes
+
+📌 Enforcement:
+	•	Vendor form
+	•	Admin form
+	•	API POST / PUT
+	•	API GET normalization
+
+If condition appears twice → FAILURE
+
+⸻
+
+🧼 STEP 3 — READ API NORMALIZATION (MANDATORY)
+
+Every API that returns a product MUST normalize output:
+	•	Empty strings → null
+	•	Missing optional fields → null
+	•	Never return:
+	•	""
+	•	undefined
+	•	invalid Select values
+
+Especially for:
+	•	category
+	•	condition
+	•	sku
+	•	barcode
+
+📌 This applies to:
+	•	/api/products
+	•	/api/products/[id]
+	•	Admin queries
+	•	Search queries
+
+⸻
+
+🧾 STEP 4 — ADMIN & VENDOR FORM PARITY (NO EXCEPTIONS)
+
+Admin and Vendor product forms MUST:
+	•	Use the same shared form hook
+	•	Use React Hook Form + Controller
+	•	Use the same Zod schema
+	•	Support:
+	•	Draft save
+	•	Publish validation
+
+REQUIRED FIELDS ON BOTH FORMS:
+	•	Name
+	•	Category
+	•	Condition
+	•	Price
+	•	Quantity
+	•	SKU
+	•	Barcode
+
+🚫 Admin create without SKU/barcode is NOT allowed.
+
+⸻
+
+🧨 STEP 5 — SELECT SAFETY RULE (ABSOLUTE)
+
+Radix Select MUST NEVER receive:
+	•	value=""
+	•	value={undefined}
+
+You MUST use:
+
+_unset_
+
+as the only placeholder sentinel.
+
+All Selects must:
+	•	Filter invalid values
+	•	Normalize on read
+	•	Validate on publish
+
+If a single <Select.Item value=""> exists → FAILURE
+
+⸻
+
+🛡️ STEP 6 — VALIDATION SCOPE CORRECTION
+
+Validation rules must follow this hierarchy:
+
+Product Name / Business Name:
+
+✅ Allow:
+	•	“Mercedes Benz”
+	•	“Theory Business”
+	•	“Alpha & Sons Ventures”
+
+🚫 Block ONLY:
+	•	Profanity
+	•	Contact info
+	•	URLs
+	•	Obvious keyboard mash
+
+🚫 DO NOT apply entropy heuristics to:
+	•	Names
+	•	Addresses
+
+⸻
+
+🧑‍⚖️ STEP 7 — ADMIN PERMISSION CONSISTENCY
+
+Frontend must mirror backend rules:
+	•	Regular Admin:
+	•	❌ Cannot delete Admins
+	•	❌ Cannot delete Super Admin
+	•	Super Admin:
+	•	✅ Can delete Admins they created
+	•	✅ Can delete Users & Vendors
+
+🚫 Do NOT show delete buttons for forbidden actions.
+
+⸻
+
+🧪 STEP 8 — VERIFICATION (MANDATORY REPORT)
+
+You MUST test with these accounts:
+
+Buyer
+buy@kiosk.com.gh / 123asdqwe
+
+Vendor
+ven@kiosk.com.gh / 123asdqwe
+
+Admin
+the3rdukem@gmail.com / 123asdqweX$
+
+Your report MUST include:
+	•	Admin create product (draft + publish)
+	•	Vendor create product (draft + publish)
+	•	Admin edit product
+	•	Vendor edit product
+	•	SKU & barcode persistence check
+	•	No console errors
+	•	No Radix Select crashes
+	•	Condition saved once and only once
+
+⸻
+
+❌ STRICT FAILURE CONDITIONS
+
+This task is FAILED if:
+	•	Condition exists in more than one place
+	•	Admin & Vendor forms differ
+	•	SKU/barcode still don’t persist
+	•	Any Select crashes
+	•	Any product API returns empty strings
+	•	Admin forms reject valid product names
+	•	Fixes are implemented without shared contracts
+
+⸻
+
+🏁 FINAL NOTE
+
+This is the LAST stabilization task before checkout & payments.
+
+Do NOT rush.
+Do NOT patch.
+Do NOT improvise.
+
+Unify first. Everything else depends on this.

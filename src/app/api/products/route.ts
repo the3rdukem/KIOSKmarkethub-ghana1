@@ -20,6 +20,7 @@ import { getVendorByUserId } from '@/lib/db/dal/vendors';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getActiveSalesForProducts } from '@/lib/db/dal/promotions';
 import { validateTextField, validateContentSafety, validateProductName } from '@/lib/validation';
+import { normalizeProductForApi, UNSET_VALUE } from '@/lib/contracts/product.contract';
 
 /**
  * GET /api/products
@@ -99,27 +100,13 @@ export async function GET(request: NextRequest) {
         };
       }
 
-      // Section 3: UI Safety - Normalize null values in API response layer
-      // CRITICAL: category must NEVER be empty string (crashes Radix Select)
+      // Use canonical contract for normalization
+      const normalized = normalizeProductForApi(product);
+      
       return {
-        id: product.id,
-        vendorId: product.vendor_id,
-        vendorName: product.vendor_name,
-        name: product.name,
-        description: product.description,
-        category: product.category || null,
-        price: product.price ?? 0, // Normalize null to 0
+        ...normalized,
         effectivePrice: Math.round(effectivePrice * 100) / 100,
-        comparePrice: product.compare_price, // null is valid for comparePrice
-        quantity: product.quantity ?? 0, // Normalize null to 0
-        trackQuantity: product.track_quantity === 1,
-        images: product.images ? JSON.parse(product.images) : [],
-        tags: product.tags ? JSON.parse(product.tags) : [],
-        status: product.status,
-        categoryAttributes: product.category_attributes ? JSON.parse(product.category_attributes) : {},
         isFeatured: product.is_featured === 1,
-        createdAt: product.created_at,
-        updatedAt: product.updated_at,
         activeSale: saleInfo,
       };
     });
@@ -244,13 +231,12 @@ export async function POST(request: NextRequest) {
     const validationErrors: string[] = [];
     
     // PHASE 1.2: Sentinel value rejection for required fields when publishing
-    const UNSET_SENTINEL = '__unset__';
     const isPublishing = body.status === 'active';
 
     // PART E: Category validation FIRST when publishing
     // If category is required and missing, only show category error (no other field errors)
     const categoryInput = typeof body.category === 'string' ? body.category.trim() : '';
-    if (isPublishing && (categoryInput === UNSET_SENTINEL || !categoryInput)) {
+    if (isPublishing && (categoryInput === UNSET_VALUE || !categoryInput)) {
       return NextResponse.json(
         { error: 'Please select a category', code: 'REQUIRED_FIELD', field: 'category' },
         { status: 400 }
@@ -284,7 +270,7 @@ export async function POST(request: NextRequest) {
     // When publishing, require condition to be set (either top-level or in categoryAttributes)
     // This enforces that ALL published products must have a condition, regardless of category
     // Reject sentinel value or empty/null only when publishing
-    if (isPublishing && (!conditionValue || conditionValue === '' || conditionValue === null || conditionValue === UNSET_SENTINEL)) {
+    if (isPublishing && (!conditionValue || conditionValue === '' || conditionValue === null || conditionValue === UNSET_VALUE)) {
       return NextResponse.json(
         { error: 'Please select a condition', code: 'REQUIRED_FIELD', field: 'condition' },
         { status: 400 }
@@ -296,7 +282,7 @@ export async function POST(request: NextRequest) {
     // This check is a safety net for any required category attributes that slip through
     if (isPublishing && body.categoryAttributes && typeof body.categoryAttributes === 'object') {
       for (const [key, value] of Object.entries(body.categoryAttributes)) {
-        if (value === UNSET_SENTINEL) {
+        if (value === UNSET_VALUE) {
           return NextResponse.json(
             { error: `Please select a value for ${key}`, code: 'REQUIRED_FIELD', field: key },
             { status: 400 }
@@ -401,12 +387,23 @@ export async function POST(request: NextRequest) {
     const sku = typeof body.sku === 'string' && body.sku.trim() ? body.sku.trim() : undefined;
     const barcode = typeof body.barcode === 'string' && body.barcode.trim() ? body.barcode.trim() : undefined;
 
+    const extractedCondition = conditionValue && conditionValue !== UNSET_VALUE ? conditionValue : null;
+
+    const cleanedCategoryAttributes = body.categoryAttributes
+      ? (() => {
+          const attrs = { ...body.categoryAttributes };
+          delete attrs.condition;
+          return attrs;
+        })()
+      : undefined;
+
     const productInput: CreateProductInput = {
       vendorId: targetVendorId,
       vendorName: targetVendor!.business_name || targetVendor!.name,
       name: name,
       description: description,
       category: category,
+      condition: extractedCondition,
       price: price,
       comparePrice: comparePrice,
       quantity: quantity,
@@ -414,7 +411,7 @@ export async function POST(request: NextRequest) {
       images: body.images,
       tags: body.tags,
       status: body.status || 'active',
-      categoryAttributes: body.categoryAttributes,
+      categoryAttributes: cleanedCategoryAttributes,
       sku: sku,
       barcode: barcode,
     };

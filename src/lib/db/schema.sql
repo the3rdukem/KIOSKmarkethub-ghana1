@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS products (
   name TEXT NOT NULL,
   description TEXT,
   category TEXT,
+  condition TEXT, -- Top-level condition field (New, Like New, Good, Fair, Used)
   price REAL NOT NULL,
   compare_price REAL,
   cost_per_item REAL,
@@ -107,7 +108,7 @@ CREATE TABLE IF NOT EXISTS products (
   dimensions TEXT, -- JSON
   tags TEXT, -- JSON array
   status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'draft', 'archived', 'pending_approval', 'rejected', 'suspended')),
-  category_attributes TEXT, -- JSON
+  category_attributes TEXT, -- JSON (must NOT contain condition - condition is top-level)
 
   -- Moderation
   approval_status TEXT CHECK(approval_status IN ('pending', 'approved', 'rejected')),

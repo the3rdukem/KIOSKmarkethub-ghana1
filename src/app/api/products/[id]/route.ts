@@ -19,6 +19,7 @@ import { getUserById } from '@/lib/db/dal/users';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getActiveSaleByProduct } from '@/lib/db/dal/promotions';
 import { validateContentSafety, validateProductName } from '@/lib/validation';
+import { normalizeProductForApi, UNSET_VALUE } from '@/lib/contracts/product.contract';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -75,35 +76,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       };
     }
 
-    // Section 3: UI Safety - Normalize null values in API response layer
-    // CRITICAL: category must NEVER be empty string (crashes Radix Select)
+    // Use canonical contract for normalization
+    const normalized = normalizeProductForApi(product);
+    
     return NextResponse.json({
       product: {
-        id: product.id,
-        vendorId: product.vendor_id,
-        vendorName: product.vendor_name,
-        name: product.name,
-        description: product.description,
-        category: product.category || null,
-        price: product.price ?? 0, // Normalize null to 0
+        ...normalized,
         effectivePrice: Math.round(effectivePrice * 100) / 100,
-        comparePrice: product.compare_price, // null is valid for comparePrice
-        costPerItem: product.cost_per_item,
-        sku: product.sku,
-        barcode: product.barcode,
-        quantity: product.quantity ?? 0, // Normalize null to 0
-        trackQuantity: product.track_quantity === 1,
-        images: product.images ? JSON.parse(product.images) : [],
-        weight: product.weight,
-        dimensions: product.dimensions ? JSON.parse(product.dimensions) : null,
-        tags: product.tags ? JSON.parse(product.tags) : [],
-        status: product.status,
-        categoryAttributes: product.category_attributes
-          ? JSON.parse(product.category_attributes)
-          : {},
         isFeatured: product.is_featured === 1,
-        createdAt: product.created_at,
-        updatedAt: product.updated_at,
         activeSale: saleInfo,
       },
     });
@@ -151,14 +131,13 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const validationErrors: string[] = [];
     
     // PHASE 1.2: Sentinel value rejection for required fields when publishing
-    const UNSET_SENTINEL = '__unset__';
     const isPublishing = body.status === 'active';
 
     // PART E: Category validation FIRST when publishing
     // If category is required and missing, only show category error (no other field errors)
     if (body.category !== undefined) {
       const categoryInput = typeof body.category === 'string' ? body.category.trim() : '';
-      if (isPublishing && (categoryInput === UNSET_SENTINEL || !categoryInput)) {
+      if (isPublishing && (categoryInput === UNSET_VALUE || !categoryInput)) {
         return NextResponse.json(
           { error: 'Please select a category', code: 'REQUIRED_FIELD', field: 'category' },
           { status: 400 }
@@ -204,7 +183,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // When publishing, require condition to be set (either top-level or in categoryAttributes)
     // This enforces that ALL published products must have a condition, regardless of category
     // Reject sentinel value or empty/null only when publishing
-    if (isPublishing && (!conditionValue || conditionValue === '' || conditionValue === null || conditionValue === UNSET_SENTINEL)) {
+    if (isPublishing && (!conditionValue || conditionValue === '' || conditionValue === null || conditionValue === UNSET_VALUE)) {
       return NextResponse.json(
         { error: 'Please select a condition', code: 'REQUIRED_FIELD', field: 'condition' },
         { status: 400 }
@@ -216,7 +195,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     // This check is a safety net for any required category attributes that slip through
     if (isPublishing && body.categoryAttributes && typeof body.categoryAttributes === 'object') {
       for (const [key, value] of Object.entries(body.categoryAttributes)) {
-        if (value === UNSET_SENTINEL) {
+        if (value === UNSET_VALUE) {
           return NextResponse.json(
             { error: `Please select a value for ${key}`, code: 'REQUIRED_FIELD', field: key },
             { status: 400 }
@@ -360,6 +339,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (body.name !== undefined) updates.name = body.name;
     if (body.description !== undefined) updates.description = body.description;
     if (body.category !== undefined) updates.category = body.category;
+    if (conditionValue !== undefined && conditionValue !== UNSET_VALUE) {
+      updates.condition = conditionValue || undefined;
+    } else if (body.condition !== undefined) {
+      updates.condition = body.condition === UNSET_VALUE ? undefined : body.condition;
+    }
     if (body.price !== undefined) updates.price = parseFloat(body.price);
     if (body.comparePrice !== undefined)
       updates.comparePrice = body.comparePrice ? parseFloat(body.comparePrice) : undefined;
@@ -368,8 +352,11 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (body.images !== undefined) updates.images = body.images;
     if (body.tags !== undefined) updates.tags = body.tags;
     if (body.status !== undefined) updates.status = body.status;
-    if (body.categoryAttributes !== undefined)
-      updates.categoryAttributes = body.categoryAttributes;
+    if (body.categoryAttributes !== undefined) {
+      const cleanedAttrs = { ...body.categoryAttributes };
+      delete cleanedAttrs.condition;
+      updates.categoryAttributes = cleanedAttrs;
+    }
     // Ensure SKU and barcode persist through updates
     if (body.sku !== undefined) updates.sku = body.sku?.trim() || undefined;
     if (body.barcode !== undefined) updates.barcode = body.barcode?.trim() || undefined;

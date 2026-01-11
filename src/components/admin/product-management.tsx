@@ -127,6 +127,8 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
     condition: ADMIN_UNSET,
     price: "",
     quantity: "0",
+    sku: "",
+    barcode: "",
     status: "active" as "active" | "draft",
     images: [] as string[],
   });
@@ -198,6 +200,8 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           condition: newProduct.condition === ADMIN_UNSET ? null : newProduct.condition,
           price: newProduct.price,
           quantity: newProduct.quantity,
+          sku: newProduct.sku.trim() || undefined,
+          barcode: newProduct.barcode.trim() || undefined,
           status: newProduct.status,
           images: newProduct.images,
           categoryAttributes: cleanedCategoryAttributes,
@@ -237,6 +241,8 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
         condition: ADMIN_UNSET,
         price: "",
         quantity: "0",
+        sku: "",
+        barcode: "",
         status: "active",
         images: [],
       });
@@ -1173,6 +1179,36 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                   className={createFormErrors.quantity ? "border-red-500" : ""}
                 />
                 {createFormErrors.quantity && <p className="text-red-500 text-xs mt-1">{createFormErrors.quantity}</p>}
+              </div>
+            </div>
+
+            {/* SKU and Barcode */}
+            <div className="grid grid-cols-2 gap-4">
+              <div data-field="sku">
+                <Label>SKU</Label>
+                <Input
+                  value={newProduct.sku}
+                  onChange={(e) => {
+                    setNewProduct(p => ({ ...p, sku: e.target.value }));
+                    setCreateFormErrors(er => ({ ...er, sku: '' }));
+                  }}
+                  placeholder="Stock Keeping Unit"
+                  className={createFormErrors.sku ? "border-red-500" : ""}
+                />
+                {createFormErrors.sku && <p className="text-red-500 text-xs mt-1">{createFormErrors.sku}</p>}
+              </div>
+              <div data-field="barcode">
+                <Label>Barcode</Label>
+                <Input
+                  value={newProduct.barcode}
+                  onChange={(e) => {
+                    setNewProduct(p => ({ ...p, barcode: e.target.value }));
+                    setCreateFormErrors(er => ({ ...er, barcode: '' }));
+                  }}
+                  placeholder="UPC/EAN code"
+                  className={createFormErrors.barcode ? "border-red-500" : ""}
+                />
+                {createFormErrors.barcode && <p className="text-red-500 text-xs mt-1">{createFormErrors.barcode}</p>}
               </div>
             </div>
 
