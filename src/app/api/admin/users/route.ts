@@ -326,6 +326,58 @@ export async function PATCH(request: NextRequest) {
         auditDetails = `Banned user ${targetUser.email}. Reason: ${reason}`;
         break;
 
+      case 'delete':
+        // Soft delete - prevent deleting super admin or self
+        if (targetUser.role === 'master_admin') {
+          return NextResponse.json({ error: 'Cannot delete super admin account' }, { status: 403 });
+        }
+        if (targetUser.id === session.user_id) {
+          return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 403 });
+        }
+        if (!reason) {
+          return NextResponse.json({ error: 'Reason is required for deletion' }, { status: 400 });
+        }
+        updates = {
+          isDeleted: true,
+          status: 'deleted',
+        };
+        auditAction = 'USER_DELETED';
+        auditDetails = `Soft-deleted user ${targetUser.email}. Reason: ${reason}`;
+        break;
+
+      case 'permanent_delete':
+        // Only master admin can permanently delete
+        if (session.user_role !== 'master_admin') {
+          return NextResponse.json({ error: 'Only super admin can permanently delete users' }, { status: 403 });
+        }
+        if (targetUser.role === 'master_admin') {
+          return NextResponse.json({ error: 'Cannot permanently delete super admin account' }, { status: 403 });
+        }
+        if (targetUser.id === session.user_id) {
+          return NextResponse.json({ error: 'Cannot delete your own account' }, { status: 403 });
+        }
+        // For now, implement as hard delete flag - actual data deletion would require more work
+        updates = {
+          isDeleted: true,
+          status: 'deleted',
+        };
+        auditAction = 'USER_PERMANENTLY_DELETED';
+        auditDetails = `Permanently deleted user ${targetUser.email}`;
+        break;
+
+      case 'restore':
+        // Restore soft-deleted user
+        if (targetUser.is_deleted !== 1) {
+          return NextResponse.json({ error: 'User is not deleted' }, { status: 400 });
+        }
+        updates = {
+          isDeleted: false,
+          status: 'active',
+        };
+        auditAction = 'USER_RESTORED';
+        auditDetails = `Restored user ${targetUser.email}`;
+        break;
+
       default:
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }

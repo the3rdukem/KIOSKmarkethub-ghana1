@@ -589,10 +589,9 @@ export function validateProductName(name: string | null | undefined): Validation
 }
 
 /**
- * Validate business/store name
- * - Min/max length
- * - Content safety
- * - Garbage detection
+ * Validate business/store name - RELAXED validation matching product names
+ * Allows normal multi-word business names like "Theory Business", "Mercedes Benz Ghana"
+ * Only rejects: profanity, contact info, URLs, obvious garbage (keyboard mash, repeated chars)
  */
 export function validateBusinessName(name: string | null | undefined, fieldName: string = 'Business name'): ValidationResult {
   if (!name || typeof name !== 'string') {
@@ -605,22 +604,15 @@ export function validateBusinessName(name: string | null | undefined, fieldName:
     return { valid: false, code: 'INVALID_BUSINESS_NAME', message: `${fieldName} is required` };
   }
 
-  if (trimmed.length < 3) {
+  if (trimmed.length < 2) {
     return { valid: false, code: 'INVALID_BUSINESS_NAME', message: `${fieldName} is too short` };
   }
 
-  if (trimmed.length > 100) {
+  if (trimmed.length > 120) {
     return { valid: false, code: 'INVALID_BUSINESS_NAME', message: `${fieldName} is too long` };
   }
 
-  // Check for garbage patterns
-  for (const pattern of GARBAGE_PATTERNS) {
-    if (pattern.test(trimmed.replace(/\s/g, ''))) {
-      return { valid: false, code: 'INVALID_BUSINESS_NAME', message: `Please enter a valid ${fieldName.toLowerCase()}` };
-    }
-  }
-
-  // Content safety check
+  // Content safety check (profanity, contact info, URLs, social handles)
   const safetyResult = validateContentSafety(trimmed);
   if (!safetyResult.valid) {
     return { 
@@ -628,6 +620,25 @@ export function validateBusinessName(name: string | null | undefined, fieldName:
       code: 'UNSAFE_CONTENT', 
       message: `${fieldName} contains prohibited or unsafe content` 
     };
+  }
+
+  // MINIMAL garbage detection - only catch obvious garbage, not normal business names
+  // Only reject: single character repeated 8+ times at start
+  if (/^(.)\1{7,}/.test(trimmed)) {
+    return { valid: false, code: 'INVALID_BUSINESS_NAME', message: `Please enter a valid ${fieldName.toLowerCase()}` };
+  }
+
+  // Only reject keyboard mashing if the ENTIRE name is keyboard mash (not just starts with)
+  const keyboardPatterns = [
+    /^asdf+$/i,
+    /^qwer+$/i,
+    /^zxcv+$/i,
+    /^hjkl+$/i,
+  ];
+  for (const pattern of keyboardPatterns) {
+    if (pattern.test(trimmed.replace(/\s/g, ''))) {
+      return { valid: false, code: 'INVALID_BUSINESS_NAME', message: `Please enter a valid ${fieldName.toLowerCase()}` };
+    }
   }
 
   return { valid: true };

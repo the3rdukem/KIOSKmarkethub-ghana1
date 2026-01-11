@@ -124,6 +124,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
     name: "",
     description: "",
     category: ADMIN_UNSET,
+    condition: ADMIN_UNSET,
     price: "",
     quantity: "0",
     status: "active" as "active" | "draft",
@@ -194,6 +195,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           name: newProduct.name,
           description: newProduct.description,
           category: newProduct.category === ADMIN_UNSET ? null : newProduct.category,
+          condition: newProduct.condition === ADMIN_UNSET ? null : newProduct.condition,
           price: newProduct.price,
           quantity: newProduct.quantity,
           status: newProduct.status,
@@ -232,6 +234,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
         name: "",
         description: "",
         category: ADMIN_UNSET,
+        condition: ADMIN_UNSET,
         price: "",
         quantity: "0",
         status: "active",
@@ -1058,6 +1061,30 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                 </SelectContent>
               </Select>
               {createFormErrors.category && <p className="text-red-500 text-xs mt-1">{createFormErrors.category}</p>}
+            </div>
+
+            {/* Condition */}
+            <div data-field="condition">
+              <Label>Condition *</Label>
+              <Select
+                value={newProduct.condition === ADMIN_UNSET ? undefined : newProduct.condition}
+                onValueChange={(v) => {
+                  setNewProduct(p => ({ ...p, condition: v }));
+                  setCreateFormErrors(e => ({ ...e, condition: '' }));
+                }}
+              >
+                <SelectTrigger className={createFormErrors.condition ? "border-red-500" : ""}>
+                  <SelectValue placeholder="Select condition" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="new">New</SelectItem>
+                  <SelectItem value="like_new">Like New</SelectItem>
+                  <SelectItem value="good">Good</SelectItem>
+                  <SelectItem value="fair">Fair</SelectItem>
+                  <SelectItem value="poor">Poor</SelectItem>
+                </SelectContent>
+              </Select>
+              {createFormErrors.condition && <p className="text-red-500 text-xs mt-1">{createFormErrors.condition}</p>}
             </div>
 
             {/* Category-specific fields */}

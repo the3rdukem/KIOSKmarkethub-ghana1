@@ -370,6 +370,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (body.status !== undefined) updates.status = body.status;
     if (body.categoryAttributes !== undefined)
       updates.categoryAttributes = body.categoryAttributes;
+    // Ensure SKU and barcode persist through updates
+    if (body.sku !== undefined) updates.sku = body.sku?.trim() || undefined;
+    if (body.barcode !== undefined) updates.barcode = body.barcode?.trim() || undefined;
     if (body.isFeatured !== undefined && isAdmin) {
       updates.isFeatured = body.isFeatured;
       updates.featuredBy = session.user_id;

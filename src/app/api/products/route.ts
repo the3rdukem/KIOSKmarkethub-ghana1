@@ -397,6 +397,10 @@ export async function POST(request: NextRequest) {
     const description = typeof body.description === 'string' && body.description.trim() ? body.description.trim() : null;
     const category = typeof body.category === 'string' && body.category.trim() ? body.category.trim() : null;
 
+    // Extract SKU and barcode from body (ensure they persist)
+    const sku = typeof body.sku === 'string' && body.sku.trim() ? body.sku.trim() : undefined;
+    const barcode = typeof body.barcode === 'string' && body.barcode.trim() ? body.barcode.trim() : undefined;
+
     const productInput: CreateProductInput = {
       vendorId: targetVendorId,
       vendorName: targetVendor!.business_name || targetVendor!.name,
@@ -411,6 +415,8 @@ export async function POST(request: NextRequest) {
       tags: body.tags,
       status: body.status || 'active',
       categoryAttributes: body.categoryAttributes,
+      sku: sku,
+      barcode: barcode,
     };
 
     const product = await createProduct(productInput);

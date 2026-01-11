@@ -1,0 +1,153 @@
+
+🔧 PHASE 1.4 — FINAL CORRECTIVE PATCH (NO EXPANSION)
+
+THIS IS A CORRECTION PASS.
+DO NOT ADD FEATURES. DO NOT TIGHTEN RULES. DO NOT TOUCH UNRELATED FLOWS.
+
+⸻
+
+OBJECTIVE
+
+Fix three concrete regressions introduced during Phase 1 validation hardening:
+	1.	Over-restricted Business Name validation
+	2.	SKU value not persisting
+	3.	Admin Product Form missing required condition field
+	4.	Admin delete actions blocked incorrectly
+
+Nothing else.
+
+⸻
+
+HARD CONSTRAINTS (FAIL IF VIOLATED)
+	•	❌ No new validation rules
+	•	❌ No schema changes
+	•	❌ No redesigns
+	•	❌ No new UI components
+	•	❌ No changes to buyer/vendor permissions beyond what is stated
+
+⸻
+
+PART A — BUSINESS NAME VALIDATION (REGISTRATION)
+
+FIX IMMEDIATELY
+
+Business / Store Name validation must follow EXACTLY the same rules as Product Name, nothing stricter.
+
+Valid examples (MUST PASS):
+	•	“Theory Business”
+	•	“Mercedes Benz Ghana”
+	•	“Alpha & Sons Ventures”
+
+Invalid ONLY if:
+	•	Profanity
+	•	Contact info
+	•	URLs / handles
+	•	Obvious garbage (single-character spam, keyboard mash)
+
+❌ REMOVE:
+	•	Entropy checks
+	•	“Spam-like” heuristics
+	•	Any logic that rejects normal multi-word business names
+
+This applies to:
+	•	Vendor registration
+	•	Vendor profile edit (if applicable)
+
+⸻
+
+PART B — SKU NOT PERSISTING (CRITICAL DATA LOSS)
+
+ROOT RULE
+
+If a user enters SKU in the product form:
+	•	It MUST be saved
+	•	It MUST appear in Vendor Products table
+	•	It MUST appear in Admin Products view
+	•	It MUST round-trip (edit → save → reload)
+
+REQUIRED FIXES
+	•	Verify SKU is included in:
+	•	Form schema
+	•	transformFormToApiPayload
+	•	API POST / PUT handlers
+	•	Database insert/update query
+	•	Ensure SKU is not dropped during draft → publish transitions
+
+❌ Silent dropping of SKU is a HARD FAIL.
+
+⸻
+
+PART C — ADMIN PRODUCT FORM: CONDITION FIELD (BLOCKER)
+
+CRITICAL BUG
+
+Admin Create/Edit Product form:
+	•	Does NOT render condition
+	•	BUT backend requires condition
+	•	Result: Admin cannot create or edit products
+
+REQUIRED BEHAVIOR
+
+Admin product forms MUST:
+	•	Render the same condition field logic as Vendor
+	•	Follow the same rules:
+	•	Required only when publishing
+	•	Uses the same sentinel (unset) pattern
+	•	Use the shared product form schema and components
+
+❌ Enforcing condition without rendering it is INVALID.
+
+⸻
+
+PART D — ADMIN DELETE ACTIONS (USERS & ADMINS)
+
+FIX EXACTLY THIS
+	1.	Admin cannot delete users
+	•	Toast says “Invalid action”
+	•	This is incorrect
+	2.	Super Admin cannot delete admins it created
+	•	This is incorrect
+
+REQUIRED RULES
+	•	Super Admin CAN:
+	•	Delete users
+	•	Delete vendors
+	•	Delete admins it created
+	•	Admin CANNOT:
+	•	Delete Super Admin
+	•	Delete itself
+
+If delete is blocked:
+	•	The reason must be explicit and correct
+	•	No generic “Invalid action”
+
+⸻
+
+VERIFICATION (MANDATORY)
+
+Test with:
+	•	Super Admin: the3rdukem@gmail.com / 123asdqweX$
+	•	Vendor: ven@kiosk.com.gh / 123asdqwe
+
+REQUIRED TESTS
+	1.	Register vendor with business name “Theory Business” → PASS
+	2.	Create product with SKU → SKU shows in list + edit → PASS
+	3.	Admin creates product → condition field visible → PASS
+	4.	Admin edits product → no condition error → PASS
+	5.	Super Admin deletes:
+	•	User → PASS
+	•	Vendor → PASS
+	•	Admin it created → PASS
+
+⸻
+
+COMPLETION CRITERIA
+
+This task is ONLY DONE when:
+	•	Business names are no longer falsely rejected
+	•	SKU persists end-to-end
+	•	Admin product forms no longer deadlock
+	•	Admin delete permissions work exactly as defined
+	•	ZERO new regressions introduced
+
+Do not report success without manually verifying every test above.
