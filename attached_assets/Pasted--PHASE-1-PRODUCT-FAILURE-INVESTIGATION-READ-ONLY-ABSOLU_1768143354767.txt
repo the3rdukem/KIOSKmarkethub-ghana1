@@ -1,0 +1,206 @@
+
+
+🔍 PHASE 1 — PRODUCT FAILURE INVESTIGATION (READ-ONLY)
+
+🚨 ABSOLUTE RULES (NON-NEGOTIABLE)
+	•	❌ DO NOT modify code
+	•	❌ DO NOT refactor
+	•	❌ DO NOT add guards, fallbacks, or “temporary fixes”
+	•	❌ DO NOT change validation rules
+	•	❌ DO NOT touch UI logic
+
+This task is INVESTIGATION ONLY.
+
+If you change even one line of production code, the task is FAILED.
+
+⸻
+
+🎯 OBJECTIVE
+
+Identify why product creation and updates are failing silently or inconsistently across:
+	•	Admin Create Product
+	•	Admin Edit Product
+	•	Vendor Create Product
+	•	Vendor Draft Save
+	•	Vendor Publish
+	•	SKU / Barcode persistence
+	•	Admin delete-admin permissions
+
+You must determine exact failure points, not speculate.
+
+⸻
+
+🧪 REQUIRED TEST ACCOUNTS (MANDATORY)
+
+Use ONLY these credentials:
+
+Vendor
+
+ven@kiosk.com.gh
+123asdqwe
+
+Admin
+
+the3rdukem@gmail.com
+123asdqweX$
+
+
+⸻
+
+🧠 INVESTIGATION TRACKS (ALL REQUIRED)
+
+🔎 TRACK 1 — API FAILURE TRACE
+
+For EACH failing action:
+	•	Vendor create product
+	•	Vendor save draft
+	•	Vendor publish
+	•	Admin create product
+	•	Admin update product
+
+You MUST log and report:
+	1.	Request payload sent from client
+	2.	API route hit
+	3.	Server-side validation result
+	4.	Database call arguments
+	5.	Database response or error
+	6.	API response returned to client
+
+📌 You must identify:
+	•	Which field causes rejection
+	•	Whether rejection is from:
+	•	Zod schema
+	•	Content safety
+	•	DAL
+	•	Database constraint
+
+⸻
+
+🔎 TRACK 2 — BARCODE / SKU FAILURE
+
+Specifically investigate:
+	•	Why entering a barcode causes:
+	•	Auto-scroll
+	•	No error message
+	•	No highlight
+	•	Silent failure
+
+You MUST answer:
+	•	Is barcode:
+	•	Failing validation?
+	•	Stripped during normalization?
+	•	Rejected by DB?
+	•	Overwritten by transform?
+	•	Is barcode optional or required in each schema layer?
+
+⸻
+
+🔎 TRACK 3 — CONDITION FIELD CONTRADICTION
+
+There is a direct contradiction:
+	•	Contract says condition is top-level
+	•	Your note says: “condition field is not supposed to be a dedicated top level field”
+
+You MUST investigate and report:
+	•	Where condition is:
+	•	Defined
+	•	Required
+	•	Validated
+	•	Transformed
+	•	Persisted
+
+Produce a flow diagram:
+
+Form → API → Normalizer → DAL → DB → Read API → UI
+
+Highlight where condition mismatches expectations.
+
+⸻
+
+🔎 TRACK 4 — ADMIN DELETE ADMIN FAILURE
+
+Investigate:
+	•	Why Super Admin still cannot delete Admins they created
+
+You MUST report:
+	•	Frontend permission logic
+	•	Backend authorization check
+	•	Ownership comparison logic
+	•	Exact rejection reason
+
+No assumptions.
+
+⸻
+
+🔎 TRACK 5 — ERROR HANDLING BREAKDOWN
+
+Investigate why:
+	•	Forms fail with no visible error
+	•	Console shows errors instead of inline messages
+	•	Auto-scroll happens without feedback
+
+You MUST identify:
+	•	Where errors are swallowed
+	•	Where throw vs return is still happening
+	•	Where error.field is missing or ignored
+
+⸻
+
+📄 REQUIRED OUTPUT FORMAT (STRICT)
+
+Your final response MUST be structured exactly as follows:
+
+1️⃣ Symptom → Root Cause Table
+
+Symptom	Root Cause	Evidence
+
+
+
+⸻
+
+2️⃣ Failure Layer Mapping
+
+For each failure:
+
+UI ❌ → Form ❌ → API ❌ → DAL ❌ → DB ❌
+
+(Only mark where failure actually occurs)
+
+⸻
+
+3️⃣ Data Contract Violations (If Any)
+
+List any place where:
+	•	Field is optional in one layer but required in another
+	•	Field is transformed inconsistently
+	•	Field is silently dropped
+
+⸻
+
+4️⃣ ZERO-FIX CONFIRMATION
+
+Explicitly confirm:
+
+“No production code was modified during this investigation.”
+
+⸻
+
+❌ FAILURE CONDITIONS
+
+This investigation FAILS if:
+	•	You propose fixes
+	•	You modify code
+	•	You merge PRs
+	•	You guess instead of proving
+	•	You skip any track above
+
+⸻
+
+🛑 FINAL NOTE
+
+We will not proceed to another fix until:
+	•	Every failure has a single, proven root cause
+	•	The product contract contradiction is resolved on paper
+	•	Error handling gaps are fully mapped
+
+Only after this investigation will I authorize the Final Corrective Patch Prompt.
