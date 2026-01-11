@@ -2,6 +2,7 @@
 
 import { useForm } from "react-hook-form";
 import { useCallback, useEffect, useState } from "react";
+import { toast } from "sonner";
 import {
   productFormSchema,
   DefaultProductValues,
@@ -42,25 +43,33 @@ export function useProductForm(options: UseProductFormOptions = {}) {
     
     if (errorKeys.length === 0) return;
 
-    // Build a flat list of all error paths (including nested categoryAttributes)
-    const errorPaths: string[] = [];
+    // Build a flat list of all error paths and their messages (including nested categoryAttributes)
+    const errorPaths: { path: string; message: string }[] = [];
     
     for (const key of errorKeys) {
       if (key === "categoryAttributes" && errors.categoryAttributes) {
         // Handle nested categoryAttributes errors
-        const attrErrors = errors.categoryAttributes as Record<string, unknown>;
+        const attrErrors = errors.categoryAttributes as Record<string, { message?: string }>;
         for (const nestedKey of Object.keys(attrErrors)) {
           if (nestedKey !== 'message' && nestedKey !== 'type' && nestedKey !== 'ref') {
-            errorPaths.push(`categoryAttributes.${nestedKey}`);
+            const nestedError = attrErrors[nestedKey];
+            errorPaths.push({
+              path: `categoryAttributes.${nestedKey}`,
+              message: nestedError?.message || `${nestedKey} has an error`,
+            });
           }
         }
       } else {
-        errorPaths.push(key);
+        const fieldError = errors[key as keyof typeof errors];
+        const message = fieldError && typeof fieldError === 'object' && 'message' in fieldError
+          ? (fieldError.message as string)
+          : `${key} has an error`;
+        errorPaths.push({ path: key, message });
       }
     }
 
     // Try to find and scroll to the first error field
-    for (const fieldPath of errorPaths) {
+    for (const { path: fieldPath, message } of errorPaths) {
       const element = document.querySelector(
         `[name="${fieldPath}"], [data-field="${fieldPath}"], #${fieldPath}`
       );
@@ -74,6 +83,15 @@ export function useProductForm(options: UseProductFormOptions = {}) {
         }, 300);
         return;
       }
+    }
+
+    // Fallback: If no element found, show toast with first error message
+    if (errorPaths.length > 0) {
+      const firstError = errorPaths[0];
+      const fieldName = firstError.path.replace(/^categoryAttributes\./, '').replace(/([A-Z])/g, ' $1').trim();
+      toast.error(`Please fix: ${firstError.message}`, {
+        description: `Check the "${fieldName}" field`,
+      });
     }
   }, [form.formState.errors]);
 

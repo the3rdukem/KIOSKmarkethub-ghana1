@@ -164,9 +164,19 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
     
+    // Description validation - required when publishing (min 10 chars), optional for draft/update
+    const descriptionRaw = typeof body.description === 'string' ? body.description.trim() : '';
+    if (isPublishing && body.description !== undefined) {
+      if (!descriptionRaw || descriptionRaw.length < 10) {
+        return NextResponse.json(
+          { error: 'Description is required (minimum 10 characters)', code: 'REQUIRED_FIELD', field: 'description' },
+          { status: 400 }
+        );
+      }
+    }
     // Content safety check for description if provided
-    if (body.description !== undefined && body.description !== null && body.description !== '') {
-      const descResult = validateContentSafety(body.description);
+    if (descriptionRaw) {
+      const descResult = validateContentSafety(descriptionRaw);
       if (!descResult.valid) {
         return NextResponse.json(
           { error: `Description ${descResult.message?.toLowerCase() || 'contains prohibited content'}`, code: descResult.code, field: 'description' },
@@ -175,20 +185,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Condition validation - check both top-level and categoryAttributes
-    const conditionTopLevel = body.condition;
-    const conditionAttr = body.categoryAttributes?.condition;
-    const conditionValue = conditionTopLevel ?? conditionAttr;
-
-    // When publishing, require condition to be set (either top-level or in categoryAttributes)
-    // This enforces that ALL published products must have a condition, regardless of category
-    // Reject sentinel value or empty/null only when publishing
-    if (isPublishing && (!conditionValue || conditionValue === '' || conditionValue === null || conditionValue === UNSET_VALUE)) {
-      return NextResponse.json(
-        { error: 'Please select a condition', code: 'REQUIRED_FIELD', field: 'condition' },
-        { status: 400 }
-      );
+    // CONDITION REFACTOR: Condition now lives ONLY in categoryAttributes
+    // Condition is only required when the category's formSchema defines it as required
+    // Merge top-level condition into categoryAttributes for backward compatibility
+    if (body.condition && body.condition !== UNSET_VALUE) {
+      if (!body.categoryAttributes) {
+        body.categoryAttributes = {};
+      }
+      body.categoryAttributes.condition = body.condition;
     }
+    // Clear top-level condition - it's now in categoryAttributes
+    delete body.condition;
 
     // Check categoryAttributes for sentinel values only when publishing
     // Note: Client-side transform now filters out __unset__ for optional fields
@@ -339,13 +346,8 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (body.name !== undefined) updates.name = body.name;
     if (body.description !== undefined) updates.description = body.description;
     if (body.category !== undefined) updates.category = body.category;
-    // Normalize condition: UNSET_VALUE and empty strings become null/undefined
-    const rawCondition = conditionValue ?? body.condition;
-    if (rawCondition !== undefined) {
-      updates.condition = (rawCondition && rawCondition !== UNSET_VALUE && rawCondition.trim()) 
-        ? rawCondition.trim() 
-        : undefined;
-    }
+    // CONDITION REFACTOR: condition now lives in categoryAttributes only
+    // DAL will handle merging condition into categoryAttributes
     if (body.price !== undefined) updates.price = parseFloat(body.price);
     if (body.comparePrice !== undefined)
       updates.comparePrice = body.comparePrice ? parseFloat(body.comparePrice) : undefined;
@@ -355,9 +357,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (body.tags !== undefined) updates.tags = body.tags;
     if (body.status !== undefined) updates.status = body.status;
     if (body.categoryAttributes !== undefined) {
-      const cleanedAttrs = { ...body.categoryAttributes };
-      delete cleanedAttrs.condition;
-      updates.categoryAttributes = cleanedAttrs;
+      updates.categoryAttributes = body.categoryAttributes;
     }
     // Ensure SKU and barcode persist through updates
     if (body.sku !== undefined) updates.sku = body.sku?.trim() || undefined;

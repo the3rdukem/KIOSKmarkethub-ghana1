@@ -15,7 +15,6 @@ export const ProductContractSchema = z.object({
   name: z.string().min(2, "Product name is required (minimum 2 characters)"),
   description: z.string().nullable(),
   category: z.string().nullable(),
-  condition: z.string().nullable(),
   price: z.number().min(0),
   comparePrice: z.number().nullable(),
   costPerItem: z.number().nullable(),
@@ -48,7 +47,7 @@ export interface ProductLike {
   name?: string;
   description?: string | null;
   category?: string | null;
-  condition?: string | null;
+  condition?: string | null; // DEPRECATED: condition now lives in categoryAttributes, kept for migration compatibility
   price?: number;
   compare_price?: number | null;
   comparePrice?: number | null;
@@ -142,13 +141,23 @@ export function normalizeProductForApi(product: ProductLike): Product {
     parsedCategoryAttrs = { ...(rawCategoryAttributes as Record<string, string | boolean | number>) };
   }
 
-  const extractedCondition = parsedCategoryAttrs.condition;
-  if (extractedCondition !== undefined) {
-    delete parsedCategoryAttrs.condition;
-  }
-
+  // CONDITION REFACTOR: Merge legacy top-level condition into categoryAttributes
+  // Condition now lives ONLY in categoryAttributes when category schema defines it
   const topLevelCondition = p.condition as string | undefined | null;
-  const rawFinalCondition = topLevelCondition || (extractedCondition as string | undefined) || null;
+  if (topLevelCondition && !parsedCategoryAttrs.condition) {
+    const normalizedCondition = normalizeCondition(topLevelCondition);
+    if (normalizedCondition) {
+      parsedCategoryAttrs.condition = normalizedCondition;
+    }
+  } else if (parsedCategoryAttrs.condition) {
+    // Normalize existing condition in categoryAttributes
+    const normalizedCondition = normalizeCondition(parsedCategoryAttrs.condition);
+    if (normalizedCondition) {
+      parsedCategoryAttrs.condition = normalizedCondition;
+    } else {
+      delete parsedCategoryAttrs.condition;
+    }
+  }
 
   const parsedImages = parseJsonArray(p.images);
   const parsedTags = parseJsonArray(p.tags);
@@ -166,7 +175,6 @@ export function normalizeProductForApi(product: ProductLike): Product {
     name: String(p.name || ""),
     description: normalizeNullable(p.description),
     category: normalizeNullable(p.category),
-    condition: normalizeCondition(rawFinalCondition),
     price: Number(p.price) || 0,
     comparePrice: normalizeNumber(p.compare_price ?? p.comparePrice),
     costPerItem: normalizeNumber(p.cost_per_item ?? p.costPerItem),
@@ -189,7 +197,7 @@ export const CreateProductInputSchema = z.object({
   name: z.string().min(2, "Product name is required"),
   description: z.string().optional(),
   category: z.string().optional().nullable(),
-  condition: z.string().optional().nullable(),
+  // CONDITION REFACTOR: condition now lives in categoryAttributes only
   price: z.number().min(0, "Price must be 0 or greater"),
   comparePrice: z.number().optional().nullable(),
   costPerItem: z.number().optional().nullable(),
@@ -220,14 +228,7 @@ export function normalizeInputForDatabase(input: CreateProductInput | UpdateProd
   if (input.name !== undefined) result.name = input.name;
   if (input.description !== undefined) result.description = input.description || null;
   if (input.category !== undefined) result.category = input.category || null;
-  if (input.condition !== undefined) {
-    const cond = input.condition;
-    if (cond === UNSET_VALUE || cond === "") {
-      result.condition = null;
-    } else {
-      result.condition = cond;
-    }
-  }
+  // CONDITION REFACTOR: condition now lives in categoryAttributes only
   if (input.price !== undefined) result.price = input.price;
   if (input.comparePrice !== undefined) result.compare_price = input.comparePrice || null;
   if (input.costPerItem !== undefined) result.cost_per_item = input.costPerItem || null;
@@ -241,9 +242,8 @@ export function normalizeInputForDatabase(input: CreateProductInput | UpdateProd
   if (input.tags !== undefined) result.tags = JSON.stringify(input.tags);
   if (input.status !== undefined) result.status = input.status;
   if (input.categoryAttributes !== undefined) {
-    const attrs = { ...input.categoryAttributes };
-    delete (attrs as Record<string, unknown>).condition;
-    result.category_attributes = JSON.stringify(attrs);
+    // CONDITION REFACTOR: condition now persists inside categoryAttributes
+    result.category_attributes = JSON.stringify(input.categoryAttributes);
   }
 
   return result;
@@ -260,9 +260,8 @@ export function validateForPublish(product: Partial<CreateProductInput>): { vali
     errors.category = "Category is required";
   }
 
-  if (!product.condition || product.condition === UNSET_VALUE) {
-    errors.condition = "Condition is required";
-  }
+  // CONDITION REFACTOR: condition now lives in categoryAttributes only
+  // Condition requirement is now handled by category schema validation
 
   if (product.price === undefined || product.price <= 0) {
     errors.price = "Price must be greater than 0";

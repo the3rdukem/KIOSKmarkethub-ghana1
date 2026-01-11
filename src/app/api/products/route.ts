@@ -261,21 +261,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Condition validation - check both top-level and categoryAttributes
-    // Client may send condition as top-level field or within categoryAttributes
-    const conditionTopLevel = body.condition;
-    const conditionAttr = body.categoryAttributes?.condition;
-    const conditionValue = conditionTopLevel ?? conditionAttr;
-
-    // When publishing, require condition to be set (either top-level or in categoryAttributes)
-    // This enforces that ALL published products must have a condition, regardless of category
-    // Reject sentinel value or empty/null only when publishing
-    if (isPublishing && (!conditionValue || conditionValue === '' || conditionValue === null || conditionValue === UNSET_VALUE)) {
-      return NextResponse.json(
-        { error: 'Please select a condition', code: 'REQUIRED_FIELD', field: 'condition' },
-        { status: 400 }
-      );
+    // CONDITION REFACTOR: Condition now lives ONLY in categoryAttributes
+    // Condition is only required when the category's formSchema defines it as required
+    // Merge top-level condition into categoryAttributes for backward compatibility
+    if (body.condition && body.condition !== UNSET_VALUE) {
+      if (!body.categoryAttributes) {
+        body.categoryAttributes = {};
+      }
+      body.categoryAttributes.condition = body.condition;
     }
+    // Clear top-level condition - it's now in categoryAttributes
+    delete body.condition;
 
     // Check categoryAttributes for sentinel values only when publishing
     // Note: Client-side transform now filters out __unset__ for optional fields
@@ -291,8 +287,16 @@ export async function POST(request: NextRequest) {
       }
     }
     
-    // Content safety check for description
+    // Description validation - required when publishing (min 10 chars), optional for draft
     const descriptionRaw = typeof body.description === 'string' ? body.description.trim() : '';
+    if (isPublishing) {
+      if (!descriptionRaw || descriptionRaw.length < 10) {
+        return NextResponse.json(
+          { error: 'Description is required (minimum 10 characters)', code: 'REQUIRED_FIELD', field: 'description' },
+          { status: 400 }
+        );
+      }
+    }
     if (descriptionRaw) {
       const descResult = validateContentSafety(descriptionRaw);
       if (!descResult.valid) {
@@ -387,23 +391,14 @@ export async function POST(request: NextRequest) {
     const sku = typeof body.sku === 'string' && body.sku.trim() ? body.sku.trim() : undefined;
     const barcode = typeof body.barcode === 'string' && body.barcode.trim() ? body.barcode.trim() : undefined;
 
-    const extractedCondition = conditionValue && conditionValue !== UNSET_VALUE ? conditionValue : null;
-
-    const cleanedCategoryAttributes = body.categoryAttributes
-      ? (() => {
-          const attrs = { ...body.categoryAttributes };
-          delete attrs.condition;
-          return attrs;
-        })()
-      : undefined;
-
+    // CONDITION REFACTOR: condition now lives in categoryAttributes only
+    // DAL will handle merging condition into categoryAttributes
     const productInput: CreateProductInput = {
       vendorId: targetVendorId,
       vendorName: targetVendor!.business_name || targetVendor!.name,
       name: name,
       description: description,
       category: category,
-      condition: extractedCondition,
       price: price,
       comparePrice: comparePrice,
       quantity: quantity,
@@ -411,7 +406,7 @@ export async function POST(request: NextRequest) {
       images: body.images,
       tags: body.tags,
       status: body.status || 'active',
-      categoryAttributes: cleanedCategoryAttributes,
+      categoryAttributes: body.categoryAttributes,
       sku: sku,
       barcode: barcode,
     };

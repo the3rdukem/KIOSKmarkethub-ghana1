@@ -32,6 +32,12 @@ const optionalTextField = () =>
       message: "Contains prohibited or unsafe content",
     });
 
+const machineIdentifierField = () =>
+  z
+    .string()
+    .optional()
+    .transform((val) => (val?.trim() === "" ? undefined : val));
+
 const requiredPriceField = () =>
   z
     .string()
@@ -62,14 +68,16 @@ export const productFormSchema = z.object({
   name: requiredTextField("Product name", 2),
   description: requiredTextField("Description", 10),
   category: requiredSelectField("Category"),
-  condition: requiredSelectField("Condition"),
+  // CONDITION REFACTOR: Condition now lives in categoryAttributes when category schema defines it
+  // Kept for backward compatibility but no longer required at top-level
+  condition: z.string().optional(),
   price: requiredPriceField(),
   comparePrice: optionalPriceField(),
   costPerItem: optionalPriceField(),
   quantity: requiredQuantityField(),
   trackQuantity: z.boolean().default(true),
-  sku: optionalTextField(),
-  barcode: optionalTextField(),
+  sku: machineIdentifierField(),
+  barcode: machineIdentifierField(),
   weight: z.string().optional(),
   dimensions: z
     .object({

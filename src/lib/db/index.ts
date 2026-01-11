@@ -659,6 +659,47 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     console.log('[DB] Phase 1.1D: Quantity repair skipped or already done');
   }
+
+  // CONDITION REFACTOR: Migrate condition from top-level column to categoryAttributes
+  // Condition should only exist in categoryAttributes when a category defines it
+  try {
+    // Find products with top-level condition but not in categoryAttributes
+    const productsWithCondition = await client.query(`
+      SELECT id, condition, category_attributes 
+      FROM products 
+      WHERE condition IS NOT NULL 
+        AND condition != '' 
+        AND (
+          category_attributes IS NULL 
+          OR category_attributes = '{}' 
+          OR category_attributes NOT LIKE '%"condition"%'
+        )
+    `);
+    
+    for (const row of productsWithCondition.rows) {
+      let attrs: Record<string, unknown> = {};
+      try {
+        attrs = row.category_attributes ? JSON.parse(row.category_attributes) : {};
+      } catch {
+        attrs = {};
+      }
+      
+      // Only migrate if condition not already in categoryAttributes
+      if (!attrs.condition) {
+        attrs.condition = row.condition;
+        await client.query(
+          `UPDATE products SET category_attributes = $1 WHERE id = $2`,
+          [JSON.stringify(attrs), row.id]
+        );
+      }
+    }
+    
+    if (productsWithCondition.rows.length > 0) {
+      console.log(`[DB] CONDITION REFACTOR: Migrated ${productsWithCondition.rows.length} products' condition to categoryAttributes`);
+    }
+  } catch (e) {
+    console.log('[DB] Condition migration skipped or already done');
+  }
 }
 
 /**

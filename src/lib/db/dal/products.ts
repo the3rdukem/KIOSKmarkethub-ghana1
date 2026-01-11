@@ -95,21 +95,23 @@ export async function createProduct(input: CreateProductInput): Promise<DbProduc
   const id = `prod_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();
 
-  const cleanedCategoryAttributes = input.categoryAttributes
-    ? (() => {
-        const attrs = { ...input.categoryAttributes };
-        delete attrs.condition;
-        return Object.keys(attrs).length > 0 ? JSON.stringify(attrs) : null;
-      })()
+  // CONDITION REFACTOR: Condition now lives in categoryAttributes only
+  // Merge top-level condition into categoryAttributes if provided
+  const categoryAttributes = input.categoryAttributes ? { ...input.categoryAttributes } : {};
+  if (input.condition) {
+    categoryAttributes.condition = input.condition;
+  }
+  const categoryAttributesJson = Object.keys(categoryAttributes).length > 0 
+    ? JSON.stringify(categoryAttributes) 
     : null;
 
   await query(
     `INSERT INTO products (
-      id, vendor_id, vendor_name, name, description, category, condition, price,
+      id, vendor_id, vendor_name, name, description, category, price,
       compare_price, cost_per_item, sku, barcode, quantity, track_quantity,
       images, weight, dimensions, tags, status, category_attributes,
       created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`,
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)`,
     [
       id,
       input.vendorId,
@@ -117,7 +119,6 @@ export async function createProduct(input: CreateProductInput): Promise<DbProduc
       input.name,
       input.description || null,
       input.category || null,
-      input.condition || null,
       input.price,
       input.comparePrice || null,
       input.costPerItem || null,
@@ -130,7 +131,7 @@ export async function createProduct(input: CreateProductInput): Promise<DbProduc
       input.dimensions ? JSON.stringify(input.dimensions) : null,
       input.tags ? JSON.stringify(input.tags) : null,
       input.status || 'active',
-      cleanedCategoryAttributes,
+      categoryAttributesJson,
       now,
       now
     ]
@@ -261,10 +262,8 @@ export async function updateProduct(id: string, updates: UpdateProductInput): Pr
     fields.push(`category = $${paramIndex++}`);
     values.push(updates.category);
   }
-  if (updates.condition !== undefined) {
-    fields.push(`condition = $${paramIndex++}`);
-    values.push(updates.condition);
-  }
+  // CONDITION REFACTOR: condition now lives in categoryAttributes only
+  // If condition is passed at top-level, merge into categoryAttributes below
   if (updates.price !== undefined) {
     fields.push(`price = $${paramIndex++}`);
     values.push(updates.price);
@@ -313,11 +312,14 @@ export async function updateProduct(id: string, updates: UpdateProductInput): Pr
     fields.push(`status = $${paramIndex++}`);
     values.push(updates.status);
   }
-  if (updates.categoryAttributes !== undefined) {
-    const cleanedAttrs = { ...updates.categoryAttributes };
-    delete cleanedAttrs.condition;
+  if (updates.categoryAttributes !== undefined || updates.condition !== undefined) {
+    // CONDITION REFACTOR: Merge condition into categoryAttributes
+    const categoryAttrs = updates.categoryAttributes ? { ...updates.categoryAttributes } : {};
+    if (updates.condition !== undefined) {
+      categoryAttrs.condition = updates.condition;
+    }
     fields.push(`category_attributes = $${paramIndex++}`);
-    values.push(Object.keys(cleanedAttrs).length > 0 ? JSON.stringify(cleanedAttrs) : null);
+    values.push(Object.keys(categoryAttrs).length > 0 ? JSON.stringify(categoryAttrs) : null);
   }
   if (updates.isFeatured !== undefined) {
     fields.push(`is_featured = $${paramIndex++}`);
