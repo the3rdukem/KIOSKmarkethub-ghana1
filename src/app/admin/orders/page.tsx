@@ -18,6 +18,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -39,14 +40,14 @@ import {
   Package,
   Eye,
   MoreHorizontal,
-  Truck,
+  Clock,
   CheckCircle,
   XCircle,
-  Clock,
+  Truck,
   Loader2,
   RefreshCw,
+  AlertTriangle,
   Mail,
-  Phone,
   ShoppingBag
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
@@ -61,7 +62,6 @@ interface OrderItem {
   vendorName: string;
   quantity: number;
   price: number;
-  image?: string;
   fulfillmentStatus: string;
 }
 
@@ -86,6 +86,7 @@ interface Order {
     city: string;
     region: string;
   };
+  couponCode?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -93,16 +94,15 @@ interface Order {
 const statusConfig: Record<string, { color: string; icon: typeof Clock; label: string }> = {
   pending_payment: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending Payment" },
   pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending" },
+  confirmed: { color: "bg-blue-100 text-blue-800", icon: CheckCircle, label: "Confirmed" },
+  processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Processing" },
+  shipped: { color: "bg-purple-100 text-purple-800", icon: Truck, label: "Shipped" },
   fulfilled: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Fulfilled" },
+  delivered: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Delivered" },
   cancelled: { color: "bg-red-100 text-red-800", icon: XCircle, label: "Cancelled" },
 };
 
-const itemStatusConfig: Record<string, { color: string; label: string }> = {
-  pending: { color: "bg-yellow-100 text-yellow-800", label: "Pending" },
-  fulfilled: { color: "bg-green-100 text-green-800", label: "Fulfilled" },
-};
-
-export default function VendorOrdersPage() {
+export default function AdminOrdersPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
 
@@ -114,7 +114,9 @@ export default function VendorOrdersPage() {
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
-  const [isFulfilling, setIsFulfilling] = useState(false);
+  const [isCancelOpen, setIsCancelOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [isCancelling, setIsCancelling] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -122,15 +124,15 @@ export default function VendorOrdersPage() {
 
   useEffect(() => {
     if (isHydrated && !isAuthenticated) {
-      router.push("/vendor/login");
+      router.push("/admin/login");
     }
-    if (isHydrated && user && user.role !== "vendor") {
+    if (isHydrated && user && user.role !== "admin" && user.role !== "master_admin") {
       router.push("/");
     }
   }, [isHydrated, isAuthenticated, user, router]);
 
   useEffect(() => {
-    if (isHydrated && isAuthenticated && user?.role === "vendor") {
+    if (isHydrated && isAuthenticated && (user?.role === "admin" || user?.role === "master_admin")) {
       fetchOrders();
     }
   }, [isHydrated, isAuthenticated, user]);
@@ -138,7 +140,7 @@ export default function VendorOrdersPage() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/orders?role=vendor', {
+      const response = await fetch('/api/orders?role=admin', {
         credentials: 'include',
       });
       if (response.ok) {
@@ -152,38 +154,33 @@ export default function VendorOrdersPage() {
     }
   };
 
-  const handleFulfillItem = async (orderId: string, itemId: string) => {
-    setIsFulfilling(true);
+  const handleCancelOrder = async () => {
+    if (!selectedOrder) return;
+    
+    setIsCancelling(true);
     try {
-      const response = await fetch(`/api/orders/${orderId}`, {
-        method: 'PATCH',
+      const response = await fetch(`/api/orders/${selectedOrder.id}`, {
+        method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          action: 'fulfill',
-          itemId,
-        }),
+        body: JSON.stringify({ reason: cancelReason }),
       });
 
       if (response.ok) {
-        toast.success('Item marked as fulfilled');
+        toast.success('Order cancelled successfully. Inventory has been restored.');
+        setIsCancelOpen(false);
+        setSelectedOrder(null);
+        setCancelReason("");
         fetchOrders();
-        if (selectedOrder && selectedOrder.id === orderId) {
-          const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
-          if (updatedResponse.ok) {
-            const data = await updatedResponse.json();
-            setSelectedOrder(data.order);
-          }
-        }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to fulfill item');
+        toast.error(data.error || 'Failed to cancel order');
       }
     } catch (error) {
-      console.error('Failed to fulfill item:', error);
-      toast.error('Failed to fulfill item');
+      console.error('Failed to cancel order:', error);
+      toast.error('Failed to cancel order');
     } finally {
-      setIsFulfilling(false);
+      setIsCancelling(false);
     }
   };
 
@@ -197,7 +194,7 @@ export default function VendorOrdersPage() {
     );
   }
 
-  if (!isAuthenticated || !user || user.role !== "vendor") {
+  if (!isAuthenticated || !user || (user.role !== "admin" && user.role !== "master_admin")) {
     return null;
   }
 
@@ -221,23 +218,8 @@ export default function VendorOrdersPage() {
     );
   };
 
-  const getItemStatusBadge = (status: string) => {
-    const config = itemStatusConfig[status] || itemStatusConfig.pending;
-    return <Badge className={config.color}>{config.label}</Badge>;
-  };
-
-  const getVendorItemsTotal = (order: Order) => {
-    return order.items
-      .filter(item => item.vendorId === user.id)
-      .reduce((sum, item) => sum + item.price * item.quantity, 0);
-  };
-
-  const getVendorItems = (order: Order) => {
-    return order.items.filter(item => item.vendorId === user.id);
-  };
-
-  const hasPendingItems = (order: Order) => {
-    return getVendorItems(order).some(item => item.fulfillmentStatus === 'pending');
+  const canCancel = (order: Order) => {
+    return order.status !== 'cancelled' && order.status !== 'fulfilled' && order.status !== 'delivered';
   };
 
   return (
@@ -246,14 +228,14 @@ export default function VendorOrdersPage() {
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <Button variant="ghost" asChild>
-              <Link href="/vendor">
+              <Link href="/admin">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Dashboard
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Orders</h1>
-              <p className="text-muted-foreground">Manage your customer orders</p>
+              <h1 className="text-3xl font-bold">Order Management</h1>
+              <p className="text-muted-foreground">View and manage all orders</p>
             </div>
           </div>
           <Button variant="outline" onClick={fetchOrders} disabled={loading}>
@@ -283,6 +265,8 @@ export default function VendorOrdersPage() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="pending_payment">Pending Payment</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="processing">Processing</SelectItem>
                   <SelectItem value="fulfilled">Fulfilled</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
@@ -293,8 +277,8 @@ export default function VendorOrdersPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Orders ({filteredOrders.length})</CardTitle>
-            <CardDescription>View and fulfill your orders</CardDescription>
+            <CardTitle>All Orders ({filteredOrders.length})</CardTitle>
+            <CardDescription>Manage platform orders</CardDescription>
           </CardHeader>
           <CardContent>
             {loading ? (
@@ -308,7 +292,7 @@ export default function VendorOrdersPage() {
                 <h3 className="text-lg font-semibold mb-2">No Orders Found</h3>
                 <p className="text-muted-foreground">
                   {orders.length === 0
-                    ? "You haven't received any orders yet."
+                    ? "No orders have been placed yet."
                     : "No orders match your current filters."}
                 </p>
               </div>
@@ -319,19 +303,16 @@ export default function VendorOrdersPage() {
                     <TableRow>
                       <TableHead>Order ID</TableHead>
                       <TableHead>Customer</TableHead>
-                      <TableHead>Your Items</TableHead>
-                      <TableHead>Your Total</TableHead>
-                      <TableHead>Order Status</TableHead>
+                      <TableHead>Items</TableHead>
+                      <TableHead>Total</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredOrders.map((order) => {
-                      const vendorItems = getVendorItems(order);
-                      const vendorTotal = getVendorItemsTotal(order);
                       const orderNumber = order.id.slice(-8).toUpperCase();
-
                       return (
                         <TableRow key={order.id}>
                           <TableCell>
@@ -344,17 +325,10 @@ export default function VendorOrdersPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <div>
-                              <span>{vendorItems.length} item(s)</span>
-                              {hasPendingItems(order) && (
-                                <Badge variant="outline" className="ml-2 text-xs bg-amber-50 text-amber-700">
-                                  Needs Fulfillment
-                                </Badge>
-                              )}
-                            </div>
+                            <span>{order.items.length} item(s)</span>
                           </TableCell>
                           <TableCell>
-                            <span className="font-medium">GHS {vendorTotal.toFixed(2)}</span>
+                            <span className="font-medium">GHS {order.total.toFixed(2)}</span>
                           </TableCell>
                           <TableCell>{getStatusBadge(order.status)}</TableCell>
                           <TableCell>
@@ -378,10 +352,18 @@ export default function VendorOrdersPage() {
                                   View Details
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem>
-                                  <Mail className="w-4 h-4 mr-2" />
-                                  Contact Customer
-                                </DropdownMenuItem>
+                                {canCancel(order) && (
+                                  <DropdownMenuItem 
+                                    className="text-red-600"
+                                    onClick={() => {
+                                      setSelectedOrder(order);
+                                      setIsCancelOpen(true);
+                                    }}
+                                  >
+                                    <XCircle className="w-4 h-4 mr-2" />
+                                    Cancel Order
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </TableCell>
@@ -402,7 +384,7 @@ export default function VendorOrdersPage() {
                 Order #{selectedOrder?.id.slice(-8).toUpperCase()}
               </DialogTitle>
               <DialogDescription>
-                Order details and fulfillment
+                Order details and fulfillment status
               </DialogDescription>
             </DialogHeader>
             {selectedOrder && (
@@ -422,10 +404,6 @@ export default function VendorOrdersPage() {
                     <CardContent className="text-sm space-y-1">
                       <p className="font-medium">{selectedOrder.buyerName}</p>
                       <p className="text-muted-foreground">{selectedOrder.buyerEmail}</p>
-                      <p className="flex items-center gap-1">
-                        <Phone className="w-3 h-3" />
-                        {selectedOrder.shippingAddress.phone}
-                      </p>
                     </CardContent>
                   </Card>
 
@@ -443,73 +421,109 @@ export default function VendorOrdersPage() {
 
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm">Your Items to Fulfill</CardTitle>
+                    <CardTitle className="text-sm">Order Items</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {getVendorItems(selectedOrder).map((item, index) => (
-                        <div key={index} className="flex items-center justify-between py-3 border-b last:border-0">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 bg-gray-100 rounded flex items-center justify-center">
-                              {item.image ? (
-                                <img src={item.image} alt={item.productName} className="w-full h-full object-cover rounded" />
-                              ) : (
-                                <Package className="w-6 h-6 text-gray-400" />
-                              )}
-                            </div>
-                            <div>
-                              <p className="font-medium">{item.productName}</p>
-                              <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
-                            </div>
+                      {selectedOrder.items.map((item, index) => (
+                        <div key={index} className="flex items-center justify-between py-2 border-b last:border-0">
+                          <div>
+                            <p className="font-medium">{item.productName}</p>
+                            <p className="text-sm text-muted-foreground">by {item.vendorName}</p>
+                            <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
                           </div>
-                          <div className="flex items-center gap-3">
-                            <div className="text-right">
-                              <p className="font-medium">GHS {(item.price * item.quantity).toFixed(2)}</p>
-                              {getItemStatusBadge(item.fulfillmentStatus || 'pending')}
-                            </div>
-                            {(item.fulfillmentStatus === 'pending' || !item.fulfillmentStatus) && 
-                             selectedOrder.status !== 'cancelled' && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleFulfillItem(selectedOrder.id, item.id)}
-                                disabled={isFulfilling}
-                              >
-                                {isFulfilling ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                    Fulfill
-                                  </>
-                                )}
-                              </Button>
-                            )}
+                          <div className="text-right">
+                            <p className="font-medium">GHS {(item.price * item.quantity).toFixed(2)}</p>
+                            <Badge variant="outline" className="text-xs">
+                              {item.fulfillmentStatus || 'pending'}
+                            </Badge>
                           </div>
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 pt-4 border-t">
-                      <div className="flex justify-between font-bold">
-                        <span>Your Total</span>
-                        <span>GHS {getVendorItemsTotal(selectedOrder).toFixed(2)}</span>
+                    <div className="mt-4 pt-4 border-t space-y-1">
+                      <div className="flex justify-between text-sm">
+                        <span>Subtotal</span>
+                        <span>GHS {selectedOrder.subtotal.toFixed(2)}</span>
+                      </div>
+                      {selectedOrder.discountTotal > 0 && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Discount</span>
+                          <span>-GHS {selectedOrder.discountTotal.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm">
+                        <span>Shipping</span>
+                        <span>{selectedOrder.shippingFee === 0 ? 'FREE' : `GHS ${selectedOrder.shippingFee.toFixed(2)}`}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span>Tax</span>
+                        <span>GHS {selectedOrder.tax.toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between font-bold pt-2 border-t">
+                        <span>Total</span>
+                        <span>GHS {selectedOrder.total.toFixed(2)}</span>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-
-                {selectedOrder.status === 'cancelled' && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="flex items-center gap-2 text-red-800">
-                      <XCircle className="w-5 h-5" />
-                      <span className="font-medium">This order has been cancelled</span>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
-                Close
+              {selectedOrder && canCancel(selectedOrder) && (
+                <Button variant="destructive" onClick={() => {
+                  setIsDetailsOpen(false);
+                  setIsCancelOpen(true);
+                }}>
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Cancel Order
+                </Button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={isCancelOpen} onOpenChange={setIsCancelOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-red-600">
+                <AlertTriangle className="w-5 h-5" />
+                Cancel Order
+              </DialogTitle>
+              <DialogDescription>
+                This will cancel order #{selectedOrder?.id.slice(-8).toUpperCase()} and restore inventory for all items.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="reason">Cancellation Reason (Optional)</Label>
+                <Textarea
+                  id="reason"
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  placeholder="Reason for cancellation..."
+                  rows={3}
+                />
+              </div>
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800">
+                  <strong>Note:</strong> Cancelling this order will restore inventory levels for all items. This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCancelOpen(false)}>
+                Keep Order
+              </Button>
+              <Button variant="destructive" onClick={handleCancelOrder} disabled={isCancelling}>
+                {isCancelling ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Cancelling...
+                  </>
+                ) : (
+                  "Cancel Order"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>

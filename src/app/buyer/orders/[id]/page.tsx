@@ -10,15 +10,6 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   ArrowLeft,
   Package,
   Truck,
@@ -27,54 +18,85 @@ import {
   MapPin,
   CreditCard,
   MessageSquare,
-  Download,
   AlertTriangle,
   Star,
   Store,
   Loader2,
   XCircle,
   Phone,
-  Mail,
   Copy,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
-import { useOrdersStore, Order } from "@/lib/orders-store";
-import { useReviewsStore } from "@/lib/reviews-store";
-import { useProductsStore } from "@/lib/products-store";
 import { format } from "date-fns";
 import { toast } from "sonner";
+
+interface OrderItem {
+  id: string;
+  productId: string;
+  productName: string;
+  vendorId: string;
+  vendorName: string;
+  quantity: number;
+  price: number;
+  image?: string;
+  fulfillmentStatus: string;
+}
+
+interface Order {
+  id: string;
+  buyerId: string;
+  buyerName: string;
+  buyerEmail: string;
+  items: OrderItem[];
+  subtotal: number;
+  discountTotal: number;
+  shippingFee: number;
+  tax: number;
+  total: number;
+  status: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  shippingAddress: {
+    fullName: string;
+    phone: string;
+    address: string;
+    city: string;
+    region: string;
+    digitalAddress?: string;
+  };
+  couponCode?: string;
+  createdAt: string;
+  updatedAt: string;
+}
 
 interface OrderDetailPageProps {
   params: Promise<{ id: string }>;
 }
 
 const orderSteps = [
-  { status: "pending", label: "Order Placed", icon: Package },
-  { status: "confirmed", label: "Confirmed", icon: CheckCircle },
+  { status: "pending_payment", label: "Order Placed", icon: Package },
   { status: "processing", label: "Processing", icon: Clock },
-  { status: "shipped", label: "Shipped", icon: Truck },
-  { status: "delivered", label: "Delivered", icon: CheckCircle },
+  { status: "fulfilled", label: "Fulfilled", icon: CheckCircle },
 ];
 
 const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
+  pending_payment: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Pending Payment" },
   pending: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Pending" },
-  confirmed: { color: "text-blue-700", bg: "bg-blue-100", label: "Confirmed" },
   processing: { color: "text-blue-700", bg: "bg-blue-100", label: "Processing" },
-  shipped: { color: "text-purple-700", bg: "bg-purple-100", label: "Shipped" },
+  fulfilled: { color: "text-green-700", bg: "bg-green-100", label: "Fulfilled" },
   delivered: { color: "text-green-700", bg: "bg-green-100", label: "Delivered" },
   cancelled: { color: "text-red-700", bg: "bg-red-100", label: "Cancelled" },
-  refunded: { color: "text-gray-700", bg: "bg-gray-100", label: "Refunded" },
 };
 
 export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const router = useRouter();
   const { id: orderId } = use(params);
   const { user, isAuthenticated } = useAuthStore();
-  const { getOrderById, updateOrder } = useOrdersStore();
-  const { getBuyerReviewForProduct } = useReviewsStore();
-  const { getProductById } = useProductsStore();
+
+  const [order, setOrder] = useState<Order | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
-  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -82,11 +104,45 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
   useEffect(() => {
     if (isHydrated && !isAuthenticated) {
-      router.push("/auth/login");
+      router.push("/login");
     }
   }, [isHydrated, isAuthenticated, router]);
 
-  if (!isHydrated) {
+  useEffect(() => {
+    if (isHydrated && isAuthenticated && orderId) {
+      fetchOrder();
+    }
+  }, [isHydrated, isAuthenticated, orderId]);
+
+  const fetchOrder = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        if (response.status === 404) {
+          setError('Order not found');
+        } else if (response.status === 403) {
+          setError('You do not have permission to view this order');
+        } else {
+          setError('Failed to load order');
+        }
+        return;
+      }
+      
+      const data = await response.json();
+      setOrder(data.order);
+    } catch (err) {
+      console.error('Error fetching order:', err);
+      setError('Failed to load order');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!isHydrated || loading) {
     return (
       <SiteLayout>
         <div className="container py-8 flex items-center justify-center min-h-[400px]">
@@ -100,23 +156,21 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     return null;
   }
 
-  const order = getOrderById(orderId);
-
-  if (!order) {
+  if (error || !order) {
     return (
       <SiteLayout>
         <div className="container py-8">
           <Card>
             <CardContent className="p-12 text-center">
               <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold mb-2">Order Not Found</h2>
+              <h2 className="text-2xl font-bold mb-2">{error || 'Order Not Found'}</h2>
               <p className="text-muted-foreground mb-6">
                 The order you're looking for doesn't exist or you don't have access to it.
               </p>
               <Button asChild>
-                <Link href="/buyer/dashboard">
+                <Link href="/buyer/orders">
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Dashboard
+                  Back to Orders
                 </Link>
               </Button>
             </CardContent>
@@ -126,7 +180,6 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     );
   }
 
-  // Verify this order belongs to the current user
   if (order.buyerId !== user.id) {
     return (
       <SiteLayout>
@@ -139,9 +192,9 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 You don't have permission to view this order.
               </p>
               <Button asChild>
-                <Link href="/buyer/dashboard">
+                <Link href="/buyer/orders">
                   <ArrowLeft className="w-4 h-4 mr-2" />
-                  Back to Dashboard
+                  Back to Orders
                 </Link>
               </Button>
             </CardContent>
@@ -152,37 +205,32 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   }
 
   const getCurrentStep = () => {
-    if (order.status === "cancelled" || order.status === "refunded") return -1;
-    return orderSteps.findIndex(step => step.status === order.status);
+    if (order.status === "cancelled") return -1;
+    if (order.status === "fulfilled" || order.status === "delivered") return 2;
+    if (order.status === "processing") return 1;
+    return 0;
   };
 
   const currentStep = getCurrentStep();
   const progress = currentStep >= 0 ? ((currentStep + 1) / orderSteps.length) * 100 : 0;
-
-  const canCancel = ["pending", "confirmed"].includes(order.status);
-  const canRequestRefund = order.status === "delivered" && order.paymentStatus === "paid";
-
-  const handleCancelOrder = () => {
-    updateOrder(order.id, { status: "cancelled" });
-    toast.success("Order cancelled successfully");
-    setShowCancelDialog(false);
-  };
 
   const handleCopyOrderId = () => {
     navigator.clipboard.writeText(order.id);
     toast.success("Order ID copied to clipboard");
   };
 
-  const config = statusConfig[order.status] || statusConfig.pending;
+  const config = statusConfig[order.status] || statusConfig.pending_payment;
+
+  const fulfilledCount = order.items.filter(i => i.fulfillmentStatus === 'fulfilled').length;
+  const totalItems = order.items.length;
 
   return (
     <SiteLayout>
       <div className="container py-8 max-w-4xl">
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <Button variant="ghost" asChild>
-              <Link href="/buyer/dashboard">
+              <Link href="/buyer/orders">
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Back
               </Link>
@@ -193,49 +241,24 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 <Badge className={`${config.bg} ${config.color}`}>{config.label}</Badge>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <span className="font-mono">{order.id}</span>
+                <span className="font-mono">{order.id.slice(-8).toUpperCase()}</span>
                 <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopyOrderId}>
                   <Copy className="w-3 h-3" />
                 </Button>
               </div>
             </div>
           </div>
-          <div className="flex gap-2">
-            {canCancel && (
-              <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
-                <DialogTrigger asChild>
-                  <Button variant="destructive" size="sm">
-                    <XCircle className="w-4 h-4 mr-2" />
-                    Cancel Order
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Cancel Order</DialogTitle>
-                    <DialogDescription>
-                      Are you sure you want to cancel this order? This action cannot be undone.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="outline" onClick={() => setShowCancelDialog(false)}>
-                      Keep Order
-                    </Button>
-                    <Button variant="destructive" onClick={handleCancelOrder}>
-                      Yes, Cancel Order
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-          </div>
         </div>
 
-        {/* Order Progress */}
-        {order.status !== "cancelled" && order.status !== "refunded" && (
+        {order.status !== "cancelled" && (
           <Card className="mb-6">
             <CardContent className="p-6">
               <div className="mb-4">
-                <Progress value={progress} className="h-2" />
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Fulfillment Progress</span>
+                  <span>{fulfilledCount} of {totalItems} items fulfilled</span>
+                </div>
+                <Progress value={(fulfilledCount / totalItems) * 100} className="h-2" />
               </div>
               <div className="flex justify-between">
                 {orderSteps.map((step, index) => {
@@ -262,8 +285,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           </Card>
         )}
 
-        {/* Cancelled/Refunded Status */}
-        {(order.status === "cancelled" || order.status === "refunded") && (
+        {order.status === "cancelled" && (
           <Card className="mb-6 border-red-200 bg-red-50">
             <CardContent className="p-6">
               <div className="flex items-center gap-4">
@@ -271,13 +293,9 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   <XCircle className="w-6 h-6 text-red-600" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-red-800">
-                    Order {order.status === "cancelled" ? "Cancelled" : "Refunded"}
-                  </h3>
+                  <h3 className="font-semibold text-red-800">Order Cancelled</h3>
                   <p className="text-sm text-red-600">
-                    {order.status === "cancelled"
-                      ? "This order has been cancelled."
-                      : "This order has been refunded."}
+                    This order has been cancelled by the administrator.
                   </p>
                 </div>
               </div>
@@ -286,7 +304,6 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Order Items */}
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardHeader>
@@ -297,59 +314,41 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 <CardDescription>{order.items.length} item(s)</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {order.items.map((item, index) => {
-                  const product = getProductById(item.productId);
-                  const hasReviewed = getBuyerReviewForProduct(user.id, item.productId);
-                  const canReview = order.status === "delivered" && !hasReviewed;
-
-                  return (
-                    <div key={index}>
-                      <div className="flex gap-4">
-                        <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                          {item.image ? (
-                            <img src={item.image} alt={item.productName} className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center">
-                              <Package className="w-8 h-8 text-gray-400" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex-1">
-                          <Link href={`/product/${item.productId}`} className="font-medium hover:underline">
-                            {item.productName}
-                          </Link>
-                          <Link href={`/vendor/${item.vendorId}`} className="flex items-center gap-1 text-sm text-muted-foreground hover:underline">
-                            <Store className="w-3 h-3" />
-                            {item.vendorName}
-                          </Link>
-                          <div className="flex items-center gap-4 mt-2">
-                            <span className="text-sm">Qty: {item.quantity}</span>
-                            <span className="font-medium">GHS {(item.price * item.quantity).toLocaleString()}</span>
+                {order.items.map((item, index) => (
+                  <div key={index}>
+                    <div className="flex gap-4">
+                      <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
+                        {item.image ? (
+                          <img src={item.image} alt={item.productName} className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="w-8 h-8 text-gray-400" />
                           </div>
-                          {canReview && (
-                            <Button variant="outline" size="sm" className="mt-2" asChild>
-                              <Link href={`/product/${item.productId}?review=true`}>
-                                <Star className="w-4 h-4 mr-2" />
-                                Write Review
-                              </Link>
-                            </Button>
-                          )}
-                          {hasReviewed && (
-                            <Badge variant="outline" className="mt-2">
-                              <Star className="w-3 h-3 mr-1 fill-yellow-400 text-yellow-400" />
-                              Reviewed
-                            </Badge>
-                          )}
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <Link href={`/product/${item.productId}`} className="font-medium hover:underline">
+                          {item.productName}
+                        </Link>
+                        <Link href={`/vendor/${item.vendorId}`} className="flex items-center gap-1 text-sm text-muted-foreground hover:underline">
+                          <Store className="w-3 h-3" />
+                          {item.vendorName}
+                        </Link>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="text-sm">Qty: {item.quantity}</span>
+                          <span className="font-medium">GHS {(item.price * item.quantity).toFixed(2)}</span>
+                          <Badge variant="outline" className={item.fulfillmentStatus === 'fulfilled' ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}>
+                            {item.fulfillmentStatus === 'fulfilled' ? 'Fulfilled' : 'Pending'}
+                          </Badge>
                         </div>
                       </div>
-                      {index < order.items.length - 1 && <Separator className="my-4" />}
                     </div>
-                  );
-                })}
+                    {index < order.items.length - 1 && <Separator className="my-4" />}
+                  </div>
+                ))}
               </CardContent>
             </Card>
 
-            {/* Shipping Address */}
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -376,34 +375,8 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 </div>
               </CardContent>
             </Card>
-
-            {/* Tracking Info */}
-            {order.trackingNumber && (
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Truck className="w-5 h-5" />
-                    Tracking Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-muted-foreground">Tracking Number</p>
-                      <p className="font-mono font-medium">{order.trackingNumber}</p>
-                    </div>
-                    <Button variant="outline" asChild>
-                      <Link href={`/tracking?orderNumber=${order.id}`}>
-                        Track Package
-                      </Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
           </div>
 
-          {/* Order Summary Sidebar */}
           <div className="space-y-6">
             <Card>
               <CardHeader>
@@ -412,11 +385,17 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
               <CardContent className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>GHS {order.subtotal.toLocaleString()}</span>
+                  <span>GHS {order.subtotal.toFixed(2)}</span>
                 </div>
+                {order.discountTotal > 0 && (
+                  <div className="flex justify-between text-sm text-green-600">
+                    <span>Discount</span>
+                    <span>-GHS {order.discountTotal.toFixed(2)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Shipping</span>
-                  <span>{order.shippingFee === 0 ? "FREE" : `GHS ${order.shippingFee.toLocaleString()}`}</span>
+                  <span>{order.shippingFee === 0 ? "FREE" : `GHS ${order.shippingFee.toFixed(2)}`}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tax</span>
@@ -425,7 +404,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Total</span>
-                  <span>GHS {order.total.toLocaleString()}</span>
+                  <span>GHS {order.total.toFixed(2)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -440,14 +419,20 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
               <CardContent className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Method</span>
-                  <span className="capitalize">{order.paymentMethod.replace("_", " ")}</span>
+                  <span className="capitalize">{order.paymentMethod?.replace("_", " ") || 'Pending'}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Status</span>
                   <Badge variant={order.paymentStatus === "paid" ? "default" : "secondary"} className={order.paymentStatus === "paid" ? "bg-green-600" : ""}>
-                    {order.paymentStatus}
+                    {order.paymentStatus || 'pending'}
                   </Badge>
                 </div>
+                {order.couponCode && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Coupon</span>
+                    <span className="font-mono">{order.couponCode}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -470,7 +455,6 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
               </CardContent>
             </Card>
 
-            {/* Help */}
             <Card>
               <CardContent className="p-4">
                 <div className="text-center space-y-3">

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { SiteLayout } from "@/components/layout/site-layout";
@@ -21,76 +21,171 @@ import {
   Bell,
   Share2,
   Mail,
-  Smartphone
+  Smartphone,
+  Loader2,
+  Clock,
+  AlertCircle
 } from "lucide-react";
+
+interface OrderItem {
+  productId: string;
+  productName: string;
+  vendorId: string;
+  vendorName: string;
+  quantity: number;
+  price: number;
+  image?: string;
+}
+
+interface ShippingAddress {
+  fullName: string;
+  phone: string;
+  address: string;
+  city: string;
+  region: string;
+}
+
+interface OrderData {
+  id: string;
+  buyerId: string;
+  buyerName: string;
+  buyerEmail: string;
+  items: OrderItem[];
+  subtotal: number;
+  discountTotal: number;
+  shippingFee: number;
+  tax: number;
+  total: number;
+  status: string;
+  paymentStatus: string;
+  paymentMethod: string;
+  shippingAddress: ShippingAddress;
+  couponCode?: string;
+  createdAt: string;
+}
 
 function OrderSuccessContent() {
   const searchParams = useSearchParams();
+  const orderId = searchParams.get('orderId');
   const transactionId = searchParams.get('transaction');
 
-  const orderDetails = {
-    orderId: `ORD-${Date.now()}`,
-    transactionId: transactionId || `TXN-${Date.now()}`,
-    amount: 4550.00,
-    items: [
-      {
-        name: "iPhone 15 Pro Max 256GB",
-        vendor: "TechStore Pro",
-        quantity: 1,
-        price: 4200
-      },
-      {
-        name: "Premium Phone Case",
-        vendor: "TechStore Pro",
-        quantity: 1,
-        price: 89.99
+  const [order, setOrder] = useState<OrderData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (orderId) {
+      fetchOrder(orderId);
+    } else {
+      setLoading(false);
+      setError("Order ID not found");
+    }
+  }, [orderId]);
+
+  const fetchOrder = async (id: string) => {
+    try {
+      const response = await fetch(`/api/orders/${id}`, {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch order');
       }
-    ],
-    estimatedDelivery: "January 30, 2025",
-    shippingAddress: {
-      name: "John Kwame Asante",
-      address: "123 Liberation Road, Accra, Greater Accra",
-      phone: "+233 24 123 4567"
-    },
-    paymentMethod: "MTN Mobile Money",
-    trackingNumber: `TRK-${Date.now()}`
+      
+      const data = await response.json();
+      setOrder(data.order);
+    } catch (err) {
+      console.error('Error fetching order:', err);
+      setError('Unable to load order details');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <SiteLayout>
+        <div className="container py-8">
+          <div className="max-w-3xl mx-auto text-center">
+            <Loader2 className="w-16 h-16 mx-auto mb-6 animate-spin text-primary" />
+            <h1 className="text-2xl font-bold mb-2">Loading Order Details...</h1>
+            <p className="text-muted-foreground">Please wait while we retrieve your order.</p>
+          </div>
+        </div>
+      </SiteLayout>
+    );
+  }
+
+  if (error || !order) {
+    return (
+      <SiteLayout>
+        <div className="container py-8">
+          <div className="max-w-3xl mx-auto text-center">
+            <AlertCircle className="w-16 h-16 mx-auto mb-6 text-amber-500" />
+            <h1 className="text-2xl font-bold mb-2">Order Created</h1>
+            <p className="text-muted-foreground mb-6">
+              Your order has been placed successfully. You can view your orders in your dashboard.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button asChild>
+                <Link href="/buyer/orders">
+                  <Package className="w-4 h-4 mr-2" />
+                  View My Orders
+                </Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link href="/">
+                  <Home className="w-4 h-4 mr-2" />
+                  Back to Home
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </SiteLayout>
+    );
+  }
+
+  const estimatedDelivery = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  });
 
   return (
     <SiteLayout>
       <div className="container py-8">
         <div className="max-w-3xl mx-auto">
-          {/* Success Header */}
           <div className="text-center mb-8">
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
             <h1 className="text-3xl font-bold text-green-600 mb-2">Order Confirmed!</h1>
             <p className="text-muted-foreground">
-              Thank you for your purchase. Your order has been successfully placed and payment confirmed.
+              Thank you for your purchase. Your order has been successfully placed.
             </p>
           </div>
 
-          {/* Order Summary */}
           <Card className="mb-6">
             <CardHeader>
               <CardTitle>Order Summary</CardTitle>
               <CardDescription>
-                Order #{orderDetails.orderId} • Transaction #{orderDetails.transactionId}
+                Order #{order.id}
+                {transactionId && ` • Transaction #${transactionId}`}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {orderDetails.items.map((item, index) => (
+              {order.items.map((item, index) => (
                 <div key={index} className="flex items-center gap-4">
                   <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
                     <Package className="w-6 h-6 text-gray-400" />
                   </div>
                   <div className="flex-1">
-                    <h3 className="font-medium">{item.name}</h3>
-                    <p className="text-sm text-muted-foreground">by {item.vendor}</p>
+                    <h3 className="font-medium">{item.productName}</h3>
+                    <p className="text-sm text-muted-foreground">by {item.vendorName}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">GHS {item.price.toFixed(2)}</p>
+                    <p className="font-medium">GHS {(item.price * item.quantity).toFixed(2)}</p>
                     <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                   </div>
                 </div>
@@ -98,14 +193,41 @@ function OrderSuccessContent() {
 
               <Separator />
 
-              <div className="flex justify-between text-lg font-semibold">
-                <span>Total Paid:</span>
-                <span>GHS {orderDetails.amount.toFixed(2)}</span>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>GHS {order.subtotal.toFixed(2)}</span>
+                </div>
+                {order.discountTotal > 0 && (
+                  <div className="flex justify-between text-green-600">
+                    <span>Discount:</span>
+                    <span>-GHS {order.discountTotal.toFixed(2)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between">
+                  <span>Shipping:</span>
+                  <span>{order.shippingFee === 0 ? "FREE" : `GHS ${order.shippingFee.toFixed(2)}`}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tax:</span>
+                  <span>GHS {order.tax.toFixed(2)}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between text-lg font-semibold">
+                  <span>Total:</span>
+                  <span>GHS {order.total.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <div className="pt-4">
+                <Badge variant={order.status === 'pending_payment' ? 'secondary' : 'default'} className="text-sm">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Status: {order.status === 'pending_payment' ? 'Awaiting Payment' : order.status}
+                </Badge>
               </div>
             </CardContent>
           </Card>
 
-          {/* Order Details */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <Card>
               <CardHeader>
@@ -116,13 +238,16 @@ function OrderSuccessContent() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <p className="font-medium">{orderDetails.shippingAddress.name}</p>
-                  <p className="text-sm text-muted-foreground">{orderDetails.shippingAddress.address}</p>
-                  <p className="text-sm text-muted-foreground">{orderDetails.shippingAddress.phone}</p>
+                  <p className="font-medium">{order.shippingAddress.fullName}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {order.shippingAddress.address}, {order.shippingAddress.city}
+                  </p>
+                  <p className="text-sm text-muted-foreground">{order.shippingAddress.region}</p>
+                  <p className="text-sm text-muted-foreground">{order.shippingAddress.phone}</p>
                   <div className="pt-2">
                     <Badge variant="outline" className="text-green-700 border-green-300">
                       <Truck className="w-3 h-3 mr-1" />
-                      Estimated delivery: {orderDetails.estimatedDelivery}
+                      Estimated: {estimatedDelivery}
                     </Badge>
                   </div>
                 </div>
@@ -138,13 +263,18 @@ function OrderSuccessContent() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  <p className="font-medium">{orderDetails.paymentMethod}</p>
-                  <p className="text-sm text-muted-foreground">Transaction ID: {orderDetails.transactionId}</p>
-                  <p className="text-sm text-muted-foreground">Amount: GHS {orderDetails.amount.toFixed(2)}</p>
+                  <p className="font-medium">{order.paymentMethod || 'Pending'}</p>
+                  {transactionId && (
+                    <p className="text-sm text-muted-foreground">Transaction: {transactionId}</p>
+                  )}
+                  <p className="text-sm text-muted-foreground">Amount: GHS {order.total.toFixed(2)}</p>
+                  {order.couponCode && (
+                    <p className="text-sm text-muted-foreground">Coupon: {order.couponCode}</p>
+                  )}
                   <div className="pt-2">
-                    <Badge variant="default" className="bg-green-600">
-                      <CheckCircle className="w-3 h-3 mr-1" />
-                      Payment Confirmed
+                    <Badge variant={order.paymentStatus === 'pending' ? 'secondary' : 'default'} className="bg-amber-100 text-amber-800">
+                      <Clock className="w-3 h-3 mr-1" />
+                      Payment {order.paymentStatus === 'pending' ? 'Pending' : order.paymentStatus}
                     </Badge>
                   </div>
                 </div>
@@ -152,7 +282,6 @@ function OrderSuccessContent() {
             </Card>
           </div>
 
-          {/* What's Next */}
           <Card className="mb-6">
             <CardHeader>
               <CardTitle>What's Next?</CardTitle>
@@ -167,7 +296,7 @@ function OrderSuccessContent() {
                   <div>
                     <h4 className="font-semibold">Order Processing</h4>
                     <p className="text-sm text-muted-foreground">
-                      Your vendor will prepare your items for shipment. You'll receive updates via SMS and email.
+                      Your vendor(s) will prepare your items for shipment.
                     </p>
                   </div>
                 </div>
@@ -177,9 +306,9 @@ function OrderSuccessContent() {
                     <span className="text-orange-600 text-sm font-bold">2</span>
                   </div>
                   <div>
-                    <h4 className="font-semibold">Shipment & Tracking</h4>
+                    <h4 className="font-semibold">Item Fulfillment</h4>
                     <p className="text-sm text-muted-foreground">
-                      Once shipped, you'll get a tracking number to monitor your package's journey.
+                      Each vendor will mark their items as fulfilled when ready.
                     </p>
                   </div>
                 </div>
@@ -189,9 +318,9 @@ function OrderSuccessContent() {
                     <span className="text-green-600 text-sm font-bold">3</span>
                   </div>
                   <div>
-                    <h4 className="font-semibold">Delivery & Review</h4>
+                    <h4 className="font-semibold">Delivery</h4>
                     <p className="text-sm text-muted-foreground">
-                      Receive your package and share your experience to help other buyers.
+                      Receive your package and enjoy your purchase!
                     </p>
                   </div>
                 </div>
@@ -199,117 +328,56 @@ function OrderSuccessContent() {
             </CardContent>
           </Card>
 
-          {/* Action Buttons */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <Button className="flex items-center justify-center gap-2" asChild>
-              <Link href={`/tracking?order=${orderDetails.orderId}`}>
+              <Link href="/buyer/orders">
                 <Eye className="w-4 h-4" />
-                Track Order
-              </Link>
-            </Button>
-
-            <Button variant="outline" className="flex items-center justify-center gap-2" asChild>
-              <Link href="/buyer/dashboard">
-                <Package className="w-4 h-4" />
                 View Orders
               </Link>
             </Button>
 
-            <Button variant="outline" className="flex items-center justify-center gap-2">
-              <Download className="w-4 h-4" />
-              Download Receipt
+            <Button variant="outline" className="flex items-center justify-center gap-2" asChild>
+              <Link href="/search">
+                <ShoppingCart className="w-4 h-4" />
+                Continue Shopping
+              </Link>
             </Button>
 
-            <Button variant="outline" className="flex items-center justify-center gap-2">
-              <Share2 className="w-4 h-4" />
-              Share Order
+            <Button variant="outline" className="flex items-center justify-center gap-2" asChild>
+              <Link href="/help">
+                <MessageSquare className="w-4 h-4" />
+                Get Help
+              </Link>
+            </Button>
+
+            <Button variant="outline" className="flex items-center justify-center gap-2" asChild>
+              <Link href="/">
+                <Home className="w-4 h-4" />
+                Home
+              </Link>
             </Button>
           </div>
 
-          {/* Notifications Signup */}
-          <Card className="border-blue-200 bg-blue-50 mb-6">
+          <Card className="border-blue-200 bg-blue-50">
             <CardContent className="p-6">
               <div className="flex items-start gap-3">
                 <Bell className="w-5 h-5 text-blue-600 mt-0.5" />
                 <div className="flex-1">
                   <h4 className="font-semibold text-blue-800">Stay Updated</h4>
                   <p className="text-sm text-blue-700 mb-3">
-                    Get real-time notifications about your order status via SMS and email.
+                    Check your orders page regularly for status updates.
                   </p>
                   <div className="flex gap-2">
                     <Badge variant="outline" className="text-blue-700 border-blue-300">
-                      <Smartphone className="w-3 h-3 mr-1" />
-                      SMS Enabled
+                      <Package className="w-3 h-3 mr-1" />
+                      Track Order
                     </Badge>
                     <Badge variant="outline" className="text-blue-700 border-blue-300">
                       <Mail className="w-3 h-3 mr-1" />
-                      Email Enabled
+                      Email Updates
                     </Badge>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Continue Shopping */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" asChild>
-              <Link href="/search">
-                <ShoppingCart className="w-5 h-5 mr-2" />
-                Continue Shopping
-              </Link>
-            </Button>
-
-            <Button variant="outline" size="lg" asChild>
-              <Link href="/">
-                <Home className="w-5 h-5 mr-2" />
-                Back to Home
-              </Link>
-            </Button>
-          </div>
-
-          {/* Help Section */}
-          <Card className="mt-8">
-            <CardHeader>
-              <CardTitle>Need Help?</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Button variant="outline" className="h-auto p-4" asChild>
-                  <Link href="/messages">
-                    <div className="text-center">
-                      <MessageSquare className="w-6 h-6 mx-auto mb-2" />
-                      <div className="font-medium">Contact Vendor</div>
-                      <div className="text-xs text-muted-foreground">
-                        Chat with your vendor
-                      </div>
-                    </div>
-                  </Link>
-                </Button>
-
-                <Button variant="outline" className="h-auto p-4" asChild>
-                  <Link href="/help">
-                    <div className="text-center">
-                      <MessageSquare className="w-6 h-6 mx-auto mb-2" />
-                      <div className="font-medium">Customer Support</div>
-                      <div className="text-xs text-muted-foreground">
-                        Get help from our team
-                      </div>
-                    </div>
-                  </Link>
-                </Button>
-
-                <Button variant="outline" className="h-auto p-4" asChild>
-                  <Link href="/help/faq">
-                    <div className="text-center">
-                      <Star className="w-6 h-6 mx-auto mb-2" />
-                      <div className="font-medium">Help Center</div>
-                      <div className="text-xs text-muted-foreground">
-                        Find answers to common questions
-                      </div>
-                    </div>
-                  </Link>
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -324,10 +392,8 @@ export default function OrderSuccessPage() {
     <Suspense fallback={
       <div className="container py-8">
         <div className="max-w-3xl mx-auto text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle className="w-8 h-8 text-green-600" />
-          </div>
-          <h1 className="text-3xl font-bold mb-4">Loading...</h1>
+          <Loader2 className="w-16 h-16 mx-auto mb-6 animate-spin text-primary" />
+          <h1 className="text-2xl font-bold mb-2">Loading...</h1>
         </div>
       </div>
     }>

@@ -3,12 +3,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SiteLayout } from "@/components/layout/site-layout";
-import { MobileMoneyCheckout } from "@/components/payment/mobile-money-checkout";
 import { useCartStore, validateCartItems, syncCartWithProducts, CartValidationResult } from "@/lib/cart-store";
 import { useProductsStore } from "@/lib/products-store";
 import { useAuthStore } from "@/lib/auth-store";
-import { useOrdersStore } from "@/lib/orders-store";
-import { useOrderOperations } from "@/lib/order-helpers";
 import { toast } from "sonner";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -227,8 +224,6 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, getTotalPrice, clearCart } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
-  const { createOrder } = useOrdersStore();
-  const { processNewOrder } = useOrderOperations();
   const { getAddressesByUser, getDefaultAddress, addAddress } = useAddressesStore();
   const { products } = useProductsStore();
   const { updateItemPrice, updateItemMaxQuantity, removeUnavailableItems } = useCartStore();
@@ -328,20 +323,21 @@ export default function CheckoutPage() {
     };
   };
 
-  // Handle order creation
-  const handlePaymentSuccess = (transactionId: string) => {
+  // State for order creation
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+
+  // Handle order creation (Phase 2: Server-side API)
+  const handlePaymentSuccess = async (transactionId: string) => {
     if (!user) {
       toast.error("Please log in to complete your order");
       return;
     }
 
-    // Final cart validation before order creation
     if (items.length === 0) {
       toast.error("Your cart is empty");
       return;
     }
 
-    // Re-validate cart to ensure stock is still available
     const finalValidation = validateCartItems(items, products);
     if (!finalValidation.isValid) {
       const criticalIssues = finalValidation.issues.filter(
@@ -353,19 +349,16 @@ export default function CheckoutPage() {
         toast.error("Some items in your cart are no longer available. Please review and update your cart.");
         return;
       }
-      // For price changes and stock adjustments, sync and continue
       syncCartWithProducts(items, products, updateItemPrice, updateItemMaxQuantity, removeUnavailableItems);
     }
 
     const shippingAddress = getShippingAddress();
 
-    // Validate address
     if (!shippingAddress.address || !shippingAddress.city || !shippingAddress.region) {
       toast.error("Please provide a complete shipping address");
       return;
     }
 
-    // Save new address if requested
     if (useNewAddress && saveNewAddress && newAddress.street) {
       addAddress({
         userId: user.id,
@@ -379,55 +372,66 @@ export default function CheckoutPage() {
       });
     }
 
-    // Create the order
-    const orderItems = items.map(item => ({
-      productId: item.id,
-      productName: item.name,
-      vendorId: item.vendorId,
-      vendorName: item.vendor,
-      quantity: item.quantity,
-      price: item.price,
-      image: item.image,
-      variations: item.variations
-    }));
+    setIsCreatingOrder(true);
 
-    const order = createOrder({
-      buyerId: user.id,
-      buyerName: user.name,
-      buyerEmail: user.email,
-      items: orderItems,
-      subtotal: subtotal,
-      shippingFee: shipping,
-      tax: tax,
-      total: total,
-      status: "pending",
-      paymentStatus: "paid",
-      paymentMethod: paymentMethod,
-      shippingAddress: shippingAddress,
-    });
+    try {
+      const orderItems = items.map(item => ({
+        productId: item.id,
+        productName: item.name,
+        vendorId: item.vendorId,
+        vendorName: item.vendor,
+        quantity: item.quantity,
+        price: item.price,
+        image: item.image,
+        variations: item.variations
+      }));
 
-    console.log("Order created:", order);
-
-    // Increment coupon usage on server if coupon was applied
-    if (appliedCoupon) {
-      fetch(`/api/coupons/${appliedCoupon.couponId}/use`, {
+      const response = await fetch('/api/orders', {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-      }).catch(err => console.error('Failed to record coupon usage:', err));
+        body: JSON.stringify({
+          items: orderItems,
+          shippingAddress,
+          discountTotal: couponDiscount,
+          shippingFee: shipping,
+          tax,
+          paymentMethod,
+          couponCode: appliedCoupon?.code,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        if (result.validationErrors) {
+          const firstError = result.validationErrors[0];
+          toast.error(firstError.message);
+        } else {
+          toast.error(result.error || 'Failed to create order');
+        }
+        setIsCreatingOrder(false);
+        return;
+      }
+
+      if (appliedCoupon) {
+        fetch(`/api/coupons/${appliedCoupon.couponId}/use`, {
+          method: 'POST',
+          credentials: 'include',
+        }).catch(err => console.error('Failed to record coupon usage:', err));
+      }
+
+      clearCart();
+      setAppliedCoupon(null);
+
+      toast.success("Order placed successfully!");
+
+      router.push(`/order-success?orderId=${result.order.id}&transaction=${transactionId}`);
+    } catch (error) {
+      console.error('Order creation error:', error);
+      toast.error('Failed to create order. Please try again.');
+      setIsCreatingOrder(false);
     }
-
-    // Send notifications to vendors
-    processNewOrder(order);
-
-    // Clear cart and reset coupon
-    clearCart();
-    setAppliedCoupon(null);
-
-    // Show success message
-    toast.success("Order placed successfully!");
-
-    // Redirect to success page
-    router.push(`/order-success?orderId=${order.id}&transaction=${transactionId}`);
   };
 
   const subtotal = hydrated ? getTotalPrice() : 0;
@@ -1033,55 +1037,60 @@ export default function CheckoutPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Payment Method</CardTitle>
-                <CardDescription>Choose how you'd like to pay</CardDescription>
+                <CardTitle>Complete Your Order</CardTitle>
+                <CardDescription>Review your order and proceed to checkout</CardDescription>
               </CardHeader>
-              <CardContent>
-                <Tabs value={paymentMethod} onValueChange={setPaymentMethod}>
-                  <TabsList className="grid w-full grid-cols-2">
-                    <TabsTrigger value="mobile_money" className="flex items-center gap-2">
-                      <Smartphone className="w-4 h-4" />
+              <CardContent className="space-y-4">
+                <Alert className="border-blue-200 bg-blue-50">
+                  <Package className="h-4 w-4 text-blue-600" />
+                  <AlertDescription className="text-blue-800">
+                    Your order will be created with status "Pending Payment". You can pay later through our secure payment system.
+                  </AlertDescription>
+                </Alert>
+
+                <Button
+                  className="w-full h-12 text-lg"
+                  size="lg"
+                  onClick={() => handlePaymentSuccess('pending_' + Date.now())}
+                  disabled={!hydrated || items.length === 0 || !isLoggedIn || isCreatingOrder}
+                >
+                  {isCreatingOrder ? (
+                    <>
+                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                      Creating Order...
+                    </>
+                  ) : (
+                    <>
+                      <ShoppingCart className="w-5 h-5 mr-2" />
+                      Place Order - GHS {total.toFixed(2)}
+                    </>
+                  )}
+                </Button>
+
+                {!isLoggedIn && (
+                  <Alert className="border-amber-200 bg-amber-50">
+                    <AlertTriangle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-amber-800">
+                      Please log in to complete your order.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                <Separator className="my-4" />
+
+                <div className="text-center text-sm text-muted-foreground">
+                  <p>Payment options coming soon:</p>
+                  <div className="flex justify-center gap-4 mt-2">
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <Smartphone className="w-3 h-3" />
                       Mobile Money
-                    </TabsTrigger>
-                    <TabsTrigger value="card" className="flex items-center gap-2">
-                      <CreditCard className="w-4 h-4" />
-                      Credit Card
-                    </TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="mobile_money" className="mt-6">
-                    <MobileMoneyCheckout
-                      amount={total}
-                      currency="GHS"
-                      vendorName={!hydrated ? "MarketHub" : items.length > 1 ? "Multiple Vendors" : items[0]?.vendor || "MarketHub"}
-                      orderId={`ORD-${Date.now()}`}
-                      email={user?.email || "customer@markethub.gh"}
-                      onSuccess={(transactionId) => {
-                        console.log("Payment successful:", transactionId);
-                        handlePaymentSuccess(transactionId);
-                      }}
-                      onError={(error) => {
-                        console.error("Payment failed:", error);
-                        toast.error(error);
-                      }}
-                    />
-                  </TabsContent>
-
-                  <TabsContent value="card" className="mt-6">
-                    <PaystackCardPayment
-                      amount={total}
-                      email={user?.email || "customer@markethub.gh"}
-                      onSuccess={(reference) => {
-                        console.log("Paystack payment successful:", reference);
-                        handlePaymentSuccess(reference);
-                      }}
-                      onCancel={() => {
-                        toast.info("Payment cancelled");
-                      }}
-                      disabled={!hydrated || items.length === 0}
-                    />
-                  </TabsContent>
-                </Tabs>
+                    </Badge>
+                    <Badge variant="outline" className="flex items-center gap-1">
+                      <CreditCard className="w-3 h-3" />
+                      Card Payment
+                    </Badge>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 

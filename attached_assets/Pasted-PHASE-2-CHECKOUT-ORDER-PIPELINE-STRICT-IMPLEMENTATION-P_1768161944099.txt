@@ -1,0 +1,227 @@
+PHASE 2 — CHECKOUT & ORDER PIPELINE (STRICT IMPLEMENTATION PROMPT)
+
+THIS IS PHASE 2 ONLY.
+NO PAYMENTS.
+NO PAYSTACK.
+NO EXTERNAL APIs.
+NO UI POLISH.
+
+⸻
+
+🎯 PHASE 2 OBJECTIVE
+
+Build a complete, stable, and auditable checkout → order pipeline WITHOUT payment processing.
+
+At the end of Phase 2:
+	•	Orders can be created
+	•	Orders are persisted correctly
+	•	Order state transitions are correct
+	•	Vendor/Admin/Buyer order visibility works
+	•	The system is payment-ready but payment-disabled
+
+⸻
+
+🚫 HARD RULES (NON-NEGOTIABLE)
+
+❌ Do NOT integrate Paystack
+❌ Do NOT simulate payments
+❌ Do NOT auto-complete orders
+❌ Do NOT change cart logic
+❌ Do NOT add new roles
+❌ Do NOT redesign UI
+❌ Do NOT refactor unrelated code
+
+If something is missing, report it — do not invent it.
+
+⸻
+
+✅ SCOPE — WHAT MUST BE IMPLEMENTED
+
+⸻
+
+1️⃣ ORDER DATA MODEL (MANDATORY)
+
+Implement or verify a database-backed orders system with:
+
+Orders Table
+
+Required fields:
+	•	id
+	•	buyer_id
+	•	status (pending_payment, cancelled, fulfilled)
+	•	subtotal
+	•	discount_total
+	•	shipping_fee
+	•	total
+	•	created_at
+	•	updated_at
+
+Order Items Table
+	•	order_id
+	•	product_id
+	•	vendor_id
+	•	quantity
+	•	unit_price
+	•	applied_discount
+	•	final_price
+
+✔ Orders must support multi-vendor carts
+✔ Each order item must be vendor-scoped
+
+⸻
+
+2️⃣ CHECKOUT FLOW (NO PAYMENT)
+
+Buyer Flow
+	•	Cart → Checkout page
+	•	Enter:
+	•	Shipping address
+	•	Contact phone
+	•	Apply coupon (already implemented)
+	•	Review order summary
+	•	Click “Place Order”
+
+Result:
+	•	Order created with status: pending_payment
+	•	Cart is cleared ONLY after successful order creation
+	•	Buyer redirected to Order Confirmation page
+
+❌ No money charged
+❌ No fake success states
+
+⸻
+
+3️⃣ ORDER VISIBILITY (CRITICAL)
+
+Buyer
+	•	/buyer/orders
+	•	View:
+	•	All orders
+	•	Order details
+	•	Status
+	•	Cannot modify orders
+
+Vendor
+	•	/vendor/orders
+	•	Sees ONLY items belonging to them
+	•	Can:
+	•	View order items
+	•	Update fulfillment status (fulfilled only)
+	•	Cannot cancel orders
+
+Admin
+	•	/admin/orders
+	•	Full visibility
+	•	Can:
+	•	Cancel orders
+	•	View audit trail
+
+⸻
+
+4️⃣ STATUS RULES (STRICT)
+
+Allowed transitions:
+
+pending_payment → cancelled (admin only)
+pending_payment → fulfilled (vendor only, per item)
+
+❌ No skipping states
+❌ No auto-advancement
+
+⸻
+
+5️⃣ INVENTORY HANDLING
+	•	Inventory is reserved at order creation
+	•	Quantity is decremented when order is created
+	•	If order is cancelled → inventory restored
+	•	Prevent overselling
+
+⸻
+
+6️⃣ AUDIT LOGGING (MANDATORY)
+
+Log the following actions:
+	•	Order created
+	•	Order cancelled
+	•	Order fulfilled (per vendor item)
+
+Each log must include:
+	•	actor_role
+	•	actor_id
+	•	action
+	•	order_id
+	•	timestamp
+
+⸻
+
+7️⃣ ERROR HANDLING
+	•	All checkout failures must return field-specific errors
+	•	No console crashes
+	•	No silent failures
+	•	No toast spam
+
+⸻
+
+8️⃣ EXPLICITLY OUT OF SCOPE
+
+❌ Payments
+❌ Paystack
+❌ Webhooks
+❌ Invoices
+❌ Email notifications
+❌ Refunds
+❌ Shipping APIs
+
+⸻
+
+🧪 TESTING REQUIREMENTS (MANDATORY)
+
+Use ONLY these accounts:
+	•	Admin: the3rdukem@gmail.com / 123asdqweX$
+	•	Vendor: ven@kiosk.com.gh / 123asdqwe
+	•	Buyer: buy@kiosk.com.gh / 123asdqwe
+
+Test:
+	•	Single-vendor order
+	•	Multi-vendor order
+	•	Coupon application
+	•	Inventory decrement
+	•	Order visibility per role
+	•	Order cancellation (admin)
+	•	Fulfillment (vendor)
+
+⸻
+
+📄 REPORTING FORMAT (MANDATORY)
+
+For each section:
+
+[SECTION]: PASS
+
+or
+
+[SECTION]: FAIL
+File:
+Line:
+Cause:
+
+Final line must be ONE of:
+
+PHASE 2 COMPLETE — READY FOR PAYMENTS
+
+or
+
+PHASE 2 BLOCKED — REASON LISTED ABOVE
+
+
+⸻
+
+⚠️ FINAL WARNING
+
+Any work outside this scope invalidates Phase 2.
+
+This phase must end with:
+✔ Stable orders
+✔ Correct inventory
+✔ Clean role boundaries
+✔ Zero payment logic

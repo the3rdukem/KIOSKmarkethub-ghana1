@@ -700,6 +700,58 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     console.log('[DB] Condition migration skipped or already done');
   }
+
+  // PHASE 2: Create order_items table for vendor-scoped order tracking
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS order_items (
+        id TEXT PRIMARY KEY,
+        order_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        product_name TEXT NOT NULL,
+        vendor_id TEXT NOT NULL,
+        vendor_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        unit_price REAL NOT NULL,
+        applied_discount REAL DEFAULT 0,
+        final_price REAL NOT NULL,
+        fulfillment_status TEXT NOT NULL DEFAULT 'pending' CHECK(fulfillment_status IN ('pending', 'fulfilled')),
+        fulfilled_at TEXT,
+        image TEXT,
+        variations TEXT,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        CONSTRAINT fk_order_items_order FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+        CONSTRAINT fk_order_items_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE SET NULL,
+        CONSTRAINT fk_order_items_vendor FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE SET NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items(order_id);
+      CREATE INDEX IF NOT EXISTS idx_order_items_vendor ON order_items(vendor_id);
+      CREATE INDEX IF NOT EXISTS idx_order_items_product ON order_items(product_id);
+      CREATE INDEX IF NOT EXISTS idx_order_items_fulfillment ON order_items(fulfillment_status);
+    `);
+    console.log('[DB] PHASE 2: Created order_items table');
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // PHASE 2: Add discount_total column to orders table
+  try {
+    await client.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_total REAL DEFAULT 0
+    `);
+  } catch (e) {
+    // Column may already exist
+  }
+
+  // PHASE 2: Add coupon_code column to orders table for tracking applied coupons
+  try {
+    await client.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS coupon_code TEXT
+    `);
+  } catch (e) {
+    // Column may already exist
+  }
 }
 
 /**
