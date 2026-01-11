@@ -345,7 +345,8 @@ export default function AdminOrdersPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => {
+                                <DropdownMenuItem onSelect={(e) => {
+                                  e.preventDefault();
                                   setSelectedOrder(order);
                                   setIsDetailsOpen(true);
                                 }}>
@@ -356,7 +357,8 @@ export default function AdminOrdersPage() {
                                 {canCancel(order) && (
                                   <DropdownMenuItem 
                                     className="text-red-600"
-                                    onClick={() => {
+                                    onSelect={(e) => {
+                                      e.preventDefault();
                                       setSelectedOrder(order);
                                       setIsCancelOpen(true);
                                     }}

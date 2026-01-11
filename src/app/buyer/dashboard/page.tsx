@@ -45,7 +45,7 @@ function BuyerDashboardContent() {
   const initialTab = searchParams.get("tab") || "overview";
 
   const { user, isAuthenticated } = useAuthStore();
-  const { getOrdersByBuyer } = useOrdersStore();
+  const { getOrdersByBuyer, setOrders } = useOrdersStore();
   const { items: cartItems, getTotalPrice } = useCartStore();
   const { getWishlistByBuyer, getWishlistProductIds } = useWishlistStore();
   const { getAddressesByUser, getDefaultAddress } = useAddressesStore();
@@ -59,6 +59,17 @@ function BuyerDashboardContent() {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (isHydrated && user?.id) {
+      fetch('/api/orders?role=buyer', { credentials: 'include' })
+        .then(res => res.ok ? res.json() : { orders: [] })
+        .then(data => {
+          setOrders(data.orders ?? []);
+        })
+        .catch(console.error);
+    }
+  }, [isHydrated, user?.id, setOrders]);
 
   // Auth is now handled by the buyer layout
   // No need for explicit redirect logic here
