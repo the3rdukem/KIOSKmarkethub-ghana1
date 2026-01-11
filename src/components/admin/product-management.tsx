@@ -124,7 +124,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
     name: "",
     description: "",
     category: ADMIN_UNSET,
-    condition: ADMIN_UNSET,
+    // CONDITION REFACTOR: condition now lives in categoryAttributes when category schema defines it
     price: "",
     quantity: "0",
     sku: "",
@@ -180,12 +180,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
       toast.error("Please enter a valid price");
       return;
     }
-    // When publishing (status=active), require condition
-    if (newProduct.status === "active" && (!newProduct.condition || newProduct.condition === ADMIN_UNSET)) {
-      toast.error("Please select a condition to publish");
-      setCreateFormErrors({ condition: "Condition is required to publish" });
-      return;
-    }
+    // CONDITION REFACTOR: condition now lives in categoryAttributes when category schema defines it
 
     setCreateLoading(true);
     try {
@@ -203,7 +198,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
           name: newProduct.name,
           description: newProduct.description,
           category: newProduct.category === ADMIN_UNSET ? null : newProduct.category,
-          condition: newProduct.condition === ADMIN_UNSET ? null : newProduct.condition,
+          // CONDITION REFACTOR: condition now lives in categoryAttributes when category schema defines it
           price: newProduct.price,
           quantity: newProduct.quantity,
           sku: newProduct.sku.trim() || undefined,
@@ -244,7 +239,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
         name: "",
         description: "",
         category: ADMIN_UNSET,
-        condition: ADMIN_UNSET,
+        // CONDITION REFACTOR: condition now lives in categoryAttributes when category schema defines it
         price: "",
         quantity: "0",
         sku: "",
@@ -1075,30 +1070,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
               {createFormErrors.category && <p className="text-red-500 text-xs mt-1">{createFormErrors.category}</p>}
             </div>
 
-            {/* Condition */}
-            <div data-field="condition">
-              <Label>Condition *</Label>
-              <Select
-                value={newProduct.condition === ADMIN_UNSET ? undefined : newProduct.condition}
-                onValueChange={(v) => {
-                  setNewProduct(p => ({ ...p, condition: v }));
-                  setCreateFormErrors(e => ({ ...e, condition: '' }));
-                }}
-              >
-                <SelectTrigger className={createFormErrors.condition ? "border-red-500" : ""}>
-                  <SelectValue placeholder="Select condition" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="new">New</SelectItem>
-                  <SelectItem value="like_new">Like New</SelectItem>
-                  <SelectItem value="good">Good</SelectItem>
-                  <SelectItem value="fair">Fair</SelectItem>
-                  <SelectItem value="poor">Poor</SelectItem>
-                </SelectContent>
-              </Select>
-              {createFormErrors.condition && <p className="text-red-500 text-xs mt-1">{createFormErrors.condition}</p>}
-            </div>
-
+            {/* CONDITION REFACTOR: condition now lives in categoryAttributes when category schema defines it */}
             {/* Category-specific fields */}
             {selectedCategorySchema.length > 0 && (
               <div className="space-y-3 p-4 bg-gray-50 rounded-lg">

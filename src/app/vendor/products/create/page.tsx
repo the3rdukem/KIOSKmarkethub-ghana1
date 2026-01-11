@@ -113,9 +113,9 @@ export default function CreateProductPage() {
 
   const selectedCategory = apiCategories.find(c => c.name === watchCategory);
   // Memoize category fields to prevent unnecessary effect re-runs
-  // Filter out 'condition' from dynamic category fields - it's now a dedicated top-level field
+  // CONDITION REFACTOR: condition now appears as a dynamic category field when defined in schema
   const currentCategoryFields = useMemo<CategoryFormField[]>(() => {
-    return (selectedCategory?.formSchema || []).filter(f => f.key !== 'condition');
+    return selectedCategory?.formSchema || [];
   }, [selectedCategory?.formSchema]);
 
   // Track previous category and schema keys to detect changes
@@ -284,7 +284,7 @@ export default function CreateProductPage() {
             'name': 'name',
             'description': 'description',
             'category': 'category',
-            'condition': 'condition',
+            // CONDITION REFACTOR: condition now lives in categoryAttributes
             'price': 'price',
             'quantity': 'quantity',
             'comparePrice': 'comparePrice',
@@ -627,37 +627,7 @@ export default function CreateProductPage() {
                     {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>}
                   </div>
 
-                  <div data-field="condition">
-                    <Label htmlFor="condition">Condition <span className="text-red-500">*</span></Label>
-                    <Controller
-                      name="condition"
-                      control={control}
-                      render={({ field }) => (
-                        <Select
-                          value={field.value === UNSET_VALUE ? UNSET_VALUE : field.value}
-                          onValueChange={field.onChange}
-                        >
-                          <SelectTrigger
-                            id="condition"
-                            name="condition"
-                            data-field="condition"
-                            className={errors.condition ? "border-red-500" : ""}
-                          >
-                            <SelectValue placeholder="Select condition" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="New">New</SelectItem>
-                            <SelectItem value="Like New">Like New</SelectItem>
-                            <SelectItem value="Good">Good</SelectItem>
-                            <SelectItem value="Fair">Fair</SelectItem>
-                            <SelectItem value="Used">Used</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      )}
-                    />
-                    {errors.condition && <p className="text-red-500 text-xs mt-1">{errors.condition.message}</p>}
-                  </div>
-
+                  {/* CONDITION REFACTOR: condition now appears as a dynamic category field when defined in schema */}
                   {currentCategoryFields.length > 0 && (
                     <div className="space-y-4 mt-4">
                       <Separator />

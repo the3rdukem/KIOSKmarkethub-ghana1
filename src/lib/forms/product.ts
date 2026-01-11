@@ -69,8 +69,6 @@ export const productFormSchema = z.object({
   description: requiredTextField("Description", 10),
   category: requiredSelectField("Category"),
   // CONDITION REFACTOR: Condition now lives in categoryAttributes when category schema defines it
-  // Kept for backward compatibility but no longer required at top-level
-  condition: z.string().optional(),
   price: requiredPriceField(),
   comparePrice: optionalPriceField(),
   costPerItem: optionalPriceField(),
@@ -101,7 +99,7 @@ export const draftProductFormSchema = z.object({
   name: requiredTextField("Product name", 2),
   description: z.string().optional(),
   category: z.string().optional(),
-  condition: z.string().optional(),
+  // CONDITION REFACTOR: Condition now lives in categoryAttributes when category schema defines it
   price: z.string().optional(),
   comparePrice: z.string().optional(),
   costPerItem: z.string().optional(),
@@ -134,7 +132,7 @@ export interface DefaultProductValues {
   name: string;
   description: string;
   category: string;
-  condition: string;
+  // CONDITION REFACTOR: Condition now lives in categoryAttributes when category schema defines it
   price: string;
   comparePrice: string;
   costPerItem: string;
@@ -164,7 +162,7 @@ export function getDefaultProductValues(): DefaultProductValues {
     name: "",
     description: "",
     category: UNSET_VALUE,
-    condition: UNSET_VALUE,
+    // CONDITION REFACTOR: Condition now lives in categoryAttributes when category schema defines it
     price: "",
     comparePrice: "",
     costPerItem: "",
@@ -200,7 +198,7 @@ export function transformFormToApiPayload(values: DefaultProductValues) {
 
   // PHASE 1.2: Filter out __unset__ values from categoryAttributes
   // This prevents optional fields from blocking server submission
-  // Required fields (category, condition) are top-level and validated separately
+  // CONDITION REFACTOR: condition now lives in categoryAttributes when category schema defines it
   const categoryAttrsTransformed: Record<string, string | boolean> = {};
   for (const [key, value] of Object.entries(values.categoryAttributes || {})) {
     // Only include values that are actually set (not sentinel values)
@@ -213,7 +211,7 @@ export function transformFormToApiPayload(values: DefaultProductValues) {
     name: values.name.trim(),
     description: values.description.trim(),
     category: values.category, // Pass through as-is, server will reject __unset__
-    condition: values.condition, // Pass through as-is, server will reject __unset__
+    // CONDITION REFACTOR: condition now lives in categoryAttributes when category schema defines it
     price: parseFloat(values.price) || 0,
     comparePrice: values.comparePrice ? parseFloat(values.comparePrice) : null,
     costPerItem: values.costPerItem ? parseFloat(values.costPerItem) : null,
@@ -236,27 +234,14 @@ export function transformFormToApiPayload(values: DefaultProductValues) {
 }
 
 export function transformApiToFormValues(product: Record<string, unknown>): DefaultProductValues {
-  // Handle condition from both top-level field and legacy categoryAttributes
-  const topLevelCondition = product.condition as string | undefined;
+  // CONDITION REFACTOR: condition now lives in categoryAttributes when category schema defines it
   const categoryAttrs = product.categoryAttributes as Record<string, string | boolean> | undefined;
-  const legacyCondition = categoryAttrs?.condition as string | undefined;
-  const conditionValue = topLevelCondition || legacyCondition || UNSET_VALUE;
-
-  // Filter out condition from categoryAttributes to avoid duplicates
-  const cleanCategoryAttributes: Record<string, string | boolean> = {};
-  if (categoryAttrs) {
-    for (const [key, value] of Object.entries(categoryAttrs)) {
-      if (key !== 'condition') {
-        cleanCategoryAttributes[key] = value;
-      }
-    }
-  }
 
   return {
     name: (product.name as string) ?? "",
     description: (product.description as string) ?? "",
     category: (product.category as string) || UNSET_VALUE,
-    condition: conditionValue,
+    // CONDITION REFACTOR: condition now lives in categoryAttributes when category schema defines it
     price: product.price != null ? String(product.price) : "",
     comparePrice: product.comparePrice != null ? String(product.comparePrice) : "",
     costPerItem: product.costPerItem != null ? String(product.costPerItem) : "",
@@ -282,7 +267,7 @@ export function transformApiToFormValues(product: Record<string, unknown>): Defa
     color: (product.color as string) ?? "",
     brand: (product.brand as string) ?? "",
     continueSellingWhenOutOfStock: (product.continueSellingWhenOutOfStock as boolean) ?? false,
-    categoryAttributes: cleanCategoryAttributes,
+    categoryAttributes: categoryAttrs ?? {},
   };
 }
 
@@ -290,7 +275,7 @@ export const FIELD_LABELS: Record<string, string> = {
   name: "Product Name",
   description: "Description",
   category: "Category",
-  condition: "Condition",
+  // CONDITION REFACTOR: condition now lives in categoryAttributes when category schema defines it
   price: "Price",
   comparePrice: "Compare Price",
   costPerItem: "Cost Per Item",
