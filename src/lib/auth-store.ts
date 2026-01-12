@@ -14,31 +14,40 @@ import { create } from 'zustand';
 export type UserRole = 'buyer' | 'vendor' | 'admin' | 'master_admin';
 
 /**
- * Silent cart merge - best-effort, non-blocking.
- * Called after successful auth. Never throws or shows errors.
- * Cart sync happens post-navigation via CartSheet mount.
+ * Cart merge - merges guest cart into user cart after authentication.
+ * Returns a promise so callers can await completion before navigation.
+ * Never throws - returns false on failure.
+ */
+export async function mergeCartAfterAuth(): Promise<boolean> {
+  try {
+    const res = await fetch('/api/cart/merge', {
+      method: 'POST',
+      credentials: 'include',
+    });
+    
+    if (res.ok) {
+      const data = await res.json();
+      if (data.merged && process.env.NODE_ENV === 'development') {
+        console.log('[AUTH_STORE] Cart merged successfully');
+      }
+      return true;
+    }
+    return false;
+  } catch (e: any) {
+    if (e?.name === 'AbortError') return false;
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[AUTH_STORE] Cart merge failed:', e);
+    }
+    return false;
+  }
+}
+
+/**
+ * Silent cart merge - fire-and-forget version for backwards compatibility.
+ * Use mergeCartAfterAuth() when you need to await the result.
  */
 function silentCartMerge(): void {
-  fetch('/api/cart/merge', {
-    method: 'POST',
-    credentials: 'include',
-  })
-    .then((res) => {
-      if (res.ok && process.env.NODE_ENV === 'development') {
-        res.json().then((data) => {
-          if (data.merged) {
-            console.log('[AUTH_STORE] Cart merged successfully');
-          }
-        }).catch(() => {});
-      }
-    })
-    .catch((e) => {
-      if (e?.name === 'AbortError') return;
-      if (!e || Object.keys(e).length === 0) return;
-      if (process.env.NODE_ENV === 'development') {
-        console.log('[AUTH_STORE] Cart merge skipped (navigation in progress)');
-      }
-    });
+  mergeCartAfterAuth().catch(() => {});
 }
 
 export interface User {

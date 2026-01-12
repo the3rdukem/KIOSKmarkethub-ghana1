@@ -19,7 +19,7 @@ import {
   Shield,
   Loader2
 } from "lucide-react";
-import { useAuthStore, loginViaAPI, getRouteForRole, type UserRole } from "@/lib/auth-store";
+import { useAuthStore, loginViaAPI, getRouteForRole, mergeCartAfterAuth, type UserRole } from "@/lib/auth-store";
 import { toast } from "sonner";
 import { GoogleSignInButton, GoogleAuthFallback } from "@/components/integrations/google-sign-in-button";
 import { Separator } from "@/components/ui/separator";
@@ -110,10 +110,11 @@ function LoginPageContent() {
 
       toast.success(`Welcome back, ${result.user?.name}!`);
 
+      // Merge guest cart before redirecting (important for checkout flow)
+      await mergeCartAfterAuth();
+
       // Redirect to specified URL or role-based default
-      setTimeout(() => {
-        window.location.href = getRedirectDestination(resolveRole(result.user?.role));
-      }, 500);
+      window.location.href = getRedirectDestination(resolveRole(result.user?.role));
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Login failed";
       setErrors({ submit: errorMessage });
