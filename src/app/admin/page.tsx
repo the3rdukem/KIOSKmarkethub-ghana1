@@ -83,6 +83,7 @@ function AdminManagementSection({
   const [newAdminData, setNewAdminData] = useState({ email: "", name: "", password: "", role: "ADMIN" as AdminRole });
   const [revokeReason, setRevokeReason] = useState("");
   const [selectedAdminToRevoke, setSelectedAdminToRevoke] = useState<DbAdmin | null>(null);
+  const [selectedAdminToDelete, setSelectedAdminToDelete] = useState<DbAdmin | null>(null);
   const [admins, setAdmins] = useState<DbAdmin[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -327,6 +328,14 @@ function AdminManagementSection({
                                 Activate
                               </DropdownMenuItem>
                             )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              className="text-red-600"
+                              onClick={() => setSelectedAdminToDelete(admin)}
+                            >
+                              <Trash2 className="w-4 h-4 mr-2" />
+                              Delete Admin
+                            </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       ) : admin.id === "master_admin_001" ? (
@@ -361,6 +370,51 @@ function AdminManagementSection({
               <AlertDialogFooter>
                 <AlertDialogCancel onClick={() => { setSelectedAdminToRevoke(null); setRevokeReason(""); }}>Cancel</AlertDialogCancel>
                 <AlertDialogAction className="bg-red-600" onClick={handleRevokeAccess}>Revoke Access</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+
+          {/* Delete Admin Dialog */}
+          <AlertDialog open={!!selectedAdminToDelete} onOpenChange={(open) => { if (!open) { setSelectedAdminToDelete(null); } }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-red-600">Permanently Delete Admin</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete {selectedAdminToDelete?.name}'s administrator account. This action cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-sm text-red-800">
+                  <strong>Warning:</strong> This will completely remove the admin account from the system. If you want to temporarily disable access, use "Revoke Access" instead.
+                </p>
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => { setSelectedAdminToDelete(null); }}>Cancel</AlertDialogCancel>
+                <AlertDialogAction 
+                  className="bg-red-600 hover:bg-red-700" 
+                  onClick={async () => {
+                    if (!selectedAdminToDelete) return;
+                    try {
+                      const response = await fetch(`/api/admin/admins/${selectedAdminToDelete.id}`, {
+                        method: 'DELETE',
+                        credentials: 'include',
+                      });
+                      if (response.ok) {
+                        toast.success(`Deleted admin account: ${selectedAdminToDelete.name}`);
+                        setSelectedAdminToDelete(null);
+                        fetchAdmins();
+                      } else {
+                        const data = await response.json();
+                        toast.error(data.error || "Failed to delete admin");
+                      }
+                    } catch (error) {
+                      console.error('Failed to delete admin:', error);
+                      toast.error("Failed to delete admin");
+                    }
+                  }}
+                >
+                  Delete Permanently
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
@@ -486,6 +540,8 @@ function AdminDashboardContent() {
     status: string;
     paymentStatus: string;
     createdAt: string;
+    orderItems?: Array<{ id: string; productId: string; quantity: number }>;
+    items?: Array<{ id: string; productId: string; quantity: number }>;
   }>>([]);
 
   // Fetch stats and audit logs from PostgreSQL
@@ -829,6 +885,11 @@ function AdminDashboardContent() {
                   <Button className="w-full justify-start" variant={openDisputes.length > 0 ? "destructive" : "outline"} onClick={() => setSelectedTab("disputes")}>
                     <Flag className="w-4 h-4 mr-2" />Handle Disputes ({openDisputes.length})
                   </Button>
+                  <Button className="w-full justify-start" variant="outline" asChild>
+                    <a href="/admin/orders">
+                      <ShoppingCart className="w-4 h-4 mr-2" />Order Management
+                    </a>
+                  </Button>
                   <Button className="w-full justify-start" variant="outline" onClick={() => setSelectedTab("api")}>
                     <Settings className="w-4 h-4 mr-2" />Configure APIs
                   </Button>
@@ -973,25 +1034,99 @@ function AdminDashboardContent() {
               </div>
 
               <Card>
-                <CardHeader><CardTitle>Order Management</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>Order Management</CardTitle>
+                  <Button variant="outline" size="sm" asChild>
+                    <a href="/admin/orders">View All Orders</a>
+                  </Button>
+                </CardHeader>
                 <CardContent>
                   {dbOrders.length === 0 ? (
                     <div className="text-center py-12"><ShoppingCart className="w-16 h-16 text-gray-300 mx-auto mb-4" /><h3 className="text-lg font-semibold">No Orders Yet</h3></div>
                   ) : (
-                    <Table>
-                      <TableHeader><TableRow><TableHead>Order ID</TableHead><TableHead>Buyer</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead></TableRow></TableHeader>
-                      <TableBody>
-                        {dbOrders.map((order) => (
-                          <TableRow key={order.id}>
-                            <TableCell className="font-mono text-sm">{order.id.slice(0, 15)}...</TableCell>
-                            <TableCell>{order.buyerName}</TableCell>
-                            <TableCell>GHS {order.total.toLocaleString()}</TableCell>
-                            <TableCell>{getStatusBadge(order.status)}</TableCell>
-                            <TableCell>{formatTimestamp(order.createdAt)}</TableCell>
+                    <div className="overflow-x-auto">
+                      <Table className="table-fixed w-full">
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead className="w-[120px]">Order ID</TableHead>
+                            <TableHead className="w-[150px]">Customer</TableHead>
+                            <TableHead className="w-[80px]">Items</TableHead>
+                            <TableHead className="w-[100px]">Total</TableHead>
+                            <TableHead className="w-[120px]">Status</TableHead>
+                            <TableHead className="w-[100px]">Date</TableHead>
+                            <TableHead className="w-[80px] text-right">Actions</TableHead>
                           </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                        </TableHeader>
+                        <TableBody>
+                          {dbOrders.map((order) => {
+                            const orderItems = order.orderItems || order.items || [];
+                            const canCancel = order.status !== 'cancelled' && order.status !== 'fulfilled' && order.status !== 'delivered';
+                            return (
+                              <TableRow key={order.id}>
+                                <TableCell className="font-mono text-sm">#{order.id.slice(-8).toUpperCase()}</TableCell>
+                                <TableCell>
+                                  <div>
+                                    <p className="font-medium truncate">{order.buyerName}</p>
+                                    <p className="text-xs text-muted-foreground truncate">{order.buyerEmail}</p>
+                                  </div>
+                                </TableCell>
+                                <TableCell>{orderItems.length} item(s)</TableCell>
+                                <TableCell>GHS {order.total.toLocaleString()}</TableCell>
+                                <TableCell>{getStatusBadge(order.status)}</TableCell>
+                                <TableCell className="text-sm text-muted-foreground">{formatTimestamp(order.createdAt)}</TableCell>
+                                <TableCell className="w-[80px]">
+                                  <div className="flex justify-end">
+                                    <DropdownMenu>
+                                      <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                                          <MoreHorizontal className="h-4 w-4" />
+                                          <span className="sr-only">Open menu</span>
+                                        </Button>
+                                      </DropdownMenuTrigger>
+                                      <DropdownMenuContent align="end">
+                                        <DropdownMenuItem asChild>
+                                          <a href={`/admin/orders?view=${order.id}`}>
+                                            <Eye className="w-4 h-4 mr-2" />
+                                            View Details
+                                          </a>
+                                        </DropdownMenuItem>
+                                        <DropdownMenuSeparator />
+                                        {canCancel && (
+                                          <DropdownMenuItem 
+                                            className="text-red-600"
+                                            onSelect={(e) => {
+                                              e.preventDefault();
+                                              if (confirm(`Cancel order #${order.id.slice(-8).toUpperCase()}? This will restore inventory.`)) {
+                                                fetch(`/api/orders/${order.id}`, {
+                                                  method: 'DELETE',
+                                                  headers: { 'Content-Type': 'application/json' },
+                                                  credentials: 'include',
+                                                  body: JSON.stringify({ reason: 'Cancelled by admin' }),
+                                                }).then(res => {
+                                                  if (res.ok) {
+                                                    toast.success('Order cancelled');
+                                                    window.location.reload();
+                                                  } else {
+                                                    toast.error('Failed to cancel order');
+                                                  }
+                                                });
+                                              }
+                                            }}
+                                          >
+                                            <XCircle className="w-4 h-4 mr-2" />
+                                            Cancel Order
+                                          </DropdownMenuItem>
+                                        )}
+                                      </DropdownMenuContent>
+                                    </DropdownMenu>
+                                  </div>
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
                   )}
                 </CardContent>
               </Card>
