@@ -64,6 +64,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
   - **Order-Payment Linking**: Critical fix ensuring orderId is included in Paystack metadata, allowing webhook to update correct order when payment completes.
   - **Database CHECK Constraints (Phase 5)**: Added CHECK constraints to `status` and `payment_status` columns in orders table to enforce valid values at database level. Supports all legacy and new status values.
   - **Inventory Restoration**: Implemented `restoreInventory()` function in products DAL. Webhook now restores inventory automatically when payment fails, preventing stock from being permanently decremented on failed payments.
+  - **Atomic Inventory Reservation**: Implemented `reserveInventoryAtomic()` function using PostgreSQL `SELECT FOR UPDATE` to prevent race conditions during concurrent checkouts. Checkout now uses transactions to atomically lock product rows, verify stock, and decrement inventory. Both inventory updates and order creation share the same transaction client, ensuring all writes commit or rollback together.
   - **Payment Amount Validation**: Webhook validates that payment amount matches order total (with 0.01 tolerance). Mismatches are logged as `PAYMENT_AMOUNT_MISMATCH` audit events.
   - **Payment Alerts API**: Added `/api/admin/payment-alerts` endpoint for monitoring payment issues including amount mismatches and failed payments.
 

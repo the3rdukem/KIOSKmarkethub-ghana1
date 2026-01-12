@@ -119,31 +119,30 @@ export interface UpdatePaymentStatusInput {
 /**
  * Create a new order with order items
  * Phase 2: Creates order in pending_payment status and inserts order_items
+ * 
+ * @param input - Order creation input data
+ * @param txClient - Optional PoolClient for transactional operations
  */
-export async function createOrder(input: CreateOrderInput): Promise<DbOrder> {
+export async function createOrder(
+  input: CreateOrderInput,
+  txClient?: import('pg').PoolClient
+): Promise<DbOrder> {
   const orderId = `order_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();
 
-  // Create the order record with currency for payment tracking
-  await query(`
-    INSERT INTO orders (
-      id, buyer_id, buyer_name, buyer_email, items, subtotal,
-      discount_total, shipping_fee, tax, total, currency, status, payment_status, 
-      payment_method, shipping_address, coupon_code, notes, created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
-  `, [
+  const orderParams = [
     orderId,
     input.buyerId,
     input.buyerName,
     input.buyerEmail,
-    JSON.stringify(input.items), // Legacy JSON storage for backwards compatibility
+    JSON.stringify(input.items),
     input.subtotal,
     input.discountTotal || 0,
     input.shippingFee || 0,
     input.tax || 0,
     input.total,
-    input.currency || 'GHS', // Default to Ghana Cedis
-    'pending_payment', // Phase 2: All orders start as pending_payment
+    input.currency || 'GHS',
+    'pending_payment',
     'pending',
     input.paymentMethod || null,
     JSON.stringify(input.shippingAddress),
@@ -151,22 +150,29 @@ export async function createOrder(input: CreateOrderInput): Promise<DbOrder> {
     input.notes || null,
     now,
     now
-  ]);
+  ];
 
-  // Create order_items entries for vendor-scoped tracking
+  const orderQuery = `
+    INSERT INTO orders (
+      id, buyer_id, buyer_name, buyer_email, items, subtotal,
+      discount_total, shipping_fee, tax, total, currency, status, payment_status, 
+      payment_method, shipping_address, coupon_code, notes, created_at, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+  `;
+
+  if (txClient) {
+    await txClient.query(orderQuery, orderParams);
+  } else {
+    await query(orderQuery, orderParams);
+  }
+
   for (const item of input.items) {
     const itemId = `oi_${uuidv4().replace(/-/g, '').substring(0, 20)}`;
     const unitPrice = item.price;
     const appliedDiscount = item.appliedDiscount || 0;
     const finalPrice = item.finalPrice || (unitPrice * item.quantity - appliedDiscount);
 
-    await query(`
-      INSERT INTO order_items (
-        id, order_id, product_id, product_name, vendor_id, vendor_name,
-        quantity, unit_price, applied_discount, final_price, fulfillment_status,
-        image, variations, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-    `, [
+    const itemParams = [
       itemId,
       orderId,
       item.productId,
@@ -177,16 +183,56 @@ export async function createOrder(input: CreateOrderInput): Promise<DbOrder> {
       unitPrice,
       appliedDiscount,
       finalPrice,
-      'pending', // All items start as pending
+      'pending',
       item.image || null,
       item.variations ? JSON.stringify(item.variations) : null,
       now,
       now
-    ]);
+    ];
+
+    const itemQuery = `
+      INSERT INTO order_items (
+        id, order_id, product_id, product_name, vendor_id, vendor_name,
+        quantity, unit_price, applied_discount, final_price, fulfillment_status,
+        image, variations, created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    `;
+
+    if (txClient) {
+      await txClient.query(itemQuery, itemParams);
+    } else {
+      await query(itemQuery, itemParams);
+    }
   }
 
-  const result = await getOrderById(orderId);
-  return result!;
+  // Return the order directly to avoid reading uncommitted data from a different connection
+  const order: DbOrder = {
+    id: orderId,
+    buyer_id: input.buyerId,
+    buyer_name: input.buyerName,
+    buyer_email: input.buyerEmail,
+    items: JSON.stringify(input.items),
+    subtotal: input.subtotal,
+    discount_total: input.discountTotal || 0,
+    shipping_fee: input.shippingFee || 0,
+    tax: input.tax || 0,
+    total: input.total,
+    currency: input.currency || 'GHS',
+    status: 'pending_payment',
+    payment_status: 'pending',
+    payment_method: input.paymentMethod || null,
+    payment_reference: null,
+    payment_provider: null,
+    paid_at: null,
+    shipping_address: JSON.stringify(input.shippingAddress),
+    tracking_number: null,
+    notes: input.notes || null,
+    coupon_code: input.couponCode || null,
+    created_at: now,
+    updated_at: now,
+  };
+
+  return order;
 }
 
 /**

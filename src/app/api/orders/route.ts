@@ -20,9 +20,10 @@ import {
   parseShippingAddress,
 } from '@/lib/db/dal/orders';
 import { getUserById } from '@/lib/db/dal/users';
-import { reduceInventory } from '@/lib/db/dal/products';
+import { reserveInventoryAtomic, InventoryReservationItem } from '@/lib/db/dal/products';
 import { clearCart, getCart } from '@/lib/db/dal/cart';
 import { createAuditLog } from '@/lib/db/dal/audit';
+import { getPool } from '@/lib/db';
 
 /**
  * GET /api/orders
@@ -201,24 +202,7 @@ export async function POST(request: NextRequest) {
     const tax = body.tax || 0;
     const total = subtotal - discountTotal + shippingFee + tax;
 
-    // Verify inventory before creating order
-    for (const item of body.items) {
-      const { getProductById } = await import('@/lib/db/dal/products');
-      const product = await getProductById(item.productId);
-      if (!product) {
-        return NextResponse.json({
-          error: `Product not found: ${item.productName || item.productId}`,
-          field: 'items',
-        }, { status: 400 });
-      }
-      if (product.quantity < item.quantity) {
-        return NextResponse.json({
-          error: `Insufficient stock for ${product.name}. Available: ${product.quantity}`,
-          field: 'items',
-        }, { status: 400 });
-      }
-    }
-
+    // Build order input
     const orderInput: CreateOrderInput = {
       buyerId: session.user_id,
       buyerName: user.name,
@@ -259,15 +243,49 @@ export async function POST(request: NextRequest) {
       notes: body.notes,
     };
 
-    // Create the order (inserts into orders and order_items tables)
-    const order = await createOrder(orderInput);
+    // Prepare inventory items for atomic reservation
+    const inventoryItems: InventoryReservationItem[] = body.items.map((item: {
+      productId: string;
+      productName?: string;
+      name?: string;
+      quantity: number;
+    }) => ({
+      productId: item.productId,
+      productName: item.productName || item.name || item.productId,
+      quantity: item.quantity,
+    }));
 
-    // Reduce inventory for each item
-    for (const item of body.items) {
-      await reduceInventory(item.productId, item.quantity);
+    // Use transaction with SELECT FOR UPDATE to prevent race conditions
+    // This ensures two concurrent checkouts for the last item cannot both succeed
+    const client = await getPool().connect();
+    let order;
+
+    try {
+      await client.query('BEGIN');
+
+      // Atomically lock rows, verify stock, and decrement inventory
+      const reservationResult = await reserveInventoryAtomic(inventoryItems, client);
+
+      if (!reservationResult.success) {
+        await client.query('ROLLBACK');
+        return NextResponse.json({
+          error: reservationResult.error,
+          field: 'items',
+        }, { status: 400 });
+      }
+
+      // Create the order within the same transaction
+      order = await createOrder(orderInput, client);
+
+      await client.query('COMMIT');
+    } catch (txError) {
+      await client.query('ROLLBACK');
+      throw txError;
+    } finally {
+      client.release();
     }
 
-    // Clear the cart after successful order creation
+    // Clear the cart after successful order creation (outside transaction)
     await clearCart('user', session.user_id);
 
     // Create audit log for order creation

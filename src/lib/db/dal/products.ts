@@ -375,6 +375,68 @@ export async function reduceInventory(id: string, quantity: number): Promise<boo
   return true;
 }
 
+export interface InventoryReservationItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+}
+
+export interface InventoryReservationResult {
+  success: boolean;
+  error?: string;
+  failedProductId?: string;
+  failedProductName?: string;
+}
+
+/**
+ * Atomically reserve inventory for multiple products using SELECT FOR UPDATE
+ * This prevents race conditions where two concurrent checkouts try to purchase the last item
+ * 
+ * MUST be called within a transaction (runTransaction)
+ */
+export async function reserveInventoryAtomic(
+  items: InventoryReservationItem[],
+  client: import('pg').PoolClient
+): Promise<InventoryReservationResult> {
+  const now = new Date().toISOString();
+
+  for (const item of items) {
+    const lockResult = await client.query(
+      `SELECT id, name, quantity, track_quantity FROM products WHERE id = $1 FOR UPDATE`,
+      [item.productId]
+    );
+
+    if (lockResult.rows.length === 0) {
+      return {
+        success: false,
+        error: `Product not found: ${item.productName}`,
+        failedProductId: item.productId,
+        failedProductName: item.productName,
+      };
+    }
+
+    const product = lockResult.rows[0];
+
+    if (product.track_quantity && product.quantity < item.quantity) {
+      return {
+        success: false,
+        error: `Insufficient stock for ${product.name}. Available: ${product.quantity}`,
+        failedProductId: item.productId,
+        failedProductName: product.name,
+      };
+    }
+
+    if (product.track_quantity) {
+      await client.query(
+        `UPDATE products SET quantity = quantity - $1, updated_at = $2 WHERE id = $3`,
+        [item.quantity, now, item.productId]
+      );
+    }
+  }
+
+  return { success: true };
+}
+
 /**
  * Restore product inventory (for payment failure / order cancellation)
  */
