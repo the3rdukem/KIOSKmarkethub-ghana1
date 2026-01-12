@@ -69,7 +69,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
   - **Payment Alerts API**: Added `/api/admin/payment-alerts` endpoint for monitoring payment issues including amount mismatches and failed payments.
   - **Webhook Idempotency (Phase 3A)**: Webhooks now check if order is already paid before updating. Duplicate webhooks are safely ignored. Failed payment webhooks only restore inventory once (on first failure).
   - **Admin Payment Visibility (Phase 3A)**: Admin orders page now displays payment_reference, payment_provider, and paid_at in the order details dialog.
-  - **Retry Payment Flow (Phase 3A)**: Buyer order detail page now shows "Pay Now" button for orders in pending_payment status with pending/failed payment. Uses new Paystack reference for each retry attempt.
+  - **Retry Payment Flow (Phase 3A)**: Buyer order detail page now shows "Pay Now" button for orders in pending_payment status with pending/failed payment. Server-side `/api/orders/[id]/payment` endpoint generates unique reference, stores it on order with audit logging, before client opens Paystack popup. Includes idempotency guards to prevent paid orders from being re-initialized.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions.
