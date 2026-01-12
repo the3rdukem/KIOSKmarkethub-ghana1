@@ -91,12 +91,11 @@ export async function POST(request: NextRequest) {
         await handleChargeFailed(event.data);
         break;
 
+      // Phase 3A: Only handle charge events. Transfer events (vendor payouts) are out of scope.
+      // These handlers are left as no-ops for forward compatibility but do not process data.
       case 'transfer.success':
-        await handleTransferSuccess(event.data);
-        break;
-
       case 'transfer.failed':
-        await handleTransferFailed(event.data);
+        console.log(`[PAYSTACK_WEBHOOK] Transfer event ignored in Phase 3A: ${event.event}`);
         break;
 
       default:
@@ -129,6 +128,31 @@ async function handleChargeSuccess(data: PaystackEvent['data']): Promise<void> {
     
     if (!order) {
       console.error(`[PAYSTACK_WEBHOOK] Order ${orderId} not found`);
+      return;
+    }
+
+    // IDEMPOTENCY CHECK: Skip if order is already paid
+    if (order.payment_status === 'paid') {
+      // Check if this is a duplicate webhook for the same reference
+      if (order.payment_reference === data.reference) {
+        console.log(`[PAYSTACK_WEBHOOK] Duplicate webhook - order ${orderId} already paid with reference ${data.reference}`);
+        return;
+      }
+      // Different reference for already-paid order - log for audit
+      console.warn(`[PAYSTACK_WEBHOOK] Order ${orderId} already paid (ref: ${order.payment_reference}), ignoring new reference ${data.reference}`);
+      await createAuditLog({
+        action: 'PAYMENT_DUPLICATE_IGNORED',
+        category: 'order',
+        targetId: orderId,
+        targetType: 'order',
+        targetName: `Order ${orderId}`,
+        details: JSON.stringify({
+          existingReference: order.payment_reference,
+          newReference: data.reference,
+          reason: 'Order already paid, ignoring duplicate payment attempt',
+        }),
+        severity: 'warning',
+      });
       return;
     }
 
@@ -208,6 +232,21 @@ async function handleChargeFailed(data: PaystackEvent['data']): Promise<void> {
       return;
     }
 
+    // IDEMPOTENCY CHECK: Skip if order is already paid (success came after failure)
+    if (order.payment_status === 'paid') {
+      console.log(`[PAYSTACK_WEBHOOK] Order ${orderId} already paid, ignoring failed webhook`);
+      return;
+    }
+
+    // IDEMPOTENCY CHECK: Skip if already failed with same reference (duplicate webhook)
+    if (order.payment_status === 'failed' && order.payment_reference === data.reference) {
+      console.log(`[PAYSTACK_WEBHOOK] Duplicate failure webhook - order ${orderId} already failed with reference ${data.reference}`);
+      return;
+    }
+
+    // Only restore inventory if this is the first failure for this order (payment_status is still 'pending')
+    const shouldRestoreInventory = order.payment_status === 'pending';
+
     await updateOrderPaymentStatus(orderId, {
       paymentStatus: 'failed',
       paymentProvider: 'paystack',
@@ -215,6 +254,27 @@ async function handleChargeFailed(data: PaystackEvent['data']): Promise<void> {
     });
 
     console.log(`[PAYSTACK_WEBHOOK] Order ${orderId} marked as payment failed`);
+
+    // Only restore inventory once - when transitioning from pending to failed
+    if (!shouldRestoreInventory) {
+      console.log(`[PAYSTACK_WEBHOOK] Skipping inventory restoration - order was already in failed state`);
+      await createAuditLog({
+        action: 'PAYMENT_FAILED',
+        category: 'order',
+        targetId: orderId,
+        targetType: 'order',
+        targetName: `Order ${orderId}`,
+        details: JSON.stringify({
+          reference: data.reference,
+          amount: data.amount / 100,
+          currency: data.currency,
+          inventoryRestored: 0,
+          reason: 'Retry payment failed, inventory already restored from previous attempt',
+        }),
+        severity: 'warning',
+      });
+      return;
+    }
 
     const orderItems = await getOrderItemsByOrderId(orderId);
     let restoredCount = 0;
@@ -249,16 +309,4 @@ async function handleChargeFailed(data: PaystackEvent['data']): Promise<void> {
   }
 }
 
-/**
- * Handle successful transfer (vendor payout)
- */
-async function handleTransferSuccess(data: PaystackEvent['data']): Promise<void> {
-  console.log(`[PAYSTACK_WEBHOOK] Transfer successful: ${data.reference}`);
-}
-
-/**
- * Handle failed transfer
- */
-async function handleTransferFailed(data: PaystackEvent['data']): Promise<void> {
-  console.log(`[PAYSTACK_WEBHOOK] Transfer failed: ${data.reference}`);
-}
+// Phase 3A: Transfer handlers removed. Vendor payouts are out of scope for this phase.

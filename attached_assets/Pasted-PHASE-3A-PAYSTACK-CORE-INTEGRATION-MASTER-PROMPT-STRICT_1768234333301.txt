@@ -1,0 +1,193 @@
+PHASE 3A — PAYSTACK CORE INTEGRATION
+
+MASTER PROMPT (STRICT · NO DEVIATIONS)
+
+ROLE
+
+You are acting as a Senior Payments Engineer implementing Phase 3A only of a production marketplace.
+You are NOT allowed to add features, refactor unrelated code, or “improve UX”.
+
+Any deviation from scope is a failure.
+
+⸻
+
+OBJECTIVE (NON-NEGOTIABLE)
+
+Implement Paystack payment processing for orders such that:
+	1.	Buyers can pay for an order
+	2.	Payments are verifiable, idempotent, and auditable
+	3.	Orders and inventory remain correct even on failure
+	4.	Admin can inspect payment state
+	5.	NO vendor payouts yet
+
+⸻
+
+SCOPE — YOU MAY IMPLEMENT ONLY THESE
+
+1️⃣ Payment Initialization
+	•	Create Paystack payment with:
+	•	email
+	•	amount (kobo)
+	•	currency = GHS
+	•	reference = system-generated, unique, immutable
+	•	Reference must be stored on order before redirect
+	•	Order status transitions:
+	•	pending → payment_pending
+
+2️⃣ Payment Verification (SERVER ONLY)
+	•	Verify payment only via Paystack API
+	•	Never trust client success
+	•	On verification success:
+	•	Mark order paid
+	•	Lock totals
+	•	Decrease inventory
+	•	On verification failure:
+	•	Mark order payment_failed
+	•	Inventory must remain unchanged
+
+3️⃣ Webhooks (MANDATORY)
+	•	Implement Paystack webhook handler
+	•	Verify signature using Paystack secret
+	•	Handle these events ONLY:
+	•	charge.success
+	•	charge.failed
+	•	Webhook must be:
+	•	Idempotent (safe to replay)
+	•	Ignoring duplicate events
+	•	Store webhook payloads for audit
+
+4️⃣ Idempotency Rules (STRICT)
+	•	Same reference must never:
+	•	Charge twice
+	•	Reduce inventory twice
+	•	Change order state twice
+	•	Replayed webhooks must be no-ops
+
+5️⃣ Retry Payment
+	•	Buyer may retry payment for:
+	•	pending
+	•	payment_failed
+	•	Retry must reuse:
+	•	Same order
+	•	New Paystack reference
+	•	Old references are permanently invalidated
+
+6️⃣ Admin Visibility (READ-ONLY)
+	•	Admin can see:
+	•	Order ID
+	•	Payment reference
+	•	Payment status
+	•	Verification timestamp
+	•	Admin CANNOT edit payment state in Phase 3A
+
+⸻
+
+EXPLICITLY FORBIDDEN (FAILURE IF TOUCHED)
+
+🚫 Vendor payouts
+🚫 Wallets
+🚫 Escrow logic
+🚫 Refund automation
+🚫 Partial payments
+🚫 Multi-currency
+🚫 Messaging
+🚫 Promotions logic
+🚫 UX redesign
+🚫 Schema changes unrelated to payments
+
+If it is not listed in Scope, DO NOT TOUCH IT.
+
+⸻
+
+DATA & STATE RULES (MANDATORY)
+
+Order States (LOCKED)
+	•	pending
+	•	payment_pending
+	•	paid
+	•	payment_failed
+	•	cancelled (manual only, not by payment)
+
+No new states allowed.
+
+Inventory Rules
+	•	Inventory decreases ONLY AFTER payment is verified
+	•	Inventory must never change on:
+	•	init
+	•	redirect
+	•	webhook replay
+	•	failed payments
+
+⸻
+
+ERROR HANDLING (STRICT)
+	•	No throw new Error() for expected cases
+	•	All payment failures must:
+	•	Log server-side
+	•	Return safe user message
+	•	Never expose Paystack errors to client
+
+⸻
+
+TESTING — REQUIRED (DO NOT SKIP)
+
+You MUST manually test using these accounts:
+
+Buyer
+
+buy@kiosk.com.gh
+Password: 123asdqwe
+
+Vendor
+
+ven@kiosk.com.gh
+Password: 123asdqwe
+
+Admin
+
+the3rdukem@gmail.com
+Password: 123asdqweX$
+
+Test Cases (ALL REQUIRED)
+
+✔ Successful payment
+✔ Failed payment
+✔ Webhook replay
+✔ Refresh after redirect
+✔ Retry payment
+✔ Inventory correctness
+✔ Duplicate webhook delivery
+
+⸻
+
+DELIVERY REQUIREMENTS
+
+You must report back with:
+	1.	Exact files changed
+	2.	Order lifecycle diagram
+	3.	Webhook idempotency explanation
+	4.	List of Paystack API calls used
+	5.	Explicit confirmation that no forbidden scope was touched
+
+If any part is uncertain — STOP and report, do not guess.
+
+⸻
+
+SUCCESS CRITERIA
+
+Phase 3A is successful only if:
+	•	Payments are correct
+	•	Inventory is never corrupted
+	•	Webhooks are safe
+	•	Admin can audit
+	•	No scope creep occurred
+
+⸻
+
+⚠️ FINAL WARNING
+
+Do not “helpfully” add features.
+Do not refactor unrelated code.
+Do not improve UX.
+
+Correct > Clever

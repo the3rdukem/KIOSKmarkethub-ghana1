@@ -29,6 +29,7 @@ import {
 import { useAuthStore } from "@/lib/auth-store";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { fetchPaystackConfig, openPaystackPopup } from "@/lib/services/paystack";
 
 interface OrderItem {
   id?: string;
@@ -100,6 +101,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -222,7 +224,70 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     toast.success("Order ID copied to clipboard");
   };
 
-  const config = statusConfig[order.status] || statusConfig.pending_payment;
+  const handlePayNow = async () => {
+    if (!user?.email) {
+      toast.error("Please log in to continue");
+      return;
+    }
+
+    setIsProcessingPayment(true);
+
+    try {
+      // Step 1: Initialize payment server-side to get a stored reference
+      const initResponse = await fetch(`/api/orders/${order.id}/payment`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+
+      if (!initResponse.ok) {
+        const errorData = await initResponse.json();
+        toast.error(errorData.error || "Failed to initialize payment");
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      const paymentData = await initResponse.json();
+
+      // Step 2: Get Paystack config
+      const config = await fetchPaystackConfig();
+      if (!config || !config.publicKey) {
+        toast.error("Payment gateway not configured. Please contact support.");
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      // Step 3: Open Paystack popup with server-generated reference
+      await openPaystackPopup({
+        email: paymentData.email,
+        amount: paymentData.amount,
+        reference: paymentData.paymentReference,
+        metadata: {
+          orderId: order.id,
+          custom_fields: [
+            { display_name: "Order ID", variable_name: "order_id", value: order.id },
+          ],
+        },
+        onSuccess: async (response) => {
+          toast.success("Payment successful!");
+          setIsProcessingPayment(false);
+          fetchOrder();
+        },
+        onClose: () => {
+          setIsProcessingPayment(false);
+          toast.info("Payment window closed");
+        },
+      });
+    } catch (error) {
+      console.error("Payment error:", error);
+      toast.error("Failed to initialize payment. Please try again.");
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const canPayNow = (order.status === 'pending_payment' && 
+    (order.paymentStatus === 'pending' || order.paymentStatus === 'failed'));
+
+  const statusConfigMap = statusConfig[order.status] || statusConfig.pending_payment;
 
   const orderItems = order.orderItems || order.items || [];
   const fulfilledCount = orderItems.filter(i => i.fulfillmentStatus === 'fulfilled').length;
@@ -242,7 +307,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-bold">Order Details</h1>
-                <Badge className={`${config.bg} ${config.color}`}>{config.label}</Badge>
+                <Badge className={`${statusConfigMap.bg} ${statusConfigMap.color}`}>{statusConfigMap.label}</Badge>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span className="font-mono">{order.id.slice(-8).toUpperCase()}</span>
@@ -439,6 +504,28 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                     <span className="text-muted-foreground">Coupon</span>
                     <span className="font-mono">{order.couponCode}</span>
                   </div>
+                )}
+                {canPayNow && (
+                  <>
+                    <Separator className="my-3" />
+                    <Button 
+                      className="w-full" 
+                      onClick={handlePayNow}
+                      disabled={isProcessingPayment}
+                    >
+                      {isProcessingPayment ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <CreditCard className="w-4 h-4 mr-2" />
+                          {order.paymentStatus === 'failed' ? 'Retry Payment' : 'Pay Now'} - GHS {order.total.toFixed(2)}
+                        </>
+                      )}
+                    </Button>
+                  </>
                 )}
               </CardContent>
             </Card>

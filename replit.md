@@ -67,6 +67,9 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
   - **Atomic Inventory Reservation**: Implemented `reserveInventoryAtomic()` function using PostgreSQL `SELECT FOR UPDATE` to prevent race conditions during concurrent checkouts. Checkout now uses transactions to atomically lock product rows, verify stock, and decrement inventory. Both inventory updates and order creation share the same transaction client, ensuring all writes commit or rollback together.
   - **Payment Amount Validation**: Webhook validates that payment amount matches order total (with 0.01 tolerance). Mismatches are logged as `PAYMENT_AMOUNT_MISMATCH` audit events.
   - **Payment Alerts API**: Added `/api/admin/payment-alerts` endpoint for monitoring payment issues including amount mismatches and failed payments.
+  - **Webhook Idempotency (Phase 3A)**: Webhooks now check if order is already paid before updating. Duplicate webhooks are safely ignored. Failed payment webhooks only restore inventory once (on first failure).
+  - **Admin Payment Visibility (Phase 3A)**: Admin orders page now displays payment_reference, payment_provider, and paid_at in the order details dialog.
+  - **Retry Payment Flow (Phase 3A)**: Buyer order detail page now shows "Pay Now" button for orders in pending_payment status with pending/failed payment. Uses new Paystack reference for each retry attempt.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions.

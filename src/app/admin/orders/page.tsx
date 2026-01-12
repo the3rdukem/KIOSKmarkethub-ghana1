@@ -82,6 +82,9 @@ interface Order {
   status: string;
   paymentStatus: string;
   paymentMethod: string;
+  paymentReference?: string;
+  paymentProvider?: string;
+  paidAt?: string;
   shippingAddress: {
     fullName: string;
     phone: string;
@@ -446,6 +449,44 @@ export default function AdminOrdersPage() {
                     </CardContent>
                   </Card>
                 </div>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm">Payment Information</CardTitle>
+                  </CardHeader>
+                  <CardContent className="text-sm space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Payment Status</span>
+                      <Badge variant={selectedOrder.paymentStatus === 'paid' ? 'default' : selectedOrder.paymentStatus === 'failed' ? 'destructive' : 'outline'}>
+                        {selectedOrder.paymentStatus}
+                      </Badge>
+                    </div>
+                    {selectedOrder.paymentProvider && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Provider</span>
+                        <span className="font-medium capitalize">{selectedOrder.paymentProvider}</span>
+                      </div>
+                    )}
+                    {selectedOrder.paymentMethod && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Method</span>
+                        <span className="font-medium capitalize">{selectedOrder.paymentMethod.replace('_', ' ')}</span>
+                      </div>
+                    )}
+                    {selectedOrder.paymentReference && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Reference</span>
+                        <span className="font-mono text-xs">{selectedOrder.paymentReference}</span>
+                      </div>
+                    )}
+                    {selectedOrder.paidAt && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Paid At</span>
+                        <span>{new Date(selectedOrder.paidAt).toLocaleString()}</span>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
 
                 <Card>
                   <CardHeader className="pb-2">
