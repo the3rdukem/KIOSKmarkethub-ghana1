@@ -359,14 +359,15 @@ export default function AdminOrdersPage() {
                               {formatDistance(new Date(order.createdAt), new Date(), { addSuffix: true })}
                             </span>
                           </TableCell>
-                          <TableCell className="text-right">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                  <span className="sr-only">Open menu</span>
-                                </Button>
-                              </DropdownMenuTrigger>
+                          <TableCell>
+                            <div className="flex justify-end">
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8 min-w-[2rem] flex-shrink-0">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                    <span className="sr-only">Open menu</span>
+                                  </Button>
+                                </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onSelect={(e) => {
                                   e.preventDefault();
@@ -391,7 +392,8 @@ export default function AdminOrdersPage() {
                                   </DropdownMenuItem>
                                 )}
                               </DropdownMenuContent>
-                            </DropdownMenu>
+                              </DropdownMenu>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
