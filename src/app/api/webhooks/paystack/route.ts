@@ -7,6 +7,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPaystackCredentials } from '@/lib/db/dal/integrations';
+import { updateOrderPaymentStatus } from '@/lib/db/dal/orders';
+import { createAuditLog } from '@/lib/db/dal/audit';
 import { createHash } from 'crypto';
 
 interface PaystackEvent {
@@ -53,19 +55,16 @@ function verifySignature(payload: string, signature: string, secret: string): bo
  */
 export async function POST(request: NextRequest) {
   try {
-    // Get raw body for signature verification
     const rawBody = await request.text();
     const signature = request.headers.get('x-paystack-signature') || '';
 
-    // Get Paystack credentials
-    const credentials = getPaystackCredentials();
+    const credentials = await getPaystackCredentials();
 
     if (!credentials || !credentials.isEnabled) {
       console.error('[PAYSTACK_WEBHOOK] Paystack is not configured or enabled');
       return NextResponse.json({ error: 'Payment gateway not configured' }, { status: 503 });
     }
 
-    // Verify signature if webhook secret is configured
     if (credentials.webhookSecret) {
       if (!verifySignature(rawBody, signature, credentials.webhookSecret)) {
         console.error('[PAYSTACK_WEBHOOK] Invalid signature');
@@ -73,7 +72,6 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Parse the event
     let event: PaystackEvent;
     try {
       event = JSON.parse(rawBody);
@@ -84,7 +82,6 @@ export async function POST(request: NextRequest) {
 
     console.log(`[PAYSTACK_WEBHOOK] Received event: ${event.event}`);
 
-    // Handle different event types
     switch (event.event) {
       case 'charge.success':
         await handleChargeSuccess(event.data);
@@ -121,37 +118,70 @@ async function handleChargeSuccess(data: PaystackEvent['data']): Promise<void> {
 
   const orderId = data.metadata?.orderId;
 
-  if (orderId) {
-    try {
-      // Update order payment status
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { updateOrderPaymentStatus } = require('@/lib/db/dal/orders');
+  if (!orderId) {
+    console.error('[PAYSTACK_WEBHOOK] No orderId in payment metadata');
+    return;
+  }
 
-      updateOrderPaymentStatus(orderId, {
-        paymentStatus: 'paid',
-        paymentMethod: data.channel,
-        paymentReference: data.reference,
-        paidAt: data.paid_at || new Date().toISOString(),
-      });
+  try {
+    const { getOrderById } = await import('@/lib/db/dal/orders');
+    const order = await getOrderById(orderId);
+    
+    if (!order) {
+      console.error(`[PAYSTACK_WEBHOOK] Order ${orderId} not found`);
+      return;
+    }
 
-      console.log(`[PAYSTACK_WEBHOOK] Order ${orderId} marked as paid`);
+    const paidAmountGHS = data.amount / 100;
+    const orderTotal = order.total;
+    const tolerance = 0.01;
 
-      // Create audit log
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { createAuditLog } = require('@/lib/db/dal/audit');
-
-      createAuditLog({
-        action: 'PAYMENT_RECEIVED',
+    if (Math.abs(paidAmountGHS - orderTotal) > tolerance) {
+      console.error(`[PAYSTACK_WEBHOOK] Amount mismatch for order ${orderId}: paid ${paidAmountGHS}, expected ${orderTotal}`);
+      await createAuditLog({
+        action: 'PAYMENT_AMOUNT_MISMATCH',
         category: 'order',
         targetId: orderId,
         targetType: 'order',
         targetName: `Order ${orderId}`,
-        details: `Payment of ${data.currency} ${data.amount / 100} received via ${data.channel}`,
-        severity: 'info',
+        details: JSON.stringify({
+          reference: data.reference,
+          paidAmount: paidAmountGHS,
+          expectedAmount: orderTotal,
+          currency: data.currency,
+        }),
+        severity: 'warning',
       });
-    } catch (error) {
-      console.error(`[PAYSTACK_WEBHOOK] Failed to update order ${orderId}:`, error);
+      return;
     }
+
+    await updateOrderPaymentStatus(orderId, {
+      paymentStatus: 'paid',
+      paymentMethod: data.channel,
+      paymentProvider: 'paystack',
+      paymentReference: data.reference,
+      paidAt: data.paid_at || new Date().toISOString(),
+    });
+
+    console.log(`[PAYSTACK_WEBHOOK] Order ${orderId} marked as paid`);
+
+    await createAuditLog({
+      action: 'PAYMENT_RECEIVED',
+      category: 'order',
+      targetId: orderId,
+      targetType: 'order',
+      targetName: `Order ${orderId}`,
+      details: JSON.stringify({
+        reference: data.reference,
+        amount: paidAmountGHS,
+        currency: data.currency,
+        channel: data.channel,
+        customerEmail: data.customer.email,
+      }),
+      severity: 'info',
+    });
+  } catch (error) {
+    console.error(`[PAYSTACK_WEBHOOK] Failed to update order ${orderId}:`, error);
   }
 }
 
@@ -163,20 +193,35 @@ async function handleChargeFailed(data: PaystackEvent['data']): Promise<void> {
 
   const orderId = data.metadata?.orderId;
 
-  if (orderId) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { updateOrderPaymentStatus } = require('@/lib/db/dal/orders');
+  if (!orderId) {
+    console.error('[PAYSTACK_WEBHOOK] No orderId in payment metadata');
+    return;
+  }
 
-      updateOrderPaymentStatus(orderId, {
-        paymentStatus: 'failed',
-        paymentReference: data.reference,
-      });
+  try {
+    await updateOrderPaymentStatus(orderId, {
+      paymentStatus: 'failed',
+      paymentProvider: 'paystack',
+      paymentReference: data.reference,
+    });
 
-      console.log(`[PAYSTACK_WEBHOOK] Order ${orderId} marked as payment failed`);
-    } catch (error) {
-      console.error(`[PAYSTACK_WEBHOOK] Failed to update order ${orderId}:`, error);
-    }
+    console.log(`[PAYSTACK_WEBHOOK] Order ${orderId} marked as payment failed`);
+
+    await createAuditLog({
+      action: 'PAYMENT_FAILED',
+      category: 'order',
+      targetId: orderId,
+      targetType: 'order',
+      targetName: `Order ${orderId}`,
+      details: JSON.stringify({
+        reference: data.reference,
+        amount: data.amount / 100,
+        currency: data.currency,
+      }),
+      severity: 'warning',
+    });
+  } catch (error) {
+    console.error(`[PAYSTACK_WEBHOOK] Failed to update order ${orderId}:`, error);
   }
 }
 
@@ -185,7 +230,6 @@ async function handleChargeFailed(data: PaystackEvent['data']): Promise<void> {
  */
 async function handleTransferSuccess(data: PaystackEvent['data']): Promise<void> {
   console.log(`[PAYSTACK_WEBHOOK] Transfer successful: ${data.reference}`);
-  // Handle vendor payout confirmation
 }
 
 /**
@@ -193,5 +237,4 @@ async function handleTransferSuccess(data: PaystackEvent['data']): Promise<void>
  */
 async function handleTransferFailed(data: PaystackEvent['data']): Promise<void> {
   console.log(`[PAYSTACK_WEBHOOK] Transfer failed: ${data.reference}`);
-  // Handle failed vendor payout
 }

@@ -50,9 +50,13 @@ export interface DbOrder {
   shipping_fee: number;
   tax: number;
   total: number;
+  currency: string;
   status: OrderStatus;
   payment_status: PaymentStatus;
   payment_method: string | null;
+  payment_reference: string | null;
+  payment_provider: string | null;
+  paid_at: string | null;
   shipping_address: string; // JSON
   tracking_number: string | null;
   notes: string | null;
@@ -90,6 +94,7 @@ export interface CreateOrderInput {
   shippingFee?: number;
   tax?: number;
   total: number;
+  currency?: string;
   paymentMethod?: string;
   shippingAddress: ShippingAddress;
   couponCode?: string;
@@ -103,6 +108,14 @@ export interface UpdateOrderInput {
   notes?: string;
 }
 
+export interface UpdatePaymentStatusInput {
+  paymentStatus: PaymentStatus;
+  paymentReference?: string;
+  paymentProvider?: string;
+  paymentMethod?: string;
+  paidAt?: string;
+}
+
 /**
  * Create a new order with order items
  * Phase 2: Creates order in pending_payment status and inserts order_items
@@ -111,13 +124,13 @@ export async function createOrder(input: CreateOrderInput): Promise<DbOrder> {
   const orderId = `order_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();
 
-  // Create the order record
+  // Create the order record with currency for payment tracking
   await query(`
     INSERT INTO orders (
       id, buyer_id, buyer_name, buyer_email, items, subtotal,
-      discount_total, shipping_fee, tax, total, status, payment_status, 
+      discount_total, shipping_fee, tax, total, currency, status, payment_status, 
       payment_method, shipping_address, coupon_code, notes, created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
   `, [
     orderId,
     input.buyerId,
@@ -129,6 +142,7 @@ export async function createOrder(input: CreateOrderInput): Promise<DbOrder> {
     input.shippingFee || 0,
     input.tax || 0,
     input.total,
+    input.currency || 'GHS', // Default to Ghana Cedis
     'pending_payment', // Phase 2: All orders start as pending_payment
     'pending',
     input.paymentMethod || null,
@@ -281,6 +295,58 @@ export async function updateOrder(id: string, updates: UpdateOrderInput): Promis
   if (updates.notes !== undefined) {
     fields.push(`notes = $${paramIndex++}`);
     values.push(updates.notes);
+  }
+
+  values.push(id);
+
+  const result = await query(
+    `UPDATE orders SET ${fields.join(', ')} WHERE id = $${paramIndex}`,
+    values
+  );
+
+  if ((result.rowCount ?? 0) === 0) return null;
+  return getOrderById(id);
+}
+
+/**
+ * Update order payment status (for Paystack webhook integration)
+ * This function updates payment-specific fields after payment confirmation.
+ * Only updates fields that have actual values (not null/undefined).
+ */
+export async function updateOrderPaymentStatus(
+  id: string,
+  updates: UpdatePaymentStatusInput
+): Promise<DbOrder | null> {
+  const now = new Date().toISOString();
+
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let paramIndex = 1;
+
+  fields.push(`updated_at = $${paramIndex++}`);
+  values.push(now);
+
+  fields.push(`payment_status = $${paramIndex++}`);
+  values.push(updates.paymentStatus);
+
+  if (updates.paymentReference !== undefined && updates.paymentReference !== null) {
+    fields.push(`payment_reference = $${paramIndex++}`);
+    values.push(updates.paymentReference);
+  }
+
+  if (updates.paymentProvider !== undefined && updates.paymentProvider !== null) {
+    fields.push(`payment_provider = $${paramIndex++}`);
+    values.push(updates.paymentProvider);
+  }
+
+  if (updates.paymentMethod !== undefined && updates.paymentMethod !== null) {
+    fields.push(`payment_method = $${paramIndex++}`);
+    values.push(updates.paymentMethod);
+  }
+
+  if (updates.paidAt !== undefined && updates.paidAt !== null) {
+    fields.push(`paid_at = $${paramIndex++}`);
+    values.push(updates.paidAt);
   }
 
   values.push(id);

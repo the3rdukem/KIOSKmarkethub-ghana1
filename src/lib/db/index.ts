@@ -772,6 +772,41 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Table may already exist
   }
+
+  // PHASE 4: Add payment tracking columns to orders table for Paystack integration
+  try {
+    await client.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference TEXT
+    `);
+  } catch (e) {
+    // Column may already exist
+  }
+
+  try {
+    await client.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_provider TEXT
+    `);
+  } catch (e) {
+    // Column may already exist
+  }
+
+  try {
+    await client.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS paid_at TEXT
+    `);
+  } catch (e) {
+    // Column may already exist
+  }
+
+  try {
+    await client.query(`
+      ALTER TABLE orders ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'GHS'
+    `);
+  } catch (e) {
+    // Column may already exist
+  }
+
+  console.log('[DB] PHASE 4: Added payment tracking columns to orders table');
 }
 
 /**

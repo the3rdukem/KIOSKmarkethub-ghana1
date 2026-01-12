@@ -64,12 +64,14 @@ const ghanaCities = {
 function PaystackCardPayment({
   amount,
   email,
+  orderId,
   onSuccess,
   onCancel,
   disabled,
 }: {
   amount: number;
   email: string;
+  orderId: string;
   onSuccess: (reference: string) => void;
   onCancel: () => void;
   disabled?: boolean;
@@ -79,7 +81,6 @@ function PaystackCardPayment({
   const [isEnabled, setIsEnabled] = useState(false);
   const [isLive, setIsLive] = useState(false);
 
-  // Fetch Paystack config from server on mount
   useEffect(() => {
     async function loadConfig() {
       try {
@@ -101,7 +102,6 @@ function PaystackCardPayment({
   }, []);
 
   const handlePaystackPayment = async () => {
-    // Ensure config is loaded
     const config = await fetchPaystackConfig();
     if (!config || !config.publicKey) {
       toast.error("Payment gateway not configured. Please contact support.");
@@ -120,6 +120,12 @@ function PaystackCardPayment({
         email,
         amount,
         reference: generatePaymentReference(),
+        metadata: {
+          orderId,
+          custom_fields: [
+            { display_name: "Order ID", variable_name: "order_id", value: orderId }
+          ]
+        },
         onSuccess: (response) => {
           setIsLoading(false);
           onSuccess(response.reference);
@@ -303,24 +309,25 @@ export default function CheckoutPage() {
 
   // State for order creation
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [pendingOrderId, setPendingOrderId] = useState<string | null>(null);
 
-  // Handle order creation (Phase 2: Server-side API)
-  const handlePaymentSuccess = async (transactionId: string) => {
+  // Create order in pending_payment status (before payment)
+  const createPendingOrder = async (): Promise<string | null> => {
     if (!user) {
       toast.error("Please log in to complete your order");
-      return;
+      return null;
     }
 
     if (items.length === 0) {
       toast.error("Your cart is empty");
-      return;
+      return null;
     }
 
     const shippingAddress = getShippingAddress();
 
     if (!shippingAddress.address || !shippingAddress.city || !shippingAddress.region) {
       toast.error("Please provide a complete shipping address");
-      return;
+      return null;
     }
 
     if (useNewAddress && saveNewAddress && newAddress.street) {
@@ -375,7 +382,7 @@ export default function CheckoutPage() {
           toast.error(result.error || 'Failed to create order');
         }
         setIsCreatingOrder(false);
-        return;
+        return null;
       }
 
       if (appliedCoupon) {
@@ -385,17 +392,41 @@ export default function CheckoutPage() {
         }).catch(err => console.error('Failed to record coupon usage:', err));
       }
 
-      clearCart();
-      setAppliedCoupon(null);
-
-      toast.success("Order placed successfully!");
-
-      router.push(`/order-success?orderId=${result.order.id}&transaction=${transactionId}`);
+      setPendingOrderId(result.order.id);
+      setIsCreatingOrder(false);
+      return result.order.id;
     } catch (error) {
       console.error('Order creation error:', error);
       toast.error('Failed to create order. Please try again.');
       setIsCreatingOrder(false);
+      return null;
     }
+  };
+
+  // Handle place order button - create order then proceed to payment
+  const handlePlaceOrder = async () => {
+    const orderId = await createPendingOrder();
+    if (!orderId) return;
+    toast.success("Order created! Please complete payment.");
+  };
+
+  // Handle successful payment callback (webhook updates payment status)
+  const handlePaymentSuccess = async (transactionId: string) => {
+    if (!pendingOrderId) {
+      toast.error("Order ID missing. Please contact support.");
+      return;
+    }
+    clearCart();
+    setAppliedCoupon(null);
+    const orderId = pendingOrderId;
+    setPendingOrderId(null);
+    toast.success("Payment successful! Redirecting...");
+    router.push(`/order-success?orderId=${orderId}&transaction=${transactionId}`);
+  };
+
+  // Handle payment cancellation - allow retry
+  const handlePaymentCancel = () => {
+    toast.info("Payment cancelled. Click 'Pay with Card' to try again, or 'Pay Later' to complete payment later.");
   };
 
   const subtotal = hydrated ? getTotalPrice() : 0;
@@ -804,56 +835,70 @@ export default function CheckoutPage() {
                 <CardDescription>Review your order and proceed to checkout</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Alert className="border-blue-200 bg-blue-50">
-                  <Package className="h-4 w-4 text-blue-600" />
-                  <AlertDescription className="text-blue-800">
-                    Your order will be created with status "Pending Payment". You can pay later through our secure payment system.
-                  </AlertDescription>
-                </Alert>
+                {!pendingOrderId ? (
+                  <>
+                    <Alert className="border-blue-200 bg-blue-50">
+                      <Package className="h-4 w-4 text-blue-600" />
+                      <AlertDescription className="text-blue-800">
+                        Click below to create your order, then proceed to payment.
+                      </AlertDescription>
+                    </Alert>
 
-                <Button
-                  className="w-full h-12 text-lg"
-                  size="lg"
-                  onClick={() => handlePaymentSuccess('pending_' + Date.now())}
-                  disabled={!hydrated || items.length === 0 || !isLoggedIn || isCreatingOrder}
-                >
-                  {isCreatingOrder ? (
-                    <>
-                      <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                      Creating Order...
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="w-5 h-5 mr-2" />
-                      Place Order - GHS {total.toFixed(2)}
-                    </>
-                  )}
-                </Button>
+                    <Button
+                      className="w-full h-12 text-lg"
+                      size="lg"
+                      onClick={handlePlaceOrder}
+                      disabled={!hydrated || items.length === 0 || !isLoggedIn || isCreatingOrder}
+                    >
+                      {isCreatingOrder ? (
+                        <>
+                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                          Creating Order...
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-5 h-5 mr-2" />
+                          Place Order - GHS {total.toFixed(2)}
+                        </>
+                      )}
+                    </Button>
 
-                {!isLoggedIn && (
-                  <Alert className="border-amber-200 bg-amber-50">
-                    <AlertTriangle className="h-4 w-4 text-amber-600" />
-                    <AlertDescription className="text-amber-800">
-                      Please log in to complete your order.
-                    </AlertDescription>
-                  </Alert>
+                    {!isLoggedIn && (
+                      <Alert className="border-amber-200 bg-amber-50">
+                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                        <AlertDescription className="text-amber-800">
+                          Please log in to complete your order.
+                        </AlertDescription>
+                      </Alert>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Alert className="border-green-200 bg-green-50">
+                      <CheckCircle className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-800">
+                        Order #{pendingOrderId.slice(0, 8)} created! Complete payment below.
+                      </AlertDescription>
+                    </Alert>
+
+                    <PaystackCardPayment
+                      amount={total}
+                      email={user?.email || ''}
+                      orderId={pendingOrderId}
+                      onSuccess={handlePaymentSuccess}
+                      onCancel={handlePaymentCancel}
+                      disabled={!hydrated}
+                    />
+
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => router.push(`/orders/${pendingOrderId}`)}
+                    >
+                      Pay Later - View Order
+                    </Button>
+                  </>
                 )}
-
-                <Separator className="my-4" />
-
-                <div className="text-center text-sm text-muted-foreground">
-                  <p>Payment options coming soon:</p>
-                  <div className="flex justify-center gap-4 mt-2">
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <Smartphone className="w-3 h-3" />
-                      Mobile Money
-                    </Badge>
-                    <Badge variant="outline" className="flex items-center gap-1">
-                      <CreditCard className="w-3 h-3" />
-                      Card Payment
-                    </Badge>
-                  </div>
-                </div>
               </CardContent>
             </Card>
 

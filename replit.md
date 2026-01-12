@@ -56,6 +56,12 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
   - **Bulk Ratings DAL**: Added `getBulkProductRatings()` function to efficiently fetch ratings for multiple products in a single query.
   - **Slider Multi-Thumb**: Updated Slider component to use static thumbs instead of dynamic rendering for proper drag functionality. Increased track height and added hover states.
   - **Server-Side Categories**: Search page now fetches categories from `/api/categories` endpoint instead of relying on client-side zustand store hydration. Categories are fetched via useEffect on mount, ensuring they load reliably regardless of localStorage state.
+- **Payment System Fixes (Jan 2026)**:
+  - **Payment Schema Updates**: Added `payment_reference`, `payment_provider`, `paid_at`, and `currency` columns to orders table. Updated `DbOrder` interface and `CreateOrderInput` types.
+  - **Payment DAL Enhancement**: Implemented `updateOrderPaymentStatus()` function with `UpdatePaymentStatusInput` interface for webhook integration. Handles paymentStatus, paymentReference, paymentProvider, paymentMethod, and paidAt fields.
+  - **Webhook Handler Fixed**: Updated Paystack webhook (`/api/webhooks/paystack/route.ts`) to use proper async/await, import `updateOrderPaymentStatus` from DAL, add paymentProvider field, and log errors when orderId is missing from metadata.
+  - **Checkout Flow Refactored**: Modified checkout page to create order in `pending_payment` status BEFORE opening Paystack popup. orderId is now passed in Paystack metadata, enabling webhook to link payment to order. Two-step checkout: Place Order → Pay with Paystack.
+  - **Order-Payment Linking**: Critical fix ensuring orderId is included in Paystack metadata, allowing webhook to update correct order when payment completes.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions.
