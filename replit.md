@@ -41,3 +41,26 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Paystack**: Payment gateway for Mobile Money transactions.
 - **PostgreSQL**: Managed relational database service.
 - **Image Storage**: Provider-agnostic abstraction for image uploads, with current local filesystem usage and a clear cloud migration path.
+- **Google OAuth**: OAuth 2.0 integration for buyer and vendor sign-in (admins use password only).
+
+## Phase 4A: API Integrations & Identity (Jan 2026)
+
+**Google OAuth Integration:**
+- OAuth callback route at `/api/auth/google/callback`
+- OAuth user creation/linking in `auth-service.ts` with `createOrLinkOAuthUser()` and `createSessionForUser()`
+- Buyers and vendors only (admins blocked from OAuth)
+- Vendors get default business name "{Name}'s Store" if not provided
+- OAuth respects existing email uniqueness rules (buyer+vendor can share same email)
+- No role elevation through OAuth
+
+**Analytics Event Tracking:**
+- Non-blocking, fire-and-forget analytics at `src/lib/analytics.ts`
+- Tracks: page views, product views, cart actions, checkout, payments, search, auth events
+- No PII leakage (only user/product IDs, no emails/names)
+- Zustand store with localStorage persistence (last 100 events)
+- Ready for external provider integration
+
+**Messaging System:**
+- Client-side messaging store exists at `src/lib/messaging-store.ts`
+- Full conversation/message models with offline support
+- Backend API endpoints deferred (Phase 4A allows polling)
