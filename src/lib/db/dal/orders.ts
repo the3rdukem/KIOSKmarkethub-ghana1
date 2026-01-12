@@ -554,12 +554,18 @@ export async function getOrderItemsByVendor(vendorId: string): Promise<DbOrderIt
 
 /**
  * Get orders containing items for a specific vendor (using order_items table)
+ * 
+ * PHASE 3B: Vendors only see PAID orders (processing, fulfilled, or cancelled-after-payment).
+ * Orders in 'pending_payment' status are NOT visible to vendors since payment is not confirmed.
+ * This prevents vendors from seeing orders that may never be paid.
  */
 export async function getOrdersForVendor(vendorId: string): Promise<DbOrder[]> {
   const result = await query<DbOrder>(`
     SELECT DISTINCT o.* FROM orders o
     INNER JOIN order_items oi ON o.id = oi.order_id
     WHERE oi.vendor_id = $1
+      AND o.status IN ('processing', 'fulfilled', 'cancelled')
+      AND (o.status != 'cancelled' OR o.payment_status = 'refunded')
     ORDER BY o.created_at DESC
   `, [vendorId]);
   return result.rows;

@@ -152,7 +152,17 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     if (body.trackingNumber !== undefined) updates.trackingNumber = body.trackingNumber;
     if (body.notes !== undefined) updates.notes = body.notes;
-    if (body.paymentStatus !== undefined) updates.paymentStatus = body.paymentStatus;
+    
+    // PHASE 3B: Admin cannot manually mark orders as 'paid'
+    // Payment confirmation MUST come from webhook only to ensure payment integrity
+    if (body.paymentStatus !== undefined) {
+      if (body.paymentStatus === 'paid') {
+        return NextResponse.json({ 
+          error: 'Payment status cannot be manually set to paid. Payment confirmation must come from the payment gateway.' 
+        }, { status: 403 });
+      }
+      updates.paymentStatus = body.paymentStatus;
+    }
 
     const updatedOrder = await updateOrder(id, updates);
 

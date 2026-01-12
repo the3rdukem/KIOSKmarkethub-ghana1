@@ -1,0 +1,153 @@
+⸻
+
+🔴 PHASE 3B — PAYMENT FINALIZATION & ORDER LOCKDOWN
+
+MASTER PROMPT (AUDIT-FIRST, ZERO REGRESSION, ZERO FEATURE CREEP)
+
+🚨 READ THIS FIRST — NON-NEGOTIABLE
+
+You MUST audit existing implementation before writing or changing any code.
+If something already exists and works, DO NOT rewrite it, refactor it, or “improve” it.
+
+Your job is to:
+	1.	Verify what already exists
+	2.	List what is missing
+	3.	Implement ONLY the missing pieces
+	4.	Prove correctness with concrete tests
+
+If you re-implement existing working logic, the task is considered FAILED.
+
+⸻
+
+STEP 1 — AUDIT (MANDATORY, NO CODE YET)
+
+Inspect the current codebase and explicitly confirm whether the following already exist:
+
+A. Payment & Webhook Handling
+	•	Paystack webhook endpoint exists
+	•	Webhook idempotency guard exists (paid orders not reprocessed)
+	•	Duplicate webhooks safely ignored
+	•	Failed payment restores inventory only once
+
+B. Order State Handling
+	•	Order statuses already defined
+	•	Client cannot mark order as paid
+	•	Payment success only applied server-side (webhook)
+
+C. Retry Payment Flow
+	•	Buyer can retry failed/pending payments
+	•	New payment reference generated server-side
+	•	Already-paid orders rejected on retry
+
+D. Inventory Reservation
+	•	Inventory is reserved at checkout
+	•	Inventory is finalized on payment success
+	•	Inventory is released on payment failure
+
+📌 Produce a short audit report listing:
+	•	✅ Already implemented (do nothing)
+	•	❌ Missing or incomplete (to be fixed)
+
+DO NOT proceed without this list.
+
+⸻
+
+STEP 2 — IMPLEMENT ONLY WHAT IS MISSING
+
+Based on the audit, implement ONLY missing or incomplete items from the list below.
+
+REQUIRED PHASE 3B BEHAVIOR (IMPLEMENT ONLY IF MISSING)
+
+1️⃣ Order State Lockdown
+	•	Enforce strict state transitions:
+	•	payment_pending → paid ONLY via webhook
+	•	Paid orders become immutable (no edits, no re-pricing)
+
+2️⃣ Final Price Snapshot (If Missing)
+	•	At payment initialization, snapshot and persist:
+	•	unit price
+	•	sale discount
+	•	coupon discount
+	•	tax
+	•	shipping
+	•	Never recompute price after payment starts
+
+3️⃣ Inventory Finalization (If Incomplete)
+	•	Payment success → decrement inventory (exactly once)
+	•	Payment failure → release reservation (exactly once)
+	•	Use database-level idempotency (not just in-memory checks)
+
+4️⃣ Vendor Order Visibility Rule
+	•	Vendors must ONLY see paid orders
+	•	No pending/failed payments in vendor dashboard
+
+5️⃣ Admin Guarantees
+	•	Admin cannot mark orders as paid manually
+	•	Admin sees:
+	•	payment provider
+	•	reference
+	•	status
+	•	timestamp
+
+⸻
+
+STEP 3 — HARD RULES (NO EXCEPTIONS)
+
+🚫 Do NOT introduce:
+	•	refunds
+	•	payouts
+	•	wallets
+	•	partial payments
+	•	split payments
+	•	schema changes unless unavoidable
+
+🚫 Do NOT refactor existing working flows
+🚫 Do NOT change UX unless required to enforce rules
+🚫 Do NOT touch Phase 4+ features
+
+⸻
+
+STEP 4 — VERIFICATION (MANDATORY)
+
+Provide manual test steps using these credentials:
+
+Admin
+	•	the3rdukem@gmail.com / 123asdqweX$
+
+Vendor
+	•	ven@kiosk.com.gh / 123asdqwe
+
+Buyer
+	•	buy@kiosk.com.gh / 123asdqwe
+
+Must Prove ALL of the Following:
+
+✅ Payment success webhook marks order paid once
+✅ Duplicate webhook causes no mutation
+✅ Inventory decrements exactly once
+✅ Failed payment restores inventory
+✅ Retry payment works but cannot double-charge
+✅ Vendor sees only paid orders
+✅ Buyer cannot modify paid order
+
+If any item fails → report FAILURE, not “mostly works”.
+
+⸻
+
+STEP 5 — FINAL REPORT FORMAT (STRICT)
+
+Your final response MUST be structured as:
+	1.	Audit Results (What already existed)
+	2.	Gaps Found
+	3.	Changes Made (File-level)
+	4.	Manual Test Results
+	5.	Explicit Confirmation: “Phase 3B Complete” or “Phase 3B Failed”
+
+⸻
+
+🔒 SUCCESS CRITERIA
+
+If Phase 3B passes, we proceed to:
+Phase 3C — Refunds & Vendor Payout Readiness
+
+If not, we stop and fix only the failing item.
