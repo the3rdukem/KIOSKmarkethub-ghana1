@@ -54,7 +54,8 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
   - **CategoryAttribute Typing**: Fixed to use correct `key` field instead of `name` to match the CategoryAttribute interface.
   - **Rating Filter Fix**: Products API now returns `averageRating` and `reviewCount` from database reviews. Search page uses server-side ratings instead of local zustand store for accurate filtering.
   - **Bulk Ratings DAL**: Added `getBulkProductRatings()` function to efficiently fetch ratings for multiple products in a single query.
-  - **Slider Multi-Thumb**: Updated Slider component to render multiple thumbs based on value array length for proper range selection.
+  - **Slider Multi-Thumb**: Updated Slider component to use static thumbs instead of dynamic rendering for proper drag functionality. Increased track height and added hover states.
+  - **Server-Side Categories**: Search page now fetches categories from `/api/categories` endpoint instead of relying on client-side zustand store hydration. Categories are fetched via useEffect on mount, ensuring they load reliably regardless of localStorage state.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions.
