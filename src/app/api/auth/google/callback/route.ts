@@ -18,7 +18,17 @@ import { handleGoogleCallbackServer } from '@/lib/db/dal/google-oauth-server';
 import { createOrLinkOAuthUser, createSessionForUser } from '@/lib/db/dal/auth-service';
 import { createAuditLog } from '@/lib/db/dal/audit';
 
+function getBaseUrl(request: NextRequest): string {
+  const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS;
+  if (replitDomain) {
+    return `https://${replitDomain}`;
+  }
+  return request.nextUrl.origin;
+}
+
 export async function GET(request: NextRequest) {
+  const baseUrl = getBaseUrl(request);
+  
   try {
     const searchParams = request.nextUrl.searchParams;
     const code = searchParams.get('code');
@@ -28,11 +38,11 @@ export async function GET(request: NextRequest) {
     // Handle OAuth errors
     if (error) {
       console.error('[GOOGLE_OAUTH] OAuth error:', error);
-      return NextResponse.redirect(new URL(`/auth/login?error=${encodeURIComponent(error)}`, request.url));
+      return NextResponse.redirect(new URL(`/auth/login?error=${encodeURIComponent(error)}`, baseUrl));
     }
 
     if (!code) {
-      return NextResponse.redirect(new URL('/auth/login?error=missing_code', request.url));
+      return NextResponse.redirect(new URL('/auth/login?error=missing_code', baseUrl));
     }
 
     // Parse state to get role (buyer or vendor)
@@ -58,7 +68,7 @@ export async function GET(request: NextRequest) {
     
     if (!googleResult.success || !googleResult.user) {
       console.error('[GOOGLE_OAUTH] Failed to get user info:', googleResult.error);
-      return NextResponse.redirect(new URL(`/auth/login?error=${encodeURIComponent(googleResult.error || 'oauth_failed')}`, request.url));
+      return NextResponse.redirect(new URL(`/auth/login?error=${encodeURIComponent(googleResult.error || 'oauth_failed')}`, baseUrl));
     }
 
     const googleUser = googleResult.user;
@@ -76,7 +86,7 @@ export async function GET(request: NextRequest) {
     if (!authResult.success || !authResult.data) {
       console.error('[GOOGLE_OAUTH] Failed to create/link user:', authResult.error);
       const errorMessage = authResult.error?.message || 'account_error';
-      return NextResponse.redirect(new URL(`/auth/login?error=${encodeURIComponent(errorMessage)}`, request.url));
+      return NextResponse.redirect(new URL(`/auth/login?error=${encodeURIComponent(errorMessage)}`, baseUrl));
     }
 
     const user = authResult.data.user;
@@ -86,7 +96,7 @@ export async function GET(request: NextRequest) {
     
     if (!sessionResult.success || !sessionResult.data) {
       console.error('[GOOGLE_OAUTH] Failed to create session:', sessionResult.error);
-      return NextResponse.redirect(new URL('/auth/login?error=session_failed', request.url));
+      return NextResponse.redirect(new URL('/auth/login?error=session_failed', baseUrl));
     }
 
     // Set session cookie
@@ -124,9 +134,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    return NextResponse.redirect(new URL(redirectUrl, request.url));
+    return NextResponse.redirect(new URL(redirectUrl, baseUrl));
   } catch (error) {
     console.error('[GOOGLE_OAUTH] Callback error:', error);
-    return NextResponse.redirect(new URL('/auth/login?error=internal_error', request.url));
+    const errorBaseUrl = getBaseUrl(request);
+    return NextResponse.redirect(new URL('/auth/login?error=internal_error', errorBaseUrl));
   }
 }
