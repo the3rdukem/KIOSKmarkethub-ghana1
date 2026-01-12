@@ -101,7 +101,7 @@ const statusConfig: Record<string, { color: string; icon: typeof Clock; label: s
   pending_payment: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending Payment" },
   pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending" },
   confirmed: { color: "bg-blue-100 text-blue-800", icon: CheckCircle, label: "Confirmed" },
-  processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Processing" },
+  processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Payment Confirmed" },
   shipped: { color: "bg-purple-100 text-purple-800", icon: Truck, label: "Shipped" },
   fulfilled: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Fulfilled" },
   delivered: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Delivered" },

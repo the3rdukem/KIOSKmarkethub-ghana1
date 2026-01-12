@@ -79,14 +79,14 @@ interface OrderDetailPageProps {
 
 const orderSteps = [
   { status: "pending_payment", label: "Order Placed", icon: Package },
-  { status: "processing", label: "Processing", icon: Clock },
+  { status: "processing", label: "Payment Confirmed", icon: Clock },
   { status: "fulfilled", label: "Fulfilled", icon: CheckCircle },
 ];
 
 const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
   pending_payment: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Pending Payment" },
   pending: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Pending" },
-  processing: { color: "text-blue-700", bg: "bg-blue-100", label: "Processing" },
+  processing: { color: "text-blue-700", bg: "bg-blue-100", label: "Payment Confirmed - Processing" },
   fulfilled: { color: "text-green-700", bg: "bg-green-100", label: "Fulfilled" },
   delivered: { color: "text-green-700", bg: "bg-green-100", label: "Delivered" },
   cancelled: { color: "text-red-700", bg: "bg-red-100", label: "Cancelled" },
@@ -212,7 +212,9 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const getCurrentStep = () => {
     if (order.status === "cancelled") return -1;
     if (order.status === "fulfilled" || order.status === "delivered") return 2;
+    // 'processing' means payment confirmed, awaiting fulfillment
     if (order.status === "processing") return 1;
+    // 'pending_payment' is initial state
     return 0;
   };
 

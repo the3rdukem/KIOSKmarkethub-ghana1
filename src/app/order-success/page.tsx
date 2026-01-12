@@ -220,9 +220,12 @@ function OrderSuccessContent() {
               </div>
 
               <div className="pt-4">
-                <Badge variant={order.status === 'pending_payment' ? 'secondary' : 'default'} className="text-sm">
+                <Badge 
+                  variant={order.status === 'pending_payment' ? 'secondary' : 'default'} 
+                  className={`text-sm ${order.status === 'processing' ? 'bg-blue-100 text-blue-800' : order.status === 'fulfilled' ? 'bg-green-100 text-green-800' : ''}`}
+                >
                   <Clock className="w-3 h-3 mr-1" />
-                  Status: {order.status === 'pending_payment' ? 'Awaiting Payment' : order.status}
+                  Status: {order.status === 'pending_payment' ? 'Awaiting Payment' : order.status === 'processing' ? 'Processing' : order.status === 'fulfilled' ? 'Fulfilled' : order.status}
                 </Badge>
               </div>
             </CardContent>
@@ -272,9 +275,12 @@ function OrderSuccessContent() {
                     <p className="text-sm text-muted-foreground">Coupon: {order.couponCode}</p>
                   )}
                   <div className="pt-2">
-                    <Badge variant={order.paymentStatus === 'pending' ? 'secondary' : 'default'} className="bg-amber-100 text-amber-800">
+                    <Badge 
+                      variant={order.paymentStatus === 'paid' ? 'default' : 'secondary'} 
+                      className={order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}
+                    >
                       <Clock className="w-3 h-3 mr-1" />
-                      Payment {order.paymentStatus === 'pending' ? 'Pending' : order.paymentStatus}
+                      Payment {order.paymentStatus === 'pending' ? 'Pending' : order.paymentStatus === 'paid' ? 'Paid' : order.paymentStatus}
                     </Badge>
                   </div>
                 </div>
