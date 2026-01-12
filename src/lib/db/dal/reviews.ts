@@ -421,6 +421,36 @@ export async function getProductRatingStats(productId: string): Promise<{
 }
 
 /**
+ * Get rating stats for multiple products (bulk operation for search page)
+ */
+export async function getBulkProductRatings(productIds: string[]): Promise<Map<string, { average: number; count: number }>> {
+  if (productIds.length === 0) {
+    return new Map();
+  }
+
+  const placeholders = productIds.map((_, i) => `$${i + 1}`).join(', ');
+  const result = await query<{ product_id: string; avg_rating: string; review_count: string }>(
+    `SELECT product_id, 
+            AVG(rating) as avg_rating, 
+            COUNT(*) as review_count 
+     FROM reviews 
+     WHERE product_id IN (${placeholders}) AND status = 'active' 
+     GROUP BY product_id`,
+    productIds
+  );
+
+  const ratingsMap = new Map<string, { average: number; count: number }>();
+  for (const row of result.rows) {
+    ratingsMap.set(row.product_id, {
+      average: Math.round(parseFloat(row.avg_rating) * 10) / 10,
+      count: parseInt(row.review_count),
+    });
+  }
+
+  return ratingsMap;
+}
+
+/**
  * Get review stats for admin dashboard
  */
 export async function getReviewStats(): Promise<{

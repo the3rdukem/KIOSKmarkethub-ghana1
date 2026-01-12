@@ -49,6 +49,12 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
   - When a category is selected, its attributes (select/multi_select types) appear as filter options.
   - Products filtered based on `categoryAttributes` matching selected filter values.
   - Filter count includes attribute filters, and filters reset when category changes.
+- **Search Page UX Fixes (Jan 2026)**:
+  - **Category Filter Dropdown**: Replaced button list with Radix Select component for proper dropdown UI with keyboard navigation and accessibility.
+  - **CategoryAttribute Typing**: Fixed to use correct `key` field instead of `name` to match the CategoryAttribute interface.
+  - **Rating Filter Fix**: Products API now returns `averageRating` and `reviewCount` from database reviews. Search page uses server-side ratings instead of local zustand store for accurate filtering.
+  - **Bulk Ratings DAL**: Added `getBulkProductRatings()` function to efficiently fetch ratings for multiple products in a single query.
+  - **Slider Multi-Thumb**: Updated Slider component to render multiple thumbs based on value array length for proper range selection.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions.

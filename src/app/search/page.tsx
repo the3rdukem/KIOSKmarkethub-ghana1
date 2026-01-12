@@ -41,7 +41,6 @@ import { useUsersStore } from "@/lib/users-store";
 import { useCartStore } from "@/lib/cart-store";
 import { useWishlistStore } from "@/lib/wishlist-store";
 import { useAuthStore } from "@/lib/auth-store";
-import { useReviewsStore } from "@/lib/reviews-store";
 import { useOpenAI } from "@/lib/integrations-store";
 import { isOpenAIEnabled, semanticSearch } from "@/lib/services/openai";
 import { useCategoriesStore } from "@/lib/categories-store";
@@ -66,15 +65,13 @@ function SearchPageContent() {
   const isInWishlist = useWishlistStore((state) => state.isInWishlist);
   const toggleWishlist = useWishlistStore((state) => state.toggleWishlist);
   const user = useAuthStore((state) => state.user);
-  const getAverageRating = useReviewsStore((state) => state.getAverageRating);
-  const getReviewsByProduct = useReviewsStore((state) => state.getReviewsByProduct);
 
   // Dynamic categories from store
-  const { getActiveCategories, getCategoryByName } = useCategoriesStore();
+  const { getActiveCategories } = useCategoriesStore();
+  const activeCategories = useMemo(() => getActiveCategories(), [getActiveCategories]);
   const dynamicCategories = useMemo(() => {
-    const cats = getActiveCategories();
-    return ["All Categories", ...cats.map(c => c.name)];
-  }, [getActiveCategories]);
+    return ["All Categories", ...activeCategories.map(c => c.name)];
+  }, [activeCategories]);
 
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
@@ -82,8 +79,8 @@ function SearchPageContent() {
   // Get selected category's attributes for dynamic filtering (must be after selectedCategory state)
   const selectedCategoryData = useMemo(() => {
     if (selectedCategory === "All Categories") return null;
-    return getCategoryByName(selectedCategory);
-  }, [selectedCategory, getCategoryByName]);
+    return activeCategories.find(c => c.name === selectedCategory) || null;
+  }, [selectedCategory, activeCategories]);
 
   const categoryAttributes = useMemo(() => {
     if (!selectedCategoryData?.attributes) return [];
@@ -228,8 +225,8 @@ function SearchPageContent() {
       // Price range filter
       const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
 
-      // Rating filter
-      const rating = getAverageRating(product.id);
+      // Rating filter (use server-side rating from products API)
+      const rating = (product as Product & { averageRating?: number }).averageRating ?? 0;
       const matchesRating = rating >= minRating;
 
       // Stock filter
@@ -267,7 +264,7 @@ function SearchPageContent() {
     });
 
     return sorted;
-  }, [allProducts, debouncedSearchQuery, selectedCategory, selectedVendor, priceRange, minRating, inStockOnly, sortBy, getAverageRating, aiSearchResults, attributeFilters]);
+  }, [allProducts, debouncedSearchQuery, selectedCategory, selectedVendor, priceRange, minRating, inStockOnly, sortBy, aiSearchResults, attributeFilters]);
 
   const handleAddToCart = useCallback((product: Product) => {
     const priceToUse = product.effectivePrice ?? product.price;
@@ -332,21 +329,18 @@ function SearchPageContent() {
       {/* Categories */}
       <div>
         <Label className="text-sm font-semibold">Category</Label>
-        <div className="mt-2 space-y-2">
-          {dynamicCategories.map((category) => (
-            <button
-              key={category}
-              onClick={() => setSelectedCategory(category)}
-              className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
-                selectedCategory === category
-                  ? "bg-green-100 text-green-800 font-medium"
-                  : "hover:bg-gray-100"
-              }`}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
+        <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+          <SelectTrigger className="mt-2">
+            <SelectValue placeholder="Select a category" />
+          </SelectTrigger>
+          <SelectContent>
+            {dynamicCategories.map((category) => (
+              <SelectItem key={category} value={category}>
+                {category}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       <Separator />
@@ -380,25 +374,25 @@ function SearchPageContent() {
       {categoryAttributes.length > 0 && (
         <>
           {categoryAttributes.map((attr) => (
-            <div key={attr.name}>
-              <Label className="text-sm font-semibold">{attr.label || attr.name}</Label>
+            <div key={attr.key}>
+              <Label className="text-sm font-semibold">{attr.label || attr.key}</Label>
               <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
                 <button
-                  onClick={() => setAttributeFilters(prev => ({ ...prev, [attr.name]: "all" }))}
+                  onClick={() => setAttributeFilters(prev => ({ ...prev, [attr.key]: "all" }))}
                   className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
-                    !attributeFilters[attr.name] || attributeFilters[attr.name] === "all"
+                    !attributeFilters[attr.key] || attributeFilters[attr.key] === "all"
                       ? "bg-emerald-100 text-emerald-800 font-medium"
                       : "hover:bg-gray-100"
                   }`}
                 >
-                  All {attr.label || attr.name}
+                  All {attr.label || attr.key}
                 </button>
                 {attr.options?.map((option) => (
                   <button
                     key={option}
-                    onClick={() => setAttributeFilters(prev => ({ ...prev, [attr.name]: option }))}
+                    onClick={() => setAttributeFilters(prev => ({ ...prev, [attr.key]: option }))}
                     className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
-                      attributeFilters[attr.name] === option
+                      attributeFilters[attr.key] === option
                         ? "bg-emerald-100 text-emerald-800 font-medium"
                         : "hover:bg-gray-100"
                     }`}
@@ -498,8 +492,9 @@ function SearchPageContent() {
   );
 
   const ProductCard = ({ product }: { product: Product }) => {
-    const rating = getAverageRating(product.id);
-    const reviewCount = getReviewsByProduct(product.id)?.length || 0;
+    const productWithRating = product as Product & { averageRating?: number; reviewCount?: number };
+    const rating = productWithRating.averageRating ?? 0;
+    const reviewCount = productWithRating.reviewCount ?? 0;
     const inStock = !product.trackQuantity || product.quantity > 0;
     const discount = product.comparePrice
       ? Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)

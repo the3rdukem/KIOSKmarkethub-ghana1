@@ -19,6 +19,7 @@ import { getUserById } from '@/lib/db/dal/users';
 import { getVendorByUserId } from '@/lib/db/dal/vendors';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getActiveSalesForProducts } from '@/lib/db/dal/promotions';
+import { getBulkProductRatings } from '@/lib/db/dal/reviews';
 import { validateTextField, validateContentSafety, validateProductName } from '@/lib/validation';
 import { normalizeProductForApi, UNSET_VALUE } from '@/lib/contracts/product.contract';
 
@@ -78,7 +79,10 @@ export async function GET(request: NextRequest) {
     const products = await getProducts(options);
 
     const productIds = products.map(p => p.id);
-    const activeSalesMap = await getActiveSalesForProducts(productIds);
+    const [activeSalesMap, ratingsMap] = await Promise.all([
+      getActiveSalesForProducts(productIds),
+      getBulkProductRatings(productIds),
+    ]);
 
     const transformedProducts = products.map((product) => {
       const activeSale = activeSalesMap.get(product.id);
@@ -103,11 +107,15 @@ export async function GET(request: NextRequest) {
       // Use canonical contract for normalization
       const normalized = normalizeProductForApi(product);
       
+      const rating = ratingsMap.get(product.id);
+      
       return {
         ...normalized,
         effectivePrice: Math.round(effectivePrice * 100) / 100,
         isFeatured: product.is_featured === 1,
         activeSale: saleInfo,
+        averageRating: rating?.average ?? 0,
+        reviewCount: rating?.count ?? 0,
       };
     });
 

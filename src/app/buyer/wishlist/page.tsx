@@ -18,17 +18,34 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { useWishlistStore } from "@/lib/wishlist-store";
-import { useProductsStore } from "@/lib/products-store";
 import { useCartStore } from "@/lib/cart-store";
 import { toast } from "sonner";
+
+interface WishlistProduct {
+  id: string;
+  productId: string;
+  addedAt: string;
+  product: {
+    id: string;
+    name: string;
+    price: number;
+    comparePrice?: number;
+    images: string[];
+    vendorId: string;
+    vendorName: string;
+    quantity: number;
+    trackQuantity: boolean;
+  } | null;
+}
 
 export default function WishlistPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
-  const { getWishlistByBuyer, removeFromWishlist } = useWishlistStore();
-  const { getProductById } = useProductsStore();
+  const { removeFromWishlist, syncWithServer } = useWishlistStore();
   const { addItem } = useCartStore();
   const [isHydrated, setIsHydrated] = useState(false);
+  const [wishlistProducts, setWishlistProducts] = useState<WishlistProduct[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -40,7 +57,45 @@ export default function WishlistPage() {
     }
   }, [isHydrated, isAuthenticated, router]);
 
-  if (!isHydrated) {
+  const fetchWishlist = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/wishlist', { credentials: 'include' });
+      const data = await res.json();
+      if (data.authenticated && data.items) {
+        const products: WishlistProduct[] = data.items.map((item: { id: string; productId: string; createdAt: string; productName?: string; productPrice?: number; productImage?: string | null; vendorId?: string; vendorName?: string }) => ({
+          id: item.id,
+          productId: item.productId,
+          addedAt: item.createdAt,
+          product: item.productName ? {
+            id: item.productId,
+            name: item.productName,
+            price: item.productPrice || 0,
+            images: item.productImage ? [item.productImage] : [],
+            vendorId: item.vendorId || '',
+            vendorName: item.vendorName || 'Unknown Vendor',
+            quantity: 999,
+            trackQuantity: false,
+          } : null
+        }));
+        setWishlistProducts(products.filter(p => p.product !== null));
+      }
+    } catch (error) {
+      console.error('Failed to fetch wishlist:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isHydrated && isAuthenticated && user) {
+      fetchWishlist();
+      syncWithServer(user.id);
+    }
+  }, [isHydrated, isAuthenticated, user]);
+
+  if (!isHydrated || isLoading) {
     return (
       <SiteLayout>
         <div className="container py-8">
@@ -56,16 +111,9 @@ export default function WishlistPage() {
     return null;
   }
 
-  const wishlistItems = getWishlistByBuyer(user.id);
-  const wishlistProducts = wishlistItems
-    .map(item => ({
-      ...item,
-      product: getProductById(item.productId)
-    }))
-    .filter(item => item.product !== undefined);
-
-  const handleRemoveFromWishlist = (productId: string, productName: string) => {
-    removeFromWishlist(user.id, productId);
+  const handleRemoveFromWishlist = async (productId: string, productName: string) => {
+    setWishlistProducts(prev => prev.filter(item => item.productId !== productId));
+    await removeFromWishlist(user.id, productId);
     toast.success(`Removed "${productName}" from wishlist`);
   };
 

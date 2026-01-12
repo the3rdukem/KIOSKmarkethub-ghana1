@@ -73,16 +73,24 @@ function BuyerDashboardContent() {
 
   const { user, isAuthenticated } = useAuthStore();
   const { items: cartItems, getTotalPrice } = useCartStore();
-  const { getWishlistByBuyer, getWishlistProductIds } = useWishlistStore();
+  const { getWishlistByBuyer, syncWithServer } = useWishlistStore();
   const { getAddressesByUser, getDefaultAddress } = useAddressesStore();
   const { getNotificationsByUser, getUnreadCount } = useNotificationsStore();
-  const { getProductById } = useProductsStore();
   const { getReviewsByBuyer } = useReviewsStore();
 
   const [isHydrated, setIsHydrated] = useState(false);
   const [activeTab, setActiveTab] = useState(initialTab);
   const [buyerOrders, setBuyerOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [wishlistData, setWishlistData] = useState<Array<{
+    id: string;
+    productId: string;
+    productName: string;
+    productPrice: number;
+    productImage: string | null;
+    vendorId: string;
+    vendorName: string;
+  }>>([]);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -98,8 +106,19 @@ function BuyerDashboardContent() {
         })
         .catch(console.error)
         .finally(() => setOrdersLoading(false));
+      
+      fetch('/api/wishlist', { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.authenticated && data.items) {
+            setWishlistData(data.items);
+          }
+        })
+        .catch(console.error);
+      
+      syncWithServer(user.id);
     }
-  }, [isHydrated, user?.id]);
+  }, [isHydrated, user?.id, syncWithServer]);
 
   useEffect(() => {
     if (!isHydrated || !user?.id) return;
@@ -131,12 +150,7 @@ function BuyerDashboardContent() {
   const deliveredOrders = buyerOrders.filter((o) => o.status === "delivered");
   const totalSpent = buyerOrders.reduce((sum, o) => sum + o.total, 0);
 
-  const wishlistItems = getWishlistByBuyer(user.id);
-  const wishlistProductIds = getWishlistProductIds(user.id);
-  const wishlistProducts = wishlistProductIds
-    .map((id) => getProductById(id))
-    .filter((p) => p !== undefined)
-    .slice(0, 4);
+  const wishlistProducts = wishlistData.slice(0, 4);
 
   const userAddresses = getAddressesByUser(user.id);
   const defaultAddress = getDefaultAddress(user.id);
@@ -214,7 +228,7 @@ function BuyerDashboardContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Wishlist</p>
-                  <p className="text-2xl font-bold">{wishlistItems.length}</p>
+                  <p className="text-2xl font-bold">{wishlistData.length}</p>
                 </div>
                 <Heart className="w-8 h-8 text-red-500" />
               </div>
@@ -246,7 +260,7 @@ function BuyerDashboardContent() {
             </TabsTrigger>
             <TabsTrigger value="wishlist">
               Wishlist
-              {wishlistItems.length > 0 && <Badge variant="secondary" className="ml-2">{wishlistItems.length}</Badge>}
+              {wishlistData.length > 0 && <Badge variant="secondary" className="ml-2">{wishlistData.length}</Badge>}
             </TabsTrigger>
           </TabsList>
 
@@ -393,12 +407,12 @@ function BuyerDashboardContent() {
                       <div className="grid grid-cols-2 gap-2">
                         {wishlistProducts.map((product) => (
                           <Link
-                            key={product!.id}
-                            href={`/product/${product!.id}`}
+                            key={product.productId}
+                            href={`/product/${product.productId}`}
                             className="aspect-square bg-gray-100 rounded-lg overflow-hidden hover:opacity-80 transition-opacity"
                           >
-                            {product!.images[0] ? (
-                              <img src={product!.images[0]} alt={product!.name} className="w-full h-full object-cover" />
+                            {product.productImage ? (
+                              <img src={product.productImage} alt={product.productName} className="w-full h-full object-cover" />
                             ) : (
                               <div className="w-full h-full flex items-center justify-center">
                                 <Package className="w-8 h-8 text-gray-400" />
@@ -540,7 +554,7 @@ function BuyerDashboardContent() {
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>My Wishlist</CardTitle>
-                  <CardDescription>{wishlistItems.length} items saved</CardDescription>
+                  <CardDescription>{wishlistData.length} items saved</CardDescription>
                 </div>
                 <Button variant="outline" asChild>
                   <Link href="/buyer/wishlist">
@@ -549,7 +563,7 @@ function BuyerDashboardContent() {
                 </Button>
               </CardHeader>
               <CardContent>
-                {wishlistItems.length === 0 ? (
+                {wishlistData.length === 0 ? (
                   <div className="text-center py-12">
                     <Heart className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold mb-2">Your Wishlist is Empty</h3>
@@ -558,29 +572,25 @@ function BuyerDashboardContent() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                    {wishlistProductIds.slice(0, 10).map((productId) => {
-                      const product = getProductById(productId);
-                      if (!product) return null;
-                      return (
-                        <Link key={product.id} href={`/product/${product.id}`} className="group">
-                          <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-2">
-                            {product.images[0] ? (
-                              <img
-                                src={product.images[0]}
-                                alt={product.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Package className="w-8 h-8 text-gray-400" />
-                              </div>
-                            )}
-                          </div>
-                          <p className="text-sm font-medium truncate group-hover:text-green-600">{product.name}</p>
-                          <p className="text-sm text-muted-foreground">GHS {product.price.toLocaleString()}</p>
-                        </Link>
-                      );
-                    })}
+                    {wishlistData.slice(0, 10).map((item) => (
+                      <Link key={item.productId} href={`/product/${item.productId}`} className="group">
+                        <div className="aspect-square bg-gray-100 rounded-lg overflow-hidden mb-2">
+                          {item.productImage ? (
+                            <img
+                              src={item.productImage}
+                              alt={item.productName}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <Package className="w-8 h-8 text-gray-400" />
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm font-medium truncate group-hover:text-green-600">{item.productName}</p>
+                        <p className="text-sm text-muted-foreground">GHS {item.productPrice.toLocaleString()}</p>
+                      </Link>
+                    ))}
                   </div>
                 )}
               </CardContent>
