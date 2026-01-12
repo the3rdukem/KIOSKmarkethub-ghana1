@@ -258,7 +258,7 @@ function AdminManagementSection({
                 <TableHead>Status</TableHead>
                 <TableHead>Created</TableHead>
                 <TableHead>Last Login</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableHead className="w-[80px] text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -282,44 +282,88 @@ function AdminManagementSection({
                   <TableCell className="text-sm text-muted-foreground">
                     {admin.lastLoginAt ? formatDistance(new Date(admin.lastLoginAt), new Date(), { addSuffix: true }) : "Never"}
                   </TableCell>
-                  <TableCell>
-                    {admin.id !== currentAdmin.id && admin.id !== "master_admin_001" && (
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
-                          <Button variant="ghost" size="sm" className="text-red-600" onClick={() => setSelectedAdminToRevoke(admin)}>
-                            <Ban className="w-4 h-4" />
-                          </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Revoke Admin Access</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              This will disable {admin.name}'s administrator access. They will no longer be able to log in to the admin panel.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <div>
-                            <Label>Reason for revocation</Label>
-                            <Textarea
-                              value={revokeReason}
-                              onChange={(e) => setRevokeReason(e.target.value)}
-                              placeholder="Enter reason..."
-                            />
-                          </div>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel onClick={() => { setSelectedAdminToRevoke(null); setRevokeReason(""); }}>Cancel</AlertDialogCancel>
-                            <AlertDialogAction className="bg-red-600" onClick={handleRevokeAccess}>Revoke Access</AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    )}
-                    {admin.id === "master_admin_001" && (
-                      <Badge variant="outline" className="text-xs">Protected</Badge>
-                    )}
+                  <TableCell className="w-[80px]">
+                    <div className="flex justify-end">
+                      {admin.id !== currentAdmin.id && admin.id !== "master_admin_001" ? (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 min-w-[2rem] flex-shrink-0">
+                              <MoreHorizontal className="h-4 w-4" />
+                              <span className="sr-only">Open menu</span>
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {admin.isActive ? (
+                              <DropdownMenuItem 
+                                className="text-red-600"
+                                onClick={() => setSelectedAdminToRevoke(admin)}
+                              >
+                                <Ban className="w-4 h-4 mr-2" />
+                                Revoke Access
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem 
+                                className="text-green-600"
+                                onClick={async () => {
+                                  try {
+                                    const response = await fetch(`/api/admin/admins/${admin.id}`, {
+                                      method: 'PATCH',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      credentials: 'include',
+                                      body: JSON.stringify({ action: 'activate' }),
+                                    });
+                                    if (response.ok) {
+                                      toast.success(`Activated ${admin.name}`);
+                                      fetchAdmins();
+                                    } else {
+                                      toast.error("Failed to activate admin");
+                                    }
+                                  } catch (error) {
+                                    toast.error("Failed to activate admin");
+                                  }
+                                }}
+                              >
+                                <CheckCircle className="w-4 h-4 mr-2" />
+                                Activate
+                              </DropdownMenuItem>
+                            )}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      ) : admin.id === "master_admin_001" ? (
+                        <Badge variant="outline" className="text-xs">Protected</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">You</Badge>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+          
+          {/* Revoke Access Dialog */}
+          <AlertDialog open={!!selectedAdminToRevoke} onOpenChange={(open) => { if (!open) { setSelectedAdminToRevoke(null); setRevokeReason(""); } }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Revoke Admin Access</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will disable {selectedAdminToRevoke?.name}'s administrator access. They will no longer be able to log in to the admin panel.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <div>
+                <Label>Reason for revocation</Label>
+                <Textarea
+                  value={revokeReason}
+                  onChange={(e) => setRevokeReason(e.target.value)}
+                  placeholder="Enter reason..."
+                />
+              </div>
+              <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => { setSelectedAdminToRevoke(null); setRevokeReason(""); }}>Cancel</AlertDialogCancel>
+                <AlertDialogAction className="bg-red-600" onClick={handleRevokeAccess}>Revoke Access</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
 

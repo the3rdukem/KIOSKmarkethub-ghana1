@@ -321,15 +321,15 @@ export default function AdminOrdersPage() {
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <Table>
+                <Table className="table-fixed w-full">
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Order ID</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Date</TableHead>
+                      <TableHead className="w-[120px]">Order ID</TableHead>
+                      <TableHead className="w-[200px]">Customer</TableHead>
+                      <TableHead className="w-[80px]">Items</TableHead>
+                      <TableHead className="w-[100px]">Total</TableHead>
+                      <TableHead className="w-[120px]">Status</TableHead>
+                      <TableHead className="w-[120px]">Date</TableHead>
                       <TableHead className="w-[80px] text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
