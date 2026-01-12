@@ -14,11 +14,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+// Popover removed - using custom dropdown to prevent input event interception
 import {
   Search,
   Clock,
@@ -269,70 +265,74 @@ export default function AdvancedSearch({
 
   return (
     <div className={`relative ${className}`}>
-      <Popover open={showDropdown} onOpenChange={setShowDropdown}>
-        <PopoverTrigger asChild>
-          <div className="relative">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground ${getIconSize()}`} />
-            <Input
-              ref={inputRef}
-              placeholder={placeholder}
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onFocus={() => setShowDropdown(true)}
-              onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-              className={`pl-12 pr-20 ${getSizeClasses()}`}
-            />
-            <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-              {/* Voice Search */}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-auto p-1.5"
-                onClick={() => alert("Voice search not yet implemented")}
-              >
-                <Mic className="w-4 h-4 text-muted-foreground" />
-              </Button>
+      {/* Search Input - placed outside PopoverTrigger to prevent event interception */}
+      <div className="relative">
+        <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground ${getIconSize()}`} />
+        <Input
+          ref={inputRef}
+          placeholder={placeholder}
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onFocus={() => setShowDropdown(true)}
+          onBlur={() => {
+            // Delay closing to allow clicking on suggestions
+            setTimeout(() => setShowDropdown(false), 200);
+          }}
+          onKeyPress={(e) => e.key === "Enter" && handleSearch()}
+          className={`pl-12 pr-20 ${getSizeClasses()}`}
+        />
+        <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
+          {/* Voice Search */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-auto p-1.5"
+            onClick={() => alert("Voice search not yet implemented")}
+          >
+            <Mic className="w-4 h-4 text-muted-foreground" />
+          </Button>
 
-              {/* Visual Search */}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="h-auto p-1.5"
-                onClick={() => alert("Visual search not yet implemented")}
-              >
-                <Camera className="w-4 h-4 text-muted-foreground" />
-              </Button>
+          {/* Visual Search */}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-auto p-1.5"
+            onClick={() => alert("Visual search not yet implemented")}
+          >
+            <Camera className="w-4 h-4 text-muted-foreground" />
+          </Button>
 
-              {/* Clear/Search Button */}
-              {searchQuery ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto p-1.5"
-                  onClick={() => setSearchQuery("")}
-                >
-                  <X className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              ) : (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-auto p-1.5"
-                  onClick={() => handleSearch()}
-                  disabled={isLoading}
-                >
-                  <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              )}
-            </div>
-          </div>
-        </PopoverTrigger>
+          {/* Clear/Search Button */}
+          {searchQuery ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-auto p-1.5"
+              onClick={() => setSearchQuery("")}
+            >
+              <X className="w-4 h-4 text-muted-foreground" />
+            </Button>
+          ) : (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-auto p-1.5"
+              onClick={() => handleSearch()}
+              disabled={isLoading}
+            >
+              <ArrowUpRight className="w-4 h-4 text-muted-foreground" />
+            </Button>
+          )}
+        </div>
+      </div>
 
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+      {/* Dropdown suggestions - shown when input is focused */}
+      {showDropdown && (
+        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-background border rounded-lg shadow-lg">
           <Command className="rounded-lg border-none shadow-lg">
             <CommandList className="max-h-96">
               {/* Search Suggestions */}
@@ -474,8 +474,8 @@ export default function AdvancedSearch({
               )}
             </CommandList>
           </Command>
-        </PopoverContent>
-      </Popover>
+        </div>
+      )}
     </div>
   );
 }

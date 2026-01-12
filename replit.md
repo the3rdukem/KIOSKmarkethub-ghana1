@@ -74,6 +74,9 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
   - **Checkout View Order Fix (Jan 2026)**: Fixed "View Order" button in checkout page to link to `/buyer/orders/[id]` instead of non-existent `/orders/[id]` route.
   - **Dual-Status Fix (Jan 2026)**: Fixed critical bug where payments succeeded but order status remained "Pending Payment". Modified `updateOrderPaymentStatus()` to update BOTH `payment_status` AND main `status` field when payment is confirmed. Added 'processing' status to order lifecycle representing payment confirmed state. Order flow: pending_payment → processing (payment confirmed) → fulfilled. Includes conditional check to prevent webhook retries from downgrading already-fulfilled orders.
   - **UI Status Labels (Jan 2026)**: Updated all order pages (buyer, vendor, admin, order-success) to display 'processing' status as "Payment Confirmed" for clarity. Payment status badges now show green when paid.
+  - **Order Cancellation Enhancement (Jan 2026)**: Admin can now cancel both 'pending_payment' and 'processing' orders. When cancelling a paid ('processing') order, the payment_status is automatically set to 'refunded' to indicate refund is required. The function returns `refundRequired: true` for paid order cancellations.
+  - **Search Null Safety (Jan 2026)**: Added optional chaining to product search filters in both the public search page and admin product management to prevent crashes when product.description is null.
+  - **Homepage Search Fix (Jan 2026)**: Restructured advanced-search component to remove PopoverTrigger wrapper around Input, fixing the issue where text input was being blocked. Now uses custom dropdown with onFocus/onBlur handling.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions.

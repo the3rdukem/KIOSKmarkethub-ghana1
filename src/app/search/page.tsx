@@ -276,12 +276,12 @@ function SearchPageContent() {
   // Advanced filtering and sorting logic
   const filteredAndSortedProducts = useMemo(() => {
     const filtered = allProducts.filter(product => {
-      // Text search
+      // Text search (with null checks for optional fields)
       const matchesSearch = debouncedSearchQuery === "" ||
-        product.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        product.description.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        product.name?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        product.description?.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
         (product.tags && product.tags.some(tag => tag.toLowerCase().includes(debouncedSearchQuery.toLowerCase()))) ||
-        product.vendorName.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
+        product.vendorName?.toLowerCase().includes(debouncedSearchQuery.toLowerCase());
 
       // Category filter
       const matchesCategory = selectedCategory === "All Categories" || product.category === selectedCategory;

@@ -624,11 +624,15 @@ export async function checkAndUpdateOrderFulfillment(orderId: string): Promise<b
 /**
  * Cancel order with inventory restoration (admin action)
  * This restores inventory for all items in the order
+ * 
+ * For 'pending_payment' orders: Simply cancels (no payment was made)
+ * For 'processing' orders: Cancels and marks as 'refunded' since payment was already received
  */
 export async function cancelOrderWithInventoryRestore(orderId: string): Promise<{
   success: boolean;
   error?: string;
   restoredItems?: Array<{ productId: string; quantity: number }>;
+  refundRequired?: boolean;
 }> {
   // Get the order first
   const order = await getOrderById(orderId);
@@ -636,10 +640,14 @@ export async function cancelOrderWithInventoryRestore(orderId: string): Promise<
     return { success: false, error: 'Order not found' };
   }
   
-  // Only pending_payment orders can be cancelled
-  if (order.status !== 'pending_payment') {
+  // Only pending_payment and processing orders can be cancelled
+  // 'processing' means payment confirmed but not yet fulfilled
+  if (order.status !== 'pending_payment' && order.status !== 'processing') {
     return { success: false, error: `Cannot cancel order with status: ${order.status}` };
   }
+  
+  // Check if a refund is required (order was already paid)
+  const refundRequired = order.payment_status === 'paid';
   
   // Get all order items
   const orderItems = await getOrderItemsByOrderId(orderId);
@@ -655,9 +663,14 @@ export async function cancelOrderWithInventoryRestore(orderId: string): Promise<
   }
   
   // Update order status to cancelled
-  await updateOrder(orderId, { status: 'cancelled' });
+  // If order was paid, mark payment_status as 'refunded' to indicate refund is required
+  if (refundRequired) {
+    await updateOrder(orderId, { status: 'cancelled', paymentStatus: 'refunded' });
+  } else {
+    await updateOrder(orderId, { status: 'cancelled' });
+  }
   
-  return { success: true, restoredItems };
+  return { success: true, restoredItems, refundRequired };
 }
 
 /**

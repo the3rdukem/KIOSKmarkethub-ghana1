@@ -441,15 +441,15 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
       filtered = filtered.filter(p => p.category === categoryFilter);
     }
 
-    // Apply search
+    // Apply search (with null checks for optional fields)
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(p =>
-        p.name.toLowerCase().includes(query) ||
-        p.description.toLowerCase().includes(query) ||
-        p.vendorName.toLowerCase().includes(query) ||
+        p.name?.toLowerCase().includes(query) ||
+        p.description?.toLowerCase().includes(query) ||
+        p.vendorName?.toLowerCase().includes(query) ||
         p.sku?.toLowerCase().includes(query) ||
-        p.tags.some(t => t.toLowerCase().includes(query))
+        p.tags?.some(t => t.toLowerCase().includes(query))
       );
     }
 
