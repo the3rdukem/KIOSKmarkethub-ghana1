@@ -1,0 +1,142 @@
+PHASE 3 — PAYMENTS & ORDERS EXIT AUDIT (STRICT)
+
+OBJECTIVE
+
+Confirm that Phase 3 (Orders + Paystack architecture) is complete, stable, and production-safe.
+This is an audit only.
+❌ No new features
+❌ No refactors
+❌ No UX changes
+❌ No “nice to have” additions
+
+If something is missing, report it only — do not implement fixes unless explicitly instructed.
+
+⸻
+
+SCOPE (READ CAREFULLY)
+
+Audit only the following:
+
+1️⃣ Order → Payment State Machine
+
+Verify the system enforces this flow exactly:
+
+created → pending_payment → paid → fulfilled → completed
+                   ↘ failed
+
+Rules:
+	•	Orders cannot transition to paid without a verified Paystack webhook
+	•	Duplicate webhooks do not cause double fulfillment
+	•	Failed payments do not reduce inventory permanently
+	•	Retried payments generate new references, but preserve order identity
+
+⸻
+
+2️⃣ Paystack Integration Architecture (WITHOUT LIVE KEYS)
+
+Confirm structure only, not live transactions:
+	•	Payment initialization happens server-side only
+	•	Payment reference is generated and stored before opening Paystack popup
+	•	Webhook endpoint:
+	•	Verifies Paystack signature
+	•	Is idempotent
+	•	Ignores already-paid orders
+	•	No client-side trust of payment status
+
+⚠️ Do NOT attempt real Paystack payments
+⚠️ Do NOT add mobile money configuration
+
+⸻
+
+3️⃣ Buyer Experience
+
+Verify:
+	•	Buyer can retry failed payments
+	•	Buyer sees accurate payment status per order
+	•	Buyer cannot retry an already-paid order
+	•	Buyer cannot access or modify another user’s order
+
+⸻
+
+4️⃣ Vendor Visibility (INTENTIONAL LIMITS)
+
+Confirm:
+	•	Vendors see only paid orders
+	•	Vendors cannot see pending or failed payments
+	•	Vendors cannot modify payment status
+	•	Vendor order list is scoped strictly to their products
+
+🚫 This is intentional — do NOT change it
+
+⸻
+
+5️⃣ Admin Visibility (READ-ONLY PAYMENTS)
+
+Confirm:
+	•	Admin can see:
+	•	Payment status
+	•	Provider (Paystack)
+	•	Reference
+	•	Method
+	•	Timestamp
+	•	Admin cannot manually mark orders as paid
+	•	All payment-related actions are logged (audit trail)
+
+🚫 Do NOT add admin overrides
+
+⸻
+
+6️⃣ Inventory Safety
+
+Verify:
+	•	Inventory is reserved on order creation
+	•	Inventory is restored on failed payment
+	•	Inventory is not restored on webhook retries
+	•	Paid orders do not double-decrement inventory
+
+⸻
+
+7️⃣ Security & Integrity
+
+Confirm:
+	•	Orders are protected by ownership checks
+	•	Payment endpoints are authenticated
+	•	Webhooks are protected against replay
+	•	No client-side payment trust exists
+
+⸻
+
+DELIVERABLE FORMAT (MANDATORY)
+
+Return ONLY this structure:
+
+✅ PASSED
+	•	List of confirmed working items
+
+⚠️ ISSUES FOUND
+	•	Exact issue
+	•	File path
+	•	Line number
+	•	Why it matters
+
+❌ OUT OF SCOPE (DO NOT TOUCH)
+	•	Explicitly list anything you chose not to change
+
+FINAL VERDICT
+
+One of:
+	•	PHASE 3 APPROVED — READY TO LOCK
+	•	PHASE 3 BLOCKED — REASON REQUIRED
+
+⸻
+
+STRICT RULES
+	•	❌ No feature additions
+	•	❌ No refactors
+	•	❌ No UI changes
+	•	❌ No opinionated improvements
+	•	❌ No “while I was there” edits
+
+This audit determines whether Phase 3 is locked and irreversible.
+
+⸻
