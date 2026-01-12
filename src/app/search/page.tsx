@@ -70,16 +70,30 @@ function SearchPageContent() {
   const getReviewsByProduct = useReviewsStore((state) => state.getReviewsByProduct);
 
   // Dynamic categories from store
-  const { getActiveCategories } = useCategoriesStore();
+  const { getActiveCategories, getCategoryByName } = useCategoriesStore();
   const dynamicCategories = useMemo(() => {
     const cats = getActiveCategories();
     return ["All Categories", ...cats.map(c => c.name)];
   }, [getActiveCategories]);
 
+  // Get selected category's attributes for dynamic filtering
+  const selectedCategoryData = useMemo(() => {
+    if (selectedCategory === "All Categories") return null;
+    return getCategoryByName(selectedCategory);
+  }, [selectedCategory, getCategoryByName]);
+
+  const categoryAttributes = useMemo(() => {
+    if (!selectedCategoryData?.attributes) return [];
+    return selectedCategoryData.attributes.filter(attr => 
+      attr.type === 'select' || attr.type === 'multi_select'
+    );
+  }, [selectedCategoryData]);
+
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedVendor, setSelectedVendor] = useState("All Vendors");
-  const [priceRange, setPriceRange] = useState([0, 10000]);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 100000]);
+  const [priceRangeInitialized, setPriceRangeInitialized] = useState(false);
   const [minRating, setMinRating] = useState(0);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [sortBy, setSortBy] = useState("relevance");
@@ -138,7 +152,7 @@ function SearchPageContent() {
             id: p.id,
             title: p.name,
             description: p.description,
-            category: p.category,
+            category: p.category || undefined,
           })),
           maxResults: 50,
         });
@@ -166,11 +180,26 @@ function SearchPageContent() {
     };
   }, [debouncedSearchQuery, allProducts]);
 
-  // Get max price for slider
+  // Get max price for slider - dynamically calculated from actual products
   const maxPrice = useMemo(() => {
     if (allProducts.length === 0) return 10000;
-    return Math.max(...allProducts.map(p => p.price), 10000);
+    const actualMax = Math.max(...allProducts.map(p => p.price));
+    return Math.ceil(actualMax / 100) * 100;
   }, [allProducts]);
+
+  // Get min price from products
+  const minPrice = useMemo(() => {
+    if (allProducts.length === 0) return 0;
+    return Math.min(...allProducts.map(p => p.price));
+  }, [allProducts]);
+
+  // Initialize price range when products load (only once)
+  useEffect(() => {
+    if (allProducts.length > 0 && !priceRangeInitialized) {
+      setPriceRange([0, maxPrice]);
+      setPriceRangeInitialized(true);
+    }
+  }, [allProducts, maxPrice, priceRangeInitialized]);
 
   // Get unique vendors from products
   const uniqueVendors = useMemo(() => {
@@ -247,13 +276,13 @@ function SearchPageContent() {
     toast.success(`Added "${product.name}" to cart!`);
   }, [addItem]);
 
-  const handleToggleWishlist = useCallback((productId: string) => {
+  const handleToggleWishlist = useCallback(async (productId: string) => {
     if (!user) {
       toast.error("Please login to add items to wishlist");
       router.push("/auth/login");
       return;
     }
-    const added = toggleWishlist(user.id, productId);
+    const added = await toggleWishlist(user.id, productId);
     if (added) {
       toast.success("Added to wishlist!");
     } else {
@@ -336,7 +365,7 @@ function SearchPageContent() {
         <div className="mt-4 px-2">
           <Slider
             value={priceRange}
-            onValueChange={setPriceRange}
+            onValueChange={(value) => setPriceRange([value[0], value[1]])}
             min={0}
             max={maxPrice}
             step={100}

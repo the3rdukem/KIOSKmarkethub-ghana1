@@ -752,6 +752,26 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Column may already exist
   }
+
+  // PHASE 3: Create wishlist_items table for persistent wishlist
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS wishlist_items (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        product_id TEXT NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        UNIQUE(user_id, product_id),
+        CONSTRAINT fk_wishlist_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        CONSTRAINT fk_wishlist_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_wishlist_user ON wishlist_items(user_id);
+      CREATE INDEX IF NOT EXISTS idx_wishlist_product ON wishlist_items(product_id);
+    `);
+    console.log('[DB] PHASE 3: Created wishlist_items table');
+  } catch (e) {
+    // Table may already exist
+  }
 }
 
 /**
