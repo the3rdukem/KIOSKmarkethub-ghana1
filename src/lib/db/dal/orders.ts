@@ -13,7 +13,8 @@ import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 
 // Phase 2 status types - simplified for checkout flow
-export type OrderStatus = 'pending_payment' | 'cancelled' | 'fulfilled';
+// 'processing' added for when payment is confirmed but order not yet fulfilled
+export type OrderStatus = 'pending_payment' | 'processing' | 'cancelled' | 'fulfilled';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
 export type FulfillmentStatus = 'pending' | 'fulfilled';
 
@@ -358,6 +359,9 @@ export async function updateOrder(id: string, updates: UpdateOrderInput): Promis
  * Update order payment status (for Paystack webhook integration)
  * This function updates payment-specific fields after payment confirmation.
  * Only updates fields that have actual values (not null/undefined).
+ * 
+ * IMPORTANT: When paymentStatus is 'paid', also updates main order status 
+ * from 'pending_payment' to 'processing' to reflect payment confirmation.
  */
 export async function updateOrderPaymentStatus(
   id: string,
@@ -374,6 +378,13 @@ export async function updateOrderPaymentStatus(
 
   fields.push(`payment_status = $${paramIndex++}`);
   values.push(updates.paymentStatus);
+
+  // When payment is confirmed as 'paid', update main order status to 'processing'
+  // This transitions the order from awaiting payment to being processed for fulfillment
+  if (updates.paymentStatus === 'paid') {
+    fields.push(`status = $${paramIndex++}`);
+    values.push('processing');
+  }
 
   if (updates.paymentReference !== undefined && updates.paymentReference !== null) {
     fields.push(`payment_reference = $${paramIndex++}`);
