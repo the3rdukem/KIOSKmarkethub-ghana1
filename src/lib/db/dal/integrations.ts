@@ -500,6 +500,11 @@ export async function updateIntegrationCredentials(
   const hasRequiredCredentials = checkRequiredCredentials(id, credentials);
   const encryptedCredentials = encryptCredentials(credentials);
 
+  console.log(`[INTEGRATIONS] Updating credentials for ${id}`, {
+    hasRequiredCredentials,
+    credentialKeys: Object.keys(credentials),
+  });
+
   const result = await query(`
     UPDATE integrations SET
       credentials = $1,
@@ -515,6 +520,12 @@ export async function updateIntegrationCredentials(
     id
   ]);
 
+  console.log(`[INTEGRATIONS] Update result for ${id}`, {
+    rowCount: result.rowCount,
+    isConfigured: hasRequiredCredentials,
+    newStatus: hasRequiredCredentials ? 'disconnected' : 'not_configured',
+  });
+
   if ((result.rowCount ?? 0) === 0) return null;
   return getIntegrationById(id);
 }
@@ -527,14 +538,24 @@ export async function toggleIntegration(id: string, enabled: boolean): Promise<I
 
   // Get current integration
   const current = await getIntegrationById(id);
-  if (!current) return null;
+  if (!current) {
+    console.log(`[INTEGRATIONS] Toggle failed - integration ${id} not found`);
+    return null;
+  }
 
   // Can only enable if configured
   if (enabled && !current.isConfigured) {
+    console.log(`[INTEGRATIONS] Toggle failed - ${id} is not configured`);
     return null;
   }
 
   const newStatus: IntegrationStatus = enabled ? 'connected' : 'disconnected';
+
+  console.log(`[INTEGRATIONS] Toggling ${id}`, {
+    enabled,
+    newStatus,
+    wasConfigured: current.isConfigured,
+  });
 
   await query(`
     UPDATE integrations SET
@@ -544,7 +565,13 @@ export async function toggleIntegration(id: string, enabled: boolean): Promise<I
     WHERE id = $4
   `, [enabled ? 1 : 0, newStatus, now, id]);
 
-  return getIntegrationById(id);
+  const updated = await getIntegrationById(id);
+  console.log(`[INTEGRATIONS] Toggle complete for ${id}`, {
+    isEnabled: updated?.isEnabled,
+    status: updated?.status,
+  });
+
+  return updated;
 }
 
 /**

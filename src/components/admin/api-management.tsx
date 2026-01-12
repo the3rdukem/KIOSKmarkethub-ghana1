@@ -278,7 +278,15 @@ export function APIManagement({ adminId, adminName }: APIManagementProps) {
         ));
         setIsConfiguring(false);
         // Refresh to get updated stats
-        fetchIntegrations();
+        await fetchIntegrations();
+        
+        // If configured, prompt to enable and test
+        if (data.integration.isConfigured && !data.integration.isEnabled) {
+          toast.info(
+            `${selectedIntegration.name} is configured! Click "Enable" then "Test Connection" to activate it.`,
+            { duration: 6000 }
+          );
+        }
       } else {
         toast.error(data.error || "Failed to save credentials");
       }
@@ -312,6 +320,30 @@ export function APIManagement({ adminId, adminName }: APIManagementProps) {
             ? { ...i, status: 'connected', lastTestedAt: new Date().toISOString(), lastError: undefined }
             : i
         ));
+        
+        // Auto-enable if not already enabled after successful test
+        if (integration && !integration.isEnabled) {
+          const enableResponse = await fetch('/api/integrations', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+              integrationId,
+              action: 'toggle',
+              enabled: true,
+            }),
+          });
+          
+          if (enableResponse.ok) {
+            toast.success(`${integration.name} has been automatically enabled!`);
+            setIntegrations(prev => prev.map(i =>
+              i.id === integrationId
+                ? { ...i, isEnabled: true, status: 'connected' }
+                : i
+            ));
+          }
+        }
+        
         // Refresh stats
         fetchIntegrations();
       } else {
@@ -763,22 +795,54 @@ export function APIManagement({ adminId, adminName }: APIManagementProps) {
                               </div>
                             )}
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
+                            {/* Explicit Enable/Disable Button */}
+                            {integration.isConfigured && (
+                              <Button
+                                variant={integration.isEnabled ? "destructive" : "default"}
+                                size="sm"
+                                onClick={() => handleToggleIntegration(integration)}
+                                className={integration.isEnabled ? "" : "bg-emerald-600 hover:bg-emerald-700"}
+                              >
+                                {integration.isEnabled ? (
+                                  <>
+                                    <XCircle className="w-4 h-4 mr-1" />
+                                    Disable
+                                  </>
+                                ) : (
+                                  <>
+                                    <CheckCircle className="w-4 h-4 mr-1" />
+                                    Enable
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                            {!integration.isConfigured && (
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                                Configure First
+                              </Badge>
+                            )}
+                            {/* Toggle switch as secondary control */}
                             <TooltipProvider>
                               <Tooltip>
                                 <TooltipTrigger asChild>
-                                  <Switch
-                                    checked={integration.isEnabled}
-                                    onCheckedChange={() => handleToggleIntegration(integration)}
-                                    disabled={!integration.isConfigured}
-                                  />
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={integration.isEnabled}
+                                      onCheckedChange={() => handleToggleIntegration(integration)}
+                                      disabled={!integration.isConfigured}
+                                    />
+                                    <span className="text-sm text-muted-foreground">
+                                      {integration.isEnabled ? "Active" : "Inactive"}
+                                    </span>
+                                  </div>
                                 </TooltipTrigger>
                                 <TooltipContent>
                                   {integration.isConfigured
                                     ? integration.isEnabled
-                                      ? "Disable integration"
-                                      : "Enable integration"
-                                    : "Configure credentials first"}
+                                      ? "Click to disable integration"
+                                      : "Click to enable integration"
+                                    : "Save credentials first to enable"}
                                 </TooltipContent>
                               </Tooltip>
                             </TooltipProvider>
