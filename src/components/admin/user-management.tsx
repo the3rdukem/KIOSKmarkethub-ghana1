@@ -467,7 +467,7 @@ export function UserManagement({ currentAdmin, isMasterAdmin }: UserManagementPr
                     <TableHead>Contact</TableHead>
                     <TableHead>Joined</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="w-[80px] text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -524,7 +524,7 @@ export function UserManagement({ currentAdmin, isMasterAdmin }: UserManagementPr
                         {formatDistance(new Date(user.createdAt), new Date(), { addSuffix: true })}
                       </TableCell>
                       <TableCell>{getStatusBadge(user)}</TableCell>
-                      <TableCell>
+                      <TableCell className="w-[80px]">
                         <div className="flex justify-end">
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>

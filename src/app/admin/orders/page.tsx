@@ -330,7 +330,7 @@ export default function AdminOrdersPage() {
                       <TableHead>Total</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="w-[80px] text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -359,7 +359,7 @@ export default function AdminOrdersPage() {
                               {formatDistance(new Date(order.createdAt), new Date(), { addSuffix: true })}
                             </span>
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="w-[80px]">
                             <div className="flex justify-end">
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
