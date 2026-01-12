@@ -30,6 +30,9 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Auth Redirect Security**: Implemented `getSafeRedirectUrl()` utility to prevent open redirect vulnerabilities by validating redirect URLs to only allow same-origin relative paths.
 - **Buyer Orders Persistence**: Ensures buyer orders are refetched and synced with the Zustand store upon user identity changes (login/logout) to maintain data consistency.
 - **Admin UI Fixes**: Specific UI adjustments for Radix UI components in admin pages to ensure proper event handling, dialog functionality, and consistent column widths in tables.
+- **Admin Table Actions (Jan 2026)**: 
+  - **Admin Orders** (`src/app/admin/orders/page.tsx`): Fixed table using `table-fixed w-full` layout with explicit column widths to ensure Actions column with 3-dot dropdown is always visible.
+  - **Admin Management** (`src/app/admin/page.tsx`): Replaced inline "Revoke access" button with 3-dot DropdownMenu containing "Revoke Access" and "Activate" actions. AlertDialog uses controlled state outside table rows.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions.
