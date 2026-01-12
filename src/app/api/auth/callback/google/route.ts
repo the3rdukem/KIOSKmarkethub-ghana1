@@ -14,7 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { handleGoogleCallback } from '@/lib/services/google-oauth';
+import { handleGoogleCallbackServer } from '@/lib/db/dal/google-oauth-server';
 import { createOrLinkOAuthUser, createSessionForUser } from '@/lib/db/dal/auth-service';
 import { createAuditLog } from '@/lib/db/dal/audit';
 
@@ -53,8 +53,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Exchange code for user info
-    const googleResult = await handleGoogleCallback(code);
+    // Exchange code for user info (using server-side function with database credentials)
+    const googleResult = await handleGoogleCallbackServer(code);
     
     if (!googleResult.success || !googleResult.user) {
       console.error('[GOOGLE_OAUTH] Failed to get user info:', googleResult.error);
