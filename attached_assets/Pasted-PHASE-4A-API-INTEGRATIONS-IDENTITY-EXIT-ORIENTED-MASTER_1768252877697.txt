@@ -1,0 +1,172 @@
+PHASE 4A — API INTEGRATIONS & IDENTITY
+
+EXIT-ORIENTED MASTER PROMPT (STRICT)
+
+⚠️ NON-NEGOTIABLE RULES (READ FIRST)
+	1.	Phase 3 (Payments & Orders) is LOCKED
+	•	Do NOT modify:
+	•	orders
+	•	payments
+	•	inventory logic
+	•	webhooks
+	•	checkout flow
+	•	Any attempt to touch these = FAILURE
+	2.	Audit Before Code
+	•	Before writing a single line of code:
+	•	Enumerate what is ALREADY implemented
+	•	Explicitly list gaps ONLY
+	•	Do not re-implement working features
+	3.	No UI Redesign
+	•	This phase is integration + correctness
+	•	Minimal UI only where absolutely required for functionality
+	4.	No New Tables Unless Justified
+	•	Schema changes require:
+	•	Clear justification
+	•	Migration safety
+	•	Backward compatibility
+	5.	Exit Criteria > Features
+	•	Success is defined by verifiable behavior, not number of integrations added
+
+⸻
+
+🎯 PHASE 4A SCOPE (ONLY THESE)
+
+1️⃣ Google OAuth (BUYERS & VENDORS ONLY)
+
+Objectives
+	•	Enable Google sign-in for:
+	•	Buyers
+	•	Vendors
+	•	Admins remain email/password only
+
+Strict Rules
+	•	OAuth must:
+	•	Respect existing role separation
+	•	Not auto-elevate roles
+	•	Not bypass validation rules from Phase 1
+	•	Existing email rules still apply:
+	•	Buyer + Vendor may share email
+	•	Admin email remains globally unique
+
+Verification Checklist
+	•	OAuth login creates or links correct role
+	•	OAuth users can still log in via password reset
+	•	No duplicate user records created
+	•	Audit logs created for OAuth login events
+
+⸻
+
+2️⃣ Google Maps (ADDRESS NORMALIZATION ONLY)
+
+Objectives
+	•	Normalize addresses for:
+	•	Vendor registration
+	•	Buyer shipping addresses
+
+Rules
+	•	Address input remains editable
+	•	Google Maps is assistive, not mandatory
+	•	No forced lat/lng dependency in checkout
+
+Verification Checklist
+	•	Ghana addresses work without street numbers
+	•	Free-text fallback works
+	•	Stored address is human-readable
+	•	No checkout breakage if Maps API fails
+
+⸻
+
+3️⃣ Smile ID / Vendor Identity (PASSIVE MODE)
+
+Objectives
+	•	Prepare vendor verification foundation
+	•	NO blocking of vendor actions yet
+
+Rules
+	•	Verification status = informational only
+	•	No gating, no suspensions, no automation
+	•	Manual admin review only
+
+Verification Checklist
+	•	Vendor verification status stored
+	•	Admin can view verification data
+	•	No effect on product publishing yet
+
+⸻
+
+4️⃣ Messaging (REPLACES WISHLIST SLOT)
+
+Objectives
+	•	Enable buyer ↔ vendor messaging
+	•	Contextual to:
+	•	Orders
+	•	Reviews (future-proofed)
+
+Rules
+	•	No real-time requirement (polling OK)
+	•	No file uploads yet
+	•	No payment discussion enforcement yet
+
+Verification Checklist
+	•	Buyer can message vendor from order
+	•	Vendor can reply
+	•	Messages scoped correctly
+	•	No cross-order leakage
+
+⸻
+
+5️⃣ Analytics Hooks (NON-INVASIVE)
+
+Objectives
+	•	Prepare analytics instrumentation
+	•	No dashboards required
+
+Rules
+	•	Track:
+	•	Page views
+	•	Product views
+	•	Checkout start
+	•	Payment success/failure
+	•	Must not affect performance or logic
+
+Verification Checklist
+	•	Events fire correctly
+	•	No PII leakage
+	•	No blocking scripts
+
+⸻
+
+🚫 EXPLICITLY OUT OF SCOPE
+	•	Refunds
+	•	Vendor payouts
+	•	Mobile money configuration
+	•	Review system changes
+	•	Search filter rework
+	•	UI redesigns
+	•	Admin promotions logic
+
+⸻
+
+🧪 MANDATORY EXIT AUDIT (REQUIRED)
+
+Before reporting success, produce a Phase 4A Exit Audit with:
+	1.	OAuth verification table
+	2.	Maps failure-mode testing
+	3.	Vendor verification passive checks
+	4.	Messaging access control validation
+	5.	Confirmation that:
+	•	Phase 3 code was untouched
+	•	No regressions in checkout, orders, inventory
+
+❌ No audit = Phase rejected
+
+⸻
+
+🧱 FINAL SUCCESS CRITERIA
+
+Phase 4A is approved ONLY if:
+	•	All integrations are additive
+	•	No existing flows regress
+	•	No silent schema corruption
+	•	All changes are reversible
+	•	Exit audit passes cleanly
