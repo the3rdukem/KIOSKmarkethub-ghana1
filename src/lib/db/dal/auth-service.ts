@@ -1059,3 +1059,278 @@ export async function createAdminUser(
     data: { user: result.data.user },
   };
 }
+
+// ============================================
+// OAUTH USER CREATION & LINKING
+// Phase 4A: Google OAuth for buyers and vendors only
+// ============================================
+
+export interface OAuthUserInput {
+  email: string;
+  name: string;
+  avatar?: string;
+  oauthProvider: 'google';
+  oauthId: string;
+  intendedRole: 'buyer' | 'vendor';
+  businessName?: string;
+  businessType?: string;
+}
+
+/**
+ * Create or link an OAuth user
+ * 
+ * RULES:
+ * - OAuth is for buyers and vendors ONLY (admins use email/password)
+ * - If user exists with matching email AND role, link and log in
+ * - If user exists with different role, create new account with intended role
+ * - If no user exists, create new account
+ * - Does not auto-elevate roles
+ * - Respects existing email uniqueness rules
+ */
+export async function createOrLinkOAuthUser(
+  input: OAuthUserInput
+): Promise<AuthResult<{ user: AuthUser; isNewUser: boolean }>> {
+  console.log('[AUTH_SERVICE:OAUTH] Processing OAuth login', {
+    email: input.email,
+    provider: input.oauthProvider,
+    intendedRole: input.intendedRole,
+  });
+
+  // Validate role - only buyers and vendors can use OAuth
+  if (input.intendedRole !== 'buyer' && input.intendedRole !== 'vendor') {
+    return {
+      success: false,
+      error: {
+        code: 'INVALID_INPUT',
+        message: 'OAuth is only available for buyers and vendors',
+      },
+    };
+  }
+
+  // For new vendors without businessName, we'll create a pending account
+  // They can complete registration later with business details
+  // Existing vendors can link without providing businessName again
+
+  try {
+    const normalizedEmail = input.email.toLowerCase().trim();
+    const now = new Date().toISOString();
+
+    // Check if user exists with this email and role
+    const existingUserResult = await query<{
+      id: string;
+      email: string;
+      name: string;
+      role: UserRole;
+      status: UserStatus;
+      avatar: string | null;
+      phone: string | null;
+      location: string | null;
+      business_name: string | null;
+      business_type: string | null;
+      verification_status: VerificationStatus | null;
+      store_description: string | null;
+      store_banner: string | null;
+      store_logo: string | null;
+      created_at: string;
+    }>(
+      'SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND role = $2 AND is_deleted = 0',
+      [normalizedEmail, input.intendedRole]
+    );
+
+    if (existingUserResult.rows[0]) {
+      // User exists with matching role - link and log in
+      const dbUser = existingUserResult.rows[0];
+      
+      // Check if user is active
+      if (dbUser.status === 'suspended') {
+        return {
+          success: false,
+          error: { code: 'USER_SUSPENDED', message: 'Account is suspended' },
+        };
+      }
+      if (dbUser.status === 'banned') {
+        return {
+          success: false,
+          error: { code: 'USER_BANNED', message: 'Account is banned' },
+        };
+      }
+      if (dbUser.status === 'deleted') {
+        return {
+          success: false,
+          error: { code: 'USER_DELETED', message: 'Account has been deleted' },
+        };
+      }
+
+      // Update last login and avatar if changed
+      await query(
+        `UPDATE users SET last_login_at = $1, avatar = COALESCE($2, avatar), updated_at = $1 WHERE id = $3`,
+        [now, input.avatar, dbUser.id]
+      );
+
+      console.log('[AUTH_SERVICE:OAUTH] Linked existing user', { userId: dbUser.id });
+
+      return {
+        success: true,
+        data: {
+          user: {
+            id: dbUser.id,
+            email: dbUser.email,
+            name: dbUser.name,
+            role: dbUser.role,
+            status: dbUser.status,
+            phone: dbUser.phone,
+            location: dbUser.location,
+            businessName: dbUser.business_name,
+            businessType: dbUser.business_type,
+            verificationStatus: dbUser.verification_status,
+            avatar: input.avatar || dbUser.avatar,
+            storeDescription: dbUser.store_description,
+            storeBanner: dbUser.store_banner,
+            storeLogo: dbUser.store_logo,
+            createdAt: dbUser.created_at,
+          },
+          isNewUser: false,
+        },
+      };
+    }
+
+    // Check if email exists as admin (block OAuth)
+    const adminCheck = await query<{ id: string }>(
+      'SELECT id FROM admin_users WHERE LOWER(email) = LOWER($1)',
+      [normalizedEmail]
+    );
+    if (adminCheck.rows[0]) {
+      return {
+        success: false,
+        error: {
+          code: 'EMAIL_EXISTS',
+          message: 'This email is registered as an admin. Please use password login.',
+        },
+      };
+    }
+
+    // Create new user with OAuth
+    const userId = `user_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
+    const status: UserStatus = input.intendedRole === 'vendor' ? 'pending' : 'active';
+    const verificationStatus: VerificationStatus | null = input.intendedRole === 'vendor' ? 'pending' : null;
+    
+    // For vendors, use default business name if not provided
+    const businessName = input.intendedRole === 'vendor' 
+      ? (input.businessName || `${input.name}'s Store`)
+      : (input.businessName || null);
+
+    await query(
+      `INSERT INTO users (
+        id, email, password_hash, name, role, status, avatar, 
+        business_name, business_type, verification_status,
+        last_login_at, created_at, updated_at
+      ) VALUES ($1, $2, NULL, $3, $4, $5, $6, $7, $8, $9, $10, $10, $10)`,
+      [
+        userId,
+        normalizedEmail,
+        input.name,
+        input.intendedRole,
+        status,
+        input.avatar || null,
+        businessName,
+        input.businessType || null,
+        verificationStatus,
+        now,
+      ]
+    );
+
+    // If vendor, create vendor record (even without businessName for OAuth flow)
+    if (input.intendedRole === 'vendor') {
+      const vendorId = `vendor_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
+      const businessName = input.businessName || `${input.name}'s Store`;
+      await query(
+        `INSERT INTO vendors (
+          id, user_id, business_name, business_type, description,
+          verification_status, store_status, created_at, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, 'pending', 'inactive', $6, $6)`,
+        [vendorId, userId, businessName, input.businessType || 'general', '', now]
+      );
+    }
+
+    console.log('[AUTH_SERVICE:OAUTH] Created new OAuth user', { userId, role: input.intendedRole });
+
+    return {
+      success: true,
+      data: {
+        user: {
+          id: userId,
+          email: normalizedEmail,
+          name: input.name,
+          role: input.intendedRole,
+          status,
+          phone: null,
+          location: null,
+          businessName: businessName,
+          businessType: input.businessType || null,
+          verificationStatus,
+          avatar: input.avatar || null,
+          storeDescription: null,
+          storeBanner: null,
+          storeLogo: null,
+          createdAt: now,
+        },
+        isNewUser: true,
+      },
+    };
+  } catch (error) {
+    console.error('[AUTH_SERVICE:OAUTH] Error:', error);
+    return {
+      success: false,
+      error: {
+        code: 'TRANSACTION_FAILED',
+        message: 'Failed to create or link OAuth account',
+        details: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+}
+
+/**
+ * Create a session for a user (used after OAuth authentication)
+ */
+export async function createSessionForUser(
+  userId: string,
+  userRole: UserRole
+): Promise<AuthResult<AuthSession>> {
+  try {
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + SESSION_DURATION_MS);
+    const token = generateSessionToken();
+    const tokenHash = hashToken(token);
+    const sessionId = `sess_${uuidv4().replace(/-/g, '').substring(0, 24)}`;
+
+    await query(
+      `INSERT INTO sessions (id, user_id, user_role, token_hash, expires_at, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $6)`,
+      [sessionId, userId, userRole, tokenHash, expiresAt.toISOString(), now.toISOString()]
+    );
+
+    console.log('[AUTH_SERVICE:SESSION] Created session', { sessionId, userId });
+
+    return {
+      success: true,
+      data: {
+        id: sessionId,
+        userId,
+        userRole,
+        token,
+        expiresAt: expiresAt.toISOString(),
+      },
+    };
+  } catch (error) {
+    console.error('[AUTH_SERVICE:SESSION] Error:', error);
+    return {
+      success: false,
+      error: {
+        code: 'SESSION_CREATION_FAILED',
+        message: 'Failed to create session',
+        details: error instanceof Error ? error.message : String(error),
+      },
+    };
+  }
+}
