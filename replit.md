@@ -47,13 +47,15 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 
 **Google OAuth Integration:**
 - Server-side OAuth URL generation at `/api/auth/google/init` (keeps client_secret secure)
-- OAuth callback route at `/api/auth/google/callback`
+- Server-side credential handling via `src/lib/db/dal/google-oauth-server.ts` - reads credentials directly from database
+- OAuth callback routes at `/api/auth/google/callback` and `/api/auth/callback/google`
 - OAuth user creation/linking in `auth-service.ts` with `createOrLinkOAuthUser()` and `createSessionForUser()`
 - Buyers and vendors only (admins blocked from OAuth)
 - Vendors get default business name "{Name}'s Store" if not provided
 - OAuth respects existing email uniqueness rules (buyer+vendor can share same email)
 - No role elevation through OAuth
 - Credentials stored encrypted in database, managed via Admin → API Management
+- Detailed error propagation for misconfiguration states (disabled, not configured, missing fields)
 
 **Analytics Event Tracking:**
 - Non-blocking, fire-and-forget analytics at `src/lib/analytics.ts`
