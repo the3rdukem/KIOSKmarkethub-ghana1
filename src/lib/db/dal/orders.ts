@@ -360,13 +360,18 @@ export async function updateOrder(id: string, updates: UpdateOrderInput): Promis
  * This function updates payment-specific fields after payment confirmation.
  * Only updates fields that have actual values (not null/undefined).
  * 
- * IMPORTANT: When paymentStatus is 'paid', also updates main order status 
- * from 'pending_payment' to 'processing' to reflect payment confirmation.
+ * IMPORTANT: When paymentStatus is 'paid' AND order is still in 'pending_payment',
+ * also updates main order status to 'processing' to reflect payment confirmation.
+ * This conditional check prevents webhook retries from downgrading already-fulfilled orders.
  */
 export async function updateOrderPaymentStatus(
   id: string,
   updates: UpdatePaymentStatusInput
 ): Promise<DbOrder | null> {
+  // First, get the current order status to check if we should update main status
+  const currentOrder = await getOrderById(id);
+  if (!currentOrder) return null;
+
   const now = new Date().toISOString();
 
   const fields: string[] = [];
@@ -379,9 +384,10 @@ export async function updateOrderPaymentStatus(
   fields.push(`payment_status = $${paramIndex++}`);
   values.push(updates.paymentStatus);
 
-  // When payment is confirmed as 'paid', update main order status to 'processing'
-  // This transitions the order from awaiting payment to being processed for fulfillment
-  if (updates.paymentStatus === 'paid') {
+  // When payment is confirmed as 'paid' AND order is still awaiting payment,
+  // update main order status to 'processing'. This prevents webhook retries
+  // from downgrading orders that have already been fulfilled.
+  if (updates.paymentStatus === 'paid' && currentOrder.status === 'pending_payment') {
     fields.push(`status = $${paramIndex++}`);
     values.push('processing');
   }
