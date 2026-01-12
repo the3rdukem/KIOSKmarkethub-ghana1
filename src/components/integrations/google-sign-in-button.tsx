@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
-import { useGoogleOAuth } from "@/lib/integrations-store";
+import { useGoogleOAuth, fetchPublicIntegrationStatus } from "@/lib/integrations-store";
 import { getGoogleAuthUrl, isGoogleOAuthEnabled } from "@/lib/services/google-oauth";
 
 interface GoogleSignInButtonProps {
@@ -24,10 +24,28 @@ export function GoogleSignInButton({
   children,
 }: GoogleSignInButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const { isEnabled, isReady } = useGoogleOAuth();
+  const [publicStatus, setPublicStatus] = useState<{ isEnabled: boolean; isReady: boolean } | null>(null);
+  const [isStatusLoaded, setIsStatusLoaded] = useState(false);
+  const { isEnabled: localEnabled, isReady: localReady } = useGoogleOAuth();
+
+  // Fetch public status on mount
+  useEffect(() => {
+    fetchPublicIntegrationStatus().then((status) => {
+      if (status.google_oauth) {
+        setPublicStatus(status.google_oauth);
+      }
+      setIsStatusLoaded(true);
+    }).catch(() => {
+      setIsStatusLoaded(true);
+    });
+  }, []);
+
+  // Use public status if available, otherwise fall back to local
+  const isEnabled = publicStatus?.isEnabled ?? localEnabled;
+  const isReady = publicStatus?.isReady ?? localReady;
 
   const handleClick = async () => {
-    if (!isGoogleOAuthEnabled()) {
+    if (!isReady) {
       onError?.("Google Sign-In is not available at the moment");
       return;
     }
@@ -57,6 +75,21 @@ export function GoogleSignInButton({
       onError?.(error instanceof Error ? error.message : "Authentication failed");
     }
   };
+
+  // Show loading state until we know the status
+  if (!isStatusLoaded) {
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className={className}
+        disabled
+      >
+        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+        Loading...
+      </Button>
+    );
+  }
 
   // If Google OAuth is not configured, don't render the button
   if (!isEnabled) {
@@ -103,7 +136,27 @@ export function GoogleSignInButton({
  * Use this in places where the Google button would normally appear
  */
 export function GoogleAuthFallback() {
-  const { isEnabled } = useGoogleOAuth();
+  const [publicStatus, setPublicStatus] = useState<{ isEnabled: boolean; isReady: boolean } | null>(null);
+  const [isStatusLoaded, setIsStatusLoaded] = useState(false);
+  const { isEnabled: localEnabled } = useGoogleOAuth();
+
+  useEffect(() => {
+    fetchPublicIntegrationStatus().then((status) => {
+      if (status.google_oauth) {
+        setPublicStatus(status.google_oauth);
+      }
+      setIsStatusLoaded(true);
+    }).catch(() => {
+      setIsStatusLoaded(true);
+    });
+  }, []);
+
+  // Don't render until we know the status
+  if (!isStatusLoaded) {
+    return null;
+  }
+
+  const isEnabled = publicStatus?.isEnabled ?? localEnabled;
 
   if (isEnabled) {
     return null;

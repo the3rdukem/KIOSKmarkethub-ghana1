@@ -640,6 +640,20 @@ export const useIntegrationsStore = create<IntegrationsState>()(
   )
 );
 
+// Fetch public integration status (no auth required)
+export async function fetchPublicIntegrationStatus(): Promise<Record<string, { isEnabled: boolean; isReady: boolean }>> {
+  try {
+    const response = await fetch('/api/integrations/public');
+    if (!response.ok) {
+      return {};
+    }
+    const data = await response.json();
+    return data.success ? data.data : {};
+  } catch {
+    return {};
+  }
+}
+
 // Helper hooks for specific integrations
 export const useGoogleOAuth = () => {
   const store = useIntegrationsStore();
