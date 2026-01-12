@@ -7,7 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { validateSession } from '@/lib/db/dal/auth-service';
+import { validateSession } from '@/lib/db/dal/sessions';
 import { getOrderById } from '@/lib/db/dal/orders';
 import { query } from '@/lib/db';
 import { generatePaymentReference } from '@/lib/services/paystack';
