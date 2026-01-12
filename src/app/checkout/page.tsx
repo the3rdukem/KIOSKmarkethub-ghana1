@@ -893,7 +893,7 @@ export default function CheckoutPage() {
                     <Button
                       variant="outline"
                       className="w-full"
-                      onClick={() => router.push(`/orders/${pendingOrderId}`)}
+                      onClick={() => router.push(`/buyer/orders/${pendingOrderId}`)}
                     >
                       Pay Later - View Order
                     </Button>

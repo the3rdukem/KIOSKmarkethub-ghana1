@@ -175,31 +175,25 @@ export const fetchPaystackConfig = async (): Promise<{
 
   configFetchPromise = (async () => {
     try {
-      const response = await fetch('/api/integrations?id=paystack', { credentials: 'include' });
+      // Use the public config endpoint (accessible to all authenticated users)
+      const response = await fetch('/api/paystack/config', { credentials: 'include' });
       if (!response.ok) {
+        console.error('[PAYSTACK] Config fetch failed:', response.status);
         return null;
       }
 
       const data = await response.json();
-      const integration = data.integration;
 
-      if (!integration?.isEnabled || !integration?.isConfigured || integration?.status !== 'connected') {
-        return null;
-      }
-
-      const credentials = integration.credentials || {};
-      const publicKey = credentials.publicKey || '';
-      const secretKey = credentials.secretKey || '';
-
-      if (!publicKey) {
+      if (!data.enabled || !data.publicKey) {
+        console.log('[PAYSTACK] Not enabled or no public key');
         return null;
       }
 
       cachedConfig = {
-        publicKey,
-        secretKey,
-        webhookSecret: credentials.webhookSecret || '',
-        isLive: integration.environment === 'live',
+        publicKey: data.publicKey,
+        secretKey: '', // Not exposed to client (security)
+        webhookSecret: '',
+        isLive: data.isLive || false,
       };
 
       return cachedConfig;

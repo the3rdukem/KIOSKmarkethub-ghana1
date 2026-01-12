@@ -70,6 +70,8 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
   - **Webhook Idempotency (Phase 3A)**: Webhooks now check if order is already paid before updating. Duplicate webhooks are safely ignored. Failed payment webhooks only restore inventory once (on first failure).
   - **Admin Payment Visibility (Phase 3A)**: Admin orders page now displays payment_reference, payment_provider, and paid_at in the order details dialog.
   - **Retry Payment Flow (Phase 3A)**: Buyer order detail page now shows "Pay Now" button for orders in pending_payment status with pending/failed payment. Server-side `/api/orders/[id]/payment` endpoint generates unique reference, stores it on order with audit logging, before client opens Paystack popup. Includes idempotency guards to prevent paid orders from being re-initialized.
+  - **Paystack Public Config Endpoint (Jan 2026)**: Created `/api/paystack/config` endpoint that returns only the public key (safe to expose) and is accessible to all authenticated users. This fixes the 403 error that occurred when buyers tried to access the admin-only `/api/integrations` endpoint during checkout. Secret keys remain server-side only.
+  - **Checkout View Order Fix (Jan 2026)**: Fixed "View Order" button in checkout page to link to `/buyer/orders/[id]` instead of non-existent `/orders/[id]` route.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions.
