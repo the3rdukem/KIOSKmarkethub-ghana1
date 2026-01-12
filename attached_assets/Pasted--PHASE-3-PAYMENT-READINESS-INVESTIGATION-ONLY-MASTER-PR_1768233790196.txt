@@ -1,0 +1,235 @@
+
+🔍 PHASE 3 — PAYMENT READINESS
+
+INVESTIGATION-ONLY MASTER PROMPT
+
+DO NOT FIX. DO NOT REFACTOR. DO NOT ADD FEATURES.
+This task is READ-ONLY ANALYSIS. Any code changes will be rejected.
+
+OBJECTIVE
+
+Determine whether the current system is structurally safe to introduce real payments (Paystack) without data corruption, double charges, or lost orders.
+
+⸻
+
+SCOPE (STRICT)
+
+You are allowed to:
+	•	Read schemas
+	•	Read API routes
+	•	Trace data flow (cart → checkout → order)
+	•	Report findings
+
+You are NOT allowed to:
+	•	Modify code
+	•	Add validation
+	•	Rename fields
+	•	“Improve” anything
+
+⸻
+
+PART A — ORDER DATA MODEL (MANDATORY)
+
+Inspect the orders table / model and report:
+	1.	Full list of fields
+	2.	Field types
+	3.	Nullable vs non-nullable
+	4.	Default values
+
+Explicitly confirm the existence (or absence) of:
+	•	order.id
+	•	buyer_id
+	•	status (ENUM preferred)
+	•	total_amount
+	•	currency
+	•	created_at
+	•	updated_at
+
+🚨 Call out immediately if:
+	•	Total is computed dynamically
+	•	There is only isPaid: boolean
+	•	Currency is missing
+	•	Status is free-text
+
+⸻
+
+PART B — ORDER ITEMS SNAPSHOT
+
+Inspect order_items (or equivalent).
+
+Confirm whether each item stores:
+	•	product_id
+	•	product_name_snapshot
+	•	price_snapshot
+	•	quantity
+	•	vendor_id
+
+Explicitly answer:
+	•	Are prices copied at checkout?
+	•	Do order items depend on live product data?
+
+🚨 Flag if any historical order could change due to product edits or deletion.
+
+⸻
+
+PART C — CART → ORDER BOUNDARY
+
+Trace the checkout flow step by step:
+	1.	Where cart lives (DB / local / hybrid)
+	2.	When order is created
+	3.	When cart becomes irrelevant
+
+Answer YES / NO:
+	•	Can cart change after order creation?
+	•	Is order created before payment?
+	•	Can checkout be resumed after refresh?
+
+⸻
+
+PART D — PROMOTIONS & DISCOUNTS
+
+Inspect how coupons and sales are applied.
+
+Confirm:
+	•	Is coupon code saved on order?
+	•	Is discount amount saved on order?
+	•	Is total_amount final at order creation?
+
+🚨 Flag if discounts are:
+	•	Recalculated at render time
+	•	Revalidated after payment
+
+⸻
+
+PART E — INVENTORY CHECK (AWARENESS ONLY)
+
+Document:
+	•	When inventory is checked
+	•	What happens if stock changes mid-checkout
+
+Do not propose fixes.
+
+⸻
+
+PART F — PAYMENT READINESS (NO PAYSTACK YET)
+
+Confirm whether there is a place to store:
+	•	payment_reference
+	•	payment_status
+	•	paid_at
+	•	payment_provider
+
+🚨 Flag if payment data is frontend-only.
+
+⸻
+
+PART G — FAILURE STATES
+
+Verify the system can represent:
+	•	Abandoned checkout
+	•	Failed payment
+	•	Successful payment with delayed confirmation
+
+🚨 Flag if browser close = order lost.
+
+⸻
+
+OUTPUT FORMAT (MANDATORY)
+
+Respond with ONLY:
+
+Phase 3 Payment Readiness Report
+
+A. Orders Model
+- Findings:
+- Risks:
+
+B. Order Items
+- Findings:
+- Risks:
+
+C. Cart → Order Boundary
+- Findings:
+- Risks:
+
+D. Promotions
+- Findings:
+- Risks:
+
+E. Inventory
+- Findings:
+- Risks:
+
+F. Payment Storage
+- Findings:
+- Risks:
+
+G. Failure States
+- Findings:
+- Risks:
+
+FINAL VERDICT:
+GO / NO-GO FOR PAYSTACK
+
+No recommendations unless NO-GO.
+
+⸻
+
+🧾 PHASE 3 — ORDER SCHEMA SANITY CHECK (YOU VERIFY)
+
+Use this manual checklist against your current schema.
+
+ORDERS
+
+✔ id (UUID / serial)
+✔ buyer_id
+✔ status (enum: pending, awaiting_payment, paid, failed, cancelled)
+✔ total_amount (number, immutable)
+✔ currency (GHS)
+✔ created_at
+
+❌ No derived totals
+❌ No frontend-only state
+
+⸻
+
+ORDER_ITEMS
+
+✔ product_id
+✔ product_name_snapshot
+✔ price_snapshot
+✔ quantity
+✔ vendor_id
+
+❌ No live price dependency
+
+⸻
+
+PAYMENT (can be nullable for now)
+
+✔ payment_reference
+✔ payment_status
+✔ payment_provider
+✔ paid_at
+
+⸻
+
+FLOW GUARANTEE
+
+✔ Order exists before payment
+✔ Refresh does not destroy order
+✔ Webhook can update order later
+
+⸻
+
+🔒 IMPORTANT NOTE (READ THIS)
+
+If ANY ONE of the following is true:
+	•	Order total can change after creation
+	•	Order doesn’t exist before payment
+	•	Discounts recalculate dynamically
+	•	Payment result has nowhere to persist
+
+👉 PAYSTACK WILL FAIL SILENTLY OR FATALLY
+
+⸻
