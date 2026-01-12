@@ -76,7 +76,10 @@ function SearchPageContent() {
     return ["All Categories", ...cats.map(c => c.name)];
   }, [getActiveCategories]);
 
-  // Get selected category's attributes for dynamic filtering
+  const [searchQuery, setSearchQuery] = useState(initialQuery);
+  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
+
+  // Get selected category's attributes for dynamic filtering (must be after selectedCategory state)
   const selectedCategoryData = useMemo(() => {
     if (selectedCategory === "All Categories") return null;
     return getCategoryByName(selectedCategory);
@@ -88,14 +91,12 @@ function SearchPageContent() {
       attr.type === 'select' || attr.type === 'multi_select'
     );
   }, [selectedCategoryData]);
-
-  const [searchQuery, setSearchQuery] = useState(initialQuery);
-  const [selectedCategory, setSelectedCategory] = useState(initialCategory);
   const [selectedVendor, setSelectedVendor] = useState("All Vendors");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100000]);
   const [priceRangeInitialized, setPriceRangeInitialized] = useState(false);
   const [minRating, setMinRating] = useState(0);
   const [inStockOnly, setInStockOnly] = useState(false);
+  const [attributeFilters, setAttributeFilters] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState("relevance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
@@ -235,7 +236,14 @@ function SearchPageContent() {
       const inStock = !product.trackQuantity || product.quantity > 0;
       const matchesStock = !inStockOnly || inStock;
 
-      return matchesSearch && matchesCategory && matchesVendor && matchesPrice && matchesRating && matchesStock;
+      // Category attribute filters
+      const matchesAttributes = Object.entries(attributeFilters).every(([key, value]) => {
+        if (!value || value === "all") return true;
+        const productAttrs = product.categoryAttributes as Record<string, string> | undefined;
+        return productAttrs?.[key] === value;
+      });
+
+      return matchesSearch && matchesCategory && matchesVendor && matchesPrice && matchesRating && matchesStock && matchesAttributes;
     });
 
     // Sorting
@@ -259,7 +267,7 @@ function SearchPageContent() {
     });
 
     return sorted;
-  }, [allProducts, debouncedSearchQuery, selectedCategory, selectedVendor, priceRange, minRating, inStockOnly, sortBy, getAverageRating, aiSearchResults]);
+  }, [allProducts, debouncedSearchQuery, selectedCategory, selectedVendor, priceRange, minRating, inStockOnly, sortBy, getAverageRating, aiSearchResults, attributeFilters]);
 
   const handleAddToCart = useCallback((product: Product) => {
     const priceToUse = product.effectivePrice ?? product.price;
@@ -298,15 +306,24 @@ function SearchPageContent() {
     setMinRating(0);
     setInStockOnly(false);
     setSortBy("relevance");
+    setAttributeFilters({});
   }, [maxPrice]);
 
-  const activeFiltersCount = useMemo(() => [
-    selectedCategory !== "All Categories",
-    selectedVendor !== "All Vendors",
-    priceRange[0] > 0 || priceRange[1] < maxPrice,
-    minRating > 0,
-    inStockOnly,
-  ].filter(Boolean).length, [selectedCategory, selectedVendor, priceRange, maxPrice, minRating, inStockOnly]);
+  const activeFiltersCount = useMemo(() => {
+    const attrFiltersActive = Object.values(attributeFilters).filter(v => v && v !== "all").length;
+    return [
+      selectedCategory !== "All Categories",
+      selectedVendor !== "All Vendors",
+      priceRange[0] > 0 || priceRange[1] < maxPrice,
+      minRating > 0,
+      inStockOnly,
+    ].filter(Boolean).length + attrFiltersActive;
+  }, [selectedCategory, selectedVendor, priceRange, maxPrice, minRating, inStockOnly, attributeFilters]);
+
+  // Clear attribute filters when category changes
+  useEffect(() => {
+    setAttributeFilters({});
+  }, [selectedCategory]);
 
   // Removed early return for loading state - will use conditional rendering in JSX
 
@@ -355,6 +372,43 @@ function SearchPageContent() {
               ))}
             </div>
           </div>
+          <Separator />
+        </>
+      )}
+
+      {/* Dynamic Category Attribute Filters */}
+      {categoryAttributes.length > 0 && (
+        <>
+          {categoryAttributes.map((attr) => (
+            <div key={attr.name}>
+              <Label className="text-sm font-semibold">{attr.label || attr.name}</Label>
+              <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
+                <button
+                  onClick={() => setAttributeFilters(prev => ({ ...prev, [attr.name]: "all" }))}
+                  className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
+                    !attributeFilters[attr.name] || attributeFilters[attr.name] === "all"
+                      ? "bg-emerald-100 text-emerald-800 font-medium"
+                      : "hover:bg-gray-100"
+                  }`}
+                >
+                  All {attr.label || attr.name}
+                </button>
+                {attr.options?.map((option) => (
+                  <button
+                    key={option}
+                    onClick={() => setAttributeFilters(prev => ({ ...prev, [attr.name]: option }))}
+                    className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
+                      attributeFilters[attr.name] === option
+                        ? "bg-emerald-100 text-emerald-800 font-medium"
+                        : "hover:bg-gray-100"
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
           <Separator />
         </>
       )}

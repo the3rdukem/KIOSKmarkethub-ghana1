@@ -35,6 +35,20 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
   - **Admin Dashboard Orders** (`src/app/admin/page.tsx`): Updated Orders table on dashboard to match dedicated page with 7 columns (Order ID, Customer, Items, Total, Status, Date, Actions). Added 3-dot dropdown with View Details and Cancel Order options. Added "View All Orders" button and Quick Actions link to `/admin/orders`.
   - **Admin Management** (`src/app/admin/page.tsx`): 3-dot DropdownMenu now contains "Revoke Access", "Activate", and "Delete Admin" options with confirmation dialogs.
   - **Admin Delete API** (`src/app/api/admin/admins/[id]/route.ts`): Added DELETE method for permanently deleting admin accounts with master-admin-only authorization, self-deletion prevention, and audit logging.
+- **Database-Backed Wishlist (Jan 2026)**: 
+  - Created `wishlist_items` table with CRUD operations in DAL (`src/lib/db/dal/wishlist.ts`).
+  - API endpoints for GET, POST, DELETE operations (`src/app/api/wishlist/route.ts`).
+  - Wishlist store (`src/lib/wishlist-store.ts`) syncs with database for authenticated users, with localStorage fallback for guests.
+  - Includes guest-to-user wishlist merging upon login.
+- **Dynamic Price Slider (Jan 2026)**: 
+  - Fixed price slider on search page to initialize from actual product prices instead of hardcoded 10000.
+  - Max price calculated from products and rounded up to nearest 100.
+  - Price range resets when products load to prevent filtering out expensive items.
+- **Dynamic Category Filters (Jan 2026)**: 
+  - Added category attribute filters that display based on selected category.
+  - When a category is selected, its attributes (select/multi_select types) appear as filter options.
+  - Products filtered based on `categoryAttributes` matching selected filter values.
+  - Filter count includes attribute filters, and filters reset when category changes.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions.
