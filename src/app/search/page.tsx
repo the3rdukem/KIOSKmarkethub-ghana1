@@ -43,8 +43,46 @@ import { useWishlistStore } from "@/lib/wishlist-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { useOpenAI } from "@/lib/integrations-store";
 import { isOpenAIEnabled, semanticSearch } from "@/lib/services/openai";
-import { useCategoriesStore } from "@/lib/categories-store";
 import { toast } from "sonner";
+
+interface CategoryAttribute {
+  id: string;
+  key: string;
+  label: string;
+  type: string;
+  required: boolean;
+  placeholder?: string;
+  helpText?: string;
+  options?: string[];
+  order: number;
+}
+
+interface ApiCategory {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  icon?: string;
+  imageUrl?: string;
+  parentId?: string;
+  isActive: boolean;
+  showInMenu: boolean;
+  showInHome: boolean;
+  displayOrder: number;
+  formSchema?: Array<{
+    key: string;
+    label: string;
+    type: string;
+    required: boolean;
+    placeholder?: string;
+    helpText?: string;
+    options?: string[];
+    min?: number;
+    max?: number;
+  }>;
+  createdAt: string;
+  updatedAt: string;
+}
 
 const sortOptions = [
   { value: "relevance", label: "Most Relevant" },
@@ -66,12 +104,30 @@ function SearchPageContent() {
   const toggleWishlist = useWishlistStore((state) => state.toggleWishlist);
   const user = useAuthStore((state) => state.user);
 
-  // Dynamic categories from store
-  const { getActiveCategories } = useCategoriesStore();
-  const activeCategories = useMemo(() => getActiveCategories(), [getActiveCategories]);
+  // Categories from API (server-side source of truth)
+  const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
+  const [categoriesLoading, setCategoriesLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const response = await fetch('/api/categories');
+        if (response.ok) {
+          const data = await response.json();
+          setApiCategories(data.categories || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch categories:', error);
+      } finally {
+        setCategoriesLoading(false);
+      }
+    }
+    fetchCategories();
+  }, []);
+
   const dynamicCategories = useMemo(() => {
-    return ["All Categories", ...activeCategories.map(c => c.name)];
-  }, [activeCategories]);
+    return ["All Categories", ...apiCategories.map(c => c.name)];
+  }, [apiCategories]);
 
   const [searchQuery, setSearchQuery] = useState(initialQuery);
   const [selectedCategory, setSelectedCategory] = useState(initialCategory);
@@ -79,14 +135,25 @@ function SearchPageContent() {
   // Get selected category's attributes for dynamic filtering (must be after selectedCategory state)
   const selectedCategoryData = useMemo(() => {
     if (selectedCategory === "All Categories") return null;
-    return activeCategories.find(c => c.name === selectedCategory) || null;
-  }, [selectedCategory, activeCategories]);
+    return apiCategories.find(c => c.name === selectedCategory) || null;
+  }, [selectedCategory, apiCategories]);
 
-  const categoryAttributes = useMemo(() => {
-    if (!selectedCategoryData?.attributes) return [];
-    return selectedCategoryData.attributes.filter(attr => 
-      attr.type === 'select' || attr.type === 'multi_select'
-    );
+  // Transform formSchema to attributes format for filtering
+  const categoryAttributes = useMemo((): CategoryAttribute[] => {
+    if (!selectedCategoryData?.formSchema) return [];
+    return selectedCategoryData.formSchema
+      .filter(field => field.type === 'select' || field.type === 'multi_select')
+      .map((field, index) => ({
+        id: `attr_${selectedCategoryData.id}_${field.key}`,
+        key: field.key,
+        label: field.label,
+        type: field.type,
+        required: field.required,
+        placeholder: field.placeholder,
+        helpText: field.helpText,
+        options: field.options,
+        order: index + 1,
+      }));
   }, [selectedCategoryData]);
   const [selectedVendor, setSelectedVendor] = useState("All Vendors");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100000]);
