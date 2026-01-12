@@ -32,7 +32,9 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Admin UI Fixes**: Specific UI adjustments for Radix UI components in admin pages to ensure proper event handling, dialog functionality, and consistent column widths in tables.
 - **Admin Table Actions (Jan 2026)**: 
   - **Admin Orders** (`src/app/admin/orders/page.tsx`): Fixed table using `table-fixed w-full` layout with explicit column widths to ensure Actions column with 3-dot dropdown is always visible.
-  - **Admin Management** (`src/app/admin/page.tsx`): Replaced inline "Revoke access" button with 3-dot DropdownMenu containing "Revoke Access" and "Activate" actions. AlertDialog uses controlled state outside table rows.
+  - **Admin Dashboard Orders** (`src/app/admin/page.tsx`): Updated Orders table on dashboard to match dedicated page with 7 columns (Order ID, Customer, Items, Total, Status, Date, Actions). Added 3-dot dropdown with View Details and Cancel Order options. Added "View All Orders" button and Quick Actions link to `/admin/orders`.
+  - **Admin Management** (`src/app/admin/page.tsx`): 3-dot DropdownMenu now contains "Revoke Access", "Activate", and "Delete Admin" options with confirmation dialogs.
+  - **Admin Delete API** (`src/app/api/admin/admins/[id]/route.ts`): Added DELETE method for permanently deleting admin accounts with master-admin-only authorization, self-deletion prevention, and audit logging.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions.
