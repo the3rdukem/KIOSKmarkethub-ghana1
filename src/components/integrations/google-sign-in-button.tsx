@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { useGoogleOAuth, fetchPublicIntegrationStatus } from "@/lib/integrations-store";
-import { getGoogleAuthUrl, isGoogleOAuthEnabled } from "@/lib/services/google-oauth";
 
 interface GoogleSignInButtonProps {
   mode: "signin" | "signup";
@@ -53,23 +52,27 @@ export function GoogleSignInButton({
     setIsLoading(true);
 
     try {
-      // Generate state parameter for CSRF protection
       const state = btoa(JSON.stringify({
         mode,
         timestamp: Date.now(),
         nonce: Math.random().toString(36).substring(2),
       }));
 
-      // Store state for verification on callback
       sessionStorage.setItem("google_oauth_state", state);
 
-      // Redirect to Google OAuth
-      const authUrl = getGoogleAuthUrl(state);
-      if (authUrl) {
-        window.location.href = authUrl;
-      } else {
-        throw new Error("Failed to generate authentication URL");
+      const response = await fetch('/api/auth/google/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ state }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success || !data.authUrl) {
+        throw new Error(data.error || "Failed to generate authentication URL");
       }
+
+      window.location.href = data.authUrl;
     } catch (error) {
       setIsLoading(false);
       onError?.(error instanceof Error ? error.message : "Authentication failed");
