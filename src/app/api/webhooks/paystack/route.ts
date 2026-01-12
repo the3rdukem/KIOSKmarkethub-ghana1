@@ -186,7 +186,7 @@ async function handleChargeSuccess(data: PaystackEvent['data']): Promise<void> {
 }
 
 /**
- * Handle failed payment
+ * Handle failed payment - restore inventory for the order
  */
 async function handleChargeFailed(data: PaystackEvent['data']): Promise<void> {
   console.log(`[PAYSTACK_WEBHOOK] Payment failed: ${data.reference}`);
@@ -199,6 +199,15 @@ async function handleChargeFailed(data: PaystackEvent['data']): Promise<void> {
   }
 
   try {
+    const { getOrderById, getOrderItemsByOrderId } = await import('@/lib/db/dal/orders');
+    const { restoreInventory } = await import('@/lib/db/dal/products');
+
+    const order = await getOrderById(orderId);
+    if (!order) {
+      console.error(`[PAYSTACK_WEBHOOK] Order ${orderId} not found for inventory restoration`);
+      return;
+    }
+
     await updateOrderPaymentStatus(orderId, {
       paymentStatus: 'failed',
       paymentProvider: 'paystack',
@@ -206,6 +215,17 @@ async function handleChargeFailed(data: PaystackEvent['data']): Promise<void> {
     });
 
     console.log(`[PAYSTACK_WEBHOOK] Order ${orderId} marked as payment failed`);
+
+    const orderItems = await getOrderItemsByOrderId(orderId);
+    let restoredCount = 0;
+
+    for (const item of orderItems) {
+      const restored = await restoreInventory(item.product_id, item.quantity);
+      if (restored) {
+        restoredCount++;
+        console.log(`[PAYSTACK_WEBHOOK] Restored ${item.quantity} units of product ${item.product_id}`);
+      }
+    }
 
     await createAuditLog({
       action: 'PAYMENT_FAILED',
@@ -217,9 +237,13 @@ async function handleChargeFailed(data: PaystackEvent['data']): Promise<void> {
         reference: data.reference,
         amount: data.amount / 100,
         currency: data.currency,
+        inventoryRestored: restoredCount,
+        totalItems: orderItems.length,
       }),
       severity: 'warning',
     });
+
+    console.log(`[PAYSTACK_WEBHOOK] Restored inventory for ${restoredCount}/${orderItems.length} items`);
   } catch (error) {
     console.error(`[PAYSTACK_WEBHOOK] Failed to update order ${orderId}:`, error);
   }

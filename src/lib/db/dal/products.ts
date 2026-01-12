@@ -376,6 +376,24 @@ export async function reduceInventory(id: string, quantity: number): Promise<boo
 }
 
 /**
+ * Restore product inventory (for payment failure / order cancellation)
+ */
+export async function restoreInventory(id: string, quantity: number): Promise<boolean> {
+  const product = await getProductById(id);
+
+  if (!product) return false;
+
+  if (product.track_quantity) {
+    await query(
+      `UPDATE products SET quantity = quantity + $1, updated_at = $2 WHERE id = $3`,
+      [quantity, new Date().toISOString(), id]
+    );
+  }
+
+  return true;
+}
+
+/**
  * Search products
  */
 export async function searchProducts(searchQuery: string, options?: {

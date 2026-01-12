@@ -323,8 +323,8 @@ async function createSchema(client: PoolClient): Promise<void> {
       shipping_fee REAL DEFAULT 0,
       tax REAL DEFAULT 0,
       total REAL NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending',
-      payment_status TEXT NOT NULL DEFAULT 'pending',
+      status TEXT NOT NULL DEFAULT 'pending_payment' CHECK(status IN ('pending_payment', 'cancelled', 'fulfilled')),
+      payment_status TEXT NOT NULL DEFAULT 'pending' CHECK(payment_status IN ('pending', 'paid', 'failed', 'refunded')),
       payment_method TEXT,
       shipping_address TEXT NOT NULL,
       tracking_number TEXT,
@@ -807,6 +807,33 @@ async function runMigrations(client: PoolClient): Promise<void> {
   }
 
   console.log('[DB] PHASE 4: Added payment tracking columns to orders table');
+
+  // PHASE 5: Add CHECK constraints to orders table for data integrity
+  try {
+    await client.query(`
+      ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check
+    `);
+    await client.query(`
+      ALTER TABLE orders ADD CONSTRAINT orders_status_check 
+      CHECK(status IN ('pending_payment', 'pending', 'cancelled', 'fulfilled', 'confirmed', 'processing', 'shipped', 'delivered', 'refunded'))
+    `);
+  } catch (e) {
+    // Constraint may already exist or table structure differs
+  }
+
+  try {
+    await client.query(`
+      ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_payment_status_check
+    `);
+    await client.query(`
+      ALTER TABLE orders ADD CONSTRAINT orders_payment_status_check 
+      CHECK(payment_status IN ('pending', 'paid', 'failed', 'refunded'))
+    `);
+  } catch (e) {
+    // Constraint may already exist
+  }
+
+  console.log('[DB] PHASE 5: Added CHECK constraints to orders table');
 }
 
 /**
