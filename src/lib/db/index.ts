@@ -450,6 +450,7 @@ async function runMigrations(client: PoolClient): Promise<void> {
     { table: 'admin_users', column: 'previous_login_at', type: 'TEXT' },
     { table: 'users', column: 'last_activity_checkpoint_at', type: 'TEXT' },
     { table: 'admin_users', column: 'last_activity_checkpoint_at', type: 'TEXT' },
+    { table: 'sessions', column: 'updated_at', type: 'TEXT' },
   ];
 
   // Create carts table if it doesn't exist (for existing databases)
