@@ -111,7 +111,8 @@ export const getMapsApiKey = (): string | null => {
 
 /**
  * Fetch Maps API key from server (client-side)
- * Uses authenticated endpoint accessible to all logged-in users
+ * Uses public endpoint - no authentication required
+ * Security enforced via HTTP referrer restrictions in Google Cloud Console
  */
 export const fetchMapsApiKey = async (): Promise<string | null> => {
   if (typeof window === 'undefined') {
