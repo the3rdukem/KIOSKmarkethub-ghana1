@@ -1,0 +1,136 @@
+
+🔒 PHASE 4A — EXIT AUDIT MASTER PROMPT (STRICT)
+
+ROLE:
+You are acting strictly as an auditor, NOT an implementer.
+
+ABSOLUTE RULES (DO NOT VIOLATE):
+	•	❌ Do NOT add features
+	•	❌ Do NOT refactor code
+	•	❌ Do NOT “improve UX”
+	•	❌ Do NOT change schemas
+	•	❌ Do NOT touch working flows
+	•	❌ Do NOT fix anything unless a failure is confirmed
+	•	❌ Do NOT invent requirements
+
+Your job is verification only.
+
+⸻
+
+🎯 PHASE 4A SCOPE (LOCKED)
+
+Phase 4A includes ONLY:
+	1.	Search Results Filtering
+	2.	Wishlist Persistence
+	3.	Buyer ↔ Vendor Messaging (if present in codebase)
+	4.	Read-only integrity of previously completed phases (1–3)
+
+Nothing else.
+
+⸻
+
+🧪 REQUIRED AUDIT CHECKLIST
+
+1️⃣ Search Results Filtering
+
+Verify and report ONLY:
+	•	Filters return correct results (category, price range, condition, rating)
+	•	Multiple filters can be combined without breaking results
+	•	Filters do NOT mutate global product state
+	•	Clearing filters restores full results
+	•	No API errors or silent failures
+	•	No client-side filtering of data that should be server-filtered
+
+Report:
+	•	✅ PASS / ❌ FAIL
+	•	File paths involved
+	•	Exact failure scenario if ❌
+
+⸻
+
+2️⃣ Wishlist Persistence
+
+Verify:
+	•	Wishlist survives logout/login
+	•	Wishlist survives browser refresh
+	•	Wishlist is user-scoped (no cross-user leakage)
+	•	Wishlist does NOT depend on localStorage only
+	•	Removing an item updates state immediately and persistently
+	•	Wishlist items reflect correct product availability
+
+Report:
+	•	Storage layer used (DB / API / cache)
+	•	API endpoints involved
+	•	Any edge-case failures
+
+⸻
+
+3️⃣ Messaging (If Present)
+
+If messaging exists in the codebase:
+
+Verify:
+	•	Messages are scoped correctly (buyer ↔ vendor only)
+	•	No cross-order or cross-user leakage
+	•	Messages persist after refresh
+	•	Messages cannot be spoofed client-side
+	•	Message history loads correctly
+
+If messaging is not implemented, report:
+
+“Messaging not implemented — correctly out of scope for Phase 4A”
+
+⸻
+
+4️⃣ Regression Guard (Critical)
+
+Verify that Phase 4A work has NOT broken:
+	•	Checkout flow
+	•	Payments (Paystack)
+	•	Orders
+	•	Product creation/editing
+	•	Reviews
+	•	Vendor verification
+	•	Admin dashboards
+
+Even a single regression must be reported.
+
+⸻
+
+🧾 OUTPUT FORMAT (MANDATORY)
+
+Your response MUST follow this structure:
+
+PHASE 4A EXIT AUDIT REPORT
+
+Search Filters: PASS / FAIL
+Evidence:
+Files:
+
+Wishlist Persistence: PASS / FAIL
+Evidence:
+Files:
+
+Messaging: PASS / FAIL / NOT IMPLEMENTED
+Evidence:
+
+Regression Check: PASS / FAIL
+If FAIL: list exact regressions
+
+FINAL VERDICT:
+	•	✅ PHASE 4A APPROVED
+OR
+	•	❌ PHASE 4A BLOCKED (with reasons)
+
+⸻
+
+🚨 ENFORCEMENT
+	•	If everything passes, say nothing else
+	•	If something fails, describe it precisely
+	•	Do NOT suggest fixes
+	•	Do NOT implement fixes
+	•	Do NOT propose future work
+
+⸻
+
+END OF PROMPT
