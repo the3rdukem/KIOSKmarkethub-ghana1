@@ -57,8 +57,12 @@ export async function POST(request: NextRequest) {
     console.log(`[SMILE_ID_WEBHOOK] Received verification result for job: ${payload.SmileJobID}`);
     console.log(`[SMILE_ID_WEBHOOK] Result: ${payload.ResultCode} - ${payload.ResultText}`);
 
-    // Verify webhook signature (optional but recommended for production)
-    if (payload.signature && payload.timestamp && credentials.environment === 'production') {
+    // Verify webhook signature (required in production, optional in sandbox)
+    if (credentials.environment === 'production') {
+      if (!payload.signature || !payload.timestamp) {
+        console.error('[SMILE_ID_WEBHOOK] Missing signature or timestamp in production');
+        return NextResponse.json({ error: 'Missing signature' }, { status: 401 });
+      }
       const isValid = verifyWebhookSignature(
         credentials.partnerId,
         credentials.apiKey,
@@ -70,6 +74,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
       }
       console.log('[SMILE_ID_WEBHOOK] Webhook signature verified');
+    } else {
+      console.log('[SMILE_ID_WEBHOOK] Sandbox mode - signature verification skipped');
     }
 
     // Extract user ID from partner params
