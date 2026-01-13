@@ -15,6 +15,7 @@ import {
   checkVerificationStatus,
   getSupportedIdTypes,
   getSmileIdConfig,
+  type VerificationResult,
 } from '@/lib/services/smile-identity';
 
 /**
@@ -175,7 +176,66 @@ export async function POST(request: NextRequest) {
       });
 
       if (verificationResult.success && verificationResult.jobId) {
-        // Store the job ID
+        // For sandbox mode with instant approval, update vendor BEFORE storing job ID
+        // This ensures we don't leave vendor in 'under_review' if auto-approve fails
+        if (verificationResult.environment === 'sandbox' && verificationResult.status === 'approved') {
+          try {
+            // Auto-approve in sandbox - update vendor to verified status
+            // Include job ID in verification_documents directly to avoid calling setVendorKycJobId
+            // which would reset status back to 'under_review'
+            const existingDocs = vendor.verification_documents
+              ? JSON.parse(vendor.verification_documents)
+              : {};
+            existingDocs.kycJobId = verificationResult.jobId;
+            existingDocs.kycInitiatedAt = new Date().toISOString();
+            existingDocs.kycCompletedAt = new Date().toISOString();
+
+            const updateResult = await updateVendor(vendor.id, {
+              verificationStatus: 'verified',
+              verificationNotes: 'Verified via Smile Identity (Sandbox)',
+              verificationDocuments: JSON.stringify(existingDocs),
+              verifiedAt: new Date().toISOString(),
+              verifiedBy: 'smile_identity_sandbox',
+              storeStatus: 'active',
+            });
+
+            if (!updateResult) {
+              console.error('[VENDOR_VERIFY] Sandbox auto-approve failed: updateVendor returned null');
+              return NextResponse.json({
+                success: false,
+                error: 'Verification succeeded but status update failed. Please contact support.',
+              }, { status: 500 });
+            }
+
+            // Log the action
+            await createAuditLog({
+              action: 'VENDOR_KYC_VERIFIED',
+              category: 'vendor',
+              adminId: session.user_id,
+              targetId: vendor.id,
+              targetType: 'vendor',
+              targetName: vendor.business_name,
+              details: `KYC verification auto-approved via Smile Identity Sandbox (Job: ${verificationResult.jobId})`,
+              severity: 'info',
+              ipAddress: request.headers.get('x-forwarded-for') || undefined,
+            });
+
+            return NextResponse.json({
+              success: true,
+              status: 'approved',
+              message: 'Verification successful! (Sandbox Mode)',
+              jobId: verificationResult.jobId,
+            });
+          } catch (sandboxError) {
+            console.error('[VENDOR_VERIFY] Sandbox auto-approve exception:', sandboxError);
+            return NextResponse.json({
+              success: false,
+              error: 'Sandbox verification failed unexpectedly. Please try again.',
+            }, { status: 500 });
+          }
+        }
+
+        // Production mode: Store job ID and wait for webhook
         await setVendorKycJobId(session.user_id, verificationResult.jobId);
 
         // Log the action
@@ -191,26 +251,6 @@ export async function POST(request: NextRequest) {
           ipAddress: request.headers.get('x-forwarded-for') || undefined,
         });
 
-        // For sandbox, the verification is instant
-        const verifyConfig = await getSmileIdConfig();
-        if (verifyConfig?.environment === 'sandbox' && verificationResult.status === 'approved') {
-          // Auto-approve in sandbox
-          await updateVendor(vendor.id, {
-            verificationStatus: 'verified',
-            verificationNotes: 'Verified via Smile Identity (Sandbox)',
-            verifiedAt: new Date().toISOString(),
-            verifiedBy: 'smile_identity_sandbox',
-            storeStatus: 'active',
-          });
-
-          return NextResponse.json({
-            success: true,
-            status: 'approved',
-            message: 'Verification successful! (Sandbox Mode)',
-            jobId: verificationResult.jobId,
-          });
-        }
-
         return NextResponse.json({
           success: true,
           status: 'pending',
@@ -218,8 +258,13 @@ export async function POST(request: NextRequest) {
           jobId: verificationResult.jobId,
         });
       } else {
-        // Smile Identity failed, fall back to manual review
-        console.warn('[VENDOR_VERIFY] Smile Identity failed:', verificationResult.error);
+        // Smile Identity failed - DO NOT silently fall back to manual review
+        // Return explicit error so user knows verification failed
+        console.error('[VENDOR_VERIFY] Smile Identity verification failed:', verificationResult.error);
+        return NextResponse.json({
+          success: false,
+          error: verificationResult.error || 'Verification failed. Please try again or contact support.',
+        }, { status: 400 });
       }
     }
 

@@ -46,6 +46,7 @@ export interface VerificationResult {
   resultCode?: string;
   resultText?: string;
   error?: string;
+  environment?: 'sandbox' | 'production';
   actions?: {
     documentVerification?: 'Verified' | 'Not Verified' | 'Pending';
     selfieMatch?: 'Verified' | 'Not Verified' | 'Pending';
@@ -332,6 +333,7 @@ function mapSmileIdResponse(response: unknown, jobId: string): VerificationResul
     success: status === 'approved' || status === 'pending',
     jobId: data.SmileJobID || jobId,
     status,
+    environment: 'production',
     confidence,
     resultCode,
     resultText,
@@ -357,6 +359,7 @@ function simulateSandboxVerification(request: VerificationRequest): Verification
       success: false,
       jobId,
       status: 'rejected',
+      environment: 'sandbox',
       error: 'Missing required fields for verification',
     };
   }
@@ -365,6 +368,7 @@ function simulateSandboxVerification(request: VerificationRequest): Verification
     success: true,
     jobId,
     status: 'approved',
+    environment: 'sandbox',
     confidence: 95.5,
     resultCode: '0810',
     resultText: 'Document Verified (Sandbox)',
