@@ -90,3 +90,13 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - Graceful fallback: forms work with manual text input when Maps unavailable
 - API key fetched securely from `/api/integrations/maps-key` endpoint
 - `isMapsEnabled()` uses cached API key check (synchronous after initial fetch)
+
+**Smile Identity KYC Integration (Jan 2026):**
+- Uses official `smile-identity-core` npm SDK for secure authentication
+- Service at `src/lib/services/smile-identity.ts` with WebApi (biometric KYC with images) and IDApi (ID-only verification)
+- SDK handles HMAC-SHA256 signature generation automatically
+- Webhook at `/api/webhooks/smile-identity` with mandatory signature verification in production mode
+- Sandbox mode provides instant approval for testing without real API calls
+- Vendor verification flow at `/api/vendors/verify` - async functions properly awaited
+- Credentials stored encrypted in database, managed via Admin → API Management → Smile Identity
+- Supports Ghana Card, Passport, Driver's License, and Voter's ID verification
