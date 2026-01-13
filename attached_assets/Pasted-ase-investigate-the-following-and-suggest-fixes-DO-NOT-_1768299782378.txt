@@ -1,0 +1,103 @@
+ase investigate the following and suggest fixes, DO NOT FIX anything, DO NOT EDIT ANY CODES, DO NOT DO ANYTHING. Investigate and report only! 
+
+1. I am getting these errors hen I start verification for an exiting not verified vendor. 
+
+## Error Type
+Console Error
+
+## Error Message
+In HTML, <div> cannot be a descendant of <p>.
+This will cause a hydration error.
+
+  ...
+    <SegmentViewNode type="page" pagePath="vendor/ver...">
+      <SegmentTrieNode>
+      <ClientPageRoot Component={function VendorVerificationPage} searchParams={{}} params={{}}>
+        <VendorVerificationPage params={Promise} searchParams={Promise}>
+          <VendorAuthGuard data-react-source="[project]/...">
+            <AuthGuard requiredRoles={[...]} portalType="vendor" data-react-source="[project]/...">
+              <VendorVerificationPageContent data-react-source="[project]/...">
+                <SiteLayout data-react-source="[project]/...">
+                  <div className="min-h-scre..." data-react-source="[project]/...">
+                    <MainNav>
+                    <main className="flex-1" data-react-source="[project]/...">
+                      <div className="container ..." data-react-source="[project]/...">
+                        <div>
+                        <_c className="border-gre..." data-react-source="[project]/...">
+                          <div ref={null} role="alert" className={"relative..."} data-react-source="[project]/...">
+                            <div className="flex items..." data-react-source="[project]/...">
+                              <ScanFace>
+                              <div className="flex-1" data-react-source="[project]/...">
+                                <p>
+>                               <p
+>                                 className="text-sm text-green-700"
+>                                 data-react-source="[project]/src/app/vendor/verify/page.tsx:512:17"
+>                               >
+                                  <Badge variant="secondary" className="text-xs ml-1" data-react-source="[project]/...">
+>                                   <div
+>                                     className="inline-flex items-center rounded-md border px-2.5 py-0.5 font-semibol..."
+>                                     data-react-source="[project]/src/components/ui/badge.tsx:32:5"
+>                                   >
+                        ...
+                    ...
+    ...
+
+
+
+    at div (unknown:0:0)
+    at Badge (src/components/ui/badge.tsx:32:5)
+    at VendorVerificationPageContent (src/app/vendor/verify/page.tsx:514:63)
+    at VendorVerificationPage (src/app/vendor/verify/page.tsx:1256:7)
+
+## Code Frame
+  30 | function Badge({ className, variant, ...props }: BadgeProps) {
+  31 |   return (
+> 32 |     <div className={cn(badgeVariants({ variant }), className)} {...props} />
+     |     ^
+  33 |   )
+  34 | }
+  35 |
+
+Next.js version: 15.5.9 (Turbopack)
+
+
+
+SECOND ERROR
+
+
+## Error Type
+Console Error
+
+## Error Message
+<p> cannot contain a nested <div>.
+See this log for the ancestor stack trace.
+
+
+    at p (unknown:0:0)
+    at VendorVerificationPageContent (src/app/vendor/verify/page.tsx:512:17)
+    at VendorVerificationPage (src/app/vendor/verify/page.tsx:1256:7)
+
+## Code Frame
+  510 |                   Instant KYC Verification Available
+  511 |                 </p>
+> 512 |                 <p className="text-sm text-green-700">
+      |                 ^
+  513 |                   Get verified automatically in minutes with Smile Identity{' '}
+  514 |                   {smileIdConfig.environment === 'sandbox' && <Badge variant="secondary" className="text-xs ml-1">Sandbox Mode</Badge>}
+  515 |                 </p>
+
+Next.js version: 15.5.9 (Turbopack)
+
+2. Check if the current verification workflow is using mock workflow or proper SMILEID sandbox process
+
+3. I used and completed the verification process and it was successful but it DID NOT affect the Vendors verification status, It still says pending 
+
+
+Google Oauth is not retaining roles, What I select vendor during sign up and use sign up with google, it creates and BUYER, no matter ho many times I sitch to the vendor tab in registration before I clicking sign up with google, it always creates a buyer. 
+
+
+
+When I try to search using search bar in search results page, it crashes:
+
+
+This also happens if I try to use search bar in Admin products management to search for a product.
