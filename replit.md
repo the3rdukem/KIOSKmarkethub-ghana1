@@ -42,6 +42,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **PostgreSQL**: Managed relational database service.
 - **Image Storage**: Provider-agnostic abstraction for image uploads, with current local filesystem usage and a clear cloud migration path.
 - **Google OAuth**: OAuth 2.0 integration for buyer and vendor sign-in (admins use password only).
+- **Google Maps**: Location services with client-side API key access via `/api/integrations/maps-key` (public endpoint). Security enforced via HTTP referrer restrictions in Google Cloud Console.
 
 ## Phase 4A: API Integrations & Identity (Jan 2026)
 

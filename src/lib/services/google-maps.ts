@@ -111,6 +111,7 @@ export const getMapsApiKey = (): string | null => {
 
 /**
  * Fetch Maps API key from server (client-side)
+ * Uses authenticated endpoint accessible to all logged-in users
  */
 export const fetchMapsApiKey = async (): Promise<string | null> => {
   if (typeof window === 'undefined') {
@@ -127,19 +128,18 @@ export const fetchMapsApiKey = async (): Promise<string | null> => {
 
   apiKeyFetchPromise = (async () => {
     try {
-      const response = await fetch('/api/integrations?id=google_maps', { credentials: 'include' });
+      const response = await fetch('/api/integrations/maps-key', { credentials: 'include' });
       if (!response.ok) {
         return null;
       }
 
       const data = await response.json();
-      const integration = data.integration;
 
-      if (!integration?.isEnabled || !integration?.isConfigured || integration?.status !== 'connected') {
+      if (!data.success || !data.apiKey) {
         return null;
       }
 
-      cachedApiKey = integration.credentials?.apiKey || null;
+      cachedApiKey = data.apiKey;
       return cachedApiKey;
     } catch (error) {
       console.error('[GOOGLE_MAPS] Failed to fetch API key:', error);
