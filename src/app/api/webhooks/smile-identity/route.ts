@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getSmileIdentityCredentials } from '@/lib/db/dal/integrations';
+import { verifyWebhookSignature } from '@/lib/services/smile-identity';
 
 interface SmileIdWebhookPayload {
   ResultCode: string;
@@ -37,7 +38,7 @@ interface SmileIdWebhookPayload {
 export async function POST(request: NextRequest) {
   try {
     // Get Smile Identity credentials
-    const credentials = getSmileIdentityCredentials();
+    const credentials = await getSmileIdentityCredentials();
 
     if (!credentials || !credentials.isEnabled) {
       console.error('[SMILE_ID_WEBHOOK] Smile Identity is not configured or enabled');
@@ -55,6 +56,21 @@ export async function POST(request: NextRequest) {
 
     console.log(`[SMILE_ID_WEBHOOK] Received verification result for job: ${payload.SmileJobID}`);
     console.log(`[SMILE_ID_WEBHOOK] Result: ${payload.ResultCode} - ${payload.ResultText}`);
+
+    // Verify webhook signature (optional but recommended for production)
+    if (payload.signature && payload.timestamp && credentials.environment === 'production') {
+      const isValid = verifyWebhookSignature(
+        credentials.partnerId,
+        credentials.apiKey,
+        payload.timestamp,
+        payload.signature
+      );
+      if (!isValid) {
+        console.error('[SMILE_ID_WEBHOOK] Invalid webhook signature');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+      console.log('[SMILE_ID_WEBHOOK] Webhook signature verified');
+    }
 
     // Extract user ID from partner params
     const userId = payload.PartnerParams?.user_id;

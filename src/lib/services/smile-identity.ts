@@ -2,10 +2,17 @@
  * Smile Identity Service
  *
  * KYC verification service for vendor identity verification.
+ * Uses the official smile-identity-core SDK for proper authentication.
  * Supports document verification, selfie matching, and enhanced KYC.
  */
 
 import { getSmileIdentityCredentials } from '@/lib/db/dal/integrations';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const smileIdentityCore = require('smile-identity-core');
+const WebApi = smileIdentityCore.WebApi;
+const IDApi = smileIdentityCore.IDApi;
+const Signature = smileIdentityCore.Signature;
 
 export interface SmileIdentityConfig {
   partnerId: string;
@@ -47,10 +54,10 @@ export interface VerificationResult {
 }
 
 /**
- * Get Smile Identity configuration
+ * Get Smile Identity configuration (async)
  */
-export function getSmileIdConfig(): SmileIdentityConfig | null {
-  const credentials = getSmileIdentityCredentials();
+export async function getSmileIdConfig(): Promise<SmileIdentityConfig | null> {
+  const credentials = await getSmileIdentityCredentials();
   if (!credentials || !credentials.isConfigured) {
     return null;
   }
@@ -67,29 +74,47 @@ export function getSmileIdConfig(): SmileIdentityConfig | null {
 }
 
 /**
- * Check if Smile Identity is available and configured
+ * Check if Smile Identity is available and configured (async)
  */
-export function isSmileIdentityAvailable(): boolean {
-  const credentials = getSmileIdentityCredentials();
+export async function isSmileIdentityAvailable(): Promise<boolean> {
+  const credentials = await getSmileIdentityCredentials();
   return !!(credentials?.isConfigured && credentials?.isEnabled);
 }
 
 /**
- * Get the base API URL based on environment
+ * Generate HMAC signature for Smile Identity requests
  */
-function getApiBaseUrl(environment: 'sandbox' | 'production'): string {
-  return environment === 'production'
-    ? 'https://api.smileidentity.com'
-    : 'https://testapi.smileidentity.com';
+export function generateSignature(partnerId: string, apiKey: string): { signature: string; timestamp: string } {
+  const signature = new Signature(partnerId, apiKey);
+  const timestamp = new Date().toISOString();
+  const sig = signature.generate_signature(timestamp);
+  return { signature: sig, timestamp };
 }
 
 /**
- * Create a verification job for a vendor
+ * Verify incoming webhook signature
+ */
+export function verifyWebhookSignature(
+  partnerId: string,
+  apiKey: string,
+  timestamp: string,
+  incomingSignature: string
+): boolean {
+  try {
+    const signature = new Signature(partnerId, apiKey);
+    return signature.confirm_signature(timestamp, incomingSignature);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Create a verification job for a vendor using official SDK
  */
 export async function createVerificationJob(
   request: VerificationRequest
 ): Promise<VerificationResult> {
-  const config = getSmileIdConfig();
+  const config = await getSmileIdConfig();
 
   if (!config) {
     return {
@@ -99,71 +124,21 @@ export async function createVerificationJob(
     };
   }
 
-  // In sandbox mode, simulate verification
+  // In sandbox mode, simulate verification for quick testing
   if (config.environment === 'sandbox') {
     return simulateSandboxVerification(request);
   }
 
   try {
-    const baseUrl = getApiBaseUrl(config.environment);
+    const jobId = `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 
-    // Build the verification payload
-    const payload = {
-      partner_id: config.partnerId,
-      source_sdk: 'markethub_kiosk',
-      source_sdk_version: '1.0.0',
-      callback_url: config.callbackUrl || undefined,
-      user_id: request.userId,
-      job_type: 1, // Biometric KYC
-      job_id: `job_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      partner_params: {
-        user_id: request.userId,
-        job_id: `job_${Date.now()}`,
-        job_type: 1,
-      },
-      id_info: {
-        country: request.country || 'GH',
-        id_type: request.idType,
-        id_number: request.idNumber,
-        first_name: request.firstName,
-        last_name: request.lastName,
-        dob: request.dob,
-      },
-      image_links: {
-        selfie_image: request.selfieImage,
-        id_card_image: request.idImageFront,
-        id_card_back: request.idImageBack,
-      },
-    };
-
-    // Make API call to Smile Identity
-    const response = await fetch(`${baseUrl}/v1/upload`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        status: 'rejected',
-        error: errorData.error || `API error: ${response.status}`,
-      };
+    // Use IDApi for ID verification without images
+    if (!request.selfieImage && !request.idImageFront) {
+      return await submitIdVerification(config, request, jobId);
     }
 
-    const data = await response.json();
-
-    return {
-      success: true,
-      jobId: data.job_id || payload.job_id,
-      status: 'pending',
-      resultCode: data.result_code,
-      resultText: data.result_text,
-    };
+    // Use WebApi for biometric KYC with images
+    return await submitBiometricVerification(config, request, jobId);
   } catch (error) {
     console.error('[SMILE_ID] Verification error:', error);
     return {
@@ -175,13 +150,201 @@ export async function createVerificationJob(
 }
 
 /**
+ * Submit ID verification (without images) using IDApi
+ */
+async function submitIdVerification(
+  config: SmileIdentityConfig,
+  request: VerificationRequest,
+  jobId: string
+): Promise<VerificationResult> {
+  try {
+    const sidServer = config.environment === 'production' ? 1 : 0;
+    const connection = new IDApi(config.partnerId, config.apiKey, sidServer);
+
+    const partnerParams = {
+      user_id: request.userId,
+      job_id: jobId,
+      job_type: 5, // Basic KYC
+    };
+
+    const idInfo = {
+      country: request.country || 'GH',
+      id_type: request.idType,
+      id_number: request.idNumber,
+      first_name: request.firstName,
+      last_name: request.lastName,
+      dob: request.dob,
+      phone_number: request.phone,
+    };
+
+    const response = await connection.submit_job(partnerParams, idInfo);
+
+    console.log('[SMILE_ID] ID verification response:', JSON.stringify(response, null, 2));
+
+    return mapSmileIdResponse(response, jobId);
+  } catch (error) {
+    console.error('[SMILE_ID] ID verification error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Submit biometric verification (with images) using WebApi
+ */
+async function submitBiometricVerification(
+  config: SmileIdentityConfig,
+  request: VerificationRequest,
+  jobId: string
+): Promise<VerificationResult> {
+  try {
+    const sidServer = config.environment === 'production' ? 1 : 0;
+    const connection = new WebApi(
+      config.partnerId,
+      config.callbackUrl,
+      config.apiKey,
+      sidServer
+    );
+
+    const partnerParams = {
+      user_id: request.userId,
+      job_id: jobId,
+      job_type: 1, // Biometric KYC
+    };
+
+    // Build image details array
+    const imageDetails: Array<{ image_type_id: number; image: string }> = [];
+
+    if (request.selfieImage) {
+      imageDetails.push({
+        image_type_id: 0, // Selfie
+        image: request.selfieImage,
+      });
+    }
+
+    if (request.idImageFront) {
+      imageDetails.push({
+        image_type_id: 1, // ID Card Front
+        image: request.idImageFront,
+      });
+    }
+
+    if (request.idImageBack) {
+      imageDetails.push({
+        image_type_id: 2, // ID Card Back
+        image: request.idImageBack,
+      });
+    }
+
+    const idInfo = {
+      country: request.country || 'GH',
+      id_type: request.idType,
+      id_number: request.idNumber,
+      first_name: request.firstName,
+      last_name: request.lastName,
+      dob: request.dob,
+    };
+
+    const options = {
+      return_job_status: true,
+      return_history: false,
+      return_image_links: false,
+    };
+
+    const response = await connection.submit_job(partnerParams, imageDetails, idInfo, options);
+
+    console.log('[SMILE_ID] Biometric verification response:', JSON.stringify(response, null, 2));
+
+    return mapSmileIdResponse(response, jobId);
+  } catch (error) {
+    console.error('[SMILE_ID] Biometric verification error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Map Smile ID SDK response to our VerificationResult format
+ */
+function mapSmileIdResponse(response: unknown, jobId: string): VerificationResult {
+  const data = response as {
+    job_success?: boolean;
+    result?: {
+      ResultCode?: string;
+      ResultText?: string;
+      ConfidenceValue?: string;
+      Actions?: {
+        Verify_ID_Number?: string;
+        Return_Personal_Info?: string;
+        Human_Review_Compare?: string;
+        Human_Review_Liveness_Check?: string;
+        Liveness_Check?: string;
+        Selfie_To_ID_Card_Compare?: string;
+      };
+    };
+    SmileJobID?: string;
+    ResultCode?: string;
+    ResultText?: string;
+  };
+
+  const resultCode = data.result?.ResultCode || data.ResultCode || '';
+  const resultText = data.result?.ResultText || data.ResultText || '';
+  const confidence = data.result?.ConfidenceValue 
+    ? parseFloat(data.result.ConfidenceValue) 
+    : undefined;
+
+  // Determine status based on result code
+  let status: VerificationResult['status'] = 'pending';
+  if (resultCode === '0810' || resultCode === '0820' || data.job_success === true) {
+    status = 'approved';
+  } else if (resultCode.startsWith('1')) {
+    status = 'rejected';
+  } else if (resultCode.startsWith('2')) {
+    status = 'review';
+  }
+
+  // Map actions
+  const actions: VerificationResult['actions'] = {};
+  if (data.result?.Actions) {
+    const a = data.result.Actions;
+    if (a.Verify_ID_Number === 'Verified' || a.Human_Review_Compare === 'Verified') {
+      actions.documentVerification = 'Verified';
+    } else if (a.Verify_ID_Number === 'Not Verified') {
+      actions.documentVerification = 'Not Verified';
+    } else {
+      actions.documentVerification = 'Pending';
+    }
+
+    if (a.Selfie_To_ID_Card_Compare === 'Verified') {
+      actions.selfieMatch = 'Verified';
+    } else if (a.Selfie_To_ID_Card_Compare) {
+      actions.selfieMatch = 'Not Verified';
+    }
+
+    if (a.Liveness_Check === 'Passed' || a.Human_Review_Liveness_Check === 'Passed') {
+      actions.livenessCheck = 'Passed';
+    } else if (a.Liveness_Check === 'Failed') {
+      actions.livenessCheck = 'Failed';
+    } else {
+      actions.livenessCheck = 'Pending';
+    }
+  }
+
+  return {
+    success: status === 'approved' || status === 'pending',
+    jobId: data.SmileJobID || jobId,
+    status,
+    confidence,
+    resultCode,
+    resultText,
+    actions: Object.keys(actions).length > 0 ? actions : undefined,
+  };
+}
+
+/**
  * Simulate verification in sandbox mode
  */
 function simulateSandboxVerification(request: VerificationRequest): VerificationResult {
-  // Simulate processing time
   const jobId = `sandbox_job_${Date.now()}`;
 
-  // In sandbox, we approve if all required fields are present
   const hasRequiredFields = !!(
     request.firstName &&
     request.lastName &&
@@ -198,14 +361,13 @@ function simulateSandboxVerification(request: VerificationRequest): Verification
     };
   }
 
-  // Sandbox always returns success with simulated data
   return {
     success: true,
     jobId,
     status: 'approved',
     confidence: 95.5,
     resultCode: '0810',
-    resultText: 'Document Verified',
+    resultText: 'Document Verified (Sandbox)',
     actions: {
       documentVerification: 'Verified',
       selfieMatch: request.selfieImage ? 'Verified' : 'Pending',
@@ -215,12 +377,13 @@ function simulateSandboxVerification(request: VerificationRequest): Verification
 }
 
 /**
- * Check verification job status
+ * Check verification job status using SDK
  */
 export async function checkVerificationStatus(
-  jobId: string
+  jobId: string,
+  userId?: string
 ): Promise<VerificationResult> {
-  const config = getSmileIdConfig();
+  const config = await getSmileIdConfig();
 
   if (!config) {
     return {
@@ -248,51 +411,29 @@ export async function checkVerificationStatus(
   }
 
   try {
-    const baseUrl = getApiBaseUrl(config.environment);
+    const sidServer = config.environment === 'production' ? 1 : 0;
+    const connection = new WebApi(
+      config.partnerId,
+      config.callbackUrl,
+      config.apiKey,
+      sidServer
+    );
 
-    const response = await fetch(`${baseUrl}/v1/job_status`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify({
-        partner_id: config.partnerId,
-        job_id: jobId,
-        user_id: '', // Will be extracted from job
-      }),
-    });
-
-    if (!response.ok) {
-      return {
-        success: false,
-        jobId,
-        status: 'pending',
-        error: 'Failed to fetch job status',
-      };
-    }
-
-    const data = await response.json();
-
-    // Map Smile ID result codes to our status
-    let status: VerificationResult['status'] = 'pending';
-    if (data.result_code === '0810' || data.result_code === '0820') {
-      status = 'approved';
-    } else if (data.result_code?.startsWith('1')) {
-      status = 'rejected';
-    } else if (data.result_code?.startsWith('2')) {
-      status = 'review';
-    }
-
-    return {
-      success: true,
-      jobId,
-      status,
-      confidence: data.confidence,
-      resultCode: data.result_code,
-      resultText: data.result_text,
-      actions: data.actions,
+    const partnerParams = {
+      user_id: userId || 'unknown',
+      job_id: jobId,
     };
+
+    const options = {
+      return_history: false,
+      return_image_links: false,
+    };
+
+    const response = await connection.get_job_status(partnerParams, options);
+
+    console.log('[SMILE_ID] Job status response:', JSON.stringify(response, null, 2));
+
+    return mapSmileIdResponse(response, jobId);
   } catch (error) {
     console.error('[SMILE_ID] Status check error:', error);
     return {
@@ -316,12 +457,18 @@ export function getSupportedIdTypes(country: string = 'GH'): { value: string; la
       { value: 'VOTER_ID', label: "Voter's ID" },
     ],
     NG: [
-      { value: 'NATIONAL_ID', label: 'National ID (NIN)' },
+      { value: 'NIN', label: 'National ID (NIN)' },
+      { value: 'BVN', label: 'Bank Verification Number (BVN)' },
       { value: 'PASSPORT', label: 'Passport' },
       { value: 'DRIVERS_LICENSE', label: "Driver's License" },
       { value: 'VOTER_ID', label: "Voter's Card" },
     ],
     KE: [
+      { value: 'NATIONAL_ID', label: 'National ID' },
+      { value: 'PASSPORT', label: 'Passport' },
+      { value: 'DRIVERS_LICENSE', label: "Driver's License" },
+    ],
+    ZA: [
       { value: 'NATIONAL_ID', label: 'National ID' },
       { value: 'PASSPORT', label: 'Passport' },
       { value: 'DRIVERS_LICENSE', label: "Driver's License" },

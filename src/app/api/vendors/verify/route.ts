@@ -41,8 +41,8 @@ export async function GET(request: NextRequest) {
     const vendor = await getVendorByUserId(session.user_id);
 
     // Check if Smile Identity is available
-    const smileIdAvailable = isSmileIdentityAvailable();
-    const config = getSmileIdConfig();
+    const smileIdAvailable = await isSmileIdentityAvailable();
+    const config = await getSmileIdConfig();
 
     // Get pending KYC job ID if any
     const pendingJobId = await getVendorKycJobId(session.user_id);
@@ -158,7 +158,8 @@ export async function POST(request: NextRequest) {
     }
 
     // Try Smile Identity if enabled and requested
-    if (useSmileIdentity && isSmileIdentityAvailable()) {
+    const smileAvailable = await isSmileIdentityAvailable();
+    if (useSmileIdentity && smileAvailable) {
       const verificationResult = await createVerificationJob({
         userId: session.user_id,
         firstName,
@@ -191,8 +192,8 @@ export async function POST(request: NextRequest) {
         });
 
         // For sandbox, the verification is instant
-        const config = getSmileIdConfig();
-        if (config?.environment === 'sandbox' && verificationResult.status === 'approved') {
+        const verifyConfig = await getSmileIdConfig();
+        if (verifyConfig?.environment === 'sandbox' && verificationResult.status === 'approved') {
           // Auto-approve in sandbox
           await updateVendor(vendor.id, {
             verificationStatus: 'verified',
