@@ -886,6 +886,7 @@ async function runMigrations(client: PoolClient): Promise<void> {
       CREATE INDEX IF NOT EXISTS idx_conversations_product ON conversations(product_id);
       CREATE INDEX IF NOT EXISTS idx_conversations_order ON conversations(order_id);
       CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at DESC);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_conversations_unique_context ON conversations(buyer_id, vendor_id, context, COALESCE(product_id, ''), COALESCE(order_id, ''));
     `);
     console.log('[DB] PHASE 6: Created conversations table');
   } catch (e) {

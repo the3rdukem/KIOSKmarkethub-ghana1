@@ -334,7 +334,7 @@ export async function getConversationById(id: string): Promise<DbConversation | 
 export async function getConversationForUser(
   conversationId: string,
   userId: string,
-  userRole: 'buyer' | 'vendor' | 'admin'
+  userRole: 'buyer' | 'vendor'
 ): Promise<DbConversation | null> {
   let sql = 'SELECT * FROM conversations WHERE id = $1';
   const params: string[] = [conversationId];
@@ -342,7 +342,7 @@ export async function getConversationForUser(
   if (userRole === 'buyer') {
     sql += ' AND buyer_id = $2';
     params.push(userId);
-  } else if (userRole === 'vendor') {
+  } else {
     sql += ' AND vendor_id = $2';
     params.push(userId);
   }
@@ -353,7 +353,7 @@ export async function getConversationForUser(
 
 export async function listConversationsForUser(
   userId: string,
-  role: 'buyer' | 'vendor' | 'admin',
+  role: 'buyer' | 'vendor',
   options?: {
     limit?: number;
     cursor?: string;
@@ -370,19 +370,17 @@ export async function listConversationsForUser(
     sql += `buyer_id = $${paramIndex}`;
     params.push(userId);
     paramIndex++;
-  } else if (role === 'vendor') {
+  } else {
     sql += `vendor_id = $${paramIndex}`;
     params.push(userId);
     paramIndex++;
-  } else {
-    sql += '1=1';
   }
 
   if (options?.status) {
     sql += ` AND status = $${paramIndex}`;
     params.push(options.status);
     paramIndex++;
-  } else if (role !== 'admin') {
+  } else {
     sql += ` AND status != 'closed'`;
   }
 
@@ -565,12 +563,19 @@ export async function getMessageById(id: string): Promise<DbMessage | null> {
 
 export async function listMessages(
   conversationId: string,
+  userId: string,
+  userRole: 'buyer' | 'vendor',
   options?: {
     limit?: number;
     cursor?: string;
     includeDeleted?: boolean;
   }
 ): Promise<{ messages: DbMessage[]; nextCursor?: string }> {
+  const conversation = await getConversationForUser(conversationId, userId, userRole);
+  if (!conversation) {
+    throw new Error('Unauthorized: conversation not found or access denied');
+  }
+
   const limit = options?.limit || 50;
   const params: (string | number)[] = [conversationId];
   let paramIndex = 2;

@@ -64,7 +64,17 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - Zustand store with localStorage persistence (last 100 events)
 - Ready for external provider integration
 
-**Messaging System:**
-- Client-side messaging store exists at `src/lib/messaging-store.ts`
-- Full conversation/message models with offline support
-- Backend API endpoints deferred (Phase 4A allows polling)
+**Messaging System (Backend Complete):**
+- Database schema: `conversations`, `messages`, `messaging_audit_logs` tables in PHASE 6 migration
+- DAL layer at `src/lib/db/dal/messaging.ts` with role-based authorization, cursor-based pagination, atomic unread count updates
+- REST API endpoints:
+  - `GET/POST /api/messaging/conversations` - List and create conversations
+  - `GET/PATCH /api/messaging/conversations/[id]` - Get and update single conversation (pin, mute, archive, flag)
+  - `GET/POST /api/messaging/conversations/[id]/messages` - List and send messages
+  - `POST /api/messaging/conversations/[id]/read` - Mark conversation as read
+  - `GET /api/messaging/unread` - Get total unread count
+- Context types: product_inquiry, order_support, general, dispute
+- Conversation statuses: active, archived, flagged, closed
+- Message types: text, image, file, system
+- Soft deletion and audit logging for moderation
+- Client-side store at `src/lib/messaging-store.ts` (needs database sync integration)
