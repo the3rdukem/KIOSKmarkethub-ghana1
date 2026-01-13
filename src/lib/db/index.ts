@@ -835,6 +835,118 @@ async function runMigrations(client: PoolClient): Promise<void> {
   }
 
   console.log('[DB] PHASE 5: Added CHECK constraints to orders table');
+
+  // PHASE 6: Create messaging tables for buyer-vendor communication
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS conversations (
+        id TEXT PRIMARY KEY,
+        buyer_id TEXT NOT NULL,
+        buyer_name TEXT NOT NULL,
+        buyer_avatar TEXT,
+        vendor_id TEXT NOT NULL,
+        vendor_name TEXT NOT NULL,
+        vendor_avatar TEXT,
+        vendor_business_name TEXT,
+        context TEXT NOT NULL DEFAULT 'general' CHECK(context IN ('product_inquiry', 'order_support', 'general', 'dispute')),
+        product_id TEXT,
+        product_name TEXT,
+        product_image TEXT,
+        order_id TEXT,
+        order_number TEXT,
+        dispute_id TEXT,
+        status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'archived', 'flagged', 'closed')),
+        is_pinned_buyer INTEGER DEFAULT 0,
+        is_pinned_vendor INTEGER DEFAULT 0,
+        is_muted_buyer INTEGER DEFAULT 0,
+        is_muted_vendor INTEGER DEFAULT 0,
+        last_message_id TEXT,
+        last_message_content TEXT,
+        last_message_at TEXT,
+        last_message_sender_id TEXT,
+        unread_count_buyer INTEGER DEFAULT 0,
+        unread_count_vendor INTEGER DEFAULT 0,
+        archived_at TEXT,
+        archived_by TEXT,
+        flagged_at TEXT,
+        flagged_by TEXT,
+        flag_reason TEXT,
+        moderator_notes TEXT,
+        reviewed_at TEXT,
+        reviewed_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        CONSTRAINT fk_conversations_buyer FOREIGN KEY (buyer_id) REFERENCES users(id) ON DELETE CASCADE,
+        CONSTRAINT fk_conversations_vendor FOREIGN KEY (vendor_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_conversations_buyer ON conversations(buyer_id);
+      CREATE INDEX IF NOT EXISTS idx_conversations_vendor ON conversations(vendor_id);
+      CREATE INDEX IF NOT EXISTS idx_conversations_status ON conversations(status);
+      CREATE INDEX IF NOT EXISTS idx_conversations_context ON conversations(context);
+      CREATE INDEX IF NOT EXISTS idx_conversations_product ON conversations(product_id);
+      CREATE INDEX IF NOT EXISTS idx_conversations_order ON conversations(order_id);
+      CREATE INDEX IF NOT EXISTS idx_conversations_updated ON conversations(updated_at DESC);
+    `);
+    console.log('[DB] PHASE 6: Created conversations table');
+  } catch (e) {
+    // Table may already exist
+  }
+
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS messages (
+        id TEXT PRIMARY KEY,
+        conversation_id TEXT NOT NULL,
+        sender_id TEXT NOT NULL,
+        sender_name TEXT NOT NULL,
+        sender_role TEXT NOT NULL CHECK(sender_role IN ('buyer', 'vendor', 'admin')),
+        sender_avatar TEXT,
+        content TEXT NOT NULL,
+        message_type TEXT NOT NULL DEFAULT 'text' CHECK(message_type IN ('text', 'image', 'file', 'system')),
+        attachment_url TEXT,
+        attachment_name TEXT,
+        is_read INTEGER DEFAULT 0,
+        read_at TEXT,
+        is_deleted INTEGER DEFAULT 0,
+        deleted_at TEXT,
+        deleted_by TEXT,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        CONSTRAINT fk_messages_conversation FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
+        CONSTRAINT fk_messages_sender FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE SET NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(conversation_id);
+      CREATE INDEX IF NOT EXISTS idx_messages_sender ON messages(sender_id);
+      CREATE INDEX IF NOT EXISTS idx_messages_created ON messages(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_messages_unread ON messages(conversation_id, is_read) WHERE is_read = 0;
+    `);
+    console.log('[DB] PHASE 6: Created messages table');
+  } catch (e) {
+    // Table may already exist
+  }
+
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS messaging_audit_logs (
+        id TEXT PRIMARY KEY,
+        action TEXT NOT NULL,
+        performed_by TEXT NOT NULL,
+        performed_by_role TEXT NOT NULL CHECK(performed_by_role IN ('buyer', 'vendor', 'admin')),
+        conversation_id TEXT,
+        message_id TEXT,
+        details TEXT,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        CONSTRAINT fk_messaging_audit_conversation FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE SET NULL,
+        CONSTRAINT fk_messaging_audit_message FOREIGN KEY (message_id) REFERENCES messages(id) ON DELETE SET NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_messaging_audit_conversation ON messaging_audit_logs(conversation_id);
+      CREATE INDEX IF NOT EXISTS idx_messaging_audit_action ON messaging_audit_logs(action);
+      CREATE INDEX IF NOT EXISTS idx_messaging_audit_created ON messaging_audit_logs(created_at DESC);
+    `);
+    console.log('[DB] PHASE 6: Created messaging_audit_logs table');
+  } catch (e) {
+    // Table may already exist
+  }
 }
 
 /**
