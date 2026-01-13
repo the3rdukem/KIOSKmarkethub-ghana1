@@ -40,25 +40,7 @@ import { isPaystackEnabled, openPaystackPopup, formatAmount, generatePaymentRefe
 import { AddressAutocomplete } from "@/components/integrations/address-autocomplete";
 import { PlaceDetails } from "@/lib/services/google-maps";
 import { useAddressesStore, Address } from "@/lib/addresses-store";
-
-const ghanaRegions = [
-  "Greater Accra", "Ashanti Region", "Western Region", "Central Region",
-  "Volta Region", "Eastern Region", "Northern Region", "Upper East Region",
-  "Upper West Region", "Brong-Ahafo Region"
-];
-
-const ghanaCities = {
-  "Greater Accra": ["Accra", "Tema", "Madina", "Kasoa", "Adenta", "Dansoman"],
-  "Ashanti Region": ["Kumasi", "Obuasi", "Ejisu", "Mampong", "Bekwai"],
-  "Western Region": ["Takoradi", "Tarkwa", "Axim", "Half Assini", "Prestea"],
-  "Central Region": ["Cape Coast", "Elmina", "Winneba", "Kasoa", "Swedru"],
-  "Volta Region": ["Ho", "Keta", "Hohoe", "Aflao", "Kpando"],
-  "Eastern Region": ["Koforidua", "Akosombo", "Akim Oda", "Begoro", "Nkawkaw"],
-  "Northern Region": ["Tamale", "Yendi", "Damongo", "Salaga", "Bimbilla"],
-  "Upper East Region": ["Bolgatanga", "Navrongo", "Bawku", "Zebilla"],
-  "Upper West Region": ["Wa", "Lawra", "Jirapa", "Tumu"],
-  "Brong-Ahafo Region": ["Sunyani", "Techiman", "Berekum", "Dormaa Ahenkro", "Kintampo"]
-};
+import { GHANA_REGIONS, GHANA_CITIES } from "@/lib/constants/ghana-locations";
 
 // Paystack Card Payment Component
 function PaystackCardPayment({
@@ -652,7 +634,7 @@ export default function CheckoutPage() {
                             <SelectValue placeholder="Select region" />
                           </SelectTrigger>
                           <SelectContent>
-                            {ghanaRegions.map((region) => (
+                            {GHANA_REGIONS.map((region) => (
                               <SelectItem key={region} value={region}>{region}</SelectItem>
                             ))}
                           </SelectContent>
@@ -670,7 +652,7 @@ export default function CheckoutPage() {
                             <SelectValue placeholder="Select city" />
                           </SelectTrigger>
                           <SelectContent>
-                            {newAddress.region && ghanaCities[newAddress.region as keyof typeof ghanaCities]?.map((city) => (
+                            {newAddress.region && GHANA_CITIES[newAddress.region]?.map((city) => (
                               <SelectItem key={city} value={city}>{city}</SelectItem>
                             ))}
                           </SelectContent>

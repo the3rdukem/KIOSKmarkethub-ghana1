@@ -7,6 +7,7 @@ import { useGoogleOAuth, fetchPublicIntegrationStatus } from "@/lib/integrations
 
 interface GoogleSignInButtonProps {
   mode: "signin" | "signup";
+  role?: "buyer" | "vendor";
   onSuccess?: (credential: string) => void;
   onError?: (error: string) => void;
   className?: string;
@@ -16,6 +17,7 @@ interface GoogleSignInButtonProps {
 
 export function GoogleSignInButton({
   mode,
+  role = "buyer",
   onSuccess,
   onError,
   className,
@@ -54,6 +56,7 @@ export function GoogleSignInButton({
     try {
       const state = btoa(JSON.stringify({
         mode,
+        role,
         timestamp: Date.now(),
         nonce: Math.random().toString(36).substring(2),
       }));

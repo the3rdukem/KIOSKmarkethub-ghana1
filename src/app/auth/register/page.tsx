@@ -33,6 +33,7 @@ import { GoogleSignInButton, GoogleAuthFallback } from "@/components/integration
 import { AddressAutocomplete } from "@/components/integrations/address-autocomplete";
 import { Separator } from "@/components/ui/separator";
 import { getSafeRedirectUrl } from "@/lib/utils/safe-redirect";
+import { GHANA_REGIONS, GHANA_CITIES } from "@/lib/constants/ghana-locations";
 
 function RegisterPageContent() {
   const searchParams = useSearchParams();
@@ -57,12 +58,6 @@ function RegisterPageContent() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
-
-  const regions = [
-    "Greater Accra", "Ashanti Region", "Western Region", "Central Region",
-    "Volta Region", "Eastern Region", "Northern Region", "Upper East Region",
-    "Upper West Region", "Brong-Ahafo Region"
-  ];
 
   const businessTypes = [
     "Individual Seller", "Small Business", "Medium Enterprise", "Corporation",
@@ -343,12 +338,15 @@ function RegisterPageContent() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label htmlFor="region">Region</Label>
-                  <Select value={formData.region} onValueChange={(value) => handleInputChange("region", value)}>
+                  <Select value={formData.region} onValueChange={(value) => {
+                    handleInputChange("region", value);
+                    handleInputChange("city", "");
+                  }}>
                     <SelectTrigger className={errors.region ? "border-red-500" : ""}>
                       <SelectValue placeholder="Select region" />
                     </SelectTrigger>
                     <SelectContent>
-                      {regions.map((region) => (
+                      {GHANA_REGIONS.map((region) => (
                         <SelectItem key={region} value={region}>{region}</SelectItem>
                       ))}
                     </SelectContent>
@@ -357,14 +355,20 @@ function RegisterPageContent() {
                 </div>
                 <div>
                   <Label htmlFor="city">City</Label>
-                  <Input
-                    id="city"
-                    type="text"
-                    value={formData.city}
-                    onChange={(e) => handleInputChange("city", e.target.value)}
-                    className={errors.city ? "border-red-500" : ""}
-                    placeholder="Accra"
-                  />
+                  <Select 
+                    value={formData.city} 
+                    onValueChange={(value) => handleInputChange("city", value)}
+                    disabled={!formData.region}
+                  >
+                    <SelectTrigger className={errors.city ? "border-red-500" : ""}>
+                      <SelectValue placeholder={formData.region ? "Select city" : "Select region first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {formData.region && GHANA_CITIES[formData.region]?.map((city) => (
+                        <SelectItem key={city} value={city}>{city}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
                 </div>
               </div>
@@ -578,6 +582,7 @@ function RegisterPageContent() {
 
               <GoogleSignInButton
                 mode="signup"
+                role={userType}
                 className="w-full"
                 onSuccess={(credential) => {
                   toast.success("Google Sign-Up successful!");

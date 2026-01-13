@@ -51,14 +51,18 @@ export async function GET(request: NextRequest) {
     
     if (state) {
       try {
-        const stateData = JSON.parse(decodeURIComponent(state));
+        // State is base64 encoded by GoogleSignInButton
+        const decodedState = Buffer.from(state, 'base64').toString('utf-8');
+        const stateData = JSON.parse(decodedState);
         if (stateData.role === 'vendor') {
           intendedRole = 'vendor';
         }
         if (stateData.returnUrl) {
           returnUrl = stateData.returnUrl;
         }
-      } catch {
+        console.log('[GOOGLE_OAUTH] Parsed state:', { mode: stateData.mode, role: stateData.role });
+      } catch (stateError) {
+        console.warn('[GOOGLE_OAUTH] Failed to parse state, using defaults:', stateError);
         // Invalid state, use defaults
       }
     }
