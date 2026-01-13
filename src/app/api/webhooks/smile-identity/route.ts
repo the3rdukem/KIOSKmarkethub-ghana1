@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getSmileIdentityCredentials } from '@/lib/db/dal/integrations';
 import { verifyWebhookSignature } from '@/lib/services/smile-identity';
+import { query } from '@/lib/db';
 
 interface SmileIdWebhookPayload {
   ResultCode: string;
@@ -134,7 +135,13 @@ export async function POST(request: NextRequest) {
         verifiedAt: verificationStatus === 'verified' ? new Date().toISOString() : undefined,
       });
 
-      console.log(`[SMILE_ID_WEBHOOK] Vendor ${userId} verification updated to: ${verificationStatus}`);
+      // CRITICAL: Also update the users table so session API returns correct status
+      await query(
+        `UPDATE users SET verification_status = $1, updated_at = $2 WHERE id = $3`,
+        [verificationStatus, new Date().toISOString(), userId]
+      );
+
+      console.log(`[SMILE_ID_WEBHOOK] Vendor ${userId} verification updated to: ${verificationStatus} (both vendors and users tables)`);
 
       // Create audit log
       // eslint-disable-next-line @typescript-eslint/no-require-imports

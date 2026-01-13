@@ -9,6 +9,7 @@ import { cookies } from 'next/headers';
 import { validateSession } from '@/lib/db/dal/sessions';
 import { getVendorByUserId, setVendorKycJobId, getVendorKycJobId, updateVendor } from '@/lib/db/dal/vendors';
 import { createAuditLog } from '@/lib/db/dal/audit';
+import { query } from '@/lib/db';
 import {
   isSmileIdentityAvailable,
   createVerificationJob,
@@ -206,6 +207,13 @@ export async function POST(request: NextRequest) {
                 error: 'Verification succeeded but status update failed. Please contact support.',
               }, { status: 500 });
             }
+
+            // CRITICAL: Also update the users table so session API returns correct status
+            await query(
+              `UPDATE users SET verification_status = 'verified', updated_at = $1 WHERE id = $2`,
+              [new Date().toISOString(), session.user_id]
+            );
+            console.log('[VENDOR_VERIFY] Sandbox auto-approve: Updated both vendors and users tables');
 
             // Log the action
             await createAuditLog({

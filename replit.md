@@ -101,3 +101,4 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - Credentials stored encrypted in database, managed via Admin → API Management → Smile Identity
 - Supports Ghana Card, Passport, Driver's License, and Voter's ID verification
 - **Sandbox Auto-Approval Fix (Jan 2026)**: `VerificationResult` now includes `environment` field; sandbox mode returns `environment: 'sandbox'` enabling route to auto-approve without second config fetch. Sandbox path stores job ID directly in `verification_documents` to avoid calling `setVendorKycJobId()` which would reset status to 'under_review'. Explicit error responses replace silent fallback to manual review.
+- **Dual-Table Sync Fix (Jan 2026)**: Verification status is now synchronized between `vendors` table AND `users` table. Session API reads from `users` table, so both must be updated for frontend to reflect correct status. Both sandbox auto-approve and webhook handlers now update both tables.
