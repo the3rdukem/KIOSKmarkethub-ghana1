@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { updateVendorVerificationStatus } = require('@/lib/db/dal/vendors');
 
-      updateVendorVerificationStatus(userId, {
+      await updateVendorVerificationStatus(userId, {
         verificationStatus,
         verificationNotes,
         smileJobId: payload.SmileJobID,
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
       const { createAuditLog } = require('@/lib/db/dal/audit');
 
-      createAuditLog({
+      await createAuditLog({
         action: 'VENDOR_VERIFICATION_RESULT',
         category: 'vendor',
         targetId: userId,
