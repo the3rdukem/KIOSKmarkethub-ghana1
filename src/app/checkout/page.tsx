@@ -40,7 +40,7 @@ import { isPaystackEnabled, openPaystackPopup, formatAmount, generatePaymentRefe
 import { AddressAutocomplete } from "@/components/integrations/address-autocomplete";
 import { PlaceDetails } from "@/lib/services/google-maps";
 import { useAddressesStore, Address } from "@/lib/addresses-store";
-import { GHANA_REGIONS, GHANA_CITIES } from "@/lib/constants/ghana-locations";
+import { GHANA_REGIONS } from "@/lib/constants/ghana-locations";
 
 // Paystack Card Payment Component
 function PaystackCardPayment({
@@ -623,41 +623,45 @@ export default function CheckoutPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="region">Region</Label>
-                        <Select
-                          value={newAddress.region}
-                          onValueChange={(value) => setNewAddress({...newAddress, region: value, city: ""})}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select region" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {GHANA_REGIONS.map((region) => (
-                              <SelectItem key={region} value={region}>{region}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    <div>
+                      <AddressAutocomplete
+                        id="city"
+                        label="City / Town"
+                        placeholder="Start typing your city or town..."
+                        value={newAddress.city}
+                        onValueChange={(value) => setNewAddress({...newAddress, city: value})}
+                        onAddressSelect={(details: PlaceDetails) => {
+                          const city = details.city || details.name || details.formattedAddress;
+                          let region = newAddress.region;
+                          if (details.region) {
+                            const matchedRegion = GHANA_REGIONS.find(r => 
+                              r.toLowerCase().includes(details.region!.toLowerCase()) ||
+                              details.region!.toLowerCase().includes(r.replace(" Region", "").toLowerCase())
+                            );
+                            region = matchedRegion || details.region;
+                          }
+                          setNewAddress({...newAddress, city, region});
+                        }}
+                        showCurrentLocation={false}
+                        types={["(cities)"]}
+                      />
+                    </div>
 
-                      <div>
-                        <Label htmlFor="city">City</Label>
-                        <Select
-                          value={newAddress.city}
-                          onValueChange={(value) => setNewAddress({...newAddress, city: value})}
-                          disabled={!newAddress.region}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select city" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {newAddress.region && GHANA_CITIES[newAddress.region]?.map((city) => (
-                              <SelectItem key={city} value={city}>{city}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
+                    <div>
+                      <Label htmlFor="region">Region</Label>
+                      <Select
+                        value={newAddress.region}
+                        onValueChange={(value) => setNewAddress({...newAddress, region: value})}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select or auto-filled from city" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {GHANA_REGIONS.map((region) => (
+                            <SelectItem key={region} value={region}>{region}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
 
                     <div>

@@ -42,7 +42,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **PostgreSQL**: Managed relational database service.
 - **Image Storage**: Provider-agnostic abstraction for image uploads, with current local filesystem usage and a clear cloud migration path.
 - **Google OAuth**: OAuth 2.0 integration for buyer and vendor sign-in (admins use password only). Role selection passed through OAuth state to preserve buyer/vendor choice.
-- **Google Maps**: Location services with client-side API key access via `/api/integrations/maps-key` (public endpoint). Security enforced via HTTP referrer restrictions in Google Cloud Console.
+- **Google Maps Places API**: Location services with client-side API key access via `/api/integrations/maps-key` (public endpoint). Security enforced via HTTP referrer restrictions in Google Cloud Console. AddressAutocomplete component supports city-only mode (`types={["(cities)"]}`), gracefully falls back to manual text input when Maps unavailable.
 
 ## Phase 4A: API Integrations & Identity (Jan 2026)
 
@@ -80,3 +80,13 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - Soft deletion and audit logging for moderation
 - Admin access blocked from buyer/vendor endpoints (requires separate /api/admin/messaging endpoints)
 - Client-side Zustand store at `src/lib/messaging-store.ts` syncs with database via API
+
+**Google Maps Places Integration (Jan 2026):**
+- AddressAutocomplete component at `src/components/integrations/address-autocomplete.tsx`
+- Supports `types` prop for city-only mode (`["(cities)"]`) or address mode (`["address"]`)
+- City/town fields in registration, checkout, and buyer profile use Places autocomplete
+- Region auto-fills from `administrative_area_level_1` but remains editable via dropdown
+- Static GHANA_CITIES constant removed; GHANA_REGIONS kept for validation/dropdown
+- Graceful fallback: forms work with manual text input when Maps unavailable
+- API key fetched securely from `/api/integrations/maps-key` endpoint
+- `isMapsEnabled()` uses cached API key check (synchronous after initial fetch)

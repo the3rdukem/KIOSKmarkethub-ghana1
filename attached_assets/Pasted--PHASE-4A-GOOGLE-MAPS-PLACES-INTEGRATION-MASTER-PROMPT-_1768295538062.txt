@@ -1,0 +1,152 @@
+
+🔒 PHASE 4A — GOOGLE MAPS & PLACES INTEGRATION
+
+MASTER PROMPT (STRICT · ZERO FEATURE CREEP)
+
+You are implementing Google Maps & Places as an assistive UX layer only, NOT as a hard dependency.
+
+This is a correction + hardening task, not a redesign.
+
+⸻
+
+1️⃣ CORE PRINCIPLES (NON-NEGOTIABLE)
+	1.	Google Maps must NEVER block any form
+	•	If Maps fails to load, all forms must still function
+	•	Manual text entry must always be available
+	•	No runtime crashes, no disabled submit buttons
+	2.	Google Maps is OPTIONAL UX, not validation authority
+	•	Validation is server-driven
+	•	Google data may prefill, never enforce
+	3.	One shared address architecture
+	•	Same logic across:
+	•	Vendor registration
+	•	Checkout
+	•	Buyer profile
+	•	No duplicated logic or hardcoded city lists
+
+⸻
+
+2️⃣ MAPS ENABLEMENT (FIX THIS FIRST)
+
+❌ REMOVE
+	•	Any Zustand/store-based isMapsEnabled
+	•	Any async script-load dependent gating
+
+✅ IMPLEMENT
+
+export const isMapsEnabled = () =>
+  Boolean(process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY);
+
+	•	This check is synchronous
+	•	This check is the ONLY gate
+	•	Script load failure must degrade gracefully
+
+⸻
+
+3️⃣ AUTOCOMPLETE BEHAVIOR (STRICT)
+
+City Field
+	•	Use Google Places Autocomplete only if Maps enabled
+	•	Config:
+
+types: ['(cities)']
+componentRestrictions: { country: 'gh' }
+
+Fallback
+	•	If Maps disabled or script fails:
+	•	Render plain text input
+	•	Same validation rules apply
+
+⸻
+
+4️⃣ REGION HANDLING (IMPORTANT)
+	•	Region auto-fills from Google (administrative_area_level_1)
+	•	Region MUST remain editable by user
+	•	Region is validated on submit, not selection
+
+⸻
+
+5️⃣ DATA EXTRACTION RULES
+
+From Google PlaceDetails extract ONLY:
+	•	locality → city
+	•	administrative_area_level_1 → region
+	•	postal_code → optional
+
+🚫 DO NOT store:
+	•	Place IDs
+	•	Full Google payloads
+	•	Lat/Lng (out of scope)
+
+⸻
+
+6️⃣ ADDRESS DATA MODEL (LOCK THIS)
+
+All forms must submit:
+
+address: {
+  line1: string
+  city: string
+  region: string
+  country: 'GH'
+  postalCode?: string
+  source: 'google' | 'manual'
+}
+
+	•	source is required
+	•	Manual edits must flip source to manual
+
+⸻
+
+7️⃣ VALIDATION RULES (DO NOT CHANGE)
+	•	Address line: required
+	•	City: 2–50 chars, human-readable
+	•	Region: optional but validated if present
+	•	Postal code: optional (Ghana-specific)
+	•	❌ No Google-dependent validation
+
+⸻
+
+8️⃣ HARD REMOVALS
+
+You MUST remove:
+	•	GHANA_CITIES constants
+	•	Any static dropdowns for city/region
+	•	Any logic assuming Maps is always available
+
+⸻
+
+9️⃣ TESTING REQUIREMENTS (MANDATORY)
+
+You must verify:
+	1.	Forms submit successfully with:
+	•	Maps enabled
+	•	Maps disabled
+	•	Script load failure
+	2.	User can:
+	•	Override Google-filled city/region
+	•	Manually type everything
+	3.	No console errors
+	4.	No crashes inside ErrorBoundary
+	5.	Same behavior across all 3 forms
+
+⸻
+
+🚫 OUT OF SCOPE (DO NOT TOUCH)
+	•	Payment flows
+	•	Validation rules unrelated to address
+	•	UI redesigns
+	•	Schema migrations
+	•	Admin features
+
+⸻
+
+✅ COMPLETION CRITERIA
+
+This task is complete ONLY when:
+	•	All forms work without Google Maps
+	•	Google enhances UX but never blocks
+	•	No static city data remains
+	•	One shared, reusable AddressAutocomplete component exists
+
+If any rule above is violated, STOP and FIX before proceeding.

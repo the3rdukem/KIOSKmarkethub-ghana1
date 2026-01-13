@@ -33,7 +33,7 @@ import { GoogleSignInButton, GoogleAuthFallback } from "@/components/integration
 import { AddressAutocomplete } from "@/components/integrations/address-autocomplete";
 import { Separator } from "@/components/ui/separator";
 import { getSafeRedirectUrl } from "@/lib/utils/safe-redirect";
-import { GHANA_REGIONS, GHANA_CITIES } from "@/lib/constants/ghana-locations";
+import { GHANA_REGIONS } from "@/lib/constants/ghana-locations";
 
 function RegisterPageContent() {
   const searchParams = useSearchParams();
@@ -334,43 +334,48 @@ function RegisterPageContent() {
                 {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
               </div>
 
-              {/* Location */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="region">Region</Label>
-                  <Select value={formData.region} onValueChange={(value) => {
-                    handleInputChange("region", value);
-                    handleInputChange("city", "");
-                  }}>
-                    <SelectTrigger className={errors.region ? "border-red-500" : ""}>
-                      <SelectValue placeholder="Select region" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {GHANA_REGIONS.map((region) => (
-                        <SelectItem key={region} value={region}>{region}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.region && <p className="text-red-500 text-xs mt-1">{errors.region}</p>}
-                </div>
-                <div>
-                  <Label htmlFor="city">City</Label>
-                  <Select 
-                    value={formData.city} 
-                    onValueChange={(value) => handleInputChange("city", value)}
-                    disabled={!formData.region}
-                  >
-                    <SelectTrigger className={errors.city ? "border-red-500" : ""}>
-                      <SelectValue placeholder={formData.region ? "Select city" : "Select region first"} />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {formData.region && GHANA_CITIES[formData.region]?.map((city) => (
-                        <SelectItem key={city} value={city}>{city}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.city && <p className="text-red-500 text-xs mt-1">{errors.city}</p>}
-                </div>
+              {/* Location - City autocomplete with Google Places */}
+              <div>
+                <AddressAutocomplete
+                  id="city"
+                  label="City / Town"
+                  placeholder="Start typing your city or town..."
+                  value={formData.city}
+                  onValueChange={(value) => handleInputChange("city", value)}
+                  onAddressSelect={(details) => {
+                    handleInputChange("city", details.city || details.name || details.formattedAddress);
+                    if (details.region) {
+                      const matchedRegion = GHANA_REGIONS.find(r => 
+                        r.toLowerCase().includes(details.region!.toLowerCase()) ||
+                        details.region!.toLowerCase().includes(r.replace(" Region", "").toLowerCase())
+                      );
+                      if (matchedRegion) {
+                        handleInputChange("region", matchedRegion);
+                      } else {
+                        handleInputChange("region", details.region);
+                      }
+                    }
+                  }}
+                  showCurrentLocation={false}
+                  types={["(cities)"]}
+                  required
+                  error={errors.city}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="region">Region</Label>
+                <Select value={formData.region} onValueChange={(value) => handleInputChange("region", value)}>
+                  <SelectTrigger className={errors.region ? "border-red-500" : ""}>
+                    <SelectValue placeholder="Select or auto-filled from city" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {GHANA_REGIONS.map((region) => (
+                      <SelectItem key={region} value={region}>{region}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {errors.region && <p className="text-red-500 text-xs mt-1">{errors.region}</p>}
               </div>
 
               {/* Vendor-specific fields */}

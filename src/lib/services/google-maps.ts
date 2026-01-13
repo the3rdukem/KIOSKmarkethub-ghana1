@@ -15,9 +15,7 @@
  * - Distance-based filtering
  */
 
-import { isIntegrationReady, getIntegrationStatus } from '../api-execution-layer';
-
-const INTEGRATION_ID = 'google_maps';
+// Google Maps enablement check - synchronous, based on env var or cached API key
 
 export interface PlacePrediction {
   placeId: string;
@@ -163,9 +161,16 @@ export const clearMapsApiKeyCache = (): void => {
 
 /**
  * Check if Google Maps is available
+ * Uses cached API key - must be fetched first via fetchMapsApiKey()
+ * This is a synchronous check for performance
  */
 export const isMapsEnabled = (): boolean => {
-  return isIntegrationReady(INTEGRATION_ID);
+  // On server, check database credentials
+  if (typeof window === 'undefined') {
+    return getMapsApiKeyServer() !== null;
+  }
+  // On client, check if API key was fetched and cached
+  return cachedApiKey !== null;
 };
 
 /**
@@ -175,10 +180,10 @@ export const getMapsStatus = (): {
   available: boolean;
   message: string;
 } => {
-  const status = getIntegrationStatus(INTEGRATION_ID);
+  const available = isMapsEnabled();
   return {
-    available: status.available,
-    message: status.message,
+    available,
+    message: available ? 'Location services available' : 'Location services not configured',
   };
 };
 

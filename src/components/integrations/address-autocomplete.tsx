@@ -18,7 +18,7 @@ import {
 } from "@/lib/services/google-maps";
 import { cn } from "@/lib/utils";
 
-interface AddressAutocompleteProps {
+export interface AddressAutocompleteProps {
   label?: string;
   placeholder?: string;
   value?: string;
@@ -29,6 +29,8 @@ interface AddressAutocompleteProps {
   error?: string;
   required?: boolean;
   disabled?: boolean;
+  types?: string[];
+  id?: string;
 }
 
 export function AddressAutocomplete({
@@ -42,6 +44,8 @@ export function AddressAutocomplete({
   error,
   required,
   disabled,
+  types = ["address"],
+  id,
 }: AddressAutocompleteProps) {
   const [inputValue, setInputValue] = useState(value);
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
@@ -49,32 +53,39 @@ export function AddressAutocomplete({
   const [isGettingLocation, setIsGettingLocation] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [mapsEnabled, setMapsEnabled] = useState(false);
+  const [mapsInitialized, setMapsInitialized] = useState(false);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const debounceTimer = useRef<NodeJS.Timeout>();
 
-  const [mapsEnabled, setMapsEnabled] = useState(false);
-
-  // Check if Maps is enabled on mount
   useEffect(() => {
-    async function checkMapsEnabled() {
+    let mounted = true;
+    async function initMaps() {
       try {
         const apiKey = await fetchMapsApiKey();
-        setMapsEnabled(!!apiKey);
+        if (mounted) {
+          setMapsEnabled(!!apiKey);
+          setMapsInitialized(true);
+        }
       } catch {
-        setMapsEnabled(false);
+        if (mounted) {
+          setMapsEnabled(false);
+          setMapsInitialized(true);
+        }
       }
     }
-    checkMapsEnabled();
+    initMaps();
+    return () => {
+      mounted = false;
+    };
   }, []);
 
-  // Sync external value
   useEffect(() => {
     setInputValue(value);
   }, [value]);
 
-  // Debounced search
   const searchAddresses = useCallback(
     async (query: string) => {
       if (!query || query.length < 2) {
@@ -82,9 +93,14 @@ export function AddressAutocomplete({
         return;
       }
 
+      if (!mapsEnabled) {
+        return;
+      }
+
       setIsLoading(true);
       try {
         const result = await getAddressPredictions(query, {
+          types,
           componentRestrictions: { country: "gh" },
         });
 
@@ -97,14 +113,14 @@ export function AddressAutocomplete({
             console.warn("Maps API not available:", result.error);
           }
         }
-      } catch (error) {
-        console.error("Address search error:", error);
+      } catch (err) {
+        console.error("Address search error:", err);
         setPredictions([]);
       } finally {
         setIsLoading(false);
       }
     },
-    []
+    [mapsEnabled, types]
   );
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -113,7 +129,6 @@ export function AddressAutocomplete({
     onValueChange?.(newValue);
     setSelectedIndex(-1);
 
-    // Debounce the search
     if (debounceTimer.current) {
       clearTimeout(debounceTimer.current);
     }
@@ -129,7 +144,6 @@ export function AddressAutocomplete({
     setPredictions([]);
     setShowDropdown(false);
 
-    // Get full place details if maps is enabled
     if (isMapsEnabled()) {
       setIsLoading(true);
       const result = await getPlaceDetails(prediction.placeId);
@@ -138,7 +152,6 @@ export function AddressAutocomplete({
       if (result.success && result.data) {
         onAddressSelect?.(result.data);
       } else {
-        // Fallback: create basic details from prediction
         onAddressSelect?.({
           placeId: prediction.placeId,
           name: prediction.mainText,
@@ -170,7 +183,6 @@ export function AddressAutocomplete({
         return;
       }
 
-      // Try to get address from coordinates
       if (isMapsEnabled()) {
         const result = await reverseGeocode(location.latitude, location.longitude);
         if (result.success && result.data) {
@@ -179,7 +191,6 @@ export function AddressAutocomplete({
           onAddressSelect?.(result.data);
         }
       } else {
-        // Without Maps API, just notify with coordinates
         const addressText = `Current Location (${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)})`;
         setInputValue(addressText);
         onValueChange?.(addressText);
@@ -191,8 +202,8 @@ export function AddressAutocomplete({
           longitude: location.longitude,
         });
       }
-    } catch (error) {
-      console.error("Error getting location:", error);
+    } catch (err) {
+      console.error("Error getting location:", err);
     } finally {
       setIsGettingLocation(false);
     }
@@ -233,7 +244,6 @@ export function AddressAutocomplete({
     inputRef.current?.focus();
   };
 
-  // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (
@@ -249,10 +259,12 @@ export function AddressAutocomplete({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const inputId = id || "address-input";
+
   return (
     <div className={cn("relative", className)}>
       {label && (
-        <Label htmlFor="address-input" className="mb-2 block">
+        <Label htmlFor={inputId} className="mb-2 block">
           {label}
           {required && <span className="text-red-500 ml-1">*</span>}
         </Label>
@@ -263,7 +275,7 @@ export function AddressAutocomplete({
 
         <Input
           ref={inputRef}
-          id="address-input"
+          id={inputId}
           type="text"
           placeholder={placeholder}
           value={inputValue}
@@ -292,7 +304,7 @@ export function AddressAutocomplete({
             </Button>
           )}
 
-          {showCurrentLocation && (
+          {showCurrentLocation && mapsEnabled && (
             <Button
               type="button"
               variant="ghost"
@@ -314,7 +326,6 @@ export function AddressAutocomplete({
 
       {error && <p className="text-sm text-red-500 mt-1">{error}</p>}
 
-      {/* Predictions Dropdown */}
       {showDropdown && predictions.length > 0 && (
         <div
           ref={dropdownRef}
@@ -345,10 +356,9 @@ export function AddressAutocomplete({
         </div>
       )}
 
-      {/* No Maps API notice */}
-      {!mapsEnabled && (
+      {mapsInitialized && !mapsEnabled && (
         <p className="text-xs text-muted-foreground mt-1">
-          Address suggestions are limited. Full features available when location services are enabled.
+          Type your location manually
         </p>
       )}
     </div>

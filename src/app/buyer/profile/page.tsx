@@ -59,7 +59,7 @@ import { useAddressesStore, Address } from "@/lib/addresses-store";
 import { AddressAutocomplete } from "@/components/integrations/address-autocomplete";
 import { PlaceDetails } from "@/lib/services/google-maps";
 import { toast } from "sonner";
-import { GHANA_REGIONS, GHANA_CITIES } from "@/lib/constants/ghana-locations";
+import { GHANA_REGIONS } from "@/lib/constants/ghana-locations";
 
 const addressLabels = [
   { value: "home", label: "Home", icon: Home },
@@ -549,34 +549,43 @@ export default function BuyerProfilePage() {
                       showCurrentLocation
                     />
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label>Region *</Label>
-                      <Select value={addressForm.region} onValueChange={(v) => setAddressForm({ ...addressForm, region: v, city: "" })}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select region" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {GHANA_REGIONS.map((region) => (
-                            <SelectItem key={region} value={region}>{region}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>City *</Label>
-                      <Select value={addressForm.city} onValueChange={(v) => setAddressForm({ ...addressForm, city: v })} disabled={!addressForm.region}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select city" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {addressForm.region && GHANA_CITIES[addressForm.region]?.map((city) => (
-                            <SelectItem key={city} value={city}>{city}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                  <div>
+                    <AddressAutocomplete
+                      id="address-city"
+                      label="City / Town *"
+                      placeholder="Start typing your city or town..."
+                      value={addressForm.city}
+                      onValueChange={(value) => setAddressForm({ ...addressForm, city: value })}
+                      onAddressSelect={(details: PlaceDetails) => {
+                        const city = details.city || details.name || details.formattedAddress;
+                        let region = addressForm.region;
+                        if (details.region) {
+                          const matchedRegion = GHANA_REGIONS.find(r => 
+                            r.toLowerCase().includes(details.region!.toLowerCase()) ||
+                            details.region!.toLowerCase().includes(r.replace(" Region", "").toLowerCase())
+                          );
+                          region = matchedRegion || details.region;
+                        }
+                        setAddressForm({ ...addressForm, city, region });
+                      }}
+                      showCurrentLocation={false}
+                      types={["(cities)"]}
+                    />
                   </div>
+
+                  <div>
+                    <Label>Region *</Label>
+                    <Select value={addressForm.region} onValueChange={(v) => setAddressForm({ ...addressForm, region: v })}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select or auto-filled from city" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {GHANA_REGIONS.map((region) => (
+                          <SelectItem key={region} value={region}>{region}</SelectItem>
+                        ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   <div>
                     <Label>Ghana Post GPS Address</Label>
                     <Input value={addressForm.digitalAddress} onChange={(e) => setAddressForm({ ...addressForm, digitalAddress: e.target.value })} placeholder="e.g., GA-XXX-XXXX" />
