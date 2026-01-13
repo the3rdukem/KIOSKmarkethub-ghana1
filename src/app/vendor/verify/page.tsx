@@ -509,10 +509,10 @@ function VendorVerificationPageContent() {
                   <Sparkles className="w-4 h-4" />
                   Instant KYC Verification Available
                 </p>
-                <p className="text-sm text-green-700">
+                <span className="text-sm text-green-700">
                   Get verified automatically in minutes with Smile Identity{' '}
                   {smileIdConfig.environment === 'sandbox' && <Badge variant="secondary" className="text-xs ml-1">Sandbox Mode</Badge>}
-                </p>
+                </span>
               </div>
             </div>
           </Alert>
