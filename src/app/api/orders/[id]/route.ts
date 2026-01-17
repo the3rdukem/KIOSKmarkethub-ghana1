@@ -21,6 +21,7 @@ import {
 } from '@/lib/db/dal/orders';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getUserById } from '@/lib/db/dal/users';
+import { createNotification } from '@/lib/db/dal/notifications';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -264,6 +265,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       targetName: `Order Item ${itemId}`,
       details: JSON.stringify({ orderId: id, itemId }),
     });
+
+    // Notify buyer about fulfillment (fire-and-forget)
+    const vendorName = user?.business_name || user?.name || 'A vendor';
+    createNotification({
+      userId: order.buyer_id,
+      role: 'buyer',
+      type: 'order_fulfilled',
+      title: 'Order Item Shipped',
+      message: `${vendorName} has fulfilled your order item and it's on its way!`,
+      payload: { orderId: id, itemId, vendorName },
+    }).catch(err => console.error('[NOTIFICATION] Failed to notify buyer:', err));
 
     const updatedOrder = await getOrderById(id);
     const orderItems = await getVendorItemsForOrder(id, session.user_id);

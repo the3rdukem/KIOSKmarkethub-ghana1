@@ -459,6 +459,281 @@ function AdminManagementSection({
   );
 }
 
+// Email Management Section
+function EmailManagementSection() {
+  const [emailConfig, setEmailConfig] = useState<{
+    provider: string;
+    enabled: boolean;
+    dryRun: boolean;
+    fromEmail?: string;
+    fromName?: string;
+  } | null>(null);
+  const [templates, setTemplates] = useState<Array<{
+    id: string;
+    name: string;
+    subject: string;
+    category: string;
+    createdAt: string;
+  }>>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [configForm, setConfigForm] = useState({
+    provider: 'none',
+    fromEmail: '',
+    fromName: '',
+    apiKey: '',
+    dryRun: true,
+  });
+
+  useEffect(() => {
+    fetchEmailConfig();
+    fetchEmailTemplates();
+  }, []);
+
+  const fetchEmailConfig = async () => {
+    try {
+      const response = await fetch('/api/admin/email/config', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setEmailConfig(data.config);
+        if (data.config) {
+          setConfigForm({
+            provider: data.config.provider || 'none',
+            fromEmail: data.config.fromEmail || '',
+            fromName: data.config.fromName || '',
+            apiKey: '',
+            dryRun: data.config.dryRun ?? true,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch email config:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchEmailTemplates = async () => {
+    try {
+      const response = await fetch('/api/admin/email/templates', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setTemplates(data.templates || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch email templates:', error);
+    }
+  };
+
+  const handleSaveConfig = async () => {
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/admin/email/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(configForm),
+      });
+      if (response.ok) {
+        toast.success('Email configuration saved');
+        fetchEmailConfig();
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to save configuration');
+      }
+    } catch (error) {
+      toast.error('Failed to save configuration');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleTestEmail = async () => {
+    try {
+      const response = await fetch('/api/admin/email/health', { credentials: 'include' });
+      const data = await response.json();
+      if (data.status === 'healthy') {
+        toast.success('Email provider is connected and healthy');
+      } else if (data.status === 'dry_run') {
+        toast.info('Email is in dry-run mode (no emails will be sent)');
+      } else {
+        toast.error(data.message || 'Email provider is not configured');
+      }
+    } catch (error) {
+      toast.error('Failed to check email health');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Email Provider Configuration */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Globe2 className="w-5 h-5" />
+                Email Provider Configuration
+              </CardTitle>
+              <CardDescription>
+                Configure your email service provider for transactional emails
+              </CardDescription>
+            </div>
+            <Button variant="outline" onClick={handleTestEmail}>
+              <TestTube className="w-4 h-4 mr-2" />
+              Test Connection
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Email Provider</Label>
+              <Select
+                value={configForm.provider}
+                onValueChange={(value) => setConfigForm({ ...configForm, provider: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select provider" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None (Disabled)</SelectItem>
+                  <SelectItem value="sendgrid">SendGrid</SelectItem>
+                  <SelectItem value="resend">Resend</SelectItem>
+                  <SelectItem value="ses">AWS SES</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>API Key</Label>
+              <Input
+                type="password"
+                placeholder="Enter API key"
+                value={configForm.apiKey}
+                onChange={(e) => setConfigForm({ ...configForm, apiKey: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">Leave blank to keep existing key</p>
+            </div>
+            <div className="space-y-2">
+              <Label>From Email</Label>
+              <Input
+                type="email"
+                placeholder="noreply@yourdomain.com"
+                value={configForm.fromEmail}
+                onChange={(e) => setConfigForm({ ...configForm, fromEmail: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>From Name</Label>
+              <Input
+                placeholder="MarketHub"
+                value={configForm.fromName}
+                onChange={(e) => setConfigForm({ ...configForm, fromName: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 pt-2">
+            <Switch
+              id="dry-run"
+              checked={configForm.dryRun}
+              onCheckedChange={(checked) => setConfigForm({ ...configForm, dryRun: checked })}
+            />
+            <Label htmlFor="dry-run" className="cursor-pointer">
+              Dry Run Mode (log emails instead of sending)
+            </Label>
+          </div>
+          <div className="flex justify-end pt-4">
+            <Button onClick={handleSaveConfig} disabled={isSaving}>
+              {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Settings className="w-4 h-4 mr-2" />}
+              Save Configuration
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Email Templates */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <FileEdit className="w-5 h-5" />
+                Email Templates
+              </CardTitle>
+              <CardDescription>
+                Manage transactional email templates
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {templates.length === 0 ? (
+            <div className="text-center py-12">
+              <FileEdit className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Email Templates</h3>
+              <p className="text-muted-foreground">Email templates will appear here once created</p>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Created</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {templates.map((template) => (
+                  <TableRow key={template.id}>
+                    <TableCell className="font-medium">{template.name}</TableCell>
+                    <TableCell>{template.subject}</TableCell>
+                    <TableCell><Badge variant="outline">{template.category}</Badge></TableCell>
+                    <TableCell className="text-sm text-muted-foreground">
+                      {format(new Date(template.createdAt), 'MMM d, yyyy')}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Current Status */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Current Email Status</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
+              <div className={`w-3 h-3 rounded-full ${emailConfig?.enabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+              <span>{emailConfig?.enabled ? 'Enabled' : 'Disabled'}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge variant={emailConfig?.dryRun ? 'secondary' : 'default'}>
+                {emailConfig?.dryRun ? 'Dry Run Mode' : 'Live Mode'}
+              </Badge>
+            </div>
+            {emailConfig?.provider && emailConfig.provider !== 'none' && (
+              <Badge variant="outline">{emailConfig.provider.toUpperCase()}</Badge>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 function AdminDashboardContent() {
   const router = useRouter();
   const { user } = useAuthStore();
@@ -864,6 +1139,10 @@ function AdminDashboardContent() {
             {/* Site Settings - Master Admin */}
             {isMasterAdmin && (
               <TabsTrigger value="site-settings"><Palette className="w-4 h-4 mr-1" />Site Settings</TabsTrigger>
+            )}
+            {/* Email Management - Master Admin */}
+            {isMasterAdmin && (
+              <TabsTrigger value="email"><Globe2 className="w-4 h-4 mr-1" />Email</TabsTrigger>
             )}
             {/* Approvals */}
             <TabsTrigger value="approvals">
@@ -1387,6 +1666,11 @@ function AdminDashboardContent() {
                 </CardContent>
               </Card>
             </div>
+          </TabsContent>
+
+          {/* Email Management Tab */}
+          <TabsContent value="email">
+            <EmailManagementSection />
           </TabsContent>
 
           <TabsContent value="audit">

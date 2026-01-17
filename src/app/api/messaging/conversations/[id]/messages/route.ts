@@ -11,6 +11,7 @@ import {
   createMessage,
   listMessages,
 } from '@/lib/db/dal/messaging';
+import { createNotification } from '@/lib/db/dal/notifications';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -114,6 +115,24 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       attachmentUrl,
       attachmentName,
     });
+
+    // Notify recipient if not muted (fire-and-forget)
+    const recipientId = role === 'buyer' ? conversation.vendor_id : conversation.buyer_id;
+    const recipientRole = role === 'buyer' ? 'vendor' : 'buyer';
+    const recipientMuted = role === 'buyer' ? conversation.is_muted_vendor : conversation.is_muted_buyer;
+    
+    if (!recipientMuted) {
+      const senderName = user?.name || (role === 'buyer' ? 'A buyer' : 'A vendor');
+      const truncatedContent = content.length > 50 ? content.substring(0, 47) + '...' : content;
+      createNotification({
+        userId: recipientId,
+        role: recipientRole as 'buyer' | 'vendor',
+        type: 'system',
+        title: 'New Message',
+        message: `${senderName}: ${truncatedContent}`,
+        payload: { conversationId: id, senderId: session.userId, senderName },
+      }).catch(err => console.error('[NOTIFICATION] Failed to notify message recipient:', err));
+    }
 
     return NextResponse.json({ message }, { status: 201 });
   } catch (error) {

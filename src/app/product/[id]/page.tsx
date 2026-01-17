@@ -596,7 +596,7 @@ export default function ProductPage() {
                       </Link>
                     </Button>
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/messages?vendor=${product.vendorId}`}>
+                      <Link href={`/messages?vendor=${product.vendorId}&product=${product.id}`}>
                         <MessageSquare className="w-4 h-4 mr-2" />
                         Contact
                       </Link>

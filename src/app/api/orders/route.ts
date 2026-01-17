@@ -24,6 +24,7 @@ import { reserveInventoryAtomic, InventoryReservationItem } from '@/lib/db/dal/p
 import { clearCart, getCart } from '@/lib/db/dal/cart';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getPool } from '@/lib/db';
+import { createNotification } from '@/lib/db/dal/notifications';
 
 /**
  * GET /api/orders
@@ -310,6 +311,27 @@ export async function POST(request: NextRequest) {
         couponCode: body.couponCode,
       }),
     });
+
+    // Create notifications for vendors (fire-and-forget, don't block response)
+    const vendorIds = [...new Set(body.items.map((item: { vendorId: string }) => item.vendorId))] as string[];
+    Promise.allSettled(
+      vendorIds.map(async (vendorId) => {
+        const vendorItems = body.items.filter((item: { vendorId: string }) => item.vendorId === vendorId);
+        const itemCount = vendorItems.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0);
+        try {
+          await createNotification({
+            userId: vendorId,
+            role: 'vendor',
+            type: 'order_created',
+            title: 'New Order Received',
+            message: `You have a new order with ${itemCount} item${itemCount > 1 ? 's' : ''} from ${user.name}`,
+            payload: { orderId: order.id, buyerName: user.name, itemCount },
+          });
+        } catch (err) {
+          console.error('[NOTIFICATION] Failed to notify vendor:', vendorId, err);
+        }
+      })
+    );
 
     return NextResponse.json({
       success: true,

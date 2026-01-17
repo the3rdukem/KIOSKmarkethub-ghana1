@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,7 +53,9 @@ import {
   Circle,
   ArrowLeft,
   Loader2,
-  ShoppingBag
+  ShoppingBag,
+  Store,
+  ExternalLink
 } from "lucide-react";
 import { formatDistance, format } from "date-fns";
 import { toast } from "sonner";
@@ -100,10 +103,16 @@ function MessagesPageContent() {
   const [isSending, setIsSending] = useState(false);
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [newConversationVendorId, setNewConversationVendorId] = useState("");
+  const [newConversationVendorName, setNewConversationVendorName] = useState("");
+  const [newConversationProductName, setNewConversationProductName] = useState("");
   const [newConversationMessage, setNewConversationMessage] = useState("");
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
+  const [isLoadingVendor, setIsLoadingVendor] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Determine user role
   const userRole = user?.role === 'vendor' ? 'vendor' : 'buyer';
@@ -120,21 +129,45 @@ function MessagesPageContent() {
     userRole === 'buyer' ? conv.buyerId === user?.id : conv.vendorId === user?.id
   );
 
-  // Handle vendor param on mount
+  // Handle vendor param on mount - fetch vendor info and set up dialog
   useEffect(() => {
-    if (vendorParam && user && userRole === 'buyer') {
+    if (vendorParam && user && userRole === 'buyer' && isHydrated) {
       // Check if conversation exists with this vendor
       const existingConv = userConversations.find(c => c.vendorId === vendorParam);
       if (existingConv) {
         setSelectedConversationId(existingConv.id);
       } else {
-        // Show new conversation dialog
+        // Fetch vendor info and show new conversation dialog
         setNewConversationVendorId(vendorParam);
+        setIsLoadingVendor(true);
+        
+        // Fetch vendor details
+        fetch(`/api/users/${vendorParam}`, { credentials: 'include' })
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data?.user) {
+              setNewConversationVendorName(data.user.businessName || data.user.name || 'Vendor');
+            } else {
+              setNewConversationVendorName('Vendor');
+            }
+          })
+          .catch(() => setNewConversationVendorName('Vendor'))
+          .finally(() => setIsLoadingVendor(false));
+        
+        // Get product info if provided and set initial message
+        if (productParam) {
+          const product = getProductById(productParam);
+          if (product) {
+            setNewConversationProductName(product.name);
+            setNewConversationMessage(`Hi, I'm interested in "${product.name}". `);
+          }
+        }
+        
         setShowNewConversation(true);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vendorParam, user, userRole]);
+  }, [vendorParam, productParam, user, userRole, isHydrated]);
 
   // Fetch messages when conversation is selected
   useEffect(() => {
@@ -246,6 +279,68 @@ function MessagesPageContent() {
     fetchConversations();
   };
 
+  const handleFileUpload = async (file: File, type: 'image' | 'file') => {
+    if (!selectedConversation || !user) return;
+    
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("File size must be less than 5MB");
+      return;
+    }
+    
+    // Validate file type for images
+    if (type === 'image' && !file.type.startsWith('image/')) {
+      toast.error("Please select an image file");
+      return;
+    }
+    
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('directory', 'messages');
+      
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        credentials: 'include',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Upload failed');
+      }
+      
+      const data = await response.json();
+      const attachmentUrl = data.file?.url || '';
+      
+      // Send message with attachment - include URL in content for display
+      const messageContent = type === 'image' 
+        ? `📷 Image: ${file.name}\n${attachmentUrl}` 
+        : `📎 File: ${file.name}\n${attachmentUrl}`;
+      
+      const result = await sendMessage(
+        selectedConversation.id, 
+        messageContent, 
+        type
+      );
+      
+      if (result) {
+        toast.success(`${type === 'image' ? 'Image' : 'File'} sent`);
+      } else {
+        toast.error("Failed to send attachment");
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(error instanceof Error ? error.message : "Failed to upload file");
+    } finally {
+      setIsUploading(false);
+      // Reset file inputs
+      if (imageInputRef.current) imageInputRef.current.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -278,8 +373,6 @@ function MessagesPageContent() {
     return userRole === 'buyer' ? conv.vendorAvatar : conv.buyerAvatar;
   };
 
-  // Get vendors for new conversation
-  const availableVendors = users.filter(u => u.role === 'vendor' && u.id !== user?.id);
 
   // Wait for hydration before showing auth-dependent content
   if (!isHydrated) {
@@ -495,11 +588,29 @@ function MessagesPageContent() {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <h3 className="font-semibold">{getParticipantName(selectedConversation)}</h3>
+                      <Link 
+                        href={userRole === 'buyer' 
+                          ? `/vendor/${selectedConversation.vendorId}` 
+                          : `/buyer/${selectedConversation.buyerId}`
+                        }
+                        className="font-semibold hover:text-green-600 hover:underline flex items-center gap-1"
+                      >
+                        {getParticipantName(selectedConversation)}
+                        <ExternalLink className="w-3 h-3 opacity-50" />
+                      </Link>
                       {selectedConversation.productName && (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Package className="w-3 h-3" />
-                          {selectedConversation.productName}
+                          {selectedConversation.productId ? (
+                            <Link 
+                              href={`/product/${selectedConversation.productId}`}
+                              className="hover:text-green-600 hover:underline"
+                            >
+                              {selectedConversation.productName}
+                            </Link>
+                          ) : (
+                            selectedConversation.productName
+                          )}
                         </div>
                       )}
                     </div>
@@ -586,10 +697,48 @@ function MessagesPageContent() {
                         rows={1}
                       />
                       <div className="absolute right-2 bottom-2 flex items-center gap-1">
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                          <Paperclip className="w-4 h-4" />
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          className="hidden"
+                          accept=".pdf,.doc,.docx,.txt"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, 'file');
+                          }}
+                        />
+                        <input
+                          type="file"
+                          ref={imageInputRef}
+                          className="hidden"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleFileUpload(file, 'image');
+                          }}
+                        />
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploading}
+                          title="Attach file"
+                        >
+                          {isUploading ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Paperclip className="w-4 h-4" />
+                          )}
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-8 w-8 p-0"
+                          onClick={() => imageInputRef.current?.click()}
+                          disabled={isUploading}
+                          title="Attach image"
+                        >
                           <ImageIcon className="w-4 h-4" />
                         </Button>
                       </div>
@@ -629,32 +778,59 @@ function MessagesPageContent() {
         </div>
 
         {/* New Conversation Dialog */}
-        <Dialog open={showNewConversation} onOpenChange={setShowNewConversation}>
+        <Dialog open={showNewConversation} onOpenChange={(open) => {
+          setShowNewConversation(open);
+          if (!open) {
+            // Reset state when dialog closes
+            setNewConversationVendorId("");
+            setNewConversationVendorName("");
+            setNewConversationProductName("");
+            setNewConversationMessage("");
+          }
+        }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Start New Conversation</DialogTitle>
+              <DialogTitle>Message Vendor</DialogTitle>
               <DialogDescription>
-                Send a message to a vendor
+                Start a conversation with this vendor
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
+              {/* Vendor Info - Read Only */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Select Vendor</label>
-                <select
-                  className="w-full p-2 border rounded-lg"
-                  value={newConversationVendorId}
-                  onChange={(e) => setNewConversationVendorId(e.target.value)}
-                >
-                  <option value="">Choose a vendor...</option>
-                  {availableVendors.map((vendor) => (
-                    <option key={vendor.id} value={vendor.id}>
-                      {vendor.businessName || vendor.name}
-                    </option>
-                  ))}
-                </select>
+                <label className="text-sm font-medium">Vendor</label>
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
+                  <Avatar className="w-10 h-10">
+                    <AvatarFallback>
+                      <Store className="w-4 h-4" />
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    {isLoadingVendor ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        <span className="text-sm text-muted-foreground">Loading...</span>
+                      </div>
+                    ) : (
+                      <span className="font-medium">{newConversationVendorName || 'Vendor'}</span>
+                    )}
+                  </div>
+                </div>
               </div>
+              
+              {/* Product Reference (if any) */}
+              {newConversationProductName && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Regarding</label>
+                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                    <Package className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-blue-700">{newConversationProductName}</span>
+                  </div>
+                </div>
+              )}
+              
               <div className="space-y-2">
-                <label className="text-sm font-medium">Message</label>
+                <label className="text-sm font-medium">Your Message</label>
                 <Textarea
                   placeholder="Write your message..."
                   value={newConversationMessage}
@@ -667,8 +843,15 @@ function MessagesPageContent() {
               <Button variant="outline" onClick={() => setShowNewConversation(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateConversation}>
-                <Send className="w-4 h-4 mr-2" />
+              <Button 
+                onClick={handleCreateConversation}
+                disabled={!newConversationVendorId || !newConversationMessage.trim() || isCreatingConversation}
+              >
+                {isCreatingConversation ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4 mr-2" />
+                )}
                 Send Message
               </Button>
             </DialogFooter>
