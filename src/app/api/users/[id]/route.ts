@@ -24,33 +24,37 @@ interface RouteParams {
 
 /**
  * GET /api/users/[id]
- * Returns user info. Vendors have public profile (name, business info).
- * Full details require auth and ownership/admin access.
+ * Returns user info. Requires authentication.
+ * Any authenticated user can view vendor public profiles (name, business info).
+ * Full details require ownership or admin access.
  */
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { id } = await params;
+
+    // Verify authentication - required for all requests
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get('session_token')?.value;
+
+    if (!sessionToken) {
+      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+    }
+
+    const session = await validateSession(sessionToken);
+    if (!session) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
+    }
 
     const user = await getUserById(id);
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
-    // Verify authentication (optional for vendor public profiles)
-    const cookieStore = await cookies();
-    const sessionToken = cookieStore.get('session_token')?.value;
+    const isOwnProfile = session.user_id === id;
+    const isAdmin = session.user_role === 'admin' || session.user_role === 'master_admin';
 
-    let session = null;
-    if (sessionToken) {
-      session = await validateSession(sessionToken);
-    }
-
-    const isOwnProfile = session && session.user_id === id;
-    const isAdmin = session && (session.user_role === 'admin' || session.user_role === 'master_admin');
-
-    // Vendors have public profiles (for messaging, store pages)
+    // Any authenticated user can view vendor public profiles (for messaging, store pages)
     if (user.role === 'vendor') {
-      // Return public vendor info for anyone
       const publicInfo = {
         id: user.id,
         name: user.name,
@@ -83,14 +87,11 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         });
       }
 
+      // Return public info for other authenticated users
       return NextResponse.json({ user: publicInfo });
     }
 
-    // Non-vendor profiles require auth and ownership/admin
-    if (!session) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-    }
-
+    // Non-vendor profiles require ownership or admin access
     if (!isOwnProfile && !isAdmin) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
