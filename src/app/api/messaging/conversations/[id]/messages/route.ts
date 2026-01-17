@@ -117,9 +117,9 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     });
 
     // Notify recipient if not muted (fire-and-forget)
-    const recipientId = role === 'buyer' ? conversation.vendor_id : conversation.buyer_id;
+    const recipientId = role === 'buyer' ? conversation.vendorId : conversation.buyerId;
     const recipientRole = role === 'buyer' ? 'vendor' : 'buyer';
-    const recipientMuted = role === 'buyer' ? conversation.is_muted_vendor : conversation.is_muted_buyer;
+    const recipientMuted = role === 'buyer' ? conversation.isMutedVendor : conversation.isMutedBuyer;
     
     if (!recipientMuted) {
       const senderName = user?.name || (role === 'buyer' ? 'A buyer' : 'A vendor');

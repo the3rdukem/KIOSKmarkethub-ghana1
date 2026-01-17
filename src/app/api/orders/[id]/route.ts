@@ -326,6 +326,12 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Only admins can cancel orders' }, { status: 403 });
     }
 
+    // Fetch order details before cancellation for notification
+    const order = await getOrderById(id);
+    if (!order) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
+    }
+
     const result = await cancelOrderWithInventoryRestore(id);
 
     if (!result.success) {
@@ -346,6 +352,32 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       details: JSON.stringify({
         restoredItems: result.restoredItems,
       }),
+    });
+
+    // Notify buyer about order cancellation (fire-and-forget)
+    createNotification({
+      userId: order.buyer_id,
+      role: 'buyer',
+      type: 'order_cancelled',
+      title: 'Order Cancelled',
+      message: `Your order #${id} has been cancelled by the admin. If you made a payment, a refund will be processed.`,
+      payload: { orderId: id },
+    }).catch(err => console.error('[NOTIFICATION] Failed to notify buyer of cancellation:', err));
+
+    // Notify vendors whose items were in the order (fire-and-forget)
+    const orderItems = parseOrderItems(order);
+    const vendorIds = [...new Set(orderItems.map(item => item.vendorId))];
+    vendorIds.forEach(vendorId => {
+      if (vendorId) {
+        createNotification({
+          userId: vendorId,
+          role: 'vendor',
+          type: 'order_cancelled',
+          title: 'Order Cancelled',
+          message: `Order #${id} has been cancelled by the admin.`,
+          payload: { orderId: id },
+        }).catch(err => console.error('[NOTIFICATION] Failed to notify vendor of cancellation:', err));
+      }
     });
 
     return NextResponse.json({ 

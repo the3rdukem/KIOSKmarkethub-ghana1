@@ -239,7 +239,7 @@ function MessagesPageContent() {
       });
 
       if (!conv) {
-        toast.error("Failed to create conversation");
+        // Store already shows error toast, don't duplicate
         return;
       }
 
@@ -254,8 +254,8 @@ function MessagesPageContent() {
       setNewConversationVendorId("");
       setNewConversationMessage("");
       toast.success("Conversation started!");
-    } catch (error) {
-      toast.error("Failed to start conversation");
+    } catch {
+      // Store already shows error toast, don't duplicate
     } finally {
       setIsCreatingConversation(false);
     }
@@ -461,6 +461,30 @@ function MessagesPageContent() {
           </a>
         );
       }
+    }
+    
+    // Parse product links in text messages (format: /product/[id])
+    const productLinkPattern = /\/product\/[a-zA-Z0-9_-]+/;
+    if (productLinkPattern.test(content)) {
+      const parts = content.split(/(\/product\/[a-zA-Z0-9_-]+)/);
+      return (
+        <p className="text-sm whitespace-pre-wrap">
+          {parts.map((part, index) => {
+            if (productLinkPattern.test(part)) {
+              return (
+                <a
+                  key={index}
+                  href={part}
+                  className={`underline ${isOwnMessage ? 'text-green-100 hover:text-white' : 'text-green-600 hover:text-green-700'}`}
+                >
+                  View Product
+                </a>
+              );
+            }
+            return <span key={index}>{part}</span>;
+          })}
+        </p>
+      );
     }
     
     return <p className="text-sm whitespace-pre-wrap">{content}</p>;

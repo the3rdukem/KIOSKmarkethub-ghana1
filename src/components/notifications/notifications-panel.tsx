@@ -72,9 +72,12 @@ const getNotificationLink = (notification: Notification, userRole: string) => {
   
   if (payload?.orderId) {
     if (userRole === 'vendor') {
-      return `/vendor?tab=orders`;
+      return `/vendor?tab=orders&orderId=${payload.orderId}`;
     }
-    return `/buyer/dashboard?tab=orders`;
+    return `/buyer/dashboard?tab=orders&orderId=${payload.orderId}`;
+  }
+  if (payload?.conversationId) {
+    return `/messages?conversation=${payload.conversationId}`;
   }
   if (payload?.productId) {
     return `/product/${payload.productId}`;
