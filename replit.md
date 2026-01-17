@@ -128,3 +128,11 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
   - `GET/POST /api/admin/email/templates` - Manage email templates
 - Dry-run mode enabled by default (no emails sent until explicitly configured)
 - Template categories: order, payment, auth, notification, system
+
+**Phase 4B Bug Fixes Round 2 (Jan 2026):**
+- Vendor public profile access: `/api/users/[id]` allows unauthenticated GET for vendor profiles (name, business info only)
+- Message notifications: Fixed recipientId null bug by using camelCase DAL properties (vendorId/buyerId not snake_case)
+- Product link rendering: Messages containing `/product/[id]` now render as clickable links with non-global regex (avoids lastIndex issues)
+- Notification deep linking: Order notifications include `orderId` param, message notifications include `conversationId` for direct navigation
+- Admin cancellation notifications: Fire-and-forget notifications sent to buyer and affected vendors when admin cancels an order
+- Double toast prevention: Removed duplicate toast.error calls in messaging page since store handles errors
