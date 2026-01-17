@@ -102,3 +102,29 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - Supports Ghana Card, Passport, Driver's License, and Voter's ID verification
 - **Sandbox Auto-Approval Fix (Jan 2026)**: `VerificationResult` now includes `environment` field; sandbox mode returns `environment: 'sandbox'` enabling route to auto-approve without second config fetch. Sandbox path stores job ID directly in `verification_documents` to avoid calling `setVendorKycJobId()` which would reset status to 'under_review'. Explicit error responses replace silent fallback to manual review.
 - **Dual-Table Sync Fix (Jan 2026)**: Verification status is now synchronized between `vendors` table AND `users` table. Session API reads from `users` table, so both must be updated for frontend to reflect correct status. Both sandbox auto-approve and webhook handlers now update both tables.
+
+## Phase 4B: Communications Layer (Jan 2026)
+
+**In-App Notifications (Complete):**
+- Database table: `notifications` with user_id, role, type, title, message, payload, is_read fields
+- Append-only design (no edits/deletes per Phase 4B spec)
+- DAL at `src/lib/db/dal/notifications.ts` with role-based scoping (buyer/vendor/admin)
+- API endpoints at `/api/notifications`:
+  - `GET /api/notifications` - List user notifications with pagination
+  - `POST /api/notifications` - Create notification (internal use)
+  - `GET /api/notifications/unread` - Get unread count for badge
+  - `POST /api/notifications/read` - Mark notification(s) as read
+- NotificationsPanel component at `src/components/notifications/notifications-panel.tsx`
+- Bell icon with unread badge in header, syncs with database via API
+
+**Email Infrastructure Foundation (Complete):**
+- Database table: `email_templates` with name, subject, body_html, body_text, variables, category
+- Email provider integration seeded in `integrations` table with dry-run mode default
+- DAL at `src/lib/db/dal/email.ts` for provider config and templates
+- Supports providers: SendGrid, Resend, AWS SES (none configured by default)
+- Admin API endpoints:
+  - `GET/POST /api/admin/email/config` - Get/set email provider configuration
+  - `GET /api/admin/email/health` - Check email provider status
+  - `GET/POST /api/admin/email/templates` - Manage email templates
+- Dry-run mode enabled by default (no emails sent until explicitly configured)
+- Template categories: order, payment, auth, notification, system

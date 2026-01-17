@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -19,61 +19,158 @@ import {
   MessageSquare,
   Settings,
   CheckCheck,
-  Trash2,
-  ShoppingCart
+  ShoppingCart,
+  AlertTriangle,
+  Loader2
 } from "lucide-react";
-import { useNotificationsStore, Notification, NotificationType } from "@/lib/notifications-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { formatDistanceToNow } from "date-fns";
 import Link from "next/link";
 
+type NotificationType = 
+  | 'order_created'
+  | 'order_paid'
+  | 'order_cancelled'
+  | 'order_fulfilled'
+  | 'review_reply'
+  | 'moderation_action'
+  | 'system';
+
+interface Notification {
+  id: string;
+  userId: string;
+  role: string;
+  type: NotificationType;
+  title: string;
+  message: string;
+  payload?: Record<string, unknown>;
+  isRead: boolean;
+  createdAt: string;
+}
+
 const getNotificationIcon = (type: NotificationType) => {
   switch (type) {
-    case 'order_status':
-      return <Package className="w-4 h-4 text-blue-500" />;
-    case 'order_new':
+    case 'order_created':
       return <ShoppingCart className="w-4 h-4 text-green-500" />;
-    case 'payment':
+    case 'order_paid':
       return <CreditCard className="w-4 h-4 text-green-600" />;
-    case 'review':
+    case 'order_cancelled':
+      return <Package className="w-4 h-4 text-red-500" />;
+    case 'order_fulfilled':
+      return <Package className="w-4 h-4 text-blue-500" />;
+    case 'review_reply':
       return <Star className="w-4 h-4 text-yellow-500" />;
-    case 'message':
-      return <MessageSquare className="w-4 h-4 text-purple-500" />;
+    case 'moderation_action':
+      return <AlertTriangle className="w-4 h-4 text-orange-500" />;
     default:
       return <Bell className="w-4 h-4 text-gray-500" />;
   }
 };
 
 const getNotificationLink = (notification: Notification, userRole: string) => {
-  if (notification.orderId) {
+  const payload = notification.payload as Record<string, string> | undefined;
+  
+  if (payload?.orderId) {
     if (userRole === 'vendor') {
       return `/vendor?tab=orders`;
     }
     return `/buyer/dashboard?tab=orders`;
   }
-  if (notification.productId) {
-    return `/product/${notification.productId}`;
+  if (payload?.productId) {
+    return `/product/${payload.productId}`;
   }
   return null;
 };
 
 export function NotificationsPanel() {
   const { user } = useAuthStore();
-  const {
-    getNotificationsByUser,
-    getUnreadCount,
-    markAsRead,
-    markAllAsRead,
-    deleteNotification,
-    clearAllNotifications
-  } = useNotificationsStore();
-
   const [isOpen, setIsOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  const fetchNotifications = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const response = await fetch('/api/notifications?limit=20');
+      if (response.ok) {
+        const data = await response.json();
+        setNotifications(data.notifications || []);
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error('[NotificationsPanel] Fetch error:', error);
+    }
+  }, [user]);
+
+  const fetchUnreadCount = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      const response = await fetch('/api/notifications/unread');
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadCount(data.unreadCount || 0);
+      }
+    } catch (error) {
+      console.error('[NotificationsPanel] Unread count error:', error);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (isHydrated && user) {
+      fetchUnreadCount();
+    }
+  }, [isHydrated, user, fetchUnreadCount]);
+
+  useEffect(() => {
+    if (isOpen && user) {
+      setIsLoading(true);
+      fetchNotifications().finally(() => setIsLoading(false));
+    }
+  }, [isOpen, user, fetchNotifications]);
+
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(fetchUnreadCount, 60000);
+    return () => clearInterval(interval);
+  }, [user, fetchUnreadCount]);
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    try {
+      await fetch('/api/notifications/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notificationId }),
+      });
+      setNotifications(prev => 
+        prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
+      );
+      setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (error) {
+      console.error('[NotificationsPanel] Mark as read error:', error);
+    }
+  };
+
+  const handleMarkAllAsRead = async () => {
+    try {
+      await fetch('/api/notifications/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      });
+      setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+      setUnreadCount(0);
+    } catch (error) {
+      console.error('[NotificationsPanel] Mark all as read error:', error);
+    }
+  };
 
   if (!isHydrated || !user) {
     return (
@@ -82,15 +179,6 @@ export function NotificationsPanel() {
       </Button>
     );
   }
-
-  const notifications = getNotificationsByUser(user.id);
-  const unreadCount = getUnreadCount(user.id);
-
-  const handleNotificationClick = (notification: Notification) => {
-    if (!notification.read) {
-      markAsRead(notification.id);
-    }
-  };
 
   return (
     <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
@@ -116,7 +204,7 @@ export function NotificationsPanel() {
                 variant="ghost"
                 size="sm"
                 className="h-8 text-xs"
-                onClick={() => markAllAsRead(user.id)}
+                onClick={handleMarkAllAsRead}
               >
                 <CheckCheck className="w-3 h-3 mr-1" />
                 Mark all read
@@ -126,10 +214,18 @@ export function NotificationsPanel() {
         </div>
 
         <ScrollArea className="h-[400px]">
-          {notifications.length === 0 ? (
+          {isLoading ? (
+            <div className="p-8 text-center">
+              <Loader2 className="w-8 h-8 text-gray-400 mx-auto mb-3 animate-spin" />
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            </div>
+          ) : notifications.length === 0 ? (
             <div className="p-8 text-center">
               <Bell className="w-12 h-12 text-gray-300 mx-auto mb-3" />
               <p className="text-sm text-muted-foreground">No notifications yet</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                You'll see order updates and messages here
+              </p>
             </div>
           ) : (
             <div className="py-1">
@@ -143,20 +239,9 @@ export function NotificationsPanel() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className={`text-sm ${!notification.read ? 'font-medium' : ''}`}>
+                        <p className={`text-sm ${!notification.isRead ? 'font-medium' : ''}`}>
                           {notification.title}
                         </p>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            deleteNotification(notification.id);
-                          }}
-                          className="text-gray-400 hover:text-red-500"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
                         {notification.message}
@@ -165,19 +250,9 @@ export function NotificationsPanel() {
                         <span className="text-xs text-muted-foreground">
                           {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
                         </span>
-                        {notification.channels.includes('email') && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">
-                            Email sent
-                          </Badge>
-                        )}
-                        {notification.channels.includes('sms') && (
-                          <Badge variant="outline" className="text-[10px] px-1 py-0">
-                            SMS sent
-                          </Badge>
-                        )}
                       </div>
                     </div>
-                    {!notification.read && (
+                    {!notification.isRead && (
                       <div className="w-2 h-2 rounded-full bg-blue-500 flex-shrink-0 mt-1.5" />
                     )}
                   </div>
@@ -186,8 +261,8 @@ export function NotificationsPanel() {
                 return link ? (
                   <DropdownMenuItem
                     key={notification.id}
-                    className={`p-3 cursor-pointer ${!notification.read ? 'bg-blue-50' : ''}`}
-                    onClick={() => handleNotificationClick(notification)}
+                    className={`p-3 cursor-pointer ${!notification.isRead ? 'bg-blue-50' : ''}`}
+                    onClick={() => !notification.isRead && handleMarkAsRead(notification.id)}
                     asChild
                   >
                     <Link href={link}>
@@ -197,8 +272,8 @@ export function NotificationsPanel() {
                 ) : (
                   <DropdownMenuItem
                     key={notification.id}
-                    className={`p-3 cursor-pointer ${!notification.read ? 'bg-blue-50' : ''}`}
-                    onClick={() => handleNotificationClick(notification)}
+                    className={`p-3 cursor-pointer ${!notification.isRead ? 'bg-blue-50' : ''}`}
+                    onClick={() => !notification.isRead && handleMarkAsRead(notification.id)}
                   >
                     {notificationContent}
                   </DropdownMenuItem>
@@ -216,9 +291,11 @@ export function NotificationsPanel() {
                 variant="outline"
                 size="sm"
                 className="flex-1 text-xs"
-                onClick={() => clearAllNotifications(user.id)}
+                asChild
               >
-                Clear All
+                <Link href="/buyer/notifications">
+                  View All
+                </Link>
               </Button>
               <Button
                 variant="outline"
@@ -226,7 +303,7 @@ export function NotificationsPanel() {
                 className="flex-1 text-xs"
                 asChild
               >
-                <Link href="/settings/notifications">
+                <Link href="/buyer/notifications">
                   <Settings className="w-3 h-3 mr-1" />
                   Settings
                 </Link>

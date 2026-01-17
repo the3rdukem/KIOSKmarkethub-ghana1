@@ -948,6 +948,92 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Table may already exist
   }
+
+  // PHASE 7: Create/update notifications table for in-app notifications
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        role TEXT NOT NULL CHECK(role IN ('buyer', 'vendor', 'admin')),
+        type TEXT NOT NULL,
+        title TEXT NOT NULL,
+        message TEXT NOT NULL,
+        payload TEXT,
+        is_read INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        CONSTRAINT fk_notifications_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id);
+      CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(is_read);
+      CREATE INDEX IF NOT EXISTS idx_notifications_created ON notifications(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_notifications_role ON notifications(role);
+    `);
+    console.log('[DB] PHASE 7: Created notifications table');
+  } catch (e) {
+    // Table may already exist, try adding role column
+    try {
+      await client.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'buyer'`);
+      await client.query(`ALTER TABLE notifications ADD COLUMN IF NOT EXISTS payload TEXT`);
+      console.log('[DB] PHASE 7: Added role and payload columns to notifications');
+    } catch (e2) {
+      // Columns may already exist
+    }
+  }
+
+  // PHASE 7: Create email_templates table for transactional email templates
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS email_templates (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        subject TEXT NOT NULL,
+        body_html TEXT NOT NULL,
+        body_text TEXT,
+        variables TEXT,
+        category TEXT NOT NULL CHECK(category IN ('order', 'payment', 'auth', 'notification', 'system')),
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
+      );
+      CREATE INDEX IF NOT EXISTS idx_email_templates_name ON email_templates(name);
+      CREATE INDEX IF NOT EXISTS idx_email_templates_category ON email_templates(category);
+    `);
+    console.log('[DB] PHASE 7: Created email_templates table');
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // Seed default email provider integration if not exists
+  try {
+    const existing = await client.query(
+      `SELECT id FROM integrations WHERE provider = 'email' LIMIT 1`
+    );
+    if (existing.rows.length === 0) {
+      const now = new Date().toISOString();
+      await client.query(
+        `INSERT INTO integrations (id, name, description, provider, category, is_enabled, is_configured, environment, status, credentials, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        [
+          'int_email_provider',
+          'Email Provider',
+          'Transactional email service for order confirmations, notifications, and system emails',
+          'email',
+          'email',
+          0,
+          0,
+          'demo',
+          'not_configured',
+          JSON.stringify({ provider: 'none', dryRun: true }),
+          now,
+          now
+        ]
+      );
+      console.log('[DB] PHASE 7: Seeded email provider integration');
+    }
+  } catch (e) {
+    // Integration may already exist
+  }
 }
 
 /**

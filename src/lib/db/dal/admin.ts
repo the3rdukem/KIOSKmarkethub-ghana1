@@ -8,6 +8,11 @@
 import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 import { hashPassword, verifyPassword } from './users';
+import { createHash } from 'crypto';
+
+function hashToken(token: string): string {
+  return createHash('sha256').update(token).digest('hex');
+}
 
 export type AdminRole = 'MASTER_ADMIN' | 'ADMIN';
 
@@ -301,4 +306,50 @@ export function hasAdminPermission(admin: DbAdminUser, permission: AdminPermissi
  */
 export function isMasterAdmin(admin: DbAdminUser): boolean {
   return admin.role === 'MASTER_ADMIN';
+}
+
+/**
+ * Validate admin session token
+ * Returns the admin user if session is valid, null otherwise
+ */
+export async function validateAdminSession(sessionToken: string): Promise<DbAdminUser | null> {
+  if (!sessionToken) {
+    return null;
+  }
+
+  const tokenHash = hashToken(sessionToken);
+  const now = new Date().toISOString();
+
+  // Check sessions table for admin session
+  // Admin sessions are stored with user_role = 'admin' or 'master_admin'
+  const sessionResult = await query<{
+    user_id: string;
+    user_role: string;
+    expires_at: string;
+  }>(
+    `SELECT user_id, user_role, expires_at 
+     FROM sessions 
+     WHERE token_hash = $1 
+       AND user_role IN ('admin', 'master_admin')
+       AND expires_at > $2`,
+    [tokenHash, now]
+  );
+
+  if (sessionResult.rows.length === 0) {
+    return null;
+  }
+
+  const session = sessionResult.rows[0];
+
+  // Get admin user record
+  const adminResult = await query<DbAdminUser>(
+    `SELECT * FROM admin_users WHERE id = $1 AND is_active = 1`,
+    [session.user_id]
+  );
+
+  if (adminResult.rows.length === 0) {
+    return null;
+  }
+
+  return adminResult.rows[0];
 }
