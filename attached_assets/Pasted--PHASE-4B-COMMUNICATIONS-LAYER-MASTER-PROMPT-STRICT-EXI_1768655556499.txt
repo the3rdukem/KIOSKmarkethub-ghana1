@@ -1,0 +1,196 @@
+
+🔒 PHASE 4B — COMMUNICATIONS LAYER MASTER PROMPT
+
+(STRICT • EXIT-ORIENTED • ZERO FEATURE CREEP)
+
+ABSOLUTE RULES (NON-NEGOTIABLE)
+	1.	DO NOT touch Phases 1–4A code unless a direct dependency is broken.
+	2.	DO NOT re-implement checkout, orders, payments, reviews, or auth.
+	3.	DO NOT add real-time features (no sockets, no push, no typing indicators).
+	4.	DO NOT add marketing, campaigns, or bulk email features.
+	5.	DO NOT modify database schemas unless explicitly required below.
+	6.	DO NOT claim success until ALL exit checks pass.
+	7.	VERIFY what already exists first.
+If a feature is already implemented, document and skip it.
+
+Failure to follow any rule = FAILED PHASE.
+
+⸻
+
+PHASE 4B SCOPE (LOCKED)
+
+Phase 4B consists of EXACTLY THREE SYSTEMS:
+
+1️⃣ In-App Notifications
+2️⃣ Messaging / Conversations
+3️⃣ Email Infrastructure (FOUNDATION ONLY)
+
+Nothing else.
+
+⸻
+
+1️⃣ IN-APP NOTIFICATIONS (SYSTEM EVENTS)
+
+PURPOSE
+
+Surface important platform events inside the app UI.
+
+REQUIRED EVENTS
+	•	Order created
+	•	Order paid
+	•	Order cancelled
+	•	Vendor fulfilled order
+	•	Vendor replied to review
+	•	Admin moderation action (review hidden / restored)
+
+REQUIREMENTS
+	•	Database-backed notifications table
+	•	Fields:
+	•	id
+	•	user_id
+	•	role (buyer/vendor/admin)
+	•	type
+	•	payload (JSON)
+	•	is_read
+	•	created_at
+	•	Bell icon UI with unread badge
+	•	Mark-as-read logic
+	•	Notifications are append-only (no edits, no deletes)
+
+FORBIDDEN
+
+❌ Push notifications
+❌ Email notifications here
+❌ Real-time sockets
+
+⸻
+
+2️⃣ MESSAGING / CONVERSATIONS (BUSINESS-SCOPED)
+
+PURPOSE
+
+Structured communication tied to orders and reviews.
+
+INCLUDED THREAD TYPES
+	•	Buyer ↔ Vendor (Order-scoped)
+	•	Buyer ↔ Vendor (Review replies after 24h lock)
+	•	System messages (order status changes)
+
+MESSAGE RULES
+	•	Text only
+	•	Max length enforced
+	•	Messages stored in DB
+	•	Read receipts optional (boolean)
+
+PERMISSIONS
+	•	Buyer:
+	•	Can message vendor on own order
+	•	Can reply to review thread after 24h
+	•	Vendor:
+	•	Can message buyer only on paid orders
+	•	One reply per review
+	•	Admin:
+	•	Read-only access for dispute resolution
+
+FORBIDDEN
+
+❌ Attachments
+❌ Emojis / reactions
+❌ Live chat
+❌ Editing or deleting messages
+
+⸻
+
+3️⃣ EMAIL INFRASTRUCTURE (FOUNDATION ONLY)
+
+PURPOSE
+
+Prepare platform for transactional emails later.
+
+REQUIRED
+	•	Admin API configuration for email provider:
+	•	SendGrid OR Resend OR SES
+	•	Secure key storage
+	•	Provider status health check
+	•	Email template registry (DB or filesystem)
+	•	Dry-run mode (no emails sent by default)
+
+EXPLICITLY EXCLUDED
+
+❌ Marketing emails
+❌ Newsletters
+❌ Email preferences UI
+❌ Campaign scheduling
+
+⸻
+
+VERIFICATION FIRST (MANDATORY)
+
+Before writing ANY code:
+	1.	Audit existing notification logic
+	2.	Audit any existing message tables
+	3.	Audit email provider config
+	4.	Report:
+	•	What exists
+	•	What partially exists
+	•	What is missing
+
+ONLY implement missing items.
+
+⸻
+
+EXIT AUDIT REQUIREMENTS (MUST PASS)
+
+Notifications
+	•	Notifications persist across sessions
+	•	Unread badge accurate
+	•	No duplicate notifications
+	•	Correct role scoping
+
+Messaging
+	•	Messages tied to order/review IDs
+	•	Unauthorized access blocked
+	•	Vendor cannot message unpaid buyers
+	•	No orphaned threads
+
+Email Infrastructure
+	•	Provider configurable via Admin
+	•	Keys never exposed client-side
+	•	Templates load without errors
+	•	No emails sent automatically
+
+⸻
+
+SUCCESS CRITERIA
+
+You may report “Phase 4B Complete” ONLY if:
+	•	No Phase 1–4A regressions
+	•	No console errors
+	•	No schema drift
+	•	All exit checks pass
+	•	No out-of-scope features added
+
+⸻
+
+FINAL WARNING
+
+If you:
+	•	Add real-time features
+	•	Touch payments logic
+	•	Add marketing tools
+	•	Skip verification
+	•	Or claim completion without proof
+
+THE PHASE IS CONSIDERED FAILED.
+
+⸻
+
+🎯 DELIVERABLE
+
+A stable communications layer that:
+	•	Feels professional
+	•	Is audit-safe
+	•	Enables Phase 5 polish
+	•	Does NOT introduce tech debt
+
+⸻
