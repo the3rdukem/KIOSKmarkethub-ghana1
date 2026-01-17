@@ -199,6 +199,7 @@ export const useMessagingStore = create<MessagingState>()(
           const response = await fetch('/api/messaging/conversations', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify(data),
           });
 
@@ -235,6 +236,7 @@ export const useMessagingStore = create<MessagingState>()(
           const response = await fetch(`/api/messaging/conversations/${conversationId}/messages`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({ content, messageType }),
           });
 
@@ -277,6 +279,7 @@ export const useMessagingStore = create<MessagingState>()(
         try {
           const response = await fetch(`/api/messaging/conversations/${conversationId}/read`, {
             method: 'POST',
+            credentials: 'include',
           });
 
           if (response.ok) {
@@ -301,6 +304,7 @@ export const useMessagingStore = create<MessagingState>()(
           const response = await fetch(`/api/messaging/conversations/${conversationId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify(updates),
           });
 
@@ -322,6 +326,7 @@ export const useMessagingStore = create<MessagingState>()(
           const response = await fetch(`/api/messaging/conversations/${conversationId}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
             body: JSON.stringify({ action: 'archive' }),
           });
 
