@@ -81,18 +81,18 @@ function MessagesPageContent() {
   const {
     conversations,
     messages,
-    getConversationsForUser,
-    getMessagesForConversation,
+    unreadCount,
+    isLoading,
+    fetchConversations,
+    fetchMessages,
     sendMessage,
     markConversationAsRead,
     createConversation,
     archiveConversation,
-    pinConversation,
-    muteConversation,
-    getUnreadCount,
+    updateConversationSettings,
   } = useMessagingStore();
-  const { users, getUserById } = useUsersStore();
-  const { products, getProductById } = useProductsStore();
+  const { users } = useUsersStore();
+  const { getProductById } = useProductsStore();
 
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -101,12 +101,24 @@ function MessagesPageContent() {
   const [showNewConversation, setShowNewConversation] = useState(false);
   const [newConversationVendorId, setNewConversationVendorId] = useState("");
   const [newConversationMessage, setNewConversationMessage] = useState("");
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Determine user role and get conversations
+  // Determine user role
   const userRole = user?.role === 'vendor' ? 'vendor' : 'buyer';
-  const userConversations = user ? getConversationsForUser(user.id, userRole) : [];
+  
+  // Fetch conversations on mount
+  useEffect(() => {
+    if (user && isHydrated) {
+      fetchConversations();
+    }
+  }, [user, isHydrated, fetchConversations]);
+  
+  // Filter conversations based on user role
+  const userConversations = conversations.filter(conv => 
+    userRole === 'buyer' ? conv.buyerId === user?.id : conv.vendorId === user?.id
+  );
 
   // Handle vendor param on mount
   useEffect(() => {
@@ -124,17 +136,18 @@ function MessagesPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorParam, user, userRole]);
 
+  // Fetch messages when conversation is selected
+  useEffect(() => {
+    if (selectedConversationId) {
+      fetchMessages(selectedConversationId);
+      markConversationAsRead(selectedConversationId);
+    }
+  }, [selectedConversationId, fetchMessages, markConversationAsRead]);
+  
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, selectedConversationId]);
-
-  // Mark conversation as read when selected
-  useEffect(() => {
-    if (selectedConversationId && user) {
-      markConversationAsRead(selectedConversationId, user.id, userRole);
-    }
-  }, [selectedConversationId, user, userRole, markConversationAsRead]);
 
   // Filter conversations
   const filteredConversations = userConversations.filter(conv => {
@@ -148,23 +161,19 @@ function MessagesPageContent() {
   });
 
   const selectedConversation = userConversations.find(c => c.id === selectedConversationId);
-  const conversationMessages = selectedConversationId ? getMessagesForConversation(selectedConversationId) : [];
+  const conversationMessages = selectedConversationId ? (messages[selectedConversationId] || []) : [];
 
   const handleSendMessage = async () => {
     if (!messageInput.trim() || !selectedConversation || !user) return;
 
     setIsSending(true);
     try {
-      sendMessage({
-        conversationId: selectedConversation.id,
-        senderId: user.id,
-        senderName: user.name,
-        senderRole: userRole,
-        senderAvatar: user.avatar,
-        content: messageInput.trim(),
-        type: 'text',
-      });
-      setMessageInput("");
+      const result = await sendMessage(selectedConversation.id, messageInput.trim(), 'text');
+      if (result) {
+        setMessageInput("");
+      } else {
+        toast.error("Failed to send message");
+      }
     } catch (error) {
       toast.error("Failed to send message");
     } finally {
@@ -172,73 +181,69 @@ function MessagesPageContent() {
     }
   };
 
-  const handleCreateConversation = () => {
+  const handleCreateConversation = async () => {
     if (!newConversationVendorId || !newConversationMessage.trim() || !user) {
       toast.error("Please select a vendor and enter a message");
-      return;
-    }
-
-    // Get vendor info
-    const vendor = users.find(u => u.id === newConversationVendorId);
-    if (!vendor) {
-      toast.error("Vendor not found");
       return;
     }
 
     // Get product info if provided
     const product = productParam ? getProductById(productParam) : undefined;
 
-    // Create conversation
-    const conv = createConversation({
-      buyerId: user.id,
-      buyerName: user.name,
-      buyerAvatar: user.avatar,
-      vendorId: vendor.id,
-      vendorName: vendor.name,
-      vendorAvatar: vendor.avatar,
-      vendorBusinessName: vendor.businessName,
-      context: product ? 'product_inquiry' : 'general',
-      productId: product?.id,
-      productName: product?.name,
-      productImage: product?.images?.[0],
-    });
+    setIsCreatingConversation(true);
+    try {
+      // Create conversation via API
+      const conv = await createConversation({
+        vendorId: newConversationVendorId,
+        productId: product?.id,
+        context: product ? 'product_inquiry' : 'general',
+      });
 
-    // Send first message
-    sendMessage({
-      conversationId: conv.id,
-      senderId: user.id,
-      senderName: user.name,
-      senderRole: 'buyer',
-      senderAvatar: user.avatar,
-      content: newConversationMessage.trim(),
-      type: 'text',
-    });
+      if (!conv) {
+        toast.error("Failed to create conversation");
+        return;
+      }
 
-    setSelectedConversationId(conv.id);
-    setShowNewConversation(false);
-    setNewConversationVendorId("");
-    setNewConversationMessage("");
-    toast.success("Conversation started!");
+      // Send first message
+      const message = await sendMessage(conv.id, newConversationMessage.trim(), 'text');
+      if (!message) {
+        toast.error("Conversation created but failed to send message");
+      }
+
+      setSelectedConversationId(conv.id);
+      setShowNewConversation(false);
+      setNewConversationVendorId("");
+      setNewConversationMessage("");
+      toast.success("Conversation started!");
+    } catch (error) {
+      toast.error("Failed to start conversation");
+    } finally {
+      setIsCreatingConversation(false);
+    }
   };
 
-  const togglePin = (conv: Conversation) => {
-    pinConversation(conv.id, !conv.isPinned);
-    toast.success(conv.isPinned ? "Conversation unpinned" : "Conversation pinned");
+  const togglePin = async (conv: Conversation) => {
+    const isPinned = userRole === 'buyer' ? conv.isPinnedBuyer : conv.isPinnedVendor;
+    await updateConversationSettings(conv.id, { isPinned: !isPinned });
+    toast.success(isPinned ? "Conversation unpinned" : "Conversation pinned");
+    fetchConversations();
   };
 
-  const toggleMute = (conv: Conversation) => {
-    const isMuted = userRole === 'buyer' ? conv.isMutedByBuyer : conv.isMutedByVendor;
-    muteConversation(conv.id, userRole, !isMuted);
+  const toggleMute = async (conv: Conversation) => {
+    const isMuted = userRole === 'buyer' ? conv.isMutedBuyer : conv.isMutedVendor;
+    await updateConversationSettings(conv.id, { isMuted: !isMuted });
     toast.success(isMuted ? "Notifications enabled" : "Notifications muted");
+    fetchConversations();
   };
 
-  const handleArchive = (conv: Conversation) => {
+  const handleArchive = async (conv: Conversation) => {
     if (!user) return;
-    archiveConversation(conv.id, user.id);
+    await archiveConversation(conv.id);
     if (selectedConversationId === conv.id) {
       setSelectedConversationId(null);
     }
     toast.success("Conversation archived");
+    fetchConversations();
   };
 
   const formatTime = (timestamp: string) => {
@@ -260,7 +265,7 @@ function MessagesPageContent() {
   };
 
   const isMuted = (conv: Conversation) => {
-    return userRole === 'buyer' ? conv.isMutedByBuyer : conv.isMutedByVendor;
+    return userRole === 'buyer' ? conv.isMutedBuyer : conv.isMutedVendor;
   };
 
   const getParticipantName = (conv: Conversation) => {
@@ -306,7 +311,7 @@ function MessagesPageContent() {
     );
   }
 
-  const totalUnread = getUnreadCount(user.id, userRole);
+  const totalUnread = unreadCount;
 
   return (
     <SiteLayout>
@@ -386,7 +391,7 @@ function MessagesPageContent() {
                         } ${conv.status === 'archived' ? 'opacity-60' : ''}`}
                       >
                         {/* Pin indicator */}
-                        {conv.isPinned && (
+                        {(userRole === 'buyer' ? conv.isPinnedBuyer : conv.isPinnedVendor) && (
                           <div className="absolute top-2 left-2 w-2 h-2 bg-blue-500 rounded-full" />
                         )}
 
@@ -450,7 +455,7 @@ function MessagesPageContent() {
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); togglePin(conv); }}>
-                                {conv.isPinned ? "Unpin" : "Pin"} Conversation
+                                {(userRole === 'buyer' ? conv.isPinnedBuyer : conv.isPinnedVendor) ? "Unpin" : "Pin"} Conversation
                               </DropdownMenuItem>
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toggleMute(conv); }}>
                                 {convIsMuted ? <Volume2 className="w-4 h-4 mr-2" /> : <VolumeX className="w-4 h-4 mr-2" />}
