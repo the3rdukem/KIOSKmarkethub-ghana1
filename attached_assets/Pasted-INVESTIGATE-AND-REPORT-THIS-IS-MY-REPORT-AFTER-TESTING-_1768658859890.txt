@@ -1,0 +1,47 @@
+INVESTIGATE AND REPORT: THIS IS MY REPORT AFTER TESTING THE REPORTED IMPLEMENTATIONS BY AGENT. Investigate and report. DO NOT CHANGE ANY CODE, DO NOT FIX ANYTHING. INVESTIGATE AND REPORT ONLY
+
+Messaging:
+
+When I click CONTACT on product details page, It opens a conversation POPOVER but it doesn’t automatically select the related vendor. The popover has a Select Vendor dropdown but it doesn’t even load any options. 
+
+When a buy clicks CONTACT on a product details page and VENDOR STORE page, it should automatically initiate a conversation with the Vendor of the product or the vendor of the store. 
+
+Even Though the POPOVER doesn’t show the Vendor, it seems when I type a message and click send, it initiates a conversation with the vendor. 
+
+On the messaging Page, I typed a message and it triggered a console error: ## Error Type
+Console SyntaxError
+
+## Error Message
+Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+
+Next.js version: 15.5.9 (Turbopack)
+
+The second attempt to send a message went through. 
+
+Aside the problems I mentioned above, messages seem to deliver fine between buyer and vendor. 
+
+IMPROVEMENTS:
+Attach photos ICON doesn’t trigger any action. This should be fixed. 
+
+When a buyer clicks contact from a product page, the message should reference the product so the vendor can know which product the buyer is inquiring about. 
+
+The Store name at the top of messaging should link to the store page and buyer page. 
+
+Vendor should be able to send a product link directly in messaging. 
+_______
+
+NOTIFICATIONS:
+
+I created a number of actions from buyer: message from product page, message from store page, place an order and the vendor didn’t get any notifications or bell icon count. I fulfilled order from vendor end and the buyer didn’t get any notifications 
+
+
+___________
+
+
+* Admin API endpoints:
+    * GET/POST /api/admin/email/config - Configure email provider
+    * GET /api/admin/email/health - Check provider status
+    * GET/POST /api/admin/email/templates - Manage email templates
+I CAN NOT find any of these in the admin portal: There is no Email provider API management in Admin API management. 
+
+I CAN NOT find where to manage email templates in ADMIN portal 
