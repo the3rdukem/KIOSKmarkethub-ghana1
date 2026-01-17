@@ -1,0 +1,43 @@
+INVESTIGATE AND REPORT: THIS IS MY REPORT AFTER TESTING THE REPORTED IMPLEMENTATIONS BY AGENT. Investigate and report. DO NOT CHANGE ANY CODE, DO NOT FIX ANYTHING. INVESTIGATE AND REPORT ONLY
+
+Messaging:
+
+The messaging POPOVER now says Message Vendor. It should say Message “STORE NAME”
+
+
+Aside the problems I mentioned above, messages seem to deliver fine between buyer and vendor. 
+
+IMPROVEMENTS:
+
+Attach photo icon triggers actions and sends photo but only sends a link “📷 Image: 5dd70284fd9db2267c19edfc.webp
+/uploads/messages/messages_1768660147834_13d4b01b.webp” instead of the photo 
+
+When a buyer clicks contact from a product page, the message should reference the product so the vendor can know which product the buyer is inquiring about.  DOES NOT WORK
+
+The Store name at the top of messaging should link to the store page and buyer page. Clicking leads to a 404 page, but it worked with a different chat
+
+Vendor should be able to send a product link directly in messaging.  NOT working. Vendor should have a share product button that will load vendors live products to choose from to send to buyer. 
+_______
+
+NOTIFICATIONS:
+
+I created a number of actions from buyer: message from product page, message from store page, place an order and the vendor didn’t get any notifications or bell icon count. I fulfilled order from vendor end and the buyer didn’t get any notifications. STILL DOES WORK. The bell icon doesn’t give any new badges nor does it show old notifications 
+
+
+___________
+
+
+* Admin API endpoints:
+    * GET/POST /api/admin/email/config - Configure email provider
+    * GET /api/admin/email/health - Check provider status
+    * GET/POST /api/admin/email/templates - Manage email templates
+I CAN NOT find any of these in the admin portal: There is no Email provider API management in Admin API management. 
+
+I CAN NOT find where to manage email templates in ADMIN portal 
+__________________________
+
+
+
+FIX ALL THE ABOVE PROBLEMS, STRICT NO REGRESSION REULES APPLY. DO NOT BREAK ANYTHING WHILE TRYING TO FIX. 
+
+There is no need for a vendor dropdown field on the messaging POPOVER, it should only show the vendor the buyer wants to message.
