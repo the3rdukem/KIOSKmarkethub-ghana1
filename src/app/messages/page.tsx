@@ -109,6 +109,9 @@ function MessagesPageContent() {
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const [isLoadingVendor, setIsLoadingVendor] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [showProductPicker, setShowProductPicker] = useState(false);
+  const [vendorProducts, setVendorProducts] = useState<Array<{id: string; name: string; price: number; image?: string}>>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -132,8 +135,10 @@ function MessagesPageContent() {
   // Handle vendor param on mount - fetch vendor info and set up dialog
   useEffect(() => {
     if (vendorParam && user && userRole === 'buyer' && isHydrated) {
-      // Check if conversation exists with this vendor
-      const existingConv = userConversations.find(c => c.vendorId === vendorParam);
+      // Check if conversation exists with this vendor (and optionally same product)
+      const existingConv = productParam 
+        ? userConversations.find(c => c.vendorId === vendorParam && c.productId === productParam)
+        : userConversations.find(c => c.vendorId === vendorParam);
       if (existingConv) {
         setSelectedConversationId(existingConv.id);
       } else {
@@ -154,13 +159,17 @@ function MessagesPageContent() {
           .catch(() => setNewConversationVendorName('Vendor'))
           .finally(() => setIsLoadingVendor(false));
         
-        // Get product info if provided and set initial message
+        // Fetch product info via API if provided and set initial message
         if (productParam) {
-          const product = getProductById(productParam);
-          if (product) {
-            setNewConversationProductName(product.name);
-            setNewConversationMessage(`Hi, I'm interested in "${product.name}". `);
-          }
+          fetch(`/api/products/${productParam}`)
+            .then(res => res.ok ? res.json() : null)
+            .then(data => {
+              if (data?.product?.name) {
+                setNewConversationProductName(data.product.name);
+                setNewConversationMessage(`Hi, I'm interested in "${data.product.name}". `);
+              }
+            })
+            .catch(err => console.error('Failed to fetch product:', err));
         }
         
         setShowNewConversation(true);
@@ -220,16 +229,13 @@ function MessagesPageContent() {
       return;
     }
 
-    // Get product info if provided
-    const product = productParam ? getProductById(productParam) : undefined;
-
     setIsCreatingConversation(true);
     try {
-      // Create conversation via API
+      // Create conversation via API - use productParam directly
       const conv = await createConversation({
         vendorId: newConversationVendorId,
-        productId: product?.id,
-        context: product ? 'product_inquiry' : 'general',
+        productId: productParam || undefined,
+        context: productParam ? 'product_inquiry' : 'general',
       });
 
       if (!conv) {
@@ -341,6 +347,50 @@ function MessagesPageContent() {
     }
   };
 
+  const handleOpenProductPicker = async () => {
+    if (!user || userRole !== 'vendor') return;
+    
+    setIsLoadingProducts(true);
+    setShowProductPicker(true);
+    
+    try {
+      const response = await fetch(`/api/products?vendorId=${user.id}&status=active`, {
+        credentials: 'include',
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setVendorProducts(data.products || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch products:', error);
+      toast.error('Failed to load products');
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+
+  const handleShareProduct = async (product: {id: string; name: string; price: number; image?: string}) => {
+    if (!selectedConversation || !user) return;
+    
+    setIsSending(true);
+    try {
+      const productLink = `/product/${product.id}`;
+      const messageContent = `🛍️ Check out this product:\n\n**${product.name}**\nPrice: GHS ${product.price.toLocaleString()}\n${productLink}`;
+      
+      const result = await sendMessage(selectedConversation.id, messageContent, 'text');
+      if (result) {
+        toast.success('Product shared');
+        setShowProductPicker(false);
+      } else {
+        toast.error('Failed to share product');
+      }
+    } catch (error) {
+      toast.error('Failed to share product');
+    } finally {
+      setIsSending(false);
+    }
+  };
+
   const formatTime = (timestamp: string) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -373,6 +423,48 @@ function MessagesPageContent() {
     return userRole === 'buyer' ? conv.vendorAvatar : conv.buyerAvatar;
   };
 
+  const renderMessageContent = (content: string, messageType?: string, isOwnMessage?: boolean) => {
+    if (messageType === 'image' || content.startsWith('📷 Image:')) {
+      const lines = content.split('\n');
+      const urlLine = lines.find(line => line.startsWith('/uploads/') || line.includes('/uploads/'));
+      if (urlLine) {
+        const imageUrl = urlLine.trim();
+        return (
+          <div className="space-y-1">
+            <a href={imageUrl} target="_blank" rel="noopener noreferrer">
+              <img 
+                src={imageUrl} 
+                alt="Shared image" 
+                className="max-w-[250px] max-h-[200px] rounded-lg object-cover cursor-pointer hover:opacity-90 transition-opacity"
+              />
+            </a>
+          </div>
+        );
+      }
+    }
+    
+    if (messageType === 'file' || content.startsWith('📎 File:')) {
+      const lines = content.split('\n');
+      const fileNameLine = lines.find(line => line.startsWith('📎 File:'));
+      const urlLine = lines.find(line => line.startsWith('/uploads/') || line.includes('/uploads/'));
+      if (urlLine) {
+        const fileName = fileNameLine?.replace('📎 File:', '').trim() || 'Download file';
+        return (
+          <a 
+            href={urlLine.trim()} 
+            target="_blank" 
+            rel="noopener noreferrer"
+            className={`flex items-center gap-2 ${isOwnMessage ? 'text-white hover:text-green-100' : 'text-green-600 hover:text-green-700'} underline`}
+          >
+            <Paperclip className="w-4 h-4" />
+            <span className="text-sm">{fileName}</span>
+          </a>
+        );
+      }
+    }
+    
+    return <p className="text-sm whitespace-pre-wrap">{content}</p>;
+  };
 
   // Wait for hydration before showing auth-dependent content
   if (!isHydrated) {
@@ -588,16 +680,19 @@ function MessagesPageContent() {
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <Link 
-                        href={userRole === 'buyer' 
-                          ? `/vendor/${selectedConversation.vendorId}` 
-                          : `/buyer/${selectedConversation.buyerId}`
-                        }
-                        className="font-semibold hover:text-green-600 hover:underline flex items-center gap-1"
-                      >
-                        {getParticipantName(selectedConversation)}
-                        <ExternalLink className="w-3 h-3 opacity-50" />
-                      </Link>
+                      {userRole === 'buyer' ? (
+                        <Link 
+                          href={`/vendor/${selectedConversation.vendorId}`}
+                          className="font-semibold hover:text-green-600 hover:underline flex items-center gap-1"
+                        >
+                          {getParticipantName(selectedConversation)}
+                          <ExternalLink className="w-3 h-3 opacity-50" />
+                        </Link>
+                      ) : (
+                        <span className="font-semibold">
+                          {getParticipantName(selectedConversation)}
+                        </span>
+                      )}
                       {selectedConversation.productName && (
                         <div className="flex items-center gap-1 text-xs text-muted-foreground">
                           <Package className="w-3 h-3" />
@@ -657,7 +752,7 @@ function MessagesPageContent() {
                                       : 'bg-gray-100 text-gray-900 rounded-bl-sm'
                                   }`}
                                 >
-                                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                                  {renderMessageContent(msg.content, msg.messageType, isOwnMessage)}
                                 </div>
                                 <div className={`flex items-center gap-1 mt-1 text-xs text-muted-foreground ${isOwnMessage ? 'justify-end' : ''}`}>
                                   <span>{format(new Date(msg.createdAt), 'h:mm a')}</span>
@@ -741,6 +836,18 @@ function MessagesPageContent() {
                         >
                           <ImageIcon className="w-4 h-4" />
                         </Button>
+                        {userRole === 'vendor' && (
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-8 w-8 p-0"
+                            onClick={handleOpenProductPicker}
+                            disabled={isSending}
+                            title="Share product"
+                          >
+                            <ShoppingBag className="w-4 h-4" />
+                          </Button>
+                        )}
                       </div>
                     </div>
                     <Button
@@ -790,7 +897,7 @@ function MessagesPageContent() {
         }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Message Vendor</DialogTitle>
+              <DialogTitle>Message {newConversationVendorName || 'Vendor'}</DialogTitle>
               <DialogDescription>
                 Start a conversation with this vendor
               </DialogDescription>
@@ -855,6 +962,64 @@ function MessagesPageContent() {
                 Send Message
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Product Picker Dialog for Vendors */}
+        <Dialog open={showProductPicker} onOpenChange={setShowProductPicker}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShoppingBag className="w-5 h-5" />
+                Share a Product
+              </DialogTitle>
+              <DialogDescription>
+                Select a product to share with this buyer
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              {isLoadingProducts ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
+                </div>
+              ) : vendorProducts.length === 0 ? (
+                <div className="text-center py-8">
+                  <Package className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                  <p className="text-gray-500">No products available</p>
+                  <p className="text-sm text-muted-foreground">Add products to your store first</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[300px] pr-4">
+                  <div className="space-y-2">
+                    {vendorProducts.map((product) => (
+                      <button
+                        key={product.id}
+                        onClick={() => handleShareProduct(product)}
+                        disabled={isSending}
+                        className="w-full flex items-center gap-3 p-3 rounded-lg border hover:bg-gray-50 transition-colors text-left disabled:opacity-50"
+                      >
+                        {product.image ? (
+                          <img 
+                            src={product.image} 
+                            alt={product.name}
+                            className="w-12 h-12 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center">
+                            <Package className="w-6 h-6 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{product.name}</p>
+                          <p className="text-sm text-green-600">GHS {product.price.toLocaleString()}</p>
+                        </div>
+                        <Send className="w-4 h-4 text-gray-400" />
+                      </button>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>

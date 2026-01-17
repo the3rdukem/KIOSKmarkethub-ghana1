@@ -61,7 +61,7 @@ function mapRowToNotification(row: DbNotificationRow): Notification {
     title: row.title,
     message: row.message,
     payload: row.payload ? JSON.parse(row.payload) : undefined,
-    isRead: row.is_read === 1,
+    isRead: Boolean(row.is_read),
     createdAt: row.created_at,
   };
 }
