@@ -1,0 +1,179 @@
+PHASE 4B — ARKESEL OTP (LIVE MODE)
+
+AUDIT → CONTROLLED IMPLEMENTATION MASTER PROMPT (VERY STRICT)
+
+ROLE: Senior Backend Engineer
+MODE: Audit First → Minimal Live Integration
+RISK LEVEL: HIGH (Auth System)
+ABSOLUTE RULE: OTP must be globally disable-able from Admin without redeploy.
+
+⸻
+
+1️⃣ MANDATORY AUDIT (DO NOT WRITE CODE YET)
+
+Before changing anything, produce an explicit audit report covering:
+
+A. Current Auth & OTP State
+	•	Is OTP currently:
+	•	Required for registration?
+	•	Required for login?
+	•	Required for password reset?
+	•	Disabled / stubbed?
+	•	List every route referencing OTP (file + line).
+	•	Confirm whether login/registration currently works without OTP.
+
+B. Arkesel Integration Status
+
+Verify:
+	•	API key present in DB or env
+	•	Sender ID present
+	•	Endpoint currently used (SMS vs OTP)
+	•	No sandbox support exists (confirm)
+
+C. Failure Risk Mapping
+
+Explicitly answer:
+	•	What happens if Arkesel is down?
+	•	What happens if OTP delivery fails?
+	•	Can users be permanently locked out?
+
+🚫 DO NOT IMPLEMENT ANYTHING UNTIL AUDIT IS COMPLETE AND REPORTED
+
+⸻
+
+2️⃣ LIVE OTP IMPLEMENTATION (CONTROLLED)
+
+Proceed only after audit approval.
+
+🔐 Core Rules
+	•	OTP is LIVE
+	•	OTP can be globally disabled via Admin → Integrations
+	•	OTP must fail open when disabled (auth continues)
+
+⸻
+
+3️⃣ ADMIN KILL-SWITCH (MANDATORY)
+
+Add / verify a single authoritative flag:
+
+integrations.id = 'arkesel'
+otp_enabled = true | false
+
+Enforcement Rules
+	•	If otp_enabled === false:
+	•	OTP is NOT sent
+	•	OTP verification is skipped
+	•	Auth proceeds normally
+	•	No redeploy required
+	•	No env flag duplication
+
+🚫 No per-user overrides
+🚫 No frontend trust
+🚫 Server-enforced only
+
+⸻
+
+4️⃣ OTP FLOW (MINIMAL & SAFE)
+
+OTP Generation
+	•	Server-side only
+	•	6 digits
+	•	Expiry: 5 minutes
+	•	Stored with:
+	•	phone
+	•	purpose (register / login / reset)
+	•	expires_at
+	•	attempts
+	•	verified_at (nullable)
+
+OTP Rules
+	•	Single-use
+	•	Max 3 attempts
+	•	Expired OTP rejected
+	•	New OTP invalidates old ones
+
+SMS Delivery
+	•	Use Arkesel LIVE endpoint
+	•	Sender ID must be configurable
+	•	Errors must be logged but must not crash auth
+
+⸻
+
+5️⃣ STRICT NON-REGRESSION GUARANTEES
+
+You MUST NOT:
+	•	Break login without OTP when disabled
+	•	Change existing auth routes signatures
+	•	Change session handling
+	•	Introduce new UI
+	•	Add email fallback
+	•	Add new providers
+	•	Modify unrelated validation
+
+OTP must be additive, not invasive.
+
+⸻
+
+6️⃣ FAILURE HANDLING (REQUIRED)
+
+If OTP send fails:
+	•	User receives a clear error
+	•	OTP attempt is not consumed
+	•	No partial account state created
+	•	Admin logs record failure reason
+
+If verification fails:
+	•	Attempts increment
+	•	Lock after max attempts
+	•	No account creation/login
+
+⸻
+
+7️⃣ LOGGING & AUDITABILITY
+
+Required logs:
+
+[ARKESEL_OTP_SEND]
+[ARKESEL_OTP_VERIFY]
+[ARKESEL_OTP_DISABLED]
+[ARKESEL_OTP_FAILURE]
+
+🚫 Never log OTP codes in production logs
+
+⸻
+
+8️⃣ VERIFICATION (MANDATORY)
+
+Provide manual test results:
+	•	OTP enabled → register → success
+	•	OTP enabled → wrong code → blocked
+	•	OTP enabled → expired → blocked
+	•	OTP disabled → register/login works
+	•	Arkesel failure → graceful error
+	•	Admin toggles OTP without redeploy
+
+⸻
+
+9️⃣ DELIVERABLE FORMAT (STRICT)
+
+Your response MUST include:
+	1.	Audit report
+	2.	Implementation summary
+	3.	Exact files changed (path + reason)
+	4.	Manual test results
+	5.	Explicit confirmation:
+
+“OTP is LIVE, admin-controlled, fail-safe, and introduces no regressions.”
+
+⸻
+
+🚨 AUTO-FAIL CONDITIONS
+
+Task is FAILED if you:
+	•	Skip audit
+	•	Hard-require OTP without kill-switch
+	•	Lock users out on Arkesel failure
+	•	Add features beyond OTP
+	•	Touch unrelated auth logic
+
+⸻
