@@ -166,7 +166,7 @@ function MessagesPageContent() {
             .then(data => {
               if (data?.product?.name) {
                 setNewConversationProductName(data.product.name);
-                setNewConversationMessage(`Hi, I'm interested in "${data.product.name}". `);
+                setNewConversationMessage(`Hi, I'm interested in "${data.product.name}".\n/product/${productParam}`);
               }
             })
             .catch(err => console.error('Failed to fetch product:', err));
@@ -186,9 +186,9 @@ function MessagesPageContent() {
     }
   }, [selectedConversationId, fetchMessages, markConversationAsRead]);
   
-  // Scroll to bottom when messages change
+  // Scroll to bottom when messages change (within container only)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [messages, selectedConversationId]);
 
   // Filter conversations
@@ -475,6 +475,8 @@ function MessagesPageContent() {
                 <a
                   key={index}
                   href={part}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={`underline ${isOwnMessage ? 'text-green-100 hover:text-white' : 'text-green-600 hover:text-green-700'}`}
                 >
                   View Product
@@ -707,6 +709,8 @@ function MessagesPageContent() {
                       {userRole === 'buyer' ? (
                         <Link 
                           href={`/vendor/${selectedConversation.vendorId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
                           className="font-semibold hover:text-green-600 hover:underline flex items-center gap-1"
                         >
                           {getParticipantName(selectedConversation)}
@@ -723,6 +727,8 @@ function MessagesPageContent() {
                           {selectedConversation.productId ? (
                             <Link 
                               href={`/product/${selectedConversation.productId}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
                               className="hover:text-green-600 hover:underline"
                             >
                               {selectedConversation.productName}
