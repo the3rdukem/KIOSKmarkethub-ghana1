@@ -576,7 +576,7 @@ function MessagesPageContent() {
       <div className="container py-8">
         <div className="flex h-[calc(100vh-200px)] bg-white rounded-lg border overflow-hidden">
           {/* Conversations Sidebar */}
-          <div className="w-80 border-r flex flex-col">
+          <div className="w-96 border-r flex flex-col">
             {/* Header */}
             <div className="p-4 border-b">
               <div className="flex items-center justify-between mb-4">
