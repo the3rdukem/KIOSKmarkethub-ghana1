@@ -16,6 +16,28 @@ import { createNotification } from '@/lib/db/dal/notifications';
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const MESSAGE_RATE_LIMIT = 10;
+const RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const messageRateLimits = new Map<string, { count: number; windowStart: number }>();
+
+function checkMessageRateLimit(userId: string): { allowed: boolean; retryAfterMs?: number } {
+  const now = Date.now();
+  const userLimit = messageRateLimits.get(userId);
+  
+  if (!userLimit || now - userLimit.windowStart > RATE_LIMIT_WINDOW_MS) {
+    messageRateLimits.set(userId, { count: 1, windowStart: now });
+    return { allowed: true };
+  }
+  
+  if (userLimit.count >= MESSAGE_RATE_LIMIT) {
+    const retryAfterMs = RATE_LIMIT_WINDOW_MS - (now - userLimit.windowStart);
+    return { allowed: false, retryAfterMs };
+  }
+  
+  userLimit.count++;
+  return { allowed: true };
+}
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -82,6 +104,15 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (role !== 'buyer' && role !== 'vendor') {
       return NextResponse.json({ error: 'Admins should use /api/admin/messaging endpoint' }, { status: 403 });
+    }
+
+    const rateCheck = checkMessageRateLimit(session.userId);
+    if (!rateCheck.allowed) {
+      const retryAfterSeconds = Math.ceil((rateCheck.retryAfterMs || 60000) / 1000);
+      return NextResponse.json(
+        { error: `Rate limit exceeded. Please wait ${retryAfterSeconds} seconds before sending another message.` },
+        { status: 429, headers: { 'Retry-After': String(retryAfterSeconds) } }
+      );
     }
 
     const conversation = await getConversationForUser(id, session.userId, role);

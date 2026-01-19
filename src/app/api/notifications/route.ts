@@ -62,9 +62,9 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     
-    if (!body.userId || !body.role || !body.type || !body.title || !body.message) {
+    if (!body.userId || !body.role || !body.title || !body.message) {
       return NextResponse.json(
-        { error: 'Missing required fields: userId, role, type, title, message' },
+        { error: 'Missing required fields: userId, role, title, message' },
         { status: 400 }
       );
     }
@@ -80,11 +80,24 @@ export async function POST(request: NextRequest) {
     const input: CreateNotificationInput = {
       userId: body.userId,
       role: body.role,
-      type: body.type,
+      type: 'system',
       title: body.title,
       message: body.message,
-      payload: body.payload,
+      payload: { 
+        ...body.payload, 
+        _adminCreated: true,
+        _createdBy: admin.id,
+        _createdAt: new Date().toISOString(),
+      },
     };
+
+    console.log('[NOTIFICATIONS_API] Admin system notification created', {
+      adminId: admin.id,
+      adminEmail: admin.email,
+      targetUserId: body.userId,
+      targetRole: body.role,
+      title: body.title,
+    });
 
     const notification = await createNotification(input);
     return NextResponse.json({ notification }, { status: 201 });
