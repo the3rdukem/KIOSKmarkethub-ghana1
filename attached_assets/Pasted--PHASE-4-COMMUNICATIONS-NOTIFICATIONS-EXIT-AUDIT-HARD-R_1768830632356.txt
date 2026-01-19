@@ -1,0 +1,151 @@
+ PHASE 4 — COMMUNICATIONS & NOTIFICATIONS EXIT AUDIT
+
+🚫 HARD RULES
+	•	READ-ONLY AUDIT
+	•	NO new features
+	•	NO UI changes
+	•	NO refactors
+	•	NO schema changes
+	•	NO permissions changes
+	•	NO “nice to have” improvements
+
+Audit must only confirm correctness, safety, and completeness of what already exists.
+
+⸻
+
+1️⃣ In-App Notifications
+
+Verify:
+	•	Notifications are created only for:
+	•	New messages
+	•	Order status changes
+	•	System-required events
+	•	Notifications:
+	•	Belong to the correct user
+	•	Cannot be read by other users
+	•	Are marked read/unread correctly
+	•	Notification count matches unread items
+	•	No duplicate notifications for the same event
+
+Must Confirm:
+	•	No client-side creation of notifications
+	•	No admin ability to inject notifications
+	•	No cross-user leakage
+
+⸻
+
+2️⃣ Messaging / Conversations (Buyer ↔ Vendor)
+
+Verify:
+	•	Conversations are created:
+	•	Only when buyer initiates OR order context exists
+	•	Messages:
+	•	Are scoped strictly to participants
+	•	Cannot be read by admin
+	•	Cannot be read by other buyers/vendors
+	•	Product references:
+	•	Correctly link to the product
+	•	Do not break if product is unpublished
+	•	Attachments (images):
+	•	Upload successfully
+	•	Are visible only to participants
+
+Must Confirm:
+	•	No admin read access
+	•	No message editing after send
+	•	No impersonation paths
+	•	No orphaned conversations
+
+⸻
+
+3️⃣ Email Infrastructure (Foundation Only)
+
+Verify:
+	•	Email provider is connected
+	•	Emails are triggered for:
+	•	Account verification
+	•	Password reset
+	•	Critical system events only
+	•	Email sending:
+	•	Is server-side only
+	•	Has retry protection
+	•	Does not block core flows
+
+Explicitly Confirm:
+	•	No marketing emails
+	•	No bulk sends
+	•	No admin-triggered email blasts
+	•	No email preference UI (out of scope)
+
+⸻
+
+4️⃣ Permissions & Privacy
+
+Verify:
+	•	Buyer can only:
+	•	Message vendors they interacted with
+	•	See their own conversations
+	•	Vendor can only:
+	•	Message buyers from their products/orders
+	•	See conversations tied to their products
+	•	Admin:
+	•	Cannot view messages
+	•	Cannot send messages
+	•	Cannot impersonate users
+
+⸻
+
+5️⃣ Security & Abuse Safety (Passive)
+
+Verify:
+	•	All message endpoints:
+	•	Require authentication
+	•	Enforce ownership checks
+	•	Rate limits exist (basic)
+	•	No public conversation endpoints
+	•	No message content rendered unsafely (XSS)
+
+⸻
+
+6️⃣ Regression Checks
+
+Confirm:
+	•	Messaging does NOT affect:
+	•	Checkout
+	•	Orders
+	•	Payments
+	•	Reviews
+	•	Notifications do NOT:
+	•	Delay page loads
+	•	Block navigation
+	•	No console errors in:
+	•	Buyer flows
+	•	Vendor dashboard
+	•	Admin dashboard
+
+⸻
+
+✅ PASS / FAIL CRITERIA
+
+Phase 4 PASSES if:
+	•	All checks above are ✅
+	•	No privacy violations
+	•	No admin overreach
+	•	No crashes
+	•	No feature creep detected
+
+Phase 4 FAILS if:
+	•	Admin can read messages
+	•	Messages leak across users
+	•	Notifications duplicate or misfire
+	•	Email sends exceed foundational scope
+
+⸻
+
+🏁 FINAL OUTPUT REQUIRED FROM AGENT
+
+A single audit report with:
+	•	✅ Passed checks
+	•	❌ Failed checks (if any)
+	•	File references for failures
+	•	NO fixes implemented
