@@ -653,6 +653,39 @@ function MessagesPageContent() {
                           <div className="absolute top-2 left-2 w-2 h-2 bg-blue-500 rounded-full" />
                         )}
 
+                        {/* Conversation actions - placed as direct child of group for absolute positioning */}
+                        <div className="absolute top-2 right-2 z-10">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); togglePin(conv); }}>
+                                {(userRole === 'buyer' ? conv.isPinnedBuyer : conv.isPinnedVendor) ? "Unpin" : "Pin"} Conversation
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toggleMute(conv); }}>
+                                {convIsMuted ? <Volume2 className="w-4 h-4 mr-2" /> : <VolumeX className="w-4 h-4 mr-2" />}
+                                {convIsMuted ? "Unmute" : "Mute"}
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleArchive(conv); }}>
+                                <Archive className="w-4 h-4 mr-2" />
+                                Archive
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleClose(conv); }}>
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Close Conversation
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem className="text-red-600">
+                                <Flag className="w-4 h-4 mr-2" />
+                                Report
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+
                         <div className="flex items-start gap-3">
                           <div className="relative">
                             <Avatar className="w-10 h-10">
@@ -663,7 +696,7 @@ function MessagesPageContent() {
                             </Avatar>
                           </div>
 
-                          <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0 pr-6">
                             <div className="flex items-center justify-between mb-1">
                               <div className="flex items-center gap-2">
                                 <span className="font-medium text-sm truncate">
@@ -702,39 +735,6 @@ function MessagesPageContent() {
                                 <span>Order: {conv.orderNumber}</span>
                               </div>
                             )}
-                          </div>
-
-                          {/* Conversation actions */}
-                          <div className="absolute top-2 right-2">
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                                <Button variant="ghost" size="sm" className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100">
-                                  <MoreHorizontal className="w-3 h-3" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); togglePin(conv); }}>
-                                {(userRole === 'buyer' ? conv.isPinnedBuyer : conv.isPinnedVendor) ? "Unpin" : "Pin"} Conversation
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); toggleMute(conv); }}>
-                                {convIsMuted ? <Volume2 className="w-4 h-4 mr-2" /> : <VolumeX className="w-4 h-4 mr-2" />}
-                                {convIsMuted ? "Unmute" : "Mute"}
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleArchive(conv); }}>
-                                <Archive className="w-4 h-4 mr-2" />
-                                Archive
-                              </DropdownMenuItem>
-                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleClose(conv); }}>
-                                <XCircle className="w-4 h-4 mr-2" />
-                                Close Conversation
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-red-600">
-                                <Flag className="w-4 h-4 mr-2" />
-                                Report
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                            </DropdownMenu>
                           </div>
                         </div>
                       </div>
