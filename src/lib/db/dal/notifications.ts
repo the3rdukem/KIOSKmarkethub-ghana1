@@ -150,6 +150,16 @@ export async function markAllAsRead(userId: string): Promise<number> {
   return result.rowCount || 0;
 }
 
+export async function markMessageNotificationsAsRead(userId: string): Promise<number> {
+  const result = await query(
+    `UPDATE notifications SET is_read = 1 
+     WHERE user_id = $1 AND is_read = 0 
+     AND title = 'New Message'`,
+    [userId]
+  );
+  return result.rowCount || 0;
+}
+
 export async function notifyOrderCreated(
   buyerId: string,
   orderId: string,

@@ -69,6 +69,7 @@ function MessagesPageContent() {
   const searchParams = useSearchParams();
   const vendorParam = searchParams.get('vendor');
   const productParam = searchParams.get('product');
+  const conversationParam = searchParams.get('conversation');
 
   // Hydration state
   const [isHydrated, setIsHydrated] = useState(false);
@@ -177,6 +178,28 @@ function MessagesPageContent() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorParam, productParam, user, userRole, isHydrated]);
+
+  // Handle conversation param from notification deep-link
+  useEffect(() => {
+    if (conversationParam && user && isHydrated && conversations.length > 0) {
+      const targetConv = conversations.find(c => c.id === conversationParam);
+      if (targetConv) {
+        setSelectedConversationId(conversationParam);
+      }
+    }
+  }, [conversationParam, user, isHydrated, conversations]);
+
+  // Mark message notifications as read when visiting messages page
+  useEffect(() => {
+    if (user && isHydrated) {
+      fetch('/api/notifications/read', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ type: 'message' }),
+      }).catch(() => {});
+    }
+  }, [user, isHydrated]);
 
   // Fetch messages when conversation is selected
   useEffect(() => {

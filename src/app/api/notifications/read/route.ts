@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSessionToken } from '@/lib/db/dal/auth-service';
-import { markAsRead, markAllAsRead } from '@/lib/db/dal/notifications';
+import { markAsRead, markAllAsRead, markMessageNotificationsAsRead } from '@/lib/db/dal/notifications';
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,6 +28,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, markedCount: count });
     }
 
+    if (body.type === 'message') {
+      const count = await markMessageNotificationsAsRead(session.userId);
+      return NextResponse.json({ success: true, markedCount: count });
+    }
+
     if (body.notificationId) {
       const success = await markAsRead(body.notificationId, session.userId);
       if (!success) {
@@ -40,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     return NextResponse.json(
-      { error: 'Provide notificationId or all: true' },
+      { error: 'Provide notificationId, type, or all: true' },
       { status: 400 }
     );
   } catch (error) {
