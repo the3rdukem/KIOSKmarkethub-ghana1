@@ -144,17 +144,24 @@ export async function POST(request: NextRequest) {
       interface ProductRow {
         id: string;
         name: string;
-        main_image?: string;
+        images?: string;
       }
       const productResult = await query<ProductRow>(
-        'SELECT id, name, main_image FROM products WHERE id = $1',
+        'SELECT id, name, images FROM products WHERE id = $1',
         [productId]
       );
       if (productResult.rows.length > 0) {
         const product = productResult.rows[0];
         input.productId = product.id;
         input.productName = product.name;
-        input.productImage = product.main_image;
+        if (product.images) {
+          try {
+            const imagesArray = JSON.parse(product.images);
+            input.productImage = Array.isArray(imagesArray) && imagesArray.length > 0 ? imagesArray[0] : undefined;
+          } catch {
+            input.productImage = undefined;
+          }
+        }
         input.context = 'product_inquiry';
       }
     }
