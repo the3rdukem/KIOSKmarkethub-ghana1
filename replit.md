@@ -136,3 +136,11 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - Notification deep linking: Order notifications include `orderId` param, message notifications include `conversationId` for direct navigation
 - Admin cancellation notifications: Fire-and-forget notifications sent to buyer and affected vendors when admin cancels an order
 - Double toast prevention: Removed duplicate toast.error calls in messaging page since store handles errors
+
+**Phase 4 Corrective Fixes (Jan 2026):**
+- **Admin notification injection guard**: Admin-created notifications forced to type='system' with metadata audit trail
+- **Messaging rate limiting**: 10 messages per 60 seconds per user with 429 response and Retry-After header
+- **Vendor-scoped conversations**: Product inquiries now match only buyer_id + vendor_id (excludes product_id and closed conversations), matching industry standard (Etsy/eBay pattern)
+- **Close conversation functionality**: DAL `closeConversation` function, API `action='close'` support, UI dropdown menu option with XCircle icon
+- **Dropdown menu visibility**: Added `group` class to conversation container for hover-triggered dropdown
+- **Admin listing fix**: `listConversationsForUser` properly handles 'admin' role without user_id filtering
