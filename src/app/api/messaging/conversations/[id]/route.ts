@@ -10,6 +10,7 @@ import {
   getConversationForUser,
   updateConversation,
   archiveConversation,
+  closeConversation,
 } from '@/lib/db/dal/messaging';
 
 export const dynamic = 'force-dynamic';
@@ -84,6 +85,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (action === 'archive') {
       await archiveConversation(id, session.userId, role);
+      return NextResponse.json({ success: true });
+    }
+
+    if (action === 'close') {
+      await closeConversation(id, session.userId, role);
       return NextResponse.json({ success: true });
     }
 

@@ -55,7 +55,8 @@ import {
   Loader2,
   ShoppingBag,
   Store,
-  ExternalLink
+  ExternalLink,
+  XCircle
 } from "lucide-react";
 import { formatDistance, format } from "date-fns";
 import { toast } from "sonner";
@@ -306,6 +307,29 @@ function MessagesPageContent() {
     }
     toast.success("Conversation archived");
     fetchConversations();
+  };
+
+  const handleClose = async (conv: Conversation) => {
+    if (!user) return;
+    try {
+      const response = await fetch(`/api/messaging/conversations/${conv.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'close' }),
+      });
+      if (response.ok) {
+        if (selectedConversationId === conv.id) {
+          setSelectedConversationId(null);
+        }
+        toast.success("Conversation closed");
+        fetchConversations();
+      } else {
+        toast.error("Failed to close conversation");
+      }
+    } catch {
+      toast.error("Failed to close conversation");
+    }
   };
 
   const handleFileUpload = async (file: File, type: 'image' | 'file') => {
@@ -618,7 +642,7 @@ function MessagesPageContent() {
                       <div
                         key={conv.id}
                         onClick={() => setSelectedConversationId(conv.id)}
-                        className={`p-3 rounded-lg cursor-pointer transition-colors relative ${
+                        className={`group p-3 rounded-lg cursor-pointer transition-colors relative ${
                           selectedConversationId === conv.id
                             ? "bg-green-50 border border-green-200"
                             : "hover:bg-gray-50"
@@ -698,6 +722,10 @@ function MessagesPageContent() {
                               <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleArchive(conv); }}>
                                 <Archive className="w-4 h-4 mr-2" />
                                 Archive
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleClose(conv); }}>
+                                <XCircle className="w-4 h-4 mr-2" />
+                                Close Conversation
                               </DropdownMenuItem>
                               <DropdownMenuSeparator />
                               <DropdownMenuItem className="text-red-600">

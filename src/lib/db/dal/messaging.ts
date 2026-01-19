@@ -295,26 +295,21 @@ export async function findConversation(
 ): Promise<DbConversation | null> {
   let sql = `
     SELECT * FROM conversations
-    WHERE buyer_id = $1 AND vendor_id = $2
+    WHERE buyer_id = $1 AND vendor_id = $2 AND status != 'closed'
   `;
   const params: (string | null)[] = [buyerId, vendorId];
   let paramIndex = 3;
 
-  if (context) {
-    sql += ` AND context = $${paramIndex}`;
-    params.push(context);
-    paramIndex++;
-  }
-
-  if (productId) {
-    sql += ` AND product_id = $${paramIndex}`;
-    params.push(productId);
-    paramIndex++;
-  }
-
   if (orderId) {
     sql += ` AND order_id = $${paramIndex}`;
     params.push(orderId);
+    paramIndex++;
+  } else if (context === 'order_support' || context === 'dispute') {
+    if (context) {
+      sql += ` AND context = $${paramIndex}`;
+      params.push(context);
+      paramIndex++;
+    }
   }
 
   sql += ' LIMIT 1';
@@ -353,7 +348,7 @@ export async function getConversationForUser(
 
 export async function listConversationsForUser(
   userId: string,
-  role: 'buyer' | 'vendor',
+  role: 'buyer' | 'vendor' | 'admin',
   options?: {
     limit?: number;
     cursor?: string;
@@ -364,14 +359,14 @@ export async function listConversationsForUser(
   const params: (string | number)[] = [];
   let paramIndex = 1;
 
-  let sql = 'SELECT * FROM conversations WHERE ';
+  let sql = 'SELECT * FROM conversations WHERE 1=1';
 
   if (role === 'buyer') {
-    sql += `buyer_id = $${paramIndex}`;
+    sql += ` AND buyer_id = $${paramIndex}`;
     params.push(userId);
     paramIndex++;
-  } else {
-    sql += `vendor_id = $${paramIndex}`;
+  } else if (role === 'vendor') {
+    sql += ` AND vendor_id = $${paramIndex}`;
     params.push(userId);
     paramIndex++;
   }
@@ -380,7 +375,7 @@ export async function listConversationsForUser(
     sql += ` AND status = $${paramIndex}`;
     params.push(options.status);
     paramIndex++;
-  } else {
+  } else if (role !== 'admin') {
     sql += ` AND status != 'closed'`;
   }
 
@@ -722,6 +717,24 @@ export async function archiveConversation(
     performedByRole: userRole,
     conversationId,
     details: 'Conversation archived',
+  });
+}
+
+export async function closeConversation(
+  conversationId: string,
+  userId: string,
+  userRole: 'buyer' | 'vendor'
+): Promise<void> {
+  await updateConversation(conversationId, {
+    status: 'closed',
+  });
+
+  await createMessagingAuditLog({
+    action: 'CONVERSATION_CLOSED',
+    performedBy: userId,
+    performedByRole: userRole,
+    conversationId,
+    details: 'Conversation closed by user',
   });
 }
 
