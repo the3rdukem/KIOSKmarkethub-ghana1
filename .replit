@@ -37,3 +37,8 @@ externalPort = 80
 deploymentTarget = "autoscale"
 run = ["npm", "run", "start"]
 build = ["npm", "run", "build"]
+
+[userenv]
+
+[userenv.shared]
+NEXT_PUBLIC_APP_URL = "https://f3395a92-886d-4a41-89f5-a91e9061aca4-00-2rvhx2k9akght.janeway.replit.dev"
