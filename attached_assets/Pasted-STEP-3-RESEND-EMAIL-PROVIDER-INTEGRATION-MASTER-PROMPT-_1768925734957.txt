@@ -1,0 +1,163 @@
+STEP 3 — RESEND EMAIL PROVIDER INTEGRATION
+
+MASTER PROMPT (AUDIT-FIRST · STRICT · ZERO REGRESSION)
+
+You are implementing STEP 3 of the Email System: integrating Resend as the first real email provider.
+
+⚠️ THIS IS NOT A GREENFIELD TASK.
+A partial email foundation already exists.
+You MUST audit before writing code.
+
+⸻
+
+⛔ HARD RULES (READ CAREFULLY)
+	1.	AUDIT FIRST. DO NOT CODE UNTIL AUDIT IS COMPLETE
+	2.	DO NOT modify existing DAL or auth flows
+	3.	DO NOT send real emails unless explicitly enabled
+	4.	DO NOT break dryRun or kill-switch behavior
+	5.	DO NOT introduce feature creep (no marketing emails, no bulk sends)
+	6.	DO NOT add UI or frontend changes
+	7.	NO REGRESSIONS — if anything breaks, stop and report
+
+⸻
+
+🎯 SCOPE (WHAT YOU ARE ALLOWED TO DO)
+
+✅ You MAY:
+	•	Add a Resend provider implementation
+	•	Wire Resend into the existing email abstraction
+	•	Respect is_enabled and dryRun
+	•	Send transactional emails only when enabled
+	•	Add minimal config validation
+	•	Log provider health clearly
+
+❌ You MAY NOT:
+	•	Modify auth flows
+	•	Add new tables
+	•	Add resend-specific logic outside the provider
+	•	Change existing email DAL logic
+	•	Send marketing emails
+	•	Add templates beyond what already exists
+
+⸻
+
+🧪 PHASE 1 — AUDIT (MANDATORY)
+
+Before writing any code, produce an Audit Report covering:
+
+A. Existing Email Infrastructure
+
+Confirm and document:
+	•	Files under src/lib/email/
+	•	How sendEmail() is currently invoked
+	•	Where provider selection occurs
+	•	How dryRun and is_enabled are enforced
+	•	Whether any code already references Resend
+
+B. Existing Email Usage
+
+Identify:
+	•	Which flows currently call sendEmail() (password reset, etc.)
+	•	Whether any flows expect synchronous vs async behavior
+	•	Whether failures are handled gracefully
+
+C. Environment & Config
+
+Check:
+	•	Are Resend API keys present anywhere? (ENV, DB, admin UI)
+	•	How provider credentials are stored in integrations
+	•	Whether provider type resend already exists in enums/types
+
+⛔ STOP AFTER AUDIT
+⛔ DO NOT IMPLEMENT UNTIL AUDIT IS COMPLETE AND SHARED
+
+⸻
+
+🛠️ PHASE 2 — IMPLEMENTATION (ONLY AFTER AUDIT)
+
+Once audit confirms what is missing, implement:
+
+1️⃣ Resend Provider (NEW FILE ONLY)
+
+Create:
+
+src/lib/email/providers/resend.provider.ts
+
+Must:
+	•	Implement the existing EmailProvider interface
+	•	Use Resend’s official SDK
+	•	Support:
+	•	subject
+	•	html body
+	•	plain text fallback
+	•	from address
+	•	Handle errors gracefully (no throws that crash auth)
+
+⸻
+
+2️⃣ Provider Registration (Minimal Change)
+
+Update provider selector to:
+	•	Return Resend provider ONLY when:
+	•	provider === ‘resend’
+	•	is_enabled === true
+	•	dryRun === false
+
+Otherwise:
+	•	Fall back to mock provider
+
+⸻
+
+3️⃣ Safety & Guards (REQUIRED)
+
+Ensure:
+	•	If Resend API key is missing → fail gracefully
+	•	If Resend throws → return { success: false }
+	•	No email is sent when:
+	•	dryRun === true
+	•	is_enabled === false
+
+⸻
+
+🧪 PHASE 3 — VERIFICATION (MANDATORY)
+
+Provide a Verification Checklist proving:
+	•	Mock provider still works
+	•	No real emails sent unless enabled
+	•	Password reset still functions in dry-run
+	•	Resend sends ONLY when explicitly enabled
+	•	No console errors
+	•	No auth regressions
+	•	No schema changes
+	•	No UI changes
+
+⸻
+
+📄 FINAL DELIVERABLE
+
+Your final response MUST include:
+	1.	Audit Report
+	2.	List of Files Created / Modified
+	3.	Verification Checklist
+	4.	Clear statement: “SAFE TO PROCEED” or “BLOCKED”
+
+⸻
+
+🔚 SUCCESS CRITERIA
+
+This task is complete ONLY IF:
+	•	Email abstraction remains provider-agnostic
+	•	Resend can be swapped out later without refactor
+	•	Password reset emails can be sent safely
+	•	Admin kill-switch still works
+	•	Dry-run mode still works
+	•	No regressions introduced
+
+⸻
+
+🔐 REMINDER
+
+Kiosk is a trust-based marketplace.
+Email is critical infrastructure, not a feature.
+
+Proceed carefully.
