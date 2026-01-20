@@ -1,0 +1,177 @@
+
+🔒 STEP 1 — EMAIL ABSTRACTION LAYER
+
+MASTER IMPLEMENTATION PROMPT (STRICT)
+
+⚠️ READ CAREFULLY — NON-NEGOTIABLE RULES
+
+You are implementing ONLY the missing email abstraction layer.
+
+❌ Do NOT:
+	•	Modify any existing DAL files
+	•	Touch authentication, registration, or login
+	•	Add password reset
+	•	Add OTP
+	•	Add UI
+	•	Send real emails
+	•	Add Resend / SendGrid / SES SDKs
+	•	Add environment variables
+	•	Change database schema
+
+✅ You MUST:
+	•	Reuse existing email config & templates DAL
+	•	Add a provider-agnostic abstraction
+	•	Default to mock / dry-run behavior
+	•	Respect admin kill-switch (is_enabled, dryRun)
+	•	Ensure zero regressions
+
+⸻
+
+🧾 AUDIT CONTEXT (CONFIRMED)
+
+Already exists (DO NOT MODIFY):
+	•	src/lib/db/dal/email.ts (config + templates only)
+	•	Admin API for email config & templates
+	•	email_templates table
+	•	Provider type enum (sendgrid | resend | ses | none)
+
+Confirmed missing (YOUR TASK):
+	•	❌ No sendEmail() function
+	•	❌ No provider interface
+	•	❌ No provider selector
+	•	❌ No mock provider
+	•	❌ No email runtime layer
+
+⸻
+
+🎯 OBJECTIVE
+
+Create a provider-agnostic email runtime layer that:
+	•	Exposes one entry point: sendEmail()
+	•	Uses mock provider only for now
+	•	Respects admin kill-switch + dry-run mode
+	•	Logs email intent safely (no secrets)
+	•	Can be extended later to Resend without refactor
+
+⸻
+
+🗂️ REQUIRED FILES (CREATE ONLY THESE)
+
+src/lib/email/
+├── email-provider.ts
+├── email-service.ts
+├── providers/
+│   └── mock.provider.ts
+└── index.ts
+
+❌ Do not create any other files
+❌ Do not modify existing files
+
+⸻
+
+📐 IMPLEMENTATION DETAILS (STRICT)
+
+1️⃣ email-provider.ts
+
+Define a provider contract only:
+	•	SendEmailParams type:
+	•	to: string
+	•	subject: string
+	•	html?: string
+	•	text?: string
+	•	templateId?: string
+	•	templateData?: Record<string, any>
+	•	EmailProvider interface:
+	•	send(params: SendEmailParams): Promise<{ success: boolean; messageId?: string }>;
+
+No logic. No imports from DAL.
+
+⸻
+
+2️⃣ providers/mock.provider.ts
+
+Implement a mock email provider:
+	•	Logs:
+	•	recipient
+	•	subject
+	•	templateId (if provided)
+	•	Never sends email
+	•	Always returns { success: true, messageId: 'mock' }
+	•	No secrets in logs
+	•	No side effects
+
+⸻
+
+3️⃣ index.ts
+
+Provider selector:
+	•	Import getEmailProviderConfig() from DAL
+	•	If:
+	•	provider = 'none'
+	•	OR is_enabled === false
+	•	OR dryRun === true
+→ return mock provider
+
+⚠️ Even if provider is resend | sendgrid | ses, STILL return mock provider
+(No real provider logic yet.)
+
+⸻
+
+4️⃣ email-service.ts
+
+This is the ONLY public entry point.
+
+Implement:
+
+sendEmail(params: SendEmailParams): Promise<{ success: boolean }>
+
+Rules:
+	•	Fetch provider config via DAL
+	•	If disabled → log + return { success: true }
+	•	Call provider .send()
+	•	Catch errors → log safely → return { success: false }
+	•	NEVER throw
+	•	NEVER block application flows
+
+⸻
+
+🧪 VERIFICATION REQUIREMENTS (MANDATORY)
+
+After implementation, confirm:
+	•	App builds without errors
+	•	No auth flow changes
+	•	No email is sent
+	•	Console logs show mock email intent
+	•	Admin email config still works
+	•	No new env vars added
+	•	No schema changes
+	•	No tests broken
+
+⸻
+
+🚫 OUT OF SCOPE (DO NOT TOUCH)
+	•	Password reset
+	•	Email verification
+	•	OTP
+	•	Resend SDK
+	•	Admin email sending UI
+	•	Rate limiting
+	•	Retry queues
+	•	Background jobs
+
+⸻
+
+✅ SUCCESS CRITERIA
+
+This step is complete ONLY IF:
+	•	sendEmail() exists and is callable
+	•	Kill-switch respected
+	•	Dry-run respected
+	•	Provider-agnostic architecture in place
+	•	Zero regressions verified
+
+⸻
+
+🛑 STOP AFTER THIS STEP
+
+Do NOT proceed to password reset or Resend integration until explicitly instructed.
