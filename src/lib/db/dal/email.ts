@@ -207,7 +207,7 @@ export async function updateEmailTemplate(
 }
 
 export async function checkEmailProviderHealth(): Promise<{
-  status: 'connected' | 'error' | 'not_configured';
+  status: 'healthy' | 'dry_run' | 'error' | 'not_configured';
   provider: EmailProvider;
   dryRun: boolean;
   message?: string;
@@ -225,7 +225,7 @@ export async function checkEmailProviderHealth(): Promise<{
   
   if (config.dryRun) {
     return {
-      status: 'connected',
+      status: 'dry_run',
       provider: config.provider,
       dryRun: true,
       message: 'Dry-run mode enabled - no emails will be sent'
@@ -233,7 +233,7 @@ export async function checkEmailProviderHealth(): Promise<{
   }
   
   return {
-    status: 'connected',
+    status: 'healthy',
     provider: config.provider,
     dryRun: false,
     message: `Connected to ${config.provider}`

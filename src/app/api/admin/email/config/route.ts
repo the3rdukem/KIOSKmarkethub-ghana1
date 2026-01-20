@@ -37,7 +37,8 @@ export async function GET(request: NextRequest) {
       fromName: config.fromName,
       dryRun: config.dryRun,
       region: config.region,
-      hasApiKey: !!config.apiKey
+      hasApiKey: !!config.apiKey,
+      enabled: config.provider !== 'none' && !!config.apiKey
     } : null;
 
     return NextResponse.json({ config: safeConfig, health });
