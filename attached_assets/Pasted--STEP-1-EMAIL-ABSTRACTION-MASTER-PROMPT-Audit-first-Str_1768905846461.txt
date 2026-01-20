@@ -1,0 +1,161 @@
+⸻
+
+🔒 STEP 1 — EMAIL ABSTRACTION MASTER PROMPT
+
+(Audit-first · Strict · Replit-proof · Zero feature creep)
+
+🎯 OBJECTIVE
+
+Create a provider-agnostic email abstraction layer for Kiosk only if it does not already exist.
+
+This step is FOUNDATION ONLY.
+No auth changes. No password reset yet. No real emails.
+
+⸻
+
+🚨 ABSOLUTE RULES
+	•	❌ Do NOT write code until audit is complete and reported
+	•	❌ Do NOT modify registration, login, OTP, or verification flows
+	•	❌ Do NOT send real emails
+	•	❌ Do NOT add UI, templates, retries, or queues
+	•	❌ Do NOT tightly couple to Resend
+	•	❌ Do NOT add database tables
+	•	❌ Do NOT refactor unrelated code
+
+Any violation = FAIL
+
+⸻
+
+1️⃣ REQUIRED — AUDIT FIRST (MANDATORY)
+
+Before writing any code, perform a read-only audit and report findings.
+
+Audit Checklist (Report Each Item)
+
+Search the codebase for:
+	•	Existing email services or utilities
+	•	Any sendEmail, email.ts, mailer, nodemailer, or provider SDK usage
+	•	Any abstraction or partial abstraction already present
+	•	Admin integrations related to email
+	•	Any environment variables related to email providers
+	•	Any unused or half-implemented email logic
+
+Audit Output (Required)
+
+You must report:
+	•	✅ Files already related to email (if any)
+	•	✅ What they currently do
+	•	✅ Whether an abstraction already exists
+	•	✅ Whether it is safe to extend or must be replaced
+	•	✅ Confirmation that no auth or password reset currently depends on email
+
+⚠️ If an abstraction already exists, you must:
+	•	Reuse it
+	•	OR explicitly justify why it must be replaced
+
+No assumptions allowed.
+
+⸻
+
+2️⃣ IMPLEMENTATION (ONLY AFTER AUDIT APPROVAL)
+
+Proceed only if audit confirms abstraction is missing or incomplete.
+
+A. Canonical Email Contract
+
+Create (or extend):
+
+src/lib/email/email-provider.ts
+
+export type EmailType =
+  | 'password_reset'
+  | 'account_verification'
+  | 'system_notification';
+
+export interface SendEmailParams {
+  to: string;
+  subject: string;
+  type: EmailType;
+  html: string;
+  text?: string;
+  metadata?: {
+    userId?: string;
+    tokenId?: string;
+    orderId?: string;
+  };
+}
+
+export interface EmailProvider {
+  send(params: SendEmailParams): Promise<{
+    success: boolean;
+    providerMessageId?: string;
+    error?: string;
+  }>;
+}
+
+
+⸻
+
+B. Single Email Service Entry Point
+
+src/lib/email/email-service.ts
+
+Rules:
+	•	This must be the ONLY place that sends email
+	•	Must respect admin kill-switch (integrations)
+	•	Must never throw
+
+⸻
+
+C. Mock Provider ONLY (No Real Sending)
+
+src/lib/email/providers/mock.provider.ts
+
+Behavior:
+	•	Log payload to console
+	•	Always return { success: true }
+	•	Used by default
+
+⚠️ Resend must NOT be installed yet
+
+⸻
+
+D. Provider Selector
+
+src/lib/email/index.ts
+
+Environment-based selection, mock by default.
+
+⸻
+
+3️⃣ STRICT EXIT REPORT (MANDATORY)
+
+You must explicitly confirm:
+	•	✅ Audit completed before coding
+	•	✅ Files added or reused
+	•	✅ No auth flows modified
+	•	✅ No real emails sent
+	•	✅ Mock provider is default
+	•	✅ Abstraction is provider-agnostic
+	•	✅ No regressions observed
+
+⸻
+
+🚫 OUT OF SCOPE — DO NOT TOUCH
+	•	Password reset
+	•	Email verification
+	•	OTP
+	•	Resend SDK
+	•	Templates
+	•	Admin UI
+	•	Messaging
+	•	Notifications
+
+⸻
+
+🟢 SUCCESS DEFINITION
+
+Kiosk now has a clean, audited, future-proof email backbone
+with zero behavioral change to the app.
+
+⸻
