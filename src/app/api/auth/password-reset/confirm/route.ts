@@ -35,14 +35,15 @@ export async function POST(request: NextRequest) {
 
     console.log('[PASSWORD_RESET_CONFIRM] Processing reset request');
 
+    const preValidation = await validateResetToken(token);
+    const userId = preValidation.userId || 'unknown';
+
     const result = await resetPassword(token, newPassword);
 
     if (!result.success) {
-      const tokenValidation = await validateResetToken(token);
-      
       await logAuthEvent(
         'PASSWORD_RESET_FAILED',
-        tokenValidation.userId || 'unknown',
+        userId,
         'unknown',
         false,
         { ipAddress, userAgent, details: result.error }
@@ -54,11 +55,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tokenValidation = await validateResetToken(token);
-    
     await logAuthEvent(
       'PASSWORD_RESET_SUCCESS',
-      tokenValidation.userId || 'unknown',
+      userId,
       'unknown',
       true,
       { ipAddress, userAgent, details: 'Password successfully reset' }
