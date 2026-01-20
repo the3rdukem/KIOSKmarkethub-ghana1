@@ -1034,6 +1034,26 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Integration may already exist
   }
+
+  // PHASE 8: Create password_reset_tokens table for secure password reset
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS password_reset_tokens (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        token_hash TEXT NOT NULL,
+        expires_at TEXT NOT NULL,
+        used_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        CONSTRAINT fk_password_reset_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_password_reset_user ON password_reset_tokens(user_id);
+      CREATE INDEX IF NOT EXISTS idx_password_reset_token ON password_reset_tokens(token_hash);
+    `);
+    console.log('[DB] PHASE 8: Created password_reset_tokens table');
+  } catch (e) {
+    // Table may already exist
+  }
 }
 
 /**
