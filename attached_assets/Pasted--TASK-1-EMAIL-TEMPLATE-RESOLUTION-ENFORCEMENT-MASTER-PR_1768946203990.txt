@@ -1,0 +1,142 @@
+
+🔒 TASK 1 — EMAIL TEMPLATE RESOLUTION & ENFORCEMENT
+
+MASTER PROMPT (Audit-First, No Regression, Copy-Paste Ready)
+
+Context
+
+The platform already has:
+	•	Email provider abstraction
+	•	Resend provider wired
+	•	Email templates stored in DB
+	•	sendEmail() entry point
+
+However:
+	•	Templates are currently ignored
+	•	Variable mismatches can fail silently
+	•	Emails are not guaranteed to render correctly
+
+This task is to finish email templates as a real, enforceable system.
+
+This task must NOT introduce new features.
+
+⸻
+
+STEP 0 — MANDATORY AUDIT (DO NOT SKIP)
+
+Before writing or changing any code:
+	1.	List all existing email templates in the database:
+	•	id
+	•	name
+	•	subject
+	•	body_html / body_text
+	•	expected variables (explicitly inferred)
+	2.	List all current sendEmail() call sites, including:
+	•	Password reset
+	•	Any auth/system notifications
+	•	Any order/messaging usage (even if disabled)
+	3.	Identify:
+	•	Which calls pass templateId
+	•	Which calls pass raw html/text
+	•	Any mismatches between template variables and payload data
+
+➡️ Report audit findings first. Do NOT code until audit is complete.
+
+⸻
+
+STEP 1 — TEMPLATE RESOLUTION (CORE REQUIREMENT)
+
+Implement template support inside the email service layer.
+
+Rules:
+	•	If templateId is provided:
+	•	Load template from DB
+	•	Compile subject + body using provided templateData
+	•	If template is missing:
+	•	Hard fail with a logged error
+	•	If required variables are missing:
+	•	Hard fail (no silent fallback)
+	•	If extra variables are provided:
+	•	Allowed, but ignored
+
+✅ Templates MUST work with Resend
+❌ Do NOT add new template features
+❌ Do NOT modify template schema
+
+⸻
+
+STEP 2 — VARIABLE ENFORCEMENT (NO SILENT FAILURES)
+
+Add strict validation:
+	•	Detect missing variables before send
+	•	Log:
+	•	templateId
+	•	missing keys
+	•	email recipient
+	•	Return { success: false } explicitly
+
+⚠️ Silent success is forbidden.
+
+⸻
+
+STEP 3 — PROVIDER BEHAVIOR (NO CHANGE IN SCOPE)
+
+Rules:
+	•	Resend provider must:
+	•	Receive final resolved subject + html/text
+	•	NOT know about templates
+	•	Mock provider must:
+	•	Log resolved output (not raw template)
+
+❌ Do NOT add retry logic
+❌ Do NOT add queues
+❌ Do NOT add email previews
+
+⸻
+
+STEP 4 — REGRESSION SAFETY
+
+You MUST confirm:
+	•	No changes to:
+	•	Auth flows
+	•	Password reset logic
+	•	Admin email config
+	•	Database schema
+	•	Dry-run mode still works
+	•	Kill-switch still works
+	•	Existing calls without templates still work
+
+⸻
+
+STEP 5 — EXIT REPORT (REQUIRED)
+
+Return a concise report with:
+	•	Audit summary (templates + call sites)
+	•	What changed (files + purpose)
+	•	Example of:
+	•	Successful template send
+	•	Failed send due to missing variable
+	•	Explicit statement:
+“Email templates are now first-class and enforced.”
+
+⸻
+
+ABSOLUTE RULES
+	•	❌ No new features
+	•	❌ No UI changes
+	•	❌ No naming refactors (MarketHub → KIOSK is Phase 5)
+	•	❌ No OTP, no auth expansion
+	•	❌ No Phase 2–5 work
+
+⸻
+
+STOP CONDITION
+
+After Task 1:
+	•	Templates MUST render correctly
+	•	Failures MUST be visible
+	•	Email must be functionally usable
+
+➡️ Only after this passes audit may we proceed to Task 2 (Password Reset UI).
+
+⸻
