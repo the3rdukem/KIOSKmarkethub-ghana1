@@ -1,0 +1,121 @@
+EMAIL TEMPLATE AUDIT PROMPT (STRICT – NO CODE CHANGES)
+
+Objective:
+Audit all existing email templates and their current usage.
+DO NOT implement, modify, or add any code.
+This task is READ-ONLY investigation only.
+
+⸻
+
+Scope (DO NOT EXCEED)
+
+You are auditing existing state only.
+
+You must NOT:
+	•	Add new templates
+	•	Modify templates
+	•	Implement template sending
+	•	Change providers
+	•	Touch auth flows
+	•	Touch email-service logic
+
+⸻
+
+Required Audit Steps
+
+1️⃣ Inventory Existing Templates
+List all records in the email_templates table.
+
+For each template, report:
+	•	id
+	•	slug
+	•	name
+	•	category
+	•	subject
+	•	Content type present:
+	•	HTML only
+	•	Text only
+	•	Both
+	•	Placeholder variables used (e.g. {{reset_link}}, {{user_name}})
+	•	is_active status
+
+⸻
+
+2️⃣ Template Usage Mapping
+Search the entire codebase and report:
+
+For each template:
+	•	Is it referenced anywhere? (Yes / No)
+	•	If referenced:
+	•	File path(s)
+	•	Line numbers
+	•	Purpose (e.g. password reset, order notification)
+	•	If NOT referenced:
+	•	Explicitly mark as UNUSED
+
+⚠️ Be precise — do not assume intent.
+
+⸻
+
+3️⃣ Template Data Compatibility
+For each template, determine:
+	•	What variables the template expects
+	•	Whether any existing backend flow currently provides those variables
+	•	Mismatches (missing variables, unused variables)
+
+Report mismatches clearly.
+
+⸻
+
+4️⃣ Critical Risk Identification
+Explicitly flag:
+	•	Templates that would fail to render if used
+	•	Templates with missing required variables
+	•	Duplicate or overlapping templates
+	•	Templates that reference obsolete flows
+
+⸻
+
+5️⃣ Password Reset Focus (IMPORTANT)
+Specifically audit:
+	•	Whether any template is suitable for password reset
+	•	Whether subject + content align with security best practices
+	•	Whether links are absolute and environment-safe
+	•	Whether expiry messaging exists (or is missing)
+
+⸻
+
+Output Format (MANDATORY)
+
+Produce a structured audit report with these sections:
+	1.	Template Inventory Table
+	2.	Usage Matrix (Template → Code References)
+	3.	Variable Compatibility Table
+	4.	Unused / Orphaned Templates
+	5.	Blocking Issues
+	6.	Safe-to-Use Templates
+	7.	Explicit “DO NOT USE” Templates
+
+⸻
+
+Rules (Strict)
+	•	Do NOT speculate
+	•	Do NOT fix
+	•	Do NOT suggest improvements
+	•	Do NOT rename anything
+	•	Do NOT implement future plans
+
+This is pure visibility only.
+
+⸻
+
+Success Criteria
+
+The audit should allow us to answer with certainty:
+	•	Which templates can be safely wired into Resend
+	•	Which templates must be ignored or deleted later
+	•	Whether password reset templates are production-ready
+
+⸻
+
+When finished, wait for approval before any next step.
