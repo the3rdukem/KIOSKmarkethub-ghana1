@@ -35,16 +35,21 @@ export async function POST(request: NextRequest) {
     const result = await createPasswordResetToken(email);
 
     if (result.success && result.token && result.expiresAt) {
-      const resetLink = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5000'}/reset-password?token=${result.token}`;
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5000';
+      const resetLink = `${baseUrl}/reset-password?token=${result.token}`;
+      const siteName = 'MarketHub';
+      const supportEmail = 'support@markethub.com';
       
       await sendEmail({
         to: email,
-        subject: 'Reset Your Password',
+        subject: `Reset Your Password - ${siteName}`,
         templateId: 'password_reset',
         templateData: {
+          userName: result.userName || 'User',
+          siteName,
+          siteUrl: baseUrl,
           resetLink,
-          expiresAt: new Date(result.expiresAt).toLocaleString(),
-          expiresInMinutes: 30,
+          supportEmail,
         },
         html: `
           <h2>Reset Your Password</h2>

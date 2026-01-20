@@ -44,6 +44,7 @@ export async function createPasswordResetToken(email: string): Promise<{
   token?: string;
   expiresAt?: string;
   userId?: string;
+  userName?: string;
 }> {
   const user = await getUserByEmail(email);
   
@@ -79,6 +80,7 @@ export async function createPasswordResetToken(email: string): Promise<{
     token,
     expiresAt: expiresAt.toISOString(),
     userId: user.id,
+    userName: user.name || user.email?.split('@')[0] || 'User',
   };
 }
 
