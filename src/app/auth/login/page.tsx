@@ -204,7 +204,7 @@ function LoginPageContent() {
                     Remember me
                   </label>
                 </div>
-                <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:underline">
+                <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
                   Forgot password?
                 </Link>
               </div>
