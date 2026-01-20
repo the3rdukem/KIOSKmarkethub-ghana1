@@ -123,7 +123,7 @@ Thank you for shopping with {{siteName}}.`,
   <p>Hello {{vendorName}},</p>
   <p>We're excited to let you know that your vendor application has been approved! You can now start selling on {{siteName}}.</p>
   <p style="text-align: center; margin: 30px 0;">
-    <a href="{{siteName}}/vendor/dashboard" style="background-color: #22c55e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Go to Vendor Dashboard</a>
+    <a href="{{siteUrl}}/vendor/dashboard" style="background-color: #22c55e; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">Go to Vendor Dashboard</a>
   </p>
   <p>Here's what you can do next:</p>
   <ul>
@@ -140,6 +140,8 @@ Thank you for shopping with {{siteName}}.`,
 Hello {{vendorName}},
 
 We're excited to let you know that your vendor application has been approved! You can now start selling on {{siteName}}.
+
+Visit your vendor dashboard: {{siteUrl}}/vendor/dashboard
 
 Here's what you can do next:
 - Add your products to start selling

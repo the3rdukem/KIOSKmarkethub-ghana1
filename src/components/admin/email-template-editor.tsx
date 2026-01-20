@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import dynamic from "next/dynamic";
+import type ReactQuillType from "react-quill-new";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +56,7 @@ const TEMPLATE_VARIABLES = [
   { key: "{{productName}}", label: "Product Name", description: "Product title" },
   { key: "{{trackingNumber}}", label: "Tracking Number", description: "Shipment tracking" },
   { key: "{{siteName}}", label: "Site Name", description: "MarketHub" },
+  { key: "{{siteUrl}}", label: "Site URL", description: "Full site URL with protocol" },
   { key: "{{supportEmail}}", label: "Support Email", description: "Support contact" },
 ];
 
@@ -79,6 +81,7 @@ export function EmailTemplateEditor({
   onClose,
   onSave,
 }: EmailTemplateEditorProps) {
+  const quillRef = useRef<ReactQuillType>(null);
   const [formData, setFormData] = useState({
     name: "",
     subject: "",
@@ -114,10 +117,22 @@ export function EmailTemplateEditor({
   }, [template, isOpen]);
 
   const insertVariable = (variable: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      bodyHtml: prev.bodyHtml + variable,
-    }));
+    const editor = quillRef.current?.getEditor();
+    if (editor) {
+      const range = editor.getSelection();
+      if (range) {
+        editor.insertText(range.index, variable);
+        editor.setSelection(range.index + variable.length, 0);
+      } else {
+        const length = editor.getLength();
+        editor.insertText(length - 1, variable);
+      }
+    } else {
+      setFormData((prev) => ({
+        ...prev,
+        bodyHtml: prev.bodyHtml + variable,
+      }));
+    }
   };
 
   const handleSave = async () => {
@@ -180,6 +195,7 @@ export function EmailTemplateEditor({
     .replace(/\{\{productName\}\}/g, "Wireless Bluetooth Speaker")
     .replace(/\{\{trackingNumber\}\}/g, "GH123456789")
     .replace(/\{\{siteName\}\}/g, "MarketHub")
+    .replace(/\{\{siteUrl\}\}/g, "https://markethub.com")
     .replace(/\{\{supportEmail\}\}/g, "support@markethub.com");
 
   return (
@@ -262,6 +278,7 @@ export function EmailTemplateEditor({
                 </div>
                 <div className="border rounded-md">
                   <ReactQuill
+                    ref={quillRef}
                     theme="snow"
                     value={formData.bodyHtml}
                     onChange={(value) => setFormData({ ...formData, bodyHtml: value })}
