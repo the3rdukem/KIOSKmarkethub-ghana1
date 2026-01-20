@@ -59,7 +59,7 @@ async function resolveTemplate(
   const template = await getEmailTemplateByName(templateId);
 
   if (!template) {
-    console.error('[EMAIL_SERVICE] Template not found:', templateId);
+    console.warn('[EMAIL_SERVICE] Template not found:', templateId);
     if (fallbackHtml || fallbackText) {
       console.log('[EMAIL_SERVICE] Using inline fallback content');
       return {
@@ -74,7 +74,17 @@ async function resolveTemplate(
   }
 
   if (!template.isActive) {
-    console.error('[EMAIL_SERVICE] Template is inactive:', templateId);
+    console.warn('[EMAIL_SERVICE] Template is inactive:', templateId);
+    if (fallbackHtml || fallbackText) {
+      console.log('[EMAIL_SERVICE] Using inline fallback content (template inactive)');
+      return {
+        resolved: {
+          subject: fallbackSubject || 'Notification',
+          html: fallbackHtml,
+          text: fallbackText,
+        },
+      };
+    }
     return { resolved: null, error: `Template '${templateId}' is inactive` };
   }
 
@@ -120,6 +130,15 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
       return { success: true, messageId: 'disabled' };
     }
 
+    if (config.dryRun) {
+      console.log('[EMAIL_SERVICE] Dry-run mode - email not sent:', {
+        to: params.to,
+        subject: params.subject,
+        templateId: params.templateId,
+      });
+      return { success: true, messageId: 'dry_run' };
+    }
+
     let finalSubject = params.subject;
     let finalHtml = params.html;
     let finalText = params.text;
@@ -153,17 +172,6 @@ export async function sendEmail(params: SendEmailParams): Promise<SendEmailResul
         templateId: params.templateId,
       });
       return { success: false, error: 'Email has no content (html or text required)' };
-    }
-
-    if (config.dryRun) {
-      console.log('[EMAIL_SERVICE] Dry-run mode - email not sent:', {
-        to: params.to,
-        subject: finalSubject,
-        templateId: params.templateId,
-        hasHtml: !!finalHtml,
-        hasText: !!finalText,
-      });
-      return { success: true, messageId: 'dry_run' };
     }
 
     const provider = await getEmailProvider();
