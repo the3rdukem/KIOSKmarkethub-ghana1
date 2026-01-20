@@ -36,7 +36,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Payment System**: Updates include `payment_reference`, `payment_provider`, `paid_at`, and `currency` columns in orders table. Webhook integration handles payment status updates.
 - **Messaging System**: Features a database schema for conversations and messages, DAL layer with role-based authorization, and REST API endpoints for full messaging functionality. Supports context types and conversation statuses.
 - **In-App Notifications**: Database table `notifications` with user_id, role, type, title, message, payload, is_read fields. Append-only design with DAL and API for managing notifications.
-- **Email Infrastructure**: Database table `email_templates`, DAL for provider config and templates, and Admin API endpoints for managing email settings and templates. Supports a dry-run mode and a rich text editor for templates.
+- **Email Infrastructure**: Database table `email_templates`, DAL for provider config and templates, and Admin API endpoints for managing email settings and templates. Supports dry-run mode, rich text template editor with WYSIWYG editing and cursor-aware variable insertion, template resolution with variable extraction/validation/compilation, and graceful fallback to inline content when templates are missing or inactive. Kill-switch and dry-run checks execute before template resolution to prevent DB access when email is disabled.
 - **Analytics Event Tracking**: Non-blocking, fire-and-forget analytics for tracking user interactions, ready for external provider integration.
 
 ## External Dependencies
