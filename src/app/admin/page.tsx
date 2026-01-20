@@ -61,6 +61,7 @@ import {
   Layout, Tag, Plus, Edit, GripVertical, Image as ImageIcon
 } from "lucide-react";
 import { AdminAuthGuard } from "@/components/auth/auth-guard";
+import { EmailTemplateEditor } from "@/components/admin/email-template-editor";
 
 interface DbAdmin {
   id: string;
@@ -472,8 +473,12 @@ function EmailManagementSection() {
     id: string;
     name: string;
     subject: string;
-    category: string;
+    bodyHtml: string;
+    bodyText?: string;
+    category: "order" | "payment" | "auth" | "notification" | "system";
+    isActive: boolean;
     createdAt: string;
+    updatedAt: string;
   }>>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -484,6 +489,8 @@ function EmailManagementSection() {
     apiKey: '',
     dryRun: true,
   });
+  const [showTemplateEditor, setShowTemplateEditor] = useState(false);
+  const [selectedTemplate, setSelectedTemplate] = useState<typeof templates[0] | null>(null);
 
   useEffect(() => {
     fetchEmailConfig();
@@ -672,6 +679,15 @@ function EmailManagementSection() {
                 Manage transactional email templates
               </CardDescription>
             </div>
+            <Button
+              onClick={() => {
+                setSelectedTemplate(null);
+                setShowTemplateEditor(true);
+              }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Create Template
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -679,7 +695,30 @@ function EmailManagementSection() {
             <div className="text-center py-12">
               <FileEdit className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Email Templates</h3>
-              <p className="text-muted-foreground">Email templates will appear here once created</p>
+              <p className="text-muted-foreground mb-4">Get started with default templates or create your own</p>
+              <Button
+                variant="outline"
+                onClick={async () => {
+                  try {
+                    const response = await fetch('/api/admin/email/templates/seed', {
+                      method: 'POST',
+                      credentials: 'include',
+                    });
+                    if (response.ok) {
+                      const data = await response.json();
+                      toast.success(`Created ${data.created.length} default templates`);
+                      fetchEmailTemplates();
+                    } else {
+                      toast.error('Failed to seed templates');
+                    }
+                  } catch (error) {
+                    toast.error('Failed to seed templates');
+                  }
+                }}
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Load Default Templates
+              </Button>
             </div>
           ) : (
             <Table>
@@ -689,6 +728,7 @@ function EmailManagementSection() {
                   <TableHead>Subject</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Created</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -700,6 +740,18 @@ function EmailManagementSection() {
                     <TableCell className="text-sm text-muted-foreground">
                       {format(new Date(template.createdAt), 'MMM d, yyyy')}
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTemplate(template);
+                          setShowTemplateEditor(true);
+                        }}
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -707,6 +759,19 @@ function EmailManagementSection() {
           )}
         </CardContent>
       </Card>
+
+      {/* Template Editor Dialog */}
+      <EmailTemplateEditor
+        template={selectedTemplate}
+        isOpen={showTemplateEditor}
+        onClose={() => {
+          setShowTemplateEditor(false);
+          setSelectedTemplate(null);
+        }}
+        onSave={() => {
+          fetchEmailTemplates();
+        }}
+      />
 
       {/* Current Status */}
       <Card>
