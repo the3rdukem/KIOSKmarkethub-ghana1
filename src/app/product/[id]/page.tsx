@@ -1216,6 +1216,7 @@ export default function ProductPage() {
       {/* Review Photo Lightbox */}
       <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
         <DialogContent className="max-w-4xl p-0 bg-black/95 border-none">
+          <DialogTitle className="sr-only">Review Photo</DialogTitle>
           <div className="relative flex items-center justify-center min-h-[60vh]">
             <button
               onClick={() => setLightboxOpen(false)}
