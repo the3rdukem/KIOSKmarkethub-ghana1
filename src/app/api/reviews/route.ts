@@ -161,12 +161,15 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if buyer has purchased this product (for verified purchase badge)
+    // Uses order_items table which stores the actual product IDs
     const orderResult = await query<{ id: string }>(
-      `SELECT o.id FROM orders o
+      `SELECT oi.id FROM order_items oi
+       INNER JOIN orders o ON oi.order_id = o.id
        WHERE o.buyer_id = $1 
        AND o.status IN ('delivered', 'completed', 'shipped')
-       AND o.items::text LIKE $2`,
-      [session.userId, `%${productId}%`]
+       AND oi.product_id = $2
+       LIMIT 1`,
+      [session.userId, productId]
     );
     const isVerifiedPurchase = orderResult.rows.length > 0;
 

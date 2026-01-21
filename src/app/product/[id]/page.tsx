@@ -39,8 +39,17 @@ import {
   User,
   Loader2,
   ImagePlus,
-  X
+  X,
+  Edit2,
+  Trash2
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
 interface ReviewMedia {
@@ -138,6 +147,11 @@ export default function ProductPage() {
   const [ratingStats, setRatingStats] = useState<RatingStats>({ average: 0, total: 0, distribution: {} });
   const [reviewsLoading, setReviewsLoading] = useState(true);
   const [hasReviewed, setHasReviewed] = useState(false);
+  
+  const [editingReview, setEditingReview] = useState<Review | null>(null);
+  const [editForm, setEditForm] = useState({ rating: 5, comment: "" });
+  const [isEditSubmitting, setIsEditSubmitting] = useState(false);
+  const [isDeletingReview, setIsDeletingReview] = useState(false);
 
   useEffect(() => {
     if (!productId) return;
@@ -379,6 +393,77 @@ export default function ProductPage() {
       }
     } catch {
       toast.error("Failed to mark as helpful");
+    }
+  };
+
+  const canEditReview = (review: Review): boolean => {
+    if (review.vendor_reply) return false;
+    const createdAt = new Date(review.created_at);
+    const now = new Date();
+    const minutesSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+    return minutesSinceCreation <= 15;
+  };
+
+  const handleEditClick = (review: Review) => {
+    setEditingReview(review);
+    setEditForm({ rating: review.rating, comment: review.comment });
+  };
+
+  const handleEditSubmit = async () => {
+    if (!editingReview) return;
+    if (!editForm.comment.trim()) {
+      toast.error("Comment is required");
+      return;
+    }
+
+    setIsEditSubmitting(true);
+    try {
+      const response = await fetch(`/api/reviews/${editingReview.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          rating: editForm.rating,
+          comment: editForm.comment.trim(),
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setReviews(prev => prev.map(r => r.id === editingReview.id ? data.review : r));
+        toast.success("Review updated");
+        setEditingReview(null);
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to update review");
+      }
+    } catch {
+      toast.error("Failed to update review");
+    } finally {
+      setIsEditSubmitting(false);
+    }
+  };
+
+  const handleDeleteReview = async (reviewId: string) => {
+    if (!confirm("Are you sure you want to delete this review?")) return;
+
+    setIsDeletingReview(true);
+    try {
+      const response = await fetch(`/api/reviews/${reviewId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setReviews(prev => prev.filter(r => r.id !== reviewId));
+        setHasReviewed(false);
+        toast.success("Review deleted");
+      } else {
+        const error = await response.json();
+        toast.error(error.error || "Failed to delete review");
+      }
+    } catch {
+      toast.error("Failed to delete review");
+    } finally {
+      setIsDeletingReview(false);
     }
   };
 
@@ -904,13 +989,42 @@ export default function ProductPage() {
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-2">
-                                <h4 className="font-semibold">{review.buyer_name || 'Anonymous'}</h4>
-                                {review.is_verified_purchase && (
-                                  <Badge variant="outline" className="text-xs">
-                                    <CheckCircle className="w-3 h-3 mr-1" />
-                                    Verified Purchase
-                                  </Badge>
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center gap-2">
+                                  <h4 className="font-semibold">{review.buyer_name || 'Anonymous'}</h4>
+                                  {review.is_verified_purchase && (
+                                    <Badge variant="outline" className="text-xs">
+                                      <CheckCircle className="w-3 h-3 mr-1" />
+                                      Verified Purchase
+                                    </Badge>
+                                  )}
+                                </div>
+                                {user && user.id === review.buyer_id && (
+                                  <div className="flex gap-1">
+                                    {canEditReview(review) && (
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleEditClick(review)}
+                                        className="h-8 w-8 p-0"
+                                      >
+                                        <Edit2 className="w-4 h-4" />
+                                      </Button>
+                                    )}
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteReview(review.id)}
+                                      disabled={isDeletingReview}
+                                      className="h-8 w-8 p-0"
+                                    >
+                                      {isDeletingReview ? (
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                      ) : (
+                                        <Trash2 className="w-4 h-4 text-red-500" />
+                                      )}
+                                    </Button>
+                                  </div>
                                 )}
                               </div>
                               <div className="flex items-center gap-2 mb-2">
@@ -1033,6 +1147,61 @@ export default function ProductPage() {
           </div>
         )}
       </div>
+
+      <Dialog open={!!editingReview} onOpenChange={(open) => { if (!open) setEditingReview(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Review</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label className="text-sm font-medium">Rating</Label>
+              <div className="flex gap-1 mt-2">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setEditForm(prev => ({ ...prev, rating: star }))}
+                  >
+                    <Star
+                      className={`w-8 h-8 cursor-pointer transition-colors ${
+                        star <= editForm.rating
+                          ? "text-yellow-400 fill-current"
+                          : "text-gray-300"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Your Review</Label>
+              <Textarea
+                value={editForm.comment}
+                onChange={(e) => setEditForm(prev => ({ ...prev, comment: e.target.value }))}
+                placeholder="Share your experience..."
+                rows={4}
+                className="mt-2"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingReview(null)}>
+              Cancel
+            </Button>
+            <Button onClick={handleEditSubmit} disabled={isEditSubmitting}>
+              {isEditSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Save Changes"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SiteLayout>
   );
 }
