@@ -12,11 +12,14 @@
 import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 
-// Phase 2 status types - simplified for checkout flow
-// 'processing' added for when payment is confirmed but order not yet fulfilled
-export type OrderStatus = 'pending_payment' | 'processing' | 'cancelled' | 'fulfilled';
+// Phase 2 status types - industry-standard order flow
+// Flow: pending_payment → processing → shipped → fulfilled (delivered)
+// 'processing' = payment confirmed, vendor preparing order
+// 'shipped' = order handed to carrier
+// 'fulfilled' = delivered to customer (displayed as "Delivered" in UI)
+export type OrderStatus = 'pending_payment' | 'processing' | 'shipped' | 'cancelled' | 'fulfilled';
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
-export type FulfillmentStatus = 'pending' | 'fulfilled';
+export type FulfillmentStatus = 'pending' | 'shipped' | 'fulfilled';
 
 export interface OrderItem {
   productId: string;
@@ -583,8 +586,55 @@ export async function getVendorItemsForOrder(orderId: string, vendorId: string):
 }
 
 /**
- * Fulfill an order item (vendor action)
- * Returns true if successful, false if item not found or already fulfilled
+ * Ship an order item (vendor action)
+ * Transitions item from 'pending' to 'shipped'
+ * Returns true if successful, false if item not found or not in pending status
+ */
+export async function shipOrderItem(itemId: string, vendorId: string): Promise<boolean> {
+  const now = new Date().toISOString();
+  
+  const result = await query(
+    `UPDATE order_items 
+     SET fulfillment_status = 'shipped', updated_at = $1
+     WHERE id = $2 AND vendor_id = $3 AND fulfillment_status = 'pending'`,
+    [now, itemId, vendorId]
+  );
+  
+  if ((result.rowCount ?? 0) === 0) return false;
+  
+  // Check if all items in the order are now shipped and update order status
+  const item = await query<DbOrderItem>('SELECT order_id FROM order_items WHERE id = $1', [itemId]);
+  if (item.rows.length > 0) {
+    await checkAndUpdateOrderShipped(item.rows[0].order_id);
+  }
+  
+  return true;
+}
+
+/**
+ * Check if all items in an order are shipped and update order status to 'shipped'
+ */
+export async function checkAndUpdateOrderShipped(orderId: string): Promise<boolean> {
+  const pendingItems = await query<{ count: string }>(
+    `SELECT COUNT(*) as count FROM order_items WHERE order_id = $1 AND fulfillment_status = 'pending'`,
+    [orderId]
+  );
+  
+  const pendingCount = parseInt(pendingItems.rows[0]?.count || '0', 10);
+  
+  if (pendingCount === 0) {
+    // All items shipped - update order status to 'shipped'
+    await updateOrder(orderId, { status: 'shipped' });
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Fulfill/deliver an order item (vendor action)
+ * Transitions item from 'shipped' to 'fulfilled' (delivered)
+ * Returns true if successful, false if item not found or not in shipped status
  */
 export async function fulfillOrderItem(itemId: string, vendorId: string): Promise<boolean> {
   const now = new Date().toISOString();
@@ -592,7 +642,7 @@ export async function fulfillOrderItem(itemId: string, vendorId: string): Promis
   const result = await query(
     `UPDATE order_items 
      SET fulfillment_status = 'fulfilled', fulfilled_at = $1, updated_at = $1
-     WHERE id = $2 AND vendor_id = $3 AND fulfillment_status = 'pending'`,
+     WHERE id = $2 AND vendor_id = $3 AND fulfillment_status = 'shipped'`,
     [now, itemId, vendorId]
   );
   
@@ -611,15 +661,15 @@ export async function fulfillOrderItem(itemId: string, vendorId: string): Promis
  * Check if all items in an order are fulfilled and update order status
  */
 export async function checkAndUpdateOrderFulfillment(orderId: string): Promise<boolean> {
-  const pendingItems = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM order_items WHERE order_id = $1 AND fulfillment_status = 'pending'`,
+  const unfulfilledItems = await query<{ count: string }>(
+    `SELECT COUNT(*) as count FROM order_items WHERE order_id = $1 AND fulfillment_status != 'fulfilled'`,
     [orderId]
   );
   
-  const pendingCount = parseInt(pendingItems.rows[0]?.count || '0', 10);
+  const unfulfilledCount = parseInt(unfulfilledItems.rows[0]?.count || '0', 10);
   
-  if (pendingCount === 0) {
-    // All items fulfilled - update order status
+  if (unfulfilledCount === 0) {
+    // All items fulfilled (delivered) - update order status
     await updateOrder(orderId, { status: 'fulfilled' });
     return true;
   }

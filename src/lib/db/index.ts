@@ -716,7 +716,7 @@ async function runMigrations(client: PoolClient): Promise<void> {
         unit_price REAL NOT NULL,
         applied_discount REAL DEFAULT 0,
         final_price REAL NOT NULL,
-        fulfillment_status TEXT NOT NULL DEFAULT 'pending' CHECK(fulfillment_status IN ('pending', 'fulfilled')),
+        fulfillment_status TEXT NOT NULL DEFAULT 'pending' CHECK(fulfillment_status IN ('pending', 'shipped', 'fulfilled')),
         fulfilled_at TEXT,
         image TEXT,
         variations TEXT,
@@ -835,6 +835,21 @@ async function runMigrations(client: PoolClient): Promise<void> {
   }
 
   console.log('[DB] PHASE 5: Added CHECK constraints to orders table');
+
+  // PHASE 5B: Update fulfillment_status constraint to include 'shipped'
+  try {
+    await client.query(`
+      ALTER TABLE order_items DROP CONSTRAINT IF EXISTS order_items_fulfillment_status_check
+    `);
+    await client.query(`
+      ALTER TABLE order_items ADD CONSTRAINT order_items_fulfillment_status_check 
+      CHECK(fulfillment_status IN ('pending', 'shipped', 'fulfilled'))
+    `);
+  } catch (e) {
+    // Constraint may already exist or table structure differs
+  }
+
+  console.log('[DB] PHASE 5B: Updated fulfillment_status constraint to include shipped');
 
   // PHASE 6: Create messaging tables for buyer-vendor communication
   try {

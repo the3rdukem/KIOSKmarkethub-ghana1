@@ -162,11 +162,12 @@ export async function POST(request: NextRequest) {
 
     // Check if buyer has purchased this product (for verified purchase badge)
     // Uses order_items table which stores the actual product IDs
+    // Status: 'shipped' (in transit), 'fulfilled' (delivered), or legacy 'delivered'/'completed'
     const orderResult = await query<{ id: string }>(
       `SELECT oi.id FROM order_items oi
        INNER JOIN orders o ON oi.order_id = o.id
        WHERE o.buyer_id = $1 
-       AND o.status IN ('delivered', 'completed', 'shipped')
+       AND o.status IN ('shipped', 'fulfilled', 'delivered', 'completed')
        AND oi.product_id = $2
        LIMIT 1`,
       [session.userId, productId]

@@ -96,14 +96,16 @@ interface Order {
 const statusConfig: Record<string, { color: string; icon: typeof Clock; label: string }> = {
   pending_payment: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending Payment" },
   pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending" },
-  processing: { color: "bg-blue-100 text-blue-800", icon: Clock, label: "Payment Confirmed" },
-  fulfilled: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Fulfilled" },
+  processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Payment Confirmed" },
+  shipped: { color: "bg-purple-100 text-purple-800", icon: Truck, label: "Shipped" },
+  fulfilled: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Delivered" },
   cancelled: { color: "bg-red-100 text-red-800", icon: XCircle, label: "Cancelled" },
 };
 
 const itemStatusConfig: Record<string, { color: string; label: string }> = {
   pending: { color: "bg-yellow-100 text-yellow-800", label: "Pending" },
-  fulfilled: { color: "bg-green-100 text-green-800", label: "Fulfilled" },
+  shipped: { color: "bg-purple-100 text-purple-800", label: "Shipped" },
+  fulfilled: { color: "bg-green-100 text-green-800", label: "Delivered" },
 };
 
 export default function VendorOrdersPage() {
@@ -118,6 +120,7 @@ export default function VendorOrdersPage() {
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [shippingItemId, setShippingItemId] = useState<string | null>(null);
   const [fulfillingItemId, setFulfillingItemId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -169,6 +172,41 @@ export default function VendorOrdersPage() {
     }
   };
 
+  const handleShipItem = async (orderId: string, itemId: string) => {
+    setShippingItemId(itemId);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'ship',
+          itemId,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Item marked as shipped');
+        fetchOrders();
+        if (selectedOrder && selectedOrder.id === orderId) {
+          const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
+          if (updatedResponse.ok) {
+            const data = await updatedResponse.json();
+            setSelectedOrder(data.order);
+          }
+        }
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to ship item');
+      }
+    } catch (error) {
+      console.error('Failed to ship item:', error);
+      toast.error('Failed to ship item');
+    } finally {
+      setShippingItemId(null);
+    }
+  };
+
   const handleFulfillItem = async (orderId: string, itemId: string) => {
     setFulfillingItemId(itemId);
     try {
@@ -183,7 +221,7 @@ export default function VendorOrdersPage() {
       });
 
       if (response.ok) {
-        toast.success('Item marked as fulfilled');
+        toast.success('Item marked as delivered');
         fetchOrders();
         if (selectedOrder && selectedOrder.id === orderId) {
           const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
@@ -194,11 +232,11 @@ export default function VendorOrdersPage() {
         }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to fulfill item');
+        toast.error(data.error || 'Failed to mark as delivered');
       }
     } catch (error) {
-      console.error('Failed to fulfill item:', error);
-      toast.error('Failed to fulfill item');
+      console.error('Failed to mark as delivered:', error);
+      toast.error('Failed to mark as delivered');
     } finally {
       setFulfillingItemId(null);
     }
@@ -263,8 +301,13 @@ export default function VendorOrdersPage() {
     return getOrderItems(order).filter(item => item.vendorId === user?.id);
   };
 
-  const hasPendingItems = (order: Order) => {
-    return getVendorItems(order).some(item => item.fulfillmentStatus === 'pending' || !item.fulfillmentStatus);
+  const hasItemsNeedingAction = (order: Order) => {
+    // Items need action if they are pending (need to ship) or shipped (need to confirm delivery)
+    return getVendorItems(order).some(item => 
+      item.fulfillmentStatus === 'pending' || 
+      item.fulfillmentStatus === 'shipped' || 
+      !item.fulfillmentStatus
+    );
   };
 
   return (
@@ -373,7 +416,7 @@ export default function VendorOrdersPage() {
                           <TableCell>
                             <div>
                               <span>{vendorItems.length} item(s)</span>
-                              {hasPendingItems(order) && (
+                              {hasItemsNeedingAction(order) && (
                                 <Badge variant="outline" className="ml-2 text-xs bg-amber-50 text-amber-700">
                                   Needs Fulfillment
                                 </Badge>
@@ -498,15 +541,32 @@ export default function VendorOrdersPage() {
                              selectedOrder.status !== 'cancelled' && (
                               <Button
                                 size="sm"
+                                onClick={() => handleShipItem(selectedOrder.id, item.id)}
+                                disabled={shippingItemId !== null || fulfillingItemId !== null}
+                              >
+                                {shippingItemId === item.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Truck className="w-4 h-4 mr-1" />
+                                    Mark Shipped
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                            {item.fulfillmentStatus === 'shipped' && 
+                             selectedOrder.status !== 'cancelled' && (
+                              <Button
+                                size="sm"
                                 onClick={() => handleFulfillItem(selectedOrder.id, item.id)}
-                                disabled={fulfillingItemId !== null}
+                                disabled={shippingItemId !== null || fulfillingItemId !== null}
                               >
                                 {fulfillingItemId === item.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
                                   <>
                                     <CheckCircle className="w-4 h-4 mr-1" />
-                                    Fulfill
+                                    Mark Delivered
                                   </>
                                 )}
                               </Button>

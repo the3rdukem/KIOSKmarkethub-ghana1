@@ -14,6 +14,7 @@ import {
   getVendorItemsForOrder,
   updateOrder,
   cancelOrderWithInventoryRestore,
+  shipOrderItem,
   fulfillOrderItem,
   parseOrderItems,
   parseShippingAddress,
@@ -236,46 +237,82 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const { action, itemId } = body;
 
-    if (action !== 'fulfill') {
-      return NextResponse.json({ error: 'Invalid action. Use: fulfill' }, { status: 400 });
+    if (action !== 'ship' && action !== 'fulfill') {
+      return NextResponse.json({ error: 'Invalid action. Use: ship or fulfill' }, { status: 400 });
     }
 
     if (!itemId) {
       return NextResponse.json({ error: 'Item ID required' }, { status: 400 });
     }
 
-    const success = await fulfillOrderItem(itemId, session.user_id);
-
-    if (!success) {
-      return NextResponse.json({ 
-        error: 'Failed to fulfill item. Item may not exist, may belong to another vendor, or may already be fulfilled.' 
-      }, { status: 400 });
-    }
-
     const user = await getUserById(session.user_id);
-    await createAuditLog({
-      action: 'ORDER_ITEM_FULFILLED',
-      category: 'order',
-      adminId: session.user_id,
-      adminName: user?.name || 'Vendor',
-      adminEmail: user?.email || '',
-      adminRole: session.user_role,
-      targetId: id,
-      targetType: 'order_item',
-      targetName: `Order Item ${itemId}`,
-      details: JSON.stringify({ orderId: id, itemId }),
-    });
-
-    // Notify buyer about fulfillment (fire-and-forget)
     const vendorName = user?.business_name || user?.name || 'A vendor';
-    createNotification({
-      userId: order.buyer_id,
-      role: 'buyer',
-      type: 'order_fulfilled',
-      title: 'Order Item Shipped',
-      message: `${vendorName} has fulfilled your order item and it's on its way!`,
-      payload: { orderId: id, itemId, vendorName },
-    }).catch(err => console.error('[NOTIFICATION] Failed to notify buyer:', err));
+
+    if (action === 'ship') {
+      // Ship action: transitions item from 'pending' to 'shipped'
+      const success = await shipOrderItem(itemId, session.user_id);
+
+      if (!success) {
+        return NextResponse.json({ 
+          error: 'Failed to ship item. Item may not exist, may belong to another vendor, or may not be in pending status.' 
+        }, { status: 400 });
+      }
+
+      await createAuditLog({
+        action: 'ORDER_ITEM_SHIPPED',
+        category: 'order',
+        adminId: session.user_id,
+        adminName: user?.name || 'Vendor',
+        adminEmail: user?.email || '',
+        adminRole: session.user_role,
+        targetId: id,
+        targetType: 'order_item',
+        targetName: `Order Item ${itemId}`,
+        details: JSON.stringify({ orderId: id, itemId }),
+      });
+
+      // Notify buyer about shipment
+      createNotification({
+        userId: order.buyer_id,
+        role: 'buyer',
+        type: 'order_fulfilled',
+        title: 'Order Shipped',
+        message: `${vendorName} has shipped your order item and it's on its way!`,
+        payload: { orderId: id, itemId, vendorName },
+      }).catch(err => console.error('[NOTIFICATION] Failed to notify buyer:', err));
+    } else {
+      // Fulfill action: transitions item from 'shipped' to 'fulfilled' (delivered)
+      const success = await fulfillOrderItem(itemId, session.user_id);
+
+      if (!success) {
+        return NextResponse.json({ 
+          error: 'Failed to mark item as delivered. Item may not exist, may belong to another vendor, or may not be in shipped status.' 
+        }, { status: 400 });
+      }
+
+      await createAuditLog({
+        action: 'ORDER_ITEM_DELIVERED',
+        category: 'order',
+        adminId: session.user_id,
+        adminName: user?.name || 'Vendor',
+        adminEmail: user?.email || '',
+        adminRole: session.user_role,
+        targetId: id,
+        targetType: 'order_item',
+        targetName: `Order Item ${itemId}`,
+        details: JSON.stringify({ orderId: id, itemId }),
+      });
+
+      // Notify buyer about delivery
+      createNotification({
+        userId: order.buyer_id,
+        role: 'buyer',
+        type: 'order_fulfilled',
+        title: 'Order Delivered',
+        message: `Your order from ${vendorName} has been delivered!`,
+        payload: { orderId: id, itemId, vendorName },
+      }).catch(err => console.error('[NOTIFICATION] Failed to notify buyer:', err));
+    }
 
     const updatedOrder = await getOrderById(id);
     const orderItems = await getVendorItemsForOrder(id, session.user_id);

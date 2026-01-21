@@ -74,12 +74,12 @@ interface Order {
 }
 
 const statusConfig: Record<string, { color: string; icon: typeof Clock; label: string }> = {
-  pending_payment: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending Payment" },
+  pending_payment: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Awaiting Payment" },
   pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending" },
   confirmed: { color: "bg-blue-100 text-blue-800", icon: CheckCircle, label: "Confirmed" },
-  processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Payment Confirmed" },
+  processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Order Confirmed" },
   shipped: { color: "bg-purple-100 text-purple-800", icon: Truck, label: "Shipped" },
-  fulfilled: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Fulfilled" },
+  fulfilled: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Delivered" },
   delivered: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Delivered" },
   cancelled: { color: "bg-red-100 text-red-800", icon: XCircle, label: "Cancelled" },
 };
