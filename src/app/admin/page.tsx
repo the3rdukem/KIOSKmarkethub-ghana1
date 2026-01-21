@@ -1161,8 +1161,8 @@ function AdminDashboardContent() {
     const file = e.target.files?.[0];
     if (!file) return;
     
-    if (file.size > 1024 * 1024) {
-      toast.error('Hero image must be under 1MB');
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Hero image must be under 5MB');
       return;
     }
     
@@ -1730,7 +1730,7 @@ function AdminDashboardContent() {
                     <div><Label>Hero Subheadline</Label><Textarea value={dbBranding.hero_subheadline || ''} onChange={(e) => handleUpdateDbBranding('hero_subheadline', e.target.value)} placeholder="Ghana's most secure marketplace..." /></div>
                     <div>
                       <Label>Hero Image (promotional/seasonal banner)</Label>
-                      <p className="text-xs text-muted-foreground mb-2">This appears in the large box on the right side of the homepage hero section. Max 1MB.</p>
+                      <p className="text-xs text-muted-foreground mb-2">This appears in the large box on the right side of the homepage hero section. Max 5MB.</p>
                       <div className="flex items-center gap-4">
                         {dbBranding.hero_image_url && (
                           <div className="w-32 h-32 border rounded-lg flex items-center justify-center overflow-hidden bg-gray-50">
