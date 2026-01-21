@@ -1,0 +1,173 @@
+⸻
+
+PHASE 5A — REVIEWS SYSTEM (STRICT, AUDIT-FIRST, PRODUCTION-SAFE)
+
+ROLE
+
+You are a senior marketplace systems engineer working on the KIOSK project.
+
+You must:
+	•	Audit what already exists before writing any code
+	•	Not assume requirements
+	•	Not add features outside this prompt
+	•	Not regress existing flows
+
+This phase is Reviews ONLY.
+No notifications expansion, no moderation tooling beyond minimal, no reputation tiers.
+
+⸻
+
+STEP 0 — MANDATORY AUDIT (DO FIRST, REPORT ONLY)
+
+Before implementing anything, audit and report:
+	1.	Existing review-related files (API routes, DAL, UI components)
+	2.	Current database schema related to reviews
+	3.	Where reviews are displayed today (product/vendor/order pages)
+	4.	Whether buyers already have a “Reviews” page and what it does
+	5.	Whether vendors can currently reply to reviews
+	6.	Any coupling to orders, products, or vendors
+
+⚠️ Do NOT modify code during audit
+⚠️ Output an audit summary first and wait
+
+⸻
+
+PHASE 5A — LOCKED REQUIREMENTS (DO NOT DEVIATE)
+
+1️⃣ Review Creation (Buyer)
+	•	Reviews are created only by buyers
+	•	Buyer may leave a review only after a completed order
+	•	Review consists of:
+	•	Rating (existing scale)
+	•	Text and photo content
+	•	Review is immutable after edit window expires
+
+⸻
+
+2️⃣ Buyer Edit Window (STRICT)
+	•	Buyer may edit their review:
+	•	Within 15 minutes of creation
+	•	ONLY if vendor has NOT replied
+	•	After either condition fails:
+	•	Review becomes permanently locked
+	•	No version history required
+	•	Track:
+	•	edited_at
+	•	Do NOT store old content
+
+⸻
+
+3️⃣ Vendor Reply (SINGLE, APPEND-ONLY)
+	•	Vendor may post exactly ONE reply
+	•	Vendor reply:
+	•	Cannot be edited
+	•	Cannot be deleted
+	•	Is append-only
+	•	Vendor reply permanently locks the review from buyer edits
+	•	No additional buyer replies allowed
+
+🚫 NO threaded discussions
+🚫 NO back-and-forth
+🚫 NO messaging crossover
+
+Reviews remain trust artifacts, not conversations.
+
+⸻
+
+4️⃣ Buyer Follow-Up Replies (EXPLICITLY DISALLOWED)
+	•	Buyers CANNOT reply after vendor reply
+	•	Buyers CANNOT add follow-up comments
+	•	Buyers CANNOT reopen reviews
+
+If disputes occur, they must go through Messaging, not Reviews.
+
+⸻
+
+5️⃣ UI / Page Scope (STRICT)
+	•	❌ No standalone Buyer “My Reviews” page
+	•	Reviews appear only:
+	•	On product pages
+	•	On vendor pages
+	•	Inline with completed orders
+	•	Buyer may:
+	•	See their own review in order history
+	•	Edit only within allowed window
+
+⸻
+
+6️⃣ Permissions & Security
+	•	Buyers:
+	•	See only their own review edit controls
+	•	Vendors:
+	•	Can reply only to reviews on their products
+	•	Admin:
+	•	Read-only access
+	•	No editing
+	•	No impersonation
+	•	All access must be enforced server-side
+
+⸻
+
+7️⃣ Database Expectations
+
+If schema changes are required:
+	•	Add minimal fields only:
+	•	edited_at
+	•	vendor_reply
+	•	vendor_replied_at
+	•	No new tables unless strictly necessary
+	•	No soft deletes
+	•	No review history tables
+
+⸻
+
+8️⃣ Regression Guarantees (MANDATORY)
+
+You MUST confirm:
+	•	Orders are unaffected
+	•	Messaging is unaffected
+	•	Notifications are unaffected
+	•	Search results are unaffected
+	•	Checkout is unaffected
+	•	No new environment variables added
+
+⸻
+
+EXIT CRITERIA (REQUIRED)
+
+You must produce:
+	1.	Post-implementation audit report
+	2.	Confirmation that:
+	•	Buyer edit window enforced
+	•	Vendor reply limited to one
+	•	No buyer follow-ups possible
+	3.	Confirmation that:
+	•	No new pages were added
+	•	No existing flows were broken
+
+If ANY requirement cannot be met, STOP and report before proceeding.
+
+⸻
+
+NON-GOALS (DO NOT IMPLEMENT)
+	•	❌ Review moderation tools
+	•	❌ Abuse reporting
+	•	❌ Reputation scoring
+	•	❌ Notifications
+	•	❌ Vendor ratings aggregation changes
+	•	❌ Admin actions beyond read-only
+
+⸻
+
+FINAL INSTRUCTION
+
+This phase must be:
+	•	Minimal
+	•	Deterministic
+	•	Trust-preserving
+	•	Shippable without future rewrites
+
+Do not proceed without passing the audit first.
+
+⸻
+
