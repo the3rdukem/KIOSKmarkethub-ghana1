@@ -39,12 +39,18 @@ import { useAuthStore, UserRole } from "@/lib/auth-store";
 import { NotificationsPanel } from "@/components/notifications/notifications-panel";
 import { toast } from "sonner";
 
+interface BrandingData {
+  site_name?: string;
+  logo_url?: string;
+}
+
 export function MainNav() {
   const pathname = usePathname();
   const router = useRouter();
 
   // Hydration state to prevent SSR mismatch
   const [isHydrated, setIsHydrated] = useState(false);
+  const [branding, setBranding] = useState<BrandingData>({});
 
   // Get auth state - these are safe to call but values may change after hydration
   const user = useAuthStore((state) => state.user);
@@ -53,6 +59,21 @@ export function MainNav() {
 
   useEffect(() => {
     setIsHydrated(true);
+    
+    async function fetchBranding() {
+      try {
+        const res = await fetch('/api/site-settings/public');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.settings) {
+            setBranding(data.settings);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch branding:', error);
+      }
+    }
+    fetchBranding();
   }, []);
 
   const handleLogout = () => {
@@ -90,8 +111,10 @@ export function MainNav() {
     }
   };
 
+  const siteName = branding.site_name || 'MarketHub';
+  
   const getPortalTitle = () => {
-    if (!safeUser) return "MarketHub";
+    if (!safeUser) return siteName;
     switch (effectiveRole) {
       case "vendor":
         return "Vendor Portal";
@@ -100,7 +123,7 @@ export function MainNav() {
       case "master_admin":
         return "Master Admin";
       default:
-        return "MarketHub";
+        return siteName;
     }
   };
 
@@ -385,15 +408,17 @@ export function MainNav() {
         {/* Logo and Portal Title */}
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-2">
-            <div className={`w-8 h-8 rounded-lg ${getPortalColor()} flex items-center justify-center text-white font-bold`}>
-              {effectiveRole === "vendor" ? (
+            <div className={`w-8 h-8 rounded-lg ${getPortalColor()} flex items-center justify-center text-white font-bold overflow-hidden`}>
+              {branding.logo_url ? (
+                <img src={branding.logo_url} alt={siteName} className="w-full h-full object-cover" />
+              ) : effectiveRole === "vendor" ? (
                 <Store className="w-4 h-4" />
               ) : effectiveRole === "master_admin" ? (
                 <Crown className="w-4 h-4" />
               ) : effectiveRole === "admin" ? (
                 <Shield className="w-4 h-4" />
               ) : (
-                "MH"
+                siteName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
               )}
             </div>
             <span className="font-bold text-xl">{getPortalTitle()}</span>

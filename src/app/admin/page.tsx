@@ -58,7 +58,7 @@ import { useSiteSettingsStore } from "@/lib/site-settings-store";
 import { useApprovalWorkflowsStore, ApprovalRequest } from "@/lib/approval-workflows-store";
 import {
   Layers, FileEdit, CheckSquare, Trash2, RotateCcw, Palette, Globe2,
-  Layout, Tag, Plus, Edit, GripVertical, Image as ImageIcon
+  Layout, Tag, Plus, Edit, GripVertical, Image as ImageIcon, Save, Link2
 } from "lucide-react";
 import { AdminAuthGuard } from "@/components/auth/auth-guard";
 import { EmailTemplateEditor } from "@/components/admin/email-template-editor";
@@ -871,6 +871,21 @@ function AdminDashboardContent() {
     disputes: number;
   }>({ users: 0, vendors: 0, products: 0, orders: 0, disputes: 0 });
 
+  // Database-backed site branding
+  const [dbBranding, setDbBranding] = useState<Record<string, string>>({});
+  const [isSavingBranding, setIsSavingBranding] = useState(false);
+
+  // Database-backed footer links
+  const [dbFooterLinks, setDbFooterLinks] = useState<Array<{
+    id: string;
+    section: string;
+    title: string;
+    url: string;
+    order_num: number;
+    is_visible: boolean;
+    is_external: boolean;
+  }>>([]);
+
   const [dbOrders, setDbOrders] = useState<Array<{
     id: string;
     buyerId: string;
@@ -965,10 +980,42 @@ function AdminDashboardContent() {
       }
     };
 
+    const fetchBranding = async () => {
+      try {
+        const response = await fetch('/api/admin/site-settings', { 
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDbBranding(data.settings || {});
+        }
+      } catch (error) {
+        console.error('Failed to fetch branding:', error);
+      }
+    };
+
+    const fetchFooterLinks = async () => {
+      try {
+        const response = await fetch('/api/admin/footer-links', { 
+          credentials: 'include',
+          cache: 'no-store'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setDbFooterLinks(data.links || []);
+        }
+      } catch (error) {
+        console.error('Failed to fetch footer links:', error);
+      }
+    };
+
     fetchStats();
     fetchAuditLogs();
     fetchActivityCounts();
     fetchOrders();
+    fetchBranding();
+    fetchFooterLinks();
   }, []); // Fetch ONCE on mount - activity counts use stable checkpoint set at login
 
   // Wait for hydration before checking auth
@@ -1045,6 +1092,69 @@ function AdminDashboardContent() {
     toggleAPI(apiId, user.id, user.name);
     const config = apiConfigurations.find((c) => c.id === apiId);
     toast.success(`${config?.name} ${config?.isEnabled ? "disabled" : "enabled"}`);
+  };
+
+  // Database-backed branding update
+  const handleUpdateDbBranding = (key: string, value: string) => {
+    setDbBranding((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const handleSaveBranding = async () => {
+    setIsSavingBranding(true);
+    try {
+      const response = await fetch('/api/admin/site-settings', {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ settings: dbBranding }),
+      });
+      if (response.ok) {
+        toast.success('Branding settings saved successfully');
+      } else {
+        toast.error('Failed to save branding settings');
+      }
+    } catch (error) {
+      console.error('Failed to save branding:', error);
+      toast.error('Failed to save branding settings');
+    } finally {
+      setIsSavingBranding(false);
+    }
+  };
+
+  const handleToggleFooterLink = async (linkId: string) => {
+    try {
+      const response = await fetch('/api/admin/footer-links', {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: linkId, action: 'toggle' }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setDbFooterLinks((prev) => prev.map((link) => link.id === linkId ? data.link : link));
+        toast.success('Footer link visibility updated');
+      }
+    } catch (error) {
+      console.error('Failed to toggle footer link:', error);
+      toast.error('Failed to update footer link');
+    }
+  };
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 500 * 1024) {
+      toast.error('Logo must be under 500KB');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      handleUpdateDbBranding('logo_url', base64);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleSaveAPIConfig = (apiId: string) => {
@@ -1244,10 +1354,8 @@ function AdminDashboardContent() {
                           <CheckCircle className="w-4 h-4 mr-2" />Vendor Verifications
                         </a>
                       </Button>
-                      <Button className="w-full justify-start" variant="outline" asChild>
-                        <a href="/admin/site-content">
-                          <Palette className="w-4 h-4 mr-2" />Site Content
-                        </a>
+                      <Button className="w-full justify-start" variant="outline" onClick={() => setSelectedTab('site-settings')}>
+                        <Palette className="w-4 h-4 mr-2" />Site Settings
                       </Button>
                       <Button className="w-full justify-start" variant="outline" asChild>
                         <a href="/admin/banners">
@@ -1559,79 +1667,106 @@ function AdminDashboardContent() {
           {isMasterAdmin && (
             <TabsContent value="site-settings">
               <div className="space-y-6">
-                {/* Branding */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Palette className="w-5 h-5" />Site Branding</CardTitle>
-                    <CardDescription>Customize your marketplace appearance</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div><Label>Site Name</Label><Input value={branding.siteName} onChange={(e) => user && updateBranding({ siteName: e.target.value }, user.id, user.email || '')} /></div>
-                      <div><Label>Tagline</Label><Input value={branding.tagline} onChange={(e) => user && updateBranding({ tagline: e.target.value }, user.id, user.email || '')} /></div>
-                    </div>
-                    <div className="grid grid-cols-3 gap-4">
-                      <div><Label>Primary Color</Label><div className="flex gap-2"><Input type="color" value={branding.primaryColor} className="w-12 h-10 p-1" onChange={(e) => user && updateBranding({ primaryColor: e.target.value }, user.id, user.email || '')} /><Input value={branding.primaryColor} className="flex-1" readOnly /></div></div>
-                      <div><Label>Secondary Color</Label><div className="flex gap-2"><Input type="color" value={branding.secondaryColor} className="w-12 h-10 p-1" onChange={(e) => user && updateBranding({ secondaryColor: e.target.value }, user.id, user.email || '')} /><Input value={branding.secondaryColor} className="flex-1" readOnly /></div></div>
-                      <div><Label>Accent Color</Label><div className="flex gap-2"><Input type="color" value={branding.accentColor} className="w-12 h-10 p-1" onChange={(e) => user && updateBranding({ accentColor: e.target.value }, user.id, user.email || '')} /><Input value={branding.accentColor} className="flex-1" readOnly /></div></div>
-                    </div>
-                    <div><Label>Contact Email</Label><Input value={branding.contactEmail} onChange={(e) => user && updateBranding({ contactEmail: e.target.value }, user.id, user.email || '')} /></div>
-                    <div><Label>Footer Text</Label><Textarea value={branding.footerText} onChange={(e) => user && updateBranding({ footerText: e.target.value }, user.id, user.email || '')} /></div>
-                  </CardContent>
-                </Card>
-
-                {/* Static Pages */}
+                {/* Branding - Database Backed */}
                 <Card>
                   <CardHeader>
                     <div className="flex items-center justify-between">
-                      <div><CardTitle className="flex items-center gap-2"><FileEdit className="w-5 h-5" />Static Pages</CardTitle><CardDescription>Manage About, Terms, Privacy, and other pages</CardDescription></div>
-                      <Button><Plus className="w-4 h-4 mr-2" />Add Page</Button>
+                      <div>
+                        <CardTitle className="flex items-center gap-2"><Palette className="w-5 h-5" />Site Branding</CardTitle>
+                        <CardDescription>Customize your marketplace appearance (saves to database)</CardDescription>
+                      </div>
+                      <Button onClick={handleSaveBranding} disabled={isSavingBranding}>
+                        {isSavingBranding ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+                        Save Changes
+                      </Button>
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <Table>
-                      <TableHeader><TableRow><TableHead>Page</TableHead><TableHead>Slug</TableHead><TableHead>Status</TableHead><TableHead>Footer</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
-                      <TableBody>
-                        {staticPages.map((page) => (
-                          <TableRow key={page.id}>
-                            <TableCell className="font-medium">{page.title}</TableCell>
-                            <TableCell><code className="text-xs bg-gray-100 px-2 py-1 rounded">/{page.slug}</code></TableCell>
-                            <TableCell><Badge variant={page.isPublished ? "default" : "secondary"} className={page.isPublished ? "bg-green-100 text-green-800" : ""}>{page.isPublished ? "Published" : "Draft"}</Badge></TableCell>
-                            <TableCell>{page.showInFooter ? <CheckCircle className="w-4 h-4 text-green-600" /> : <XCircle className="w-4 h-4 text-gray-300" />}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-1">
-                                <Button variant="ghost" size="sm"><Edit className="w-4 h-4" /></Button>
-                                <Button variant="ghost" size="sm"><Eye className="w-4 h-4" /></Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label>Site Name</Label><Input value={dbBranding.site_name || ''} onChange={(e) => handleUpdateDbBranding('site_name', e.target.value)} placeholder="MarketHub" /></div>
+                      <div><Label>Tagline</Label><Input value={dbBranding.tagline || ''} onChange={(e) => handleUpdateDbBranding('tagline', e.target.value)} placeholder="Ghana's Trusted Marketplace" /></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label>Logo (Max 500KB)</Label>
+                        <div className="flex items-center gap-4 mt-2">
+                          {dbBranding.logo_url && (
+                            <div className="w-16 h-16 border rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
+                              <img src={dbBranding.logo_url} alt="Logo" className="max-w-full max-h-full object-contain" />
+                            </div>
+                          )}
+                          <Input type="file" accept="image/*" onChange={handleLogoUpload} className="flex-1" />
+                        </div>
+                      </div>
+                      <div><Label>Copyright Text</Label><Input value={dbBranding.copyright_text || ''} onChange={(e) => handleUpdateDbBranding('copyright_text', e.target.value)} placeholder="© 2025 MarketHub. All rights reserved." /></div>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div><Label>Primary Color</Label><div className="flex gap-2"><Input type="color" value={dbBranding.primary_color || '#16a34a'} className="w-12 h-10 p-1" onChange={(e) => handleUpdateDbBranding('primary_color', e.target.value)} /><Input value={dbBranding.primary_color || '#16a34a'} className="flex-1" readOnly /></div></div>
+                      <div><Label>Secondary Color</Label><div className="flex gap-2"><Input type="color" value={dbBranding.secondary_color || '#2563eb'} className="w-12 h-10 p-1" onChange={(e) => handleUpdateDbBranding('secondary_color', e.target.value)} /><Input value={dbBranding.secondary_color || '#2563eb'} className="flex-1" readOnly /></div></div>
+                      <div><Label>Accent Color</Label><div className="flex gap-2"><Input type="color" value={dbBranding.accent_color || '#f59e0b'} className="w-12 h-10 p-1" onChange={(e) => handleUpdateDbBranding('accent_color', e.target.value)} /><Input value={dbBranding.accent_color || '#f59e0b'} className="flex-1" readOnly /></div></div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label>Contact Email</Label><Input value={dbBranding.contact_email || ''} onChange={(e) => handleUpdateDbBranding('contact_email', e.target.value)} placeholder="support@example.com" /></div>
+                      <div><Label>Contact Phone</Label><Input value={dbBranding.contact_phone || ''} onChange={(e) => handleUpdateDbBranding('contact_phone', e.target.value)} placeholder="+233 XX XXX XXXX" /></div>
+                    </div>
+                    <div><Label>Hero Headline</Label><Input value={dbBranding.hero_headline || ''} onChange={(e) => handleUpdateDbBranding('hero_headline', e.target.value)} placeholder="Shop with Confidence" /></div>
+                    <div><Label>Hero Subheadline</Label><Textarea value={dbBranding.hero_subheadline || ''} onChange={(e) => handleUpdateDbBranding('hero_subheadline', e.target.value)} placeholder="Ghana's most secure marketplace..." /></div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div><Label>Hero CTA Button Text</Label><Input value={dbBranding.hero_cta_text || ''} onChange={(e) => handleUpdateDbBranding('hero_cta_text', e.target.value)} placeholder="Browse All Products" /></div>
+                      <div><Label>Hero CTA Button Link</Label><Input value={dbBranding.hero_cta_link || ''} onChange={(e) => handleUpdateDbBranding('hero_cta_link', e.target.value)} placeholder="/search" /></div>
+                    </div>
                   </CardContent>
                 </Card>
 
-                {/* Homepage Sections */}
+                {/* Footer Links - Database Backed */}
                 <Card>
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2"><Layout className="w-5 h-5" />Homepage Sections</CardTitle>
-                    <CardDescription>Control which sections appear on the homepage</CardDescription>
+                    <CardTitle className="flex items-center gap-2"><Link2 className="w-5 h-5" />Footer Links</CardTitle>
+                    <CardDescription>Toggle visibility of footer links</CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="space-y-3">
-                      {homepageSections.map((section) => (
-                        <div key={section.id} className="flex items-center justify-between p-3 border rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <GripVertical className="w-4 h-4 text-gray-400 cursor-grab" />
-                            <div>
-                              <p className="font-medium">{section.title || section.type.replace(/_/g, ' ').toUpperCase()}</p>
-                              <p className="text-xs text-muted-foreground">Type: {section.type}</p>
-                            </div>
+                    {['For Buyers', 'For Vendors', 'Security', 'Company'].map((section) => {
+                      const sectionLinks = dbFooterLinks.filter((link) => link.section === section);
+                      return (
+                        <div key={section} className="mb-4">
+                          <h4 className="font-semibold mb-2">{section}</h4>
+                          <div className="space-y-2">
+                            {sectionLinks.map((link) => (
+                              <div key={link.id} className="flex items-center justify-between p-2 border rounded-lg">
+                                <div>
+                                  <p className="font-medium text-sm">{link.title}</p>
+                                  <code className="text-xs text-muted-foreground">{link.url}</code>
+                                </div>
+                                <Switch checked={link.is_visible} onCheckedChange={() => handleToggleFooterLink(link.id)} />
+                              </div>
+                            ))}
+                            {sectionLinks.length === 0 && (
+                              <p className="text-sm text-muted-foreground">No links in this section</p>
+                            )}
                           </div>
-                          <Switch checked={section.isVisible} onCheckedChange={() => user && toggleHomepageSection(section.id, user.id, user.email || '')} />
                         </div>
-                      ))}
+                      );
+                    })}
+                  </CardContent>
+                </Card>
+
+                {/* Homepage Content */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2"><Layout className="w-5 h-5" />Homepage Content</CardTitle>
+                    <CardDescription>Configure homepage promotional content</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-3 border rounded-lg">
+                      <div>
+                        <p className="font-medium">Promotional Banner</p>
+                        <p className="text-xs text-muted-foreground">Show a promotional message at the top of the homepage</p>
+                      </div>
+                      <Switch checked={dbBranding.promo_banner_enabled === 'true'} onCheckedChange={(checked) => handleUpdateDbBranding('promo_banner_enabled', String(checked))} />
                     </div>
+                    {dbBranding.promo_banner_enabled === 'true' && (
+                      <div><Label>Promotional Banner Text</Label><Input value={dbBranding.promo_banner_text || ''} onChange={(e) => handleUpdateDbBranding('promo_banner_text', e.target.value)} placeholder="Free shipping on orders over GHS 100!" /></div>
+                    )}
                   </CardContent>
                 </Card>
               </div>

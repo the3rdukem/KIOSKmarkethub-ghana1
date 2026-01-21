@@ -1,7 +1,88 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Shield, CreditCard, Truck, HeadphonesIcon } from "lucide-react";
 
+interface FooterLink {
+  title: string;
+  url: string;
+  isExternal: boolean;
+}
+
+interface FooterData {
+  sections: Record<string, FooterLink[]>;
+}
+
+interface BrandingData {
+  site_name?: string;
+  copyright_text?: string;
+}
+
+const DEFAULT_SECTIONS: Record<string, FooterLink[]> = {
+  'For Buyers': [
+    { title: 'How It Works', url: '/how-it-works', isExternal: false },
+    { title: 'Buyer Protection', url: '/buyer-protection', isExternal: false },
+    { title: 'Mobile Money Guide', url: '/mobile-money', isExternal: false },
+    { title: 'Help Center', url: '/help', isExternal: false },
+  ],
+  'For Vendors': [
+    { title: 'Start Selling', url: '/vendor/register', isExternal: false },
+    { title: 'Verification Guide', url: '/verification-guide', isExternal: false },
+    { title: 'Fees & Commissions', url: '/vendor/fees', isExternal: false },
+    { title: 'Seller Resources', url: '/vendor/resources', isExternal: false },
+  ],
+  'Security': [
+    { title: 'Security Center', url: '/security', isExternal: false },
+    { title: 'Vendor Verification', url: '/verification', isExternal: false },
+    { title: 'Privacy Policy', url: '/privacy', isExternal: false },
+    { title: 'Terms of Service', url: '/terms', isExternal: false },
+  ],
+  'Company': [
+    { title: 'About Us', url: '/about', isExternal: false },
+    { title: 'Careers', url: '/careers', isExternal: false },
+    { title: 'Press', url: '/press', isExternal: false },
+    { title: 'Contact', url: '/contact', isExternal: false },
+  ],
+};
+
+const SECTION_ORDER = ['For Buyers', 'For Vendors', 'Security', 'Company'];
+
 export function Footer() {
+  const [sections, setSections] = useState<Record<string, FooterLink[]>>(DEFAULT_SECTIONS);
+  const [branding, setBranding] = useState<BrandingData>({});
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const [linksRes, brandingRes] = await Promise.all([
+          fetch('/api/footer-links/public'),
+          fetch('/api/site-settings/public'),
+        ]);
+        
+        if (linksRes.ok) {
+          const linksData: FooterData = await linksRes.json();
+          if (linksData.sections && Object.keys(linksData.sections).length > 0) {
+            setSections(linksData.sections);
+          }
+        }
+        
+        if (brandingRes.ok) {
+          const brandingData = await brandingRes.json();
+          if (brandingData.settings) {
+            setBranding(brandingData.settings);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch footer data:', error);
+      }
+    }
+    fetchData();
+  }, []);
+
+  const siteName = branding.site_name || 'MarketHub';
+  const copyrightText = branding.copyright_text || `© ${new Date().getFullYear()} ${siteName}. All rights reserved. Built with security and trust in mind.`;
+
   return (
     <footer className="bg-gray-50 border-t">
       <div className="container py-12">
@@ -39,48 +120,46 @@ export function Footer() {
 
         {/* Links */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
-          <div>
-            <h3 className="font-semibold mb-4">For Buyers</h3>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/how-it-works" className="text-muted-foreground hover:text-foreground">How It Works</Link></li>
-              <li><Link href="/buyer-protection" className="text-muted-foreground hover:text-foreground">Buyer Protection</Link></li>
-              <li><Link href="/mobile-money" className="text-muted-foreground hover:text-foreground">Mobile Money Guide</Link></li>
-              <li><Link href="/help" className="text-muted-foreground hover:text-foreground">Help Center</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold mb-4">For Vendors</h3>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/vendor/register" className="text-muted-foreground hover:text-foreground">Start Selling</Link></li>
-              <li><Link href="/verification-guide" className="text-muted-foreground hover:text-foreground">Verification Guide</Link></li>
-              <li><Link href="/vendor/fees" className="text-muted-foreground hover:text-foreground">Fees & Commissions</Link></li>
-              <li><Link href="/vendor/resources" className="text-muted-foreground hover:text-foreground">Seller Resources</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold mb-4">Security</h3>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/security" className="text-muted-foreground hover:text-foreground">Security Center</Link></li>
-              <li><Link href="/verification" className="text-muted-foreground hover:text-foreground">Vendor Verification</Link></li>
-              <li><Link href="/privacy" className="text-muted-foreground hover:text-foreground">Privacy Policy</Link></li>
-              <li><Link href="/terms" className="text-muted-foreground hover:text-foreground">Terms of Service</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h3 className="font-semibold mb-4">Company</h3>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/about" className="text-muted-foreground hover:text-foreground">About Us</Link></li>
-              <li><Link href="/careers" className="text-muted-foreground hover:text-foreground">Careers</Link></li>
-              <li><Link href="/press" className="text-muted-foreground hover:text-foreground">Press</Link></li>
-              <li><Link href="/contact" className="text-muted-foreground hover:text-foreground">Contact</Link></li>
-              <li><Link href="/admin/login" className="text-purple-600 hover:text-purple-700 font-medium">Admin Portal</Link></li>
-            </ul>
-          </div>
+          {SECTION_ORDER.map((sectionName) => {
+            const links = sections[sectionName] || [];
+            return (
+              <div key={sectionName}>
+                <h3 className="font-semibold mb-4">{sectionName}</h3>
+                <ul className="space-y-2 text-sm">
+                  {links.map((link) => (
+                    <li key={link.url}>
+                      {link.isExternal ? (
+                        <a
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-muted-foreground hover:text-foreground"
+                        >
+                          {link.title}
+                        </a>
+                      ) : (
+                        <Link href={link.url} className="text-muted-foreground hover:text-foreground">
+                          {link.title}
+                        </Link>
+                      )}
+                    </li>
+                  ))}
+                  {sectionName === 'Company' && (
+                    <li>
+                      <Link href="/admin/login" className="text-purple-600 hover:text-purple-700 font-medium">
+                        Admin Portal
+                      </Link>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            );
+          })}
         </div>
 
         {/* Copyright */}
         <div className="border-t pt-8 text-center text-sm text-muted-foreground">
-          <p>&copy; 2025 MarketHub. All rights reserved. Built with security and trust in mind.</p>
+          <p>{copyrightText}</p>
         </div>
       </div>
     </footer>

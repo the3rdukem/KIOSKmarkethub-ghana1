@@ -609,6 +609,82 @@ async function runMigrations(client: PoolClient): Promise<void> {
     // Column may already exist
   }
 
+  // PHASE 10: Create footer_links table for dynamic footer management
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS footer_links (
+        id TEXT PRIMARY KEY,
+        section TEXT NOT NULL,
+        title TEXT NOT NULL,
+        url TEXT NOT NULL,
+        order_num INTEGER DEFAULT 0,
+        is_visible BOOLEAN DEFAULT TRUE,
+        is_external BOOLEAN DEFAULT FALSE,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
+      );
+      CREATE INDEX IF NOT EXISTS idx_footer_links_section ON footer_links(section);
+      CREATE INDEX IF NOT EXISTS idx_footer_links_visible ON footer_links(is_visible);
+    `);
+    console.log('[DB] PHASE 10: Created footer_links table');
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // Seed default footer links if table is empty
+  try {
+    const countResult = await client.query('SELECT COUNT(*) FROM footer_links');
+    const count = parseInt(countResult.rows[0].count, 10);
+    if (count === 0) {
+      const defaultLinks = [
+        { section: 'For Buyers', title: 'How It Works', url: '/how-it-works', order: 1 },
+        { section: 'For Buyers', title: 'Buyer Protection', url: '/buyer-protection', order: 2 },
+        { section: 'For Buyers', title: 'Mobile Money Guide', url: '/pages/mobile-money', order: 3 },
+        { section: 'For Buyers', title: 'Help Center', url: '/help', order: 4 },
+        { section: 'For Vendors', title: 'Start Selling', url: '/vendor/register', order: 1 },
+        { section: 'For Vendors', title: 'Verification Guide', url: '/pages/verification-guide', order: 2 },
+        { section: 'For Vendors', title: 'Fees & Commissions', url: '/pages/vendor-fees', order: 3 },
+        { section: 'For Vendors', title: 'Seller Resources', url: '/pages/vendor-resources', order: 4 },
+        { section: 'Security', title: 'Security Center', url: '/pages/security', order: 1 },
+        { section: 'Security', title: 'Vendor Verification', url: '/pages/vendor-verification', order: 2 },
+        { section: 'Security', title: 'Privacy Policy', url: '/pages/privacy', order: 3 },
+        { section: 'Security', title: 'Terms of Service', url: '/pages/terms', order: 4 },
+        { section: 'Company', title: 'About Us', url: '/pages/about', order: 1 },
+        { section: 'Company', title: 'Careers', url: '/pages/careers', order: 2 },
+        { section: 'Company', title: 'Press', url: '/pages/press', order: 3 },
+        { section: 'Company', title: 'Contact', url: '/pages/contact', order: 4 },
+      ];
+      for (const link of defaultLinks) {
+        const id = `fl_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        await client.query(
+          `INSERT INTO footer_links (id, section, title, url, order_num, is_visible, is_external)
+           VALUES ($1, $2, $3, $4, $5, TRUE, FALSE)`,
+          [id, link.section, link.title, link.url, link.order]
+        );
+      }
+      console.log('[DB] Seeded default footer links');
+    } else {
+      // Migration: Update footer links to use /pages/ prefix for static pages
+      await client.query(`
+        UPDATE footer_links SET url = '/pages/mobile-money' WHERE url = '/mobile-money';
+        UPDATE footer_links SET url = '/pages/verification-guide' WHERE url = '/verification-guide';
+        UPDATE footer_links SET url = '/pages/vendor-fees' WHERE url = '/vendor/fees';
+        UPDATE footer_links SET url = '/pages/vendor-resources' WHERE url = '/vendor/resources';
+        UPDATE footer_links SET url = '/pages/security' WHERE url = '/security';
+        UPDATE footer_links SET url = '/pages/vendor-verification' WHERE url = '/verification';
+        UPDATE footer_links SET url = '/pages/privacy' WHERE url = '/privacy';
+        UPDATE footer_links SET url = '/pages/terms' WHERE url = '/terms';
+        UPDATE footer_links SET url = '/pages/about' WHERE url = '/about';
+        UPDATE footer_links SET url = '/pages/careers' WHERE url = '/careers';
+        UPDATE footer_links SET url = '/pages/press' WHERE url = '/press';
+        UPDATE footer_links SET url = '/pages/contact' WHERE url = '/contact';
+      `);
+      console.log('[DB] Migrated footer links to /pages/ prefix');
+    }
+  } catch (e) {
+    console.error('[DB] Error seeding footer links:', e);
+  }
+
   // Create sales table if it doesn't exist (multi-product support via join table)
   try {
     await client.query(`
