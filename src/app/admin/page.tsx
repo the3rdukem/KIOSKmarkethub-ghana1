@@ -62,6 +62,7 @@ import {
 } from "lucide-react";
 import { AdminAuthGuard } from "@/components/auth/auth-guard";
 import { EmailTemplateEditor } from "@/components/admin/email-template-editor";
+import { StaticPagesManagement } from "@/components/admin/static-pages-management";
 
 interface DbAdmin {
   id: string;
@@ -1828,6 +1829,9 @@ function AdminDashboardContent() {
                     </div>
                   </CardContent>
                 </Card>
+
+                {/* Static Pages Management */}
+                <StaticPagesManagement />
               </div>
             </TabsContent>
           )}
