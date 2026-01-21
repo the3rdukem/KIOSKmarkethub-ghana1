@@ -57,6 +57,30 @@ export interface UpdateReviewInput {
   mediaUrls?: string[];
 }
 
+const EDIT_WINDOW_MINUTES = 15;
+
+/**
+ * Check if buyer can still edit their review
+ * Rules: Within 15 minutes of creation AND no vendor reply yet
+ */
+export function canBuyerEditReview(review: DbReview): { canEdit: boolean; reason?: string } {
+  // If vendor has replied, buyer cannot edit
+  if (review.vendor_reply) {
+    return { canEdit: false, reason: 'Editing is locked after vendor has replied' };
+  }
+
+  // Check 15-minute window from creation
+  const createdAt = new Date(review.created_at);
+  const now = new Date();
+  const minutesSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+
+  if (minutesSinceCreation > EDIT_WINDOW_MINUTES) {
+    return { canEdit: false, reason: `Reviews can only be edited within ${EDIT_WINDOW_MINUTES} minutes of posting` };
+  }
+
+  return { canEdit: true };
+}
+
 /**
  * Create a new review
  */
@@ -234,11 +258,18 @@ export async function getAllReviews(options?: {
 
 /**
  * Update a review (buyer only)
+ * Returns object with success flag and reason if failed
  */
-export async function updateReview(id: string, buyerId: string, input: UpdateReviewInput): Promise<ReviewWithMedia | null> {
+export async function updateReview(id: string, buyerId: string, input: UpdateReviewInput): Promise<{ review: ReviewWithMedia | null; error?: string }> {
   const review = await getReviewById(id);
   if (!review || review.buyer_id !== buyerId || review.status === 'deleted') {
-    return null;
+    return { review: null, error: 'Review not found or access denied' };
+  }
+
+  // Check edit window
+  const editCheck = canBuyerEditReview(review);
+  if (!editCheck.canEdit) {
+    return { review: null, error: editCheck.reason };
   }
 
   const now = new Date().toISOString();
@@ -276,7 +307,8 @@ export async function updateReview(id: string, buyerId: string, input: UpdateRev
     }
   }
 
-  return getReviewById(id);
+  const updatedReview = await getReviewById(id);
+  return { review: updatedReview };
 }
 
 /**

@@ -142,14 +142,14 @@ export async function PATCH(
         return NextResponse.json({ error: 'Only the reviewer can edit' }, { status: 403 });
       }
 
-      const updatedReview = await updateReview(id, session.userId, {
+      const result = await updateReview(id, session.userId, {
         rating,
         comment: comment?.trim(),
         mediaUrls,
       });
 
-      if (!updatedReview) {
-        return NextResponse.json({ error: 'Update failed' }, { status: 400 });
+      if (!result.review) {
+        return NextResponse.json({ error: result.error || 'Update failed' }, { status: 403 });
       }
 
       await createAuditLog({
@@ -160,7 +160,7 @@ export async function PATCH(
         details: JSON.stringify({ buyerId: session.userId, rating, hasComment: !!comment }),
       });
 
-      return NextResponse.json({ review: updatedReview });
+      return NextResponse.json({ review: result.review });
     }
 
     return NextResponse.json({ error: 'No valid action provided' }, { status: 400 });
