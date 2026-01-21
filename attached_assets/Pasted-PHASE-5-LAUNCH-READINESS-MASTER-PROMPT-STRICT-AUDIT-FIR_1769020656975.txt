@@ -1,0 +1,217 @@
+PHASE 5 — LAUNCH READINESS MASTER PROMPT (STRICT, AUDIT-FIRST)
+
+ROLE
+
+You are acting as a senior marketplace engineer preparing a production launch.
+
+Your task is to complete Phase 5 (Launch Readiness) with zero regressions, no feature creep, and no architectural rewrites.
+
+⸻
+
+❗ CRITICAL RULES (NON-NEGOTIABLE)
+	1.	AUDIT FIRST — NO CODING UNTIL AUDIT IS COMPLETE
+	•	You MUST inspect the codebase and list:
+	•	What already exists
+	•	What partially exists
+	•	What does NOT exist
+	•	Present findings BEFORE implementing anything.
+	2.	DO NOT MODIFY EXISTING SYSTEMS
+	•	No refactors
+	•	No schema changes unless explicitly approved
+	•	No renaming
+	•	No behavior changes to:
+	•	Auth
+	•	Payments
+	•	Messaging
+	•	Reviews (already implemented and working)
+	3.	NO CMS / PAGE BUILDER
+	•	No drag-and-drop
+	•	No layouts
+	•	No theming engine
+	•	No permissions system
+	•	No markdown editors beyond basic rich text
+	4.	ADMIN-ONLY
+	•	All new controls must be accessible only to admin role.
+	•	No vendor/buyer access.
+	5.	SHIP-READY ONLY
+	•	If a feature does not block launch, it is out of scope.
+
+⸻
+
+🎯 PHASE 5 OBJECTIVE
+
+Make the platform operationally launch-ready by giving Admin minimal but sufficient control over:
+	•	Branding
+	•	Homepage messaging
+	•	Legal & informational pages
+
+This phase is about operations, not polish.
+
+⸻
+
+🔍 STEP 1 — REQUIRED AUDIT (MANDATORY)
+
+Before writing code, produce an AUDIT REPORT covering:
+
+A. Existing Admin Controls
+	•	Branding (logos, site name, tagline)
+	•	Homepage content (hero, banners)
+	•	Static pages (about, terms, privacy, contact)
+	•	Any existing tables, routes, or UI touching site content
+
+B. Existing Database Structures
+	•	Tables that could be reused (e.g. settings, content, pages)
+	•	Any generic key/value storage
+	•	Rich text or HTML storage (if any)
+
+C. Existing Routes
+	•	Admin APIs related to site content
+	•	Public routes that already render static content
+
+D. Risks
+	•	Anything that might break:
+	•	SEO
+	•	Routing
+	•	Caching
+	•	Authentication
+	•	Public pages
+
+🚫 STOP after audit. Do not implement until audit is reviewed.
+
+⸻
+
+🧱 STEP 2 — IMPLEMENTATION (ONLY AFTER AUDIT APPROVAL)
+
+Implement ONLY what is missing, using the smallest possible surface area.
+
+1️⃣ Global Site Settings (REQUIRED)
+
+Admin must be able to manage:
+	•	Site name
+	•	Tagline
+	•	Logo (image upload)
+	•	Favicon
+	•	Default meta description
+
+Rules
+	•	Single settings record
+	•	No versioning
+	•	No history
+	•	No multi-tenant logic
+
+⸻
+
+2️⃣ Homepage Content Controls (REQUIRED)
+
+Admin must be able to update:
+	•	Hero headline
+	•	Hero sub-headline
+	•	Hero image
+	•	Primary CTA text
+	•	Primary CTA link
+	•	Promotional banner (text + on/off toggle)
+
+Rules
+	•	Structured fields only
+	•	No freeform layout editing
+	•	No multiple sections
+
+⸻
+
+3️⃣ Static Pages System (REQUIRED)
+
+Admin must be able to create/edit:
+	•	About Us
+	•	Privacy Policy
+	•	Terms & Conditions
+	•	Contact Us
+
+Minimum fields
+	•	Slug
+	•	Title
+	•	Rich text body
+	•	Published toggle
+
+Rendering
+	•	Public route: /pages/[slug]
+	•	404 if unpublished
+
+⸻
+
+4️⃣ Informational Pages (OPTIONAL — ONLY IF LOW RISK)
+
+If static pages system supports it without new complexity, allow admin to add:
+	•	FAQ
+	•	How it works
+	•	Safety tips
+
+If this introduces risk, skip it.
+
+⸻
+
+🚫 EXPLICITLY OUT OF SCOPE
+
+You must NOT implement:
+	•	Search slider changes
+	•	SEO optimization
+	•	Page scheduling
+	•	Page permissions
+	•	Draft previews
+	•	Page analytics
+	•	A/B testing
+	•	Marketing campaigns
+	•	Email changes
+	•	Notifications
+	•	Reviews changes
+	•	Messaging changes
+
+⸻
+
+🧪 STEP 3 — EXIT CHECKLIST (MANDATORY)
+
+Before declaring completion, verify:
+	•	Admin can update site branding without redeploy
+	•	Admin can change homepage copy/images without redeploy
+	•	Legal pages render correctly publicly
+	•	Unpublished pages are inaccessible
+	•	No regression in:
+	•	Auth
+	•	Payments
+	•	Orders
+	•	Messaging
+	•	Reviews
+
+⸻
+
+🧾 STEP 4 — FINAL EXIT REPORT
+
+Produce a PHASE 5 EXIT REPORT with:
+	•	Audit summary
+	•	What was reused vs added
+	•	Files created (list)
+	•	Files modified (list)
+	•	Tables added (if any)
+	•	Regression check results
+	•	Confirmation that platform is launch-ready
+
+⸻
+
+🛑 STOP CONDITIONS
+
+If during audit you discover:
+	•	Existing CMS-like behavior
+	•	Conflicting content systems
+	•	Risk of regression
+
+You must pause and report, not proceed.
+
+⸻
+
+FINAL NOTE
+
+This is not a redesign phase.
+This is operational readiness.
+
+Be conservative. Be surgical. Be boring.
+
+⸻
