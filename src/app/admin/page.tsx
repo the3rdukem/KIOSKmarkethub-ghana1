@@ -1170,7 +1170,7 @@ function AdminDashboardContent() {
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64 = reader.result as string;
-      handleUpdateDbBranding('hero_image_url', base64);
+      handleUpdateDbBranding('hero_image', base64);
     };
     reader.readAsDataURL(file);
   };
@@ -1733,15 +1733,15 @@ function AdminDashboardContent() {
                       <Label>Hero Image (promotional/seasonal banner)</Label>
                       <p className="text-xs text-muted-foreground mb-2">This appears in the large box on the right side of the homepage hero section. Max 5MB.</p>
                       <div className="flex items-center gap-4">
-                        {dbBranding.hero_image_url && (
+                        {dbBranding.hero_image && (
                           <div className="w-32 h-32 border rounded-lg flex items-center justify-center overflow-hidden bg-gray-50">
-                            <img src={dbBranding.hero_image_url} alt="Hero" className="max-w-full max-h-full object-cover" />
+                            <img src={dbBranding.hero_image} alt="Hero" className="max-w-full max-h-full object-cover" />
                           </div>
                         )}
                         <div className="flex-1 space-y-2">
                           <Input type="file" accept="image/*" onChange={handleHeroImageUpload} />
-                          {dbBranding.hero_image_url && (
-                            <Button variant="outline" size="sm" onClick={() => handleUpdateDbBranding('hero_image_url', '')}>
+                          {dbBranding.hero_image && (
+                            <Button variant="outline" size="sm" onClick={() => handleUpdateDbBranding('hero_image', '')}>
                               Remove Image
                             </Button>
                           )}
