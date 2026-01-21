@@ -27,14 +27,16 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [platformStats, setPlatformStats] = useState({ totalVendors: 0, verifiedVendors: 0, totalProducts: 0 });
+  const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
   const { orders } = useOrdersStore();
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [productsRes, statsRes] = await Promise.all([
+        const [productsRes, statsRes, settingsRes] = await Promise.all([
           fetch('/api/products?status=active', { credentials: 'include' }),
           fetch('/api/stats/public'),
+          fetch('/api/site-settings/public'),
         ]);
         
         if (productsRes.ok) {
@@ -46,6 +48,11 @@ export default function HomePage() {
           const stats = await statsRes.json();
           setPlatformStats(stats);
         }
+        
+        if (settingsRes.ok) {
+          const data = await settingsRes.json();
+          setSiteSettings(data.settings || {});
+        }
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -54,6 +61,11 @@ export default function HomePage() {
     };
     fetchData();
   }, []);
+
+  const heroHeadline = siteSettings.hero_headline || "Shop with Confidence";
+  const heroSubheadline = siteSettings.hero_subheadline || "Ghana's most secure marketplace with verified vendors, Mobile Money payments, and buyer protection.";
+  const heroCtaText = siteSettings.hero_cta_text || "Browse All Products";
+  const heroCtaLink = siteSettings.hero_cta_link || "/search";
 
   // Get real active products (only after data loads)
   const activeProducts = products.filter(p => p.status === 'active');
@@ -84,10 +96,17 @@ export default function HomePage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
               <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 mb-6">
-                Shop with <span className="text-green-600">Confidence</span>
+                {heroHeadline.includes(' ') ? (
+                  <>
+                    {heroHeadline.split(' ').slice(0, -1).join(' ')}{' '}
+                    <span className="text-green-600">{heroHeadline.split(' ').slice(-1)[0]}</span>
+                  </>
+                ) : (
+                  <span className="text-green-600">{heroHeadline}</span>
+                )}
               </h1>
               <p className="text-xl text-gray-600 mb-8">
-                Ghana's most secure marketplace with verified vendors, Mobile Money payments, and buyer protection.
+                {heroSubheadline}
               </p>
 
               {/* Advanced Search Bar */}
@@ -119,9 +138,9 @@ export default function HomePage() {
 
               <div className="flex flex-col sm:flex-row gap-4">
                 <Button size="lg" className="bg-green-600 hover:bg-green-700" asChild>
-                  <Link href="/search">
+                  <Link href={heroCtaLink}>
                     <Search className="w-5 h-5 mr-2" />
-                    Browse All Products
+                    {heroCtaText}
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild>

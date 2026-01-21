@@ -1245,8 +1245,8 @@ function AdminDashboardContent() {
                         </a>
                       </Button>
                       <Button className="w-full justify-start" variant="outline" asChild>
-                        <a href="/admin/branding">
-                          <Palette className="w-4 h-4 mr-2" />Manage Branding
+                        <a href="/admin/site-content">
+                          <Palette className="w-4 h-4 mr-2" />Site Content
                         </a>
                       </Button>
                       <Button className="w-full justify-start" variant="outline" asChild>

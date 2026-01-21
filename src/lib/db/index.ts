@@ -572,6 +572,43 @@ async function runMigrations(client: PoolClient): Promise<void> {
     // Table may already exist
   }
 
+  // Create static_pages table if it doesn't exist
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS static_pages (
+        id TEXT PRIMARY KEY,
+        slug TEXT UNIQUE NOT NULL,
+        title TEXT NOT NULL,
+        content TEXT NOT NULL,
+        meta_title TEXT,
+        meta_description TEXT,
+        is_published BOOLEAN DEFAULT FALSE,
+        show_in_footer BOOLEAN DEFAULT FALSE,
+        show_in_header BOOLEAN DEFAULT FALSE,
+        order_index INTEGER DEFAULT 0,
+        created_by TEXT,
+        updated_by TEXT,
+        published_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
+      );
+      CREATE INDEX IF NOT EXISTS idx_static_pages_slug ON static_pages(slug);
+      CREATE INDEX IF NOT EXISTS idx_static_pages_published ON static_pages(is_published);
+    `);
+    console.log('[DB] PHASE 9: Created static_pages table');
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // Add updated_by column to site_settings if it doesn't exist
+  try {
+    await client.query(`
+      ALTER TABLE site_settings ADD COLUMN IF NOT EXISTS updated_by TEXT
+    `);
+  } catch (e) {
+    // Column may already exist
+  }
+
   // Create sales table if it doesn't exist (multi-product support via join table)
   try {
     await client.query(`
