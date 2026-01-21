@@ -20,6 +20,7 @@ const PUBLIC_SETTING_KEYS = [
   'hero_cta_text',
   'hero_cta_link',
   'promo_banner_text',
+  'promo_banner_link',
   'promo_banner_enabled',
   'social_facebook',
   'social_twitter',

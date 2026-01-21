@@ -70,7 +70,7 @@ export default function HomePage() {
   const promoBannerEnabled = siteSettings.promo_banner_enabled === 'true';
   const promoBannerText = siteSettings.promo_banner_text || '';
   const promoBannerLink = siteSettings.promo_banner_link || '/search';
-  const heroImageUrl = siteSettings.hero_image_url || '';
+  const heroImageUrl = siteSettings.hero_image || '';
   
   const categoriesTitle = siteSettings.categories_title || 'Shop by Category';
   const categoriesSubtitle = siteSettings.categories_subtitle || 'Discover products in your favorite categories';
@@ -108,7 +108,7 @@ export default function HomePage() {
             <div className="flex items-center justify-center gap-4">
               <div className="flex items-center gap-3 text-center">
                 <span className="font-semibold">{promoBannerText}</span>
-                {promoBannerLink && promoBannerLink !== '/search' && (
+                {promoBannerLink && (
                   <Link href={promoBannerLink} className="inline-flex items-center gap-1 underline hover:no-underline ml-2">
                     Shop Now
                   </Link>
