@@ -36,7 +36,7 @@ export default function RootLayout({
           <DbInitializer>
             {children}
           </DbInitializer>
-          <Toaster />
+          <Toaster position="top-right" richColors closeButton />
         </ClientProvider>
       </body>
     </html>

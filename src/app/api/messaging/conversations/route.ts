@@ -82,36 +82,32 @@ export async function POST(request: NextRequest) {
 
     const { session, user } = result.data;
 
-    if (session.userRole !== 'buyer') {
+    const body = await request.json();
+    const { vendorId, buyerId, productId, orderId, context } = body;
+
+    // Vendors can initiate conversations with buyers
+    const isVendorInitiated = session.userRole === 'vendor' && buyerId;
+    
+    if (!isVendorInitiated && session.userRole !== 'buyer') {
       return NextResponse.json(
-        { error: 'Only buyers can initiate conversations' },
+        { error: 'Only buyers can initiate conversations with vendors' },
         { status: 403 }
       );
     }
 
-    const body = await request.json();
-    const { vendorId, productId, orderId, context } = body;
-
-    if (!vendorId) {
+    if (!isVendorInitiated && !vendorId) {
       return NextResponse.json(
         { error: 'Vendor ID is required' },
         { status: 400 }
       );
     }
 
-    const vendorResult = await query<UserRow>(
-      'SELECT id, name, avatar, business_name FROM users WHERE id = $1 AND role = $2',
-      [vendorId, 'vendor']
-    );
-
-    if (vendorResult.rows.length === 0) {
+    if (isVendorInitiated && !buyerId) {
       return NextResponse.json(
-        { error: 'Vendor not found' },
-        { status: 404 }
+        { error: 'Buyer ID is required' },
+        { status: 400 }
       );
     }
-
-    const vendor = vendorResult.rows[0];
 
     interface CreateInput {
       buyerId: string;
@@ -129,16 +125,69 @@ export async function POST(request: NextRequest) {
       orderNumber?: string;
     }
 
-    const input: CreateInput = {
-      buyerId: session.userId,
-      buyerName: user?.name || 'Buyer',
-      buyerAvatar: user?.avatar || undefined,
-      vendorId: vendor.id,
-      vendorName: vendor.name,
-      vendorAvatar: vendor.avatar || undefined,
-      vendorBusinessName: vendor.business_name || undefined,
-      context: context || 'general',
-    };
+    let input: CreateInput;
+
+    if (isVendorInitiated) {
+      // Vendor initiating conversation with buyer
+      const buyerResult = await query<UserRow>(
+        'SELECT id, name, avatar FROM users WHERE id = $1 AND role = $2',
+        [buyerId, 'buyer']
+      );
+
+      if (buyerResult.rows.length === 0) {
+        return NextResponse.json(
+          { error: 'Buyer not found' },
+          { status: 404 }
+        );
+      }
+
+      const buyer = buyerResult.rows[0];
+
+      // Fetch vendor info from DB to ensure we have business_name
+      const vendorResult = await query<UserRow>(
+        'SELECT id, name, avatar, business_name FROM users WHERE id = $1 AND role = $2',
+        [session.userId, 'vendor']
+      );
+      const vendorData = vendorResult.rows[0];
+      const vendorBusinessName = vendorData?.business_name || vendorData?.name || user?.name || 'Vendor';
+
+      input = {
+        buyerId: buyer.id,
+        buyerName: buyer.name || 'Buyer',
+        buyerAvatar: buyer.avatar || undefined,
+        vendorId: session.userId,
+        vendorName: vendorBusinessName,
+        vendorAvatar: vendorData?.avatar || user?.avatar || undefined,
+        vendorBusinessName: vendorBusinessName,
+        context: context || 'general',
+      };
+    } else {
+      // Buyer initiating conversation with vendor
+      const vendorResult = await query<UserRow>(
+        'SELECT id, name, avatar, business_name FROM users WHERE id = $1 AND role = $2',
+        [vendorId, 'vendor']
+      );
+
+      if (vendorResult.rows.length === 0) {
+        return NextResponse.json(
+          { error: 'Vendor not found' },
+          { status: 404 }
+        );
+      }
+
+      const vendor = vendorResult.rows[0];
+
+      input = {
+        buyerId: session.userId,
+        buyerName: user?.name || 'Buyer',
+        buyerAvatar: user?.avatar || undefined,
+        vendorId: vendor.id,
+        vendorName: vendor.name,
+        vendorAvatar: vendor.avatar || undefined,
+        vendorBusinessName: vendor.business_name || undefined,
+        context: context || 'general',
+      };
+    }
 
     if (productId) {
       interface ProductRow {
@@ -171,9 +220,11 @@ export async function POST(request: NextRequest) {
         id: string;
         order_number?: string;
       }
+      // For vendor-initiated, check order belongs to the buyer; for buyer-initiated, check order belongs to current user
+      const orderUserId = isVendorInitiated ? buyerId : session.userId;
       const orderResult = await query<OrderRow>(
         'SELECT id, order_number FROM orders WHERE id = $1 AND user_id = $2',
-        [orderId, session.userId]
+        [orderId, orderUserId]
       );
       if (orderResult.rows.length > 0) {
         const order = orderResult.rows[0];

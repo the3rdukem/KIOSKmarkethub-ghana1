@@ -71,6 +71,9 @@ function MessagesPageContent() {
   const vendorParam = searchParams.get('vendor');
   const productParam = searchParams.get('product');
   const conversationParam = searchParams.get('conversation');
+  const buyerParam = searchParams.get('buyerId');
+  const orderParam = searchParams.get('orderId');
+  const startConversationParam = searchParams.get('startConversation');
 
   // Hydration state
   const [isHydrated, setIsHydrated] = useState(false);
@@ -108,6 +111,9 @@ function MessagesPageContent() {
   const [newConversationVendorName, setNewConversationVendorName] = useState("");
   const [newConversationProductName, setNewConversationProductName] = useState("");
   const [newConversationMessage, setNewConversationMessage] = useState("");
+  const [newConversationBuyerId, setNewConversationBuyerId] = useState("");
+  const [newConversationBuyerName, setNewConversationBuyerName] = useState("");
+  const [newConversationOrderId, setNewConversationOrderId] = useState("");
   const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const [isLoadingVendor, setIsLoadingVendor] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -180,6 +186,44 @@ function MessagesPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vendorParam, productParam, user, userRole, isHydrated]);
 
+  // Handle vendor starting conversation with buyer (from vendor orders page)
+  useEffect(() => {
+    if (startConversationParam && buyerParam && user && userRole === 'vendor' && isHydrated) {
+      const existingConv = orderParam
+        ? userConversations.find(c => c.buyerId === buyerParam && c.orderId === orderParam)
+        : userConversations.find(c => c.buyerId === buyerParam);
+      
+      if (existingConv) {
+        setSelectedConversationId(existingConv.id);
+      } else {
+        setNewConversationBuyerId(buyerParam);
+        if (orderParam) {
+          setNewConversationOrderId(orderParam);
+        }
+        setIsLoadingVendor(true);
+        
+        fetch(`/api/users/${buyerParam}`, { credentials: 'include' })
+          .then(res => res.ok ? res.json() : null)
+          .then(data => {
+            if (data?.user) {
+              setNewConversationBuyerName(data.user.name || 'Customer');
+            } else {
+              setNewConversationBuyerName('Customer');
+            }
+          })
+          .catch(() => setNewConversationBuyerName('Customer'))
+          .finally(() => setIsLoadingVendor(false));
+        
+        if (orderParam) {
+          setNewConversationMessage(`Hi, I'm reaching out regarding your order #${orderParam.slice(-8).toUpperCase()}.`);
+        }
+        
+        setShowNewConversation(true);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [startConversationParam, buyerParam, orderParam, user, userRole, isHydrated]);
+
   // Handle conversation param from notification deep-link
   useEffect(() => {
     if (conversationParam && user && isHydrated && conversations.length > 0) {
@@ -248,26 +292,50 @@ function MessagesPageContent() {
   };
 
   const handleCreateConversation = async () => {
-    if (!newConversationVendorId || !newConversationMessage.trim() || !user) {
+    const isVendorInitiated = userRole === 'vendor' && newConversationBuyerId;
+    
+    if (!isVendorInitiated && (!newConversationVendorId || !newConversationMessage.trim() || !user)) {
       toast.error("Please select a vendor and enter a message");
+      return;
+    }
+    if (isVendorInitiated && (!newConversationBuyerId || !newConversationMessage.trim() || !user)) {
+      toast.error("Please enter a message");
       return;
     }
 
     setIsCreatingConversation(true);
     try {
-      // Create conversation via API - use productParam directly
-      const conv = await createConversation({
-        vendorId: newConversationVendorId,
-        productId: productParam || undefined,
-        context: productParam ? 'product_inquiry' : 'general',
-      });
+      let conv;
+      if (isVendorInitiated) {
+        const response = await fetch('/api/messaging/conversations', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            buyerId: newConversationBuyerId,
+            orderId: newConversationOrderId || undefined,
+            context: newConversationOrderId ? 'order_support' : 'general',
+          }),
+        });
+        if (!response.ok) {
+          const error = await response.json();
+          toast.error(error.error || 'Failed to create conversation');
+          return;
+        }
+        const data = await response.json();
+        conv = data.conversation;
+      } else {
+        conv = await createConversation({
+          vendorId: newConversationVendorId,
+          productId: productParam || undefined,
+          context: productParam ? 'product_inquiry' : 'general',
+        });
+      }
 
       if (!conv) {
-        // Store already shows error toast, don't duplicate
         return;
       }
 
-      // Send first message
       const message = await sendMessage(conv.id, newConversationMessage.trim(), 'text');
       if (!message) {
         toast.error("Conversation created but failed to send message");
@@ -276,8 +344,12 @@ function MessagesPageContent() {
       setSelectedConversationId(conv.id);
       setShowNewConversation(false);
       setNewConversationVendorId("");
+      setNewConversationBuyerId("");
+      setNewConversationOrderId("");
       setNewConversationMessage("");
       toast.success("Conversation started!");
+      
+      router.replace('/messages');
     } catch {
       // Store already shows error toast, don't duplicate
     } finally {
@@ -971,28 +1043,35 @@ function MessagesPageContent() {
         <Dialog open={showNewConversation} onOpenChange={(open) => {
           setShowNewConversation(open);
           if (!open) {
-            // Reset state when dialog closes
             setNewConversationVendorId("");
             setNewConversationVendorName("");
             setNewConversationProductName("");
             setNewConversationMessage("");
+            setNewConversationBuyerId("");
+            setNewConversationBuyerName("");
+            setNewConversationOrderId("");
+            router.replace('/messages');
           }
         }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Message {newConversationVendorName || 'Vendor'}</DialogTitle>
+              <DialogTitle>
+                Message {newConversationBuyerId ? (newConversationBuyerName || 'Customer') : (newConversationVendorName || 'Vendor')}
+              </DialogTitle>
               <DialogDescription>
-                Start a conversation with this vendor
+                {newConversationBuyerId 
+                  ? 'Start a conversation with this customer' 
+                  : 'Start a conversation with this vendor'}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
-              {/* Vendor Info - Read Only */}
+              {/* Recipient Info - Read Only */}
               <div className="space-y-2">
-                <label className="text-sm font-medium">Vendor</label>
+                <label className="text-sm font-medium">{newConversationBuyerId ? 'Customer' : 'Vendor'}</label>
                 <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg border">
                   <Avatar className="w-10 h-10">
                     <AvatarFallback>
-                      <Store className="w-4 h-4" />
+                      {newConversationBuyerId ? <User className="w-4 h-4" /> : <Store className="w-4 h-4" />}
                     </AvatarFallback>
                   </Avatar>
                   <div>
@@ -1002,11 +1081,26 @@ function MessagesPageContent() {
                         <span className="text-sm text-muted-foreground">Loading...</span>
                       </div>
                     ) : (
-                      <span className="font-medium">{newConversationVendorName || 'Vendor'}</span>
+                      <span className="font-medium">
+                        {newConversationBuyerId 
+                          ? (newConversationBuyerName || 'Customer') 
+                          : (newConversationVendorName || 'Vendor')}
+                      </span>
                     )}
                   </div>
                 </div>
               </div>
+              
+              {/* Order Reference (for vendor-initiated) */}
+              {newConversationOrderId && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Regarding Order</label>
+                  <div className="flex items-center gap-2 p-2 bg-blue-50 rounded-lg border border-blue-200">
+                    <ShoppingBag className="w-4 h-4 text-blue-600" />
+                    <span className="text-sm text-blue-700">Order #{newConversationOrderId.slice(-8).toUpperCase()}</span>
+                  </div>
+                </div>
+              )}
               
               {/* Product Reference (if any) */}
               {newConversationProductName && (

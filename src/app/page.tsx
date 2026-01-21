@@ -9,7 +9,6 @@ import { Shield, TrendingUp, Users, ShoppingBag, Search, Package, CheckCircle } 
 import AdvancedSearch from "@/components/search/advanced-search";
 import Link from "next/link";
 import { Product } from "@/lib/products-store";
-import { useUsersStore } from "@/lib/users-store";
 import { useOrdersStore } from "@/lib/orders-store";
 import { PromotionalBannerDisplay } from "@/components/banners/promotional-banner";
 
@@ -27,36 +26,42 @@ const trendingSearches = ["iPhone", "MacBook", "Kente", "Cocoa", "Smartphones"];
 export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
-  const { users, getPlatformMetrics } = useUsersStore();
+  const [platformStats, setPlatformStats] = useState({ totalVendors: 0, verifiedVendors: 0, totalProducts: 0 });
   const { orders } = useOrdersStore();
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchData = async () => {
       try {
-        const response = await fetch('/api/products?status=active', {
-          credentials: 'include',
-        });
-        if (response.ok) {
-          const data = await response.json();
+        const [productsRes, statsRes] = await Promise.all([
+          fetch('/api/products?status=active', { credentials: 'include' }),
+          fetch('/api/stats/public'),
+        ]);
+        
+        if (productsRes.ok) {
+          const data = await productsRes.json();
           setProducts(data.products || []);
         }
+        
+        if (statsRes.ok) {
+          const stats = await statsRes.json();
+          setPlatformStats(stats);
+        }
       } catch (error) {
-        console.error('Failed to fetch products:', error);
+        console.error('Failed to fetch data:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchProducts();
+    fetchData();
   }, []);
 
   // Get real active products (only after data loads)
   const activeProducts = products.filter(p => p.status === 'active');
   const featuredProducts = activeProducts.slice(0, 4);
 
-  // Get real metrics (only after data loads)
-  const metrics = !isLoading ? getPlatformMetrics() : { totalVendors: 0 };
+  // Get real metrics from public stats API
   const totalProducts = !isLoading ? products.length : 0;
-  const totalVendors = !isLoading ? (metrics.totalVendors || users.filter(u => u.role === "vendor").length) : 0;
+  const totalVendors = !isLoading ? platformStats.totalVendors : 0;
   const totalOrders = !isLoading ? orders.length : 0;
 
   // Get product counts by category (only after data loads)

@@ -2,7 +2,6 @@
 
 import { MainNav } from "@/components/layout/main-nav";
 import { Footer } from "@/components/layout/footer";
-import { Toaster } from "sonner";
 
 interface SiteLayoutProps {
   children: React.ReactNode;
@@ -16,13 +15,6 @@ export function SiteLayout({ children }: SiteLayoutProps) {
         {children}
       </main>
       <Footer />
-      <Toaster
-        position="top-right"
-        richColors
-        expand
-        visibleToasts={5}
-        closeButton
-      />
     </div>
   );
 }

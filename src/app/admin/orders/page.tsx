@@ -517,7 +517,7 @@ export default function AdminOrdersPage() {
                       </div>
                       {selectedOrder.discountTotal > 0 && (
                         <div className="flex justify-between text-sm text-green-600">
-                          <span>Discount</span>
+                          <span>Discount{selectedOrder.couponCode ? ` (${selectedOrder.couponCode})` : ''}</span>
                           <span>-GHS {selectedOrder.discountTotal.toFixed(2)}</span>
                         </div>
                       )}

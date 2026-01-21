@@ -76,6 +76,7 @@ interface Order {
   orderItems: OrderItem[];
   subtotal: number;
   discountTotal: number;
+  couponCode?: string;
   shippingFee: number;
   tax: number;
   total: number;
@@ -448,7 +449,11 @@ export default function VendorOrdersPage() {
                                   View Details
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />
-                                <DropdownMenuItem>
+                                <DropdownMenuItem
+                                  onClick={() => {
+                                    router.push(`/messages?startConversation=true&buyerId=${order.buyerId}&orderId=${order.id}`);
+                                  }}
+                                >
                                   <Mail className="w-4 h-4 mr-2" />
                                   Contact Customer
                                 </DropdownMenuItem>
@@ -575,7 +580,13 @@ export default function VendorOrdersPage() {
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 pt-4 border-t">
+                    <div className="mt-4 pt-4 border-t space-y-1">
+                      {selectedOrder.discountTotal > 0 && (
+                        <div className="flex justify-between text-sm text-green-600">
+                          <span>Coupon Applied{selectedOrder.couponCode ? ` (${selectedOrder.couponCode})` : ''}</span>
+                          <span>-GHS {selectedOrder.discountTotal.toFixed(2)}</span>
+                        </div>
+                      )}
                       <div className="flex justify-between font-bold">
                         <span>Your Total</span>
                         <span>GHS {getVendorItemsTotal(selectedOrder).toFixed(2)}</span>
