@@ -26,7 +26,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Product Contract Unification**: A canonical product data contract ensures consistent data shape and handles data conversions, integrating product conditions as category-specific attributes.
 - **Admin Permissions**: Granular permissions, including master admin capabilities.
 - **Cart System**: Secure ownership model supporting guest and authenticated users, with guest-to-user cart merging.
-- **Reviews System**: Database-backed system for product reviews, vendor replies, and moderation.
+- **Reviews System**: Database-backed system for product reviews with 15-minute edit window enforcement, vendor reply locking (edits blocked after vendor responds), single vendor reply (append-only), and admin moderation (hide/unhide/delete). No standalone buyer reviews page - buyers access reviews through product pages.
 - **Promotions System**: Database-backed coupons and sales management, allowing vendors to create promotions.
 - **Order Pipeline**: Server-side order management with PostgreSQL, covering checkout flows (inventory decrement, audit logging), vendor fulfillment, and admin cancellation (inventory restoration). Includes real-time status updates and robust inventory reservation using atomic transactions.
 - **Auth Redirect Security**: Utilizes `getSafeRedirectUrl()` to prevent open redirect vulnerabilities.
