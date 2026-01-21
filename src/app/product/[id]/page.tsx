@@ -41,7 +41,9 @@ import {
   ImagePlus,
   X,
   Edit2,
-  Trash2
+  Trash2,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   Dialog,
@@ -152,6 +154,10 @@ export default function ProductPage() {
   const [editForm, setEditForm] = useState({ rating: 5, comment: "" });
   const [isEditSubmitting, setIsEditSubmitting] = useState(false);
   const [isDeletingReview, setIsDeletingReview] = useState(false);
+  
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<ReviewMedia[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
 
   useEffect(() => {
     if (!productId) return;
@@ -1046,13 +1052,17 @@ export default function ProductPage() {
                               
                               {review.media && review.media.length > 0 && (
                                 <div className="flex flex-wrap gap-2 mb-3">
-                                  {review.media.map((m) => (
+                                  {review.media.map((m, idx) => (
                                     <img
                                       key={m.id}
                                       src={m.file_url}
                                       alt="Review photo"
-                                      className="w-20 h-20 object-cover rounded-md border cursor-pointer hover:opacity-90"
-                                      onClick={() => window.open(m.file_url, '_blank')}
+                                      className="w-20 h-20 object-cover rounded-md border cursor-pointer hover:opacity-90 transition-opacity"
+                                      onClick={() => {
+                                        setLightboxImages(review.media!);
+                                        setLightboxIndex(idx);
+                                        setLightboxOpen(true);
+                                      }}
                                     />
                                   ))}
                                 </div>
@@ -1200,6 +1210,59 @@ export default function ProductPage() {
               )}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Review Photo Lightbox */}
+      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+        <DialogContent className="max-w-4xl p-0 bg-black/95 border-none">
+          <div className="relative flex items-center justify-center min-h-[60vh]">
+            <button
+              onClick={() => setLightboxOpen(false)}
+              className="absolute top-4 right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+            
+            {lightboxImages.length > 1 && (
+              <>
+                <button
+                  onClick={() => setLightboxIndex((prev) => (prev - 1 + lightboxImages.length) % lightboxImages.length)}
+                  className="absolute left-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                >
+                  <ChevronLeft className="w-6 h-6" />
+                </button>
+                <button
+                  onClick={() => setLightboxIndex((prev) => (prev + 1) % lightboxImages.length)}
+                  className="absolute right-4 z-10 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
+                >
+                  <ChevronRight className="w-6 h-6" />
+                </button>
+              </>
+            )}
+            
+            {lightboxImages[lightboxIndex] && (
+              <img
+                src={lightboxImages[lightboxIndex].file_url}
+                alt="Review photo"
+                className="max-h-[80vh] max-w-full object-contain"
+              />
+            )}
+            
+            {lightboxImages.length > 1 && (
+              <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
+                {lightboxImages.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setLightboxIndex(idx)}
+                    className={`w-2 h-2 rounded-full transition-colors ${
+                      idx === lightboxIndex ? 'bg-white' : 'bg-white/40 hover:bg-white/60'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </SiteLayout>
