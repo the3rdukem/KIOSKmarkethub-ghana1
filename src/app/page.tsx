@@ -5,12 +5,11 @@ import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, TrendingUp, Users, ShoppingBag, Search, Package, CheckCircle } from "lucide-react";
+import { Shield, TrendingUp, Users, ShoppingBag, Search, Package, CheckCircle, X } from "lucide-react";
 import AdvancedSearch from "@/components/search/advanced-search";
 import Link from "next/link";
 import { Product } from "@/lib/products-store";
 import { useOrdersStore } from "@/lib/orders-store";
-import { PromotionalBannerDisplay } from "@/components/banners/promotional-banner";
 
 const categories = [
   { name: "Electronics", icon: "📱", href: "/search?category=Electronics" },
@@ -62,10 +61,25 @@ export default function HomePage() {
     fetchData();
   }, []);
 
+  const [promoBannerDismissed, setPromoBannerDismissed] = useState(false);
+  
   const heroHeadline = siteSettings.hero_headline || "Shop with Confidence";
   const heroSubheadline = siteSettings.hero_subheadline || "Ghana's most secure marketplace with verified vendors, Mobile Money payments, and buyer protection.";
   const heroCtaText = siteSettings.hero_cta_text || "Browse All Products";
   const heroCtaLink = siteSettings.hero_cta_link || "/search";
+  const promoBannerEnabled = siteSettings.promo_banner_enabled === 'true';
+  const promoBannerText = siteSettings.promo_banner_text || '';
+  const promoBannerLink = siteSettings.promo_banner_link || '/search';
+  const heroImageUrl = siteSettings.hero_image_url || '';
+  
+  const categoriesTitle = siteSettings.categories_title || 'Shop by Category';
+  const categoriesSubtitle = siteSettings.categories_subtitle || 'Discover products in your favorite categories';
+  const featuredTitle = siteSettings.featured_title || 'Featured Products';
+  const featuredSubtitle = siteSettings.featured_subtitle || 'Products from verified vendors';
+  const statsTitle = siteSettings.stats_title || 'Join MarketHub Today';
+  const statsSubtitle = siteSettings.stats_subtitle || "Ghana's trusted marketplace for buyers and sellers";
+  const ctaTitle = siteSettings.cta_title || 'Ready to Start?';
+  const ctaSubtitle = siteSettings.cta_subtitle || 'Discover amazing products from verified vendors across Ghana';
 
   // Get real active products (only after data loads)
   const activeProducts = products.filter(p => p.status === 'active');
@@ -87,8 +101,31 @@ export default function HomePage() {
 
   return (
     <SiteLayout>
-      {/* Promotional Banner */}
-      <PromotionalBannerDisplay position="top" />
+      {/* Promotional Banner - Database Driven */}
+      {promoBannerEnabled && promoBannerText && !promoBannerDismissed && (
+        <div className="relative bg-gradient-to-r from-green-600 to-green-700 text-white">
+          <div className="container py-3">
+            <div className="flex items-center justify-center gap-4">
+              <div className="flex items-center gap-3 text-center">
+                <span className="font-semibold">{promoBannerText}</span>
+                {promoBannerLink && promoBannerLink !== '/search' && (
+                  <Link href={promoBannerLink} className="inline-flex items-center gap-1 underline hover:no-underline ml-2">
+                    Shop Now
+                  </Link>
+                )}
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-white hover:bg-white/20 h-8 w-8 p-0"
+              onClick={() => setPromoBannerDismissed(true)}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Hero Section with Advanced Search */}
       <section className="bg-gradient-to-br from-blue-50 via-green-50 to-blue-50 py-16 lg:py-24">
@@ -167,8 +204,16 @@ export default function HomePage() {
             </div>
 
             <div className="relative">
-              <div className="aspect-square bg-gradient-to-br from-green-100 to-blue-100 rounded-2xl flex items-center justify-center">
-                <ShoppingBag className="w-32 h-32 text-green-600" />
+              <div className="aspect-square bg-gradient-to-br from-green-100 to-blue-100 rounded-2xl flex items-center justify-center overflow-hidden">
+                {heroImageUrl ? (
+                  <img 
+                    src={heroImageUrl} 
+                    alt="Shop with confidence" 
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <ShoppingBag className="w-32 h-32 text-green-600" />
+                )}
               </div>
               <div className="absolute -top-4 -right-4 bg-white rounded-lg shadow-lg p-3">
                 <div className="flex items-center gap-2 text-sm">
@@ -221,8 +266,8 @@ export default function HomePage() {
         <div className="container">
           <div className="flex justify-between items-center mb-12">
             <div>
-              <h2 className="text-3xl font-bold mb-2">Shop by Category</h2>
-              <p className="text-muted-foreground">Discover products in your favorite categories</p>
+              <h2 className="text-3xl font-bold mb-2">{categoriesTitle}</h2>
+              <p className="text-muted-foreground">{categoriesSubtitle}</p>
             </div>
             <Button variant="outline" asChild>
               <Link href="/search">View All Categories</Link>
@@ -252,10 +297,10 @@ export default function HomePage() {
         <div className="container">
           <div className="flex justify-between items-center mb-12">
             <div>
-              <h2 className="text-3xl font-bold mb-2">Featured Products</h2>
+              <h2 className="text-3xl font-bold mb-2">{featuredTitle}</h2>
               <p className="text-muted-foreground">
                 {featuredProducts.length > 0
-                  ? "Products from verified vendors"
+                  ? featuredSubtitle
                   : "Products will appear here once vendors add them"}
               </p>
             </div>
@@ -353,8 +398,8 @@ export default function HomePage() {
       <section className="py-16 bg-gradient-to-r from-green-600 to-blue-600 text-white">
         <div className="container">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-4">Join MarketHub Today</h2>
-            <p className="text-xl opacity-90">Ghana's trusted marketplace for buyers and sellers</p>
+            <h2 className="text-3xl font-bold mb-4">{statsTitle}</h2>
+            <p className="text-xl opacity-90">{statsSubtitle}</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
@@ -380,10 +425,10 @@ export default function HomePage() {
       {/* Call to Action */}
       <section className="py-16 bg-gray-50">
         <div className="container text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Start?</h2>
+          <h2 className="text-3xl font-bold mb-4">{ctaTitle}</h2>
           <p className="text-xl text-muted-foreground mb-8">
             {totalProducts > 0
-              ? "Discover amazing products from verified vendors across Ghana"
+              ? ctaSubtitle
               : "Join our marketplace as a buyer or seller today"}
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">

@@ -600,6 +600,196 @@ async function runMigrations(client: PoolClient): Promise<void> {
     // Table may already exist
   }
 
+  // Seed default static pages if table is empty
+  try {
+    const countResult = await client.query('SELECT COUNT(*) FROM static_pages');
+    const count = parseInt(countResult.rows[0].count, 10);
+    if (count === 0) {
+      const defaultPages = [
+        {
+          slug: 'about',
+          title: 'About Us',
+          content: `<div class="space-y-6">
+<h2 class="text-2xl font-bold text-gray-900">Welcome to KIOSK</h2>
+<p class="text-gray-600">KIOSK is Ghana's most trusted online marketplace, connecting buyers with verified vendors across the country. We're committed to making online shopping safe, secure, and accessible for everyone.</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Our Mission</h3>
+<p class="text-gray-600">To revolutionize e-commerce in Ghana by providing a secure platform where buyers can shop with confidence and vendors can grow their businesses.</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Why Choose Us?</h3>
+<ul class="list-disc pl-6 space-y-2 text-gray-600">
+<li><strong>100% Verified Vendors</strong> - Every seller goes through our rigorous verification process</li>
+<li><strong>Buyer Protection</strong> - Your money is safe with our escrow payment system</li>
+<li><strong>Mobile Money</strong> - Pay conveniently with MTN MoMo, AirtelTigo, or Vodafone Cash</li>
+<li><strong>Local Focus</strong> - Built specifically for the Ghanaian market</li>
+</ul>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Contact Us</h3>
+<p class="text-gray-600">Have questions? Reach out to our support team at <a href="mailto:support@kiosk.com.gh" class="text-green-600 hover:underline">support@kiosk.com.gh</a></p>
+</div>`,
+          meta_description: 'Learn about KIOSK - Ghana\'s trusted online marketplace for verified vendors and secure shopping.',
+        },
+        {
+          slug: 'privacy',
+          title: 'Privacy Policy',
+          content: `<div class="space-y-6">
+<h2 class="text-2xl font-bold text-gray-900">Privacy Policy</h2>
+<p class="text-gray-600 text-sm">Last updated: January 2025</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Information We Collect</h3>
+<p class="text-gray-600">We collect information you provide directly to us, including your name, email address, phone number, and shipping address when you create an account or make a purchase.</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">How We Use Your Information</h3>
+<ul class="list-disc pl-6 space-y-2 text-gray-600">
+<li>Process and fulfill your orders</li>
+<li>Send order confirmations and updates</li>
+<li>Respond to your customer service requests</li>
+<li>Improve our platform and services</li>
+<li>Prevent fraud and enhance security</li>
+</ul>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Data Security</h3>
+<p class="text-gray-600">We implement industry-standard security measures to protect your personal information. All payment transactions are encrypted and processed through secure payment gateways.</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Your Rights</h3>
+<p class="text-gray-600">You have the right to access, correct, or delete your personal information at any time. Contact us at <a href="mailto:privacy@kiosk.com.gh" class="text-green-600 hover:underline">privacy@kiosk.com.gh</a> for any privacy-related requests.</p>
+</div>`,
+          meta_description: 'KIOSK Privacy Policy - Learn how we collect, use, and protect your personal information.',
+        },
+        {
+          slug: 'terms',
+          title: 'Terms of Service',
+          content: `<div class="space-y-6">
+<h2 class="text-2xl font-bold text-gray-900">Terms of Service</h2>
+<p class="text-gray-600 text-sm">Last updated: January 2025</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Acceptance of Terms</h3>
+<p class="text-gray-600">By accessing and using KIOSK, you agree to be bound by these Terms of Service and all applicable laws and regulations.</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">User Accounts</h3>
+<p class="text-gray-600">You are responsible for maintaining the confidentiality of your account credentials and for all activities that occur under your account.</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Buyer Responsibilities</h3>
+<ul class="list-disc pl-6 space-y-2 text-gray-600">
+<li>Provide accurate shipping and contact information</li>
+<li>Complete payment for orders placed</li>
+<li>Report any issues within the specified timeframe</li>
+<li>Respect vendor policies and product conditions</li>
+</ul>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Vendor Responsibilities</h3>
+<ul class="list-disc pl-6 space-y-2 text-gray-600">
+<li>Provide accurate product descriptions and images</li>
+<li>Ship orders within the specified timeframe</li>
+<li>Maintain adequate inventory levels</li>
+<li>Respond to customer inquiries promptly</li>
+</ul>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Dispute Resolution</h3>
+<p class="text-gray-600">We provide a dispute resolution process for buyers and vendors. All disputes should be reported through our platform within 7 days of delivery.</p>
+</div>`,
+          meta_description: 'KIOSK Terms of Service - Understand your rights and responsibilities as a user of our platform.',
+        },
+        {
+          slug: 'contact',
+          title: 'Contact Us',
+          content: `<div class="space-y-6">
+<h2 class="text-2xl font-bold text-gray-900">Contact Us</h2>
+<p class="text-gray-600">We're here to help! Reach out to us through any of the channels below.</p>
+
+<div class="grid md:grid-cols-2 gap-6 mt-6">
+<div class="p-6 border rounded-lg">
+<h3 class="text-lg font-semibold text-gray-900 mb-2">📧 Email Support</h3>
+<p class="text-gray-600">For general inquiries and support:</p>
+<a href="mailto:support@kiosk.com.gh" class="text-green-600 hover:underline">support@kiosk.com.gh</a>
+</div>
+
+<div class="p-6 border rounded-lg">
+<h3 class="text-lg font-semibold text-gray-900 mb-2">📞 Phone Support</h3>
+<p class="text-gray-600">Call us Monday - Friday, 9am - 6pm:</p>
+<p class="text-green-600 font-medium">+233 XX XXX XXXX</p>
+</div>
+
+<div class="p-6 border rounded-lg">
+<h3 class="text-lg font-semibold text-gray-900 mb-2">📍 Office Address</h3>
+<p class="text-gray-600">Visit us at:</p>
+<p class="text-gray-700">Accra, Ghana</p>
+</div>
+
+<div class="p-6 border rounded-lg">
+<h3 class="text-lg font-semibold text-gray-900 mb-2">💬 Response Time</h3>
+<p class="text-gray-600">We aim to respond to all inquiries within 24-48 hours during business days.</p>
+</div>
+</div>
+</div>`,
+          meta_description: 'Contact KIOSK - Get in touch with our support team for any questions or assistance.',
+        },
+        {
+          slug: 'mobile-money',
+          title: 'Mobile Money Guide',
+          content: `<div class="space-y-6">
+<h2 class="text-2xl font-bold text-gray-900">Mobile Money Payment Guide</h2>
+<p class="text-gray-600">KIOSK makes it easy to pay for your purchases using Ghana's popular mobile money services.</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Supported Providers</h3>
+<ul class="list-disc pl-6 space-y-2 text-gray-600">
+<li><strong>MTN Mobile Money (MoMo)</strong> - Ghana's largest mobile money network</li>
+<li><strong>AirtelTigo Money</strong> - Fast and reliable payments</li>
+<li><strong>Vodafone Cash</strong> - Secure transactions</li>
+</ul>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">How to Pay</h3>
+<ol class="list-decimal pl-6 space-y-2 text-gray-600">
+<li>Add items to your cart and proceed to checkout</li>
+<li>Select "Mobile Money" as your payment method</li>
+<li>Choose your mobile money provider</li>
+<li>Enter your mobile money phone number</li>
+<li>Confirm the payment on your phone when prompted</li>
+<li>Receive order confirmation once payment is complete</li>
+</ol>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">Security</h3>
+<p class="text-gray-600">All mobile money transactions are processed through Paystack, a PCI-DSS compliant payment processor. Your payment information is encrypted and never stored on our servers.</p>
+</div>`,
+          meta_description: 'Learn how to pay with Mobile Money on KIOSK - MTN MoMo, AirtelTigo, and Vodafone Cash accepted.',
+        },
+        {
+          slug: 'security',
+          title: 'Security Center',
+          content: `<div class="space-y-6">
+<h2 class="text-2xl font-bold text-gray-900">Security Center</h2>
+<p class="text-gray-600">Your security is our top priority. Learn about the measures we take to protect you.</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">🛡️ Vendor Verification</h3>
+<p class="text-gray-600">Every vendor on KIOSK undergoes a rigorous verification process including identity verification, business registration checks, and ongoing monitoring.</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">💰 Buyer Protection</h3>
+<p class="text-gray-600">Our escrow payment system holds your payment securely until you confirm receipt of your order. If there's a problem, our dispute resolution team will help.</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">🔒 Secure Payments</h3>
+<p class="text-gray-600">All transactions are encrypted with SSL and processed through Paystack, meeting the highest security standards in the industry.</p>
+
+<h3 class="text-xl font-semibold text-gray-900 mt-6">🚨 Report Suspicious Activity</h3>
+<p class="text-gray-600">If you notice any suspicious activity or believe you've encountered a scam, please report it immediately to <a href="mailto:security@kiosk.com.gh" class="text-green-600 hover:underline">security@kiosk.com.gh</a></p>
+</div>`,
+          meta_description: 'KIOSK Security Center - Learn about our vendor verification, buyer protection, and secure payment systems.',
+        },
+      ];
+      
+      for (const page of defaultPages) {
+        const id = `page_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        await client.query(
+          `INSERT INTO static_pages (id, slug, title, content, meta_description, is_published, show_in_footer, order_index)
+           VALUES ($1, $2, $3, $4, $5, TRUE, TRUE, $6)`,
+          [id, page.slug, page.title, page.content, page.meta_description, defaultPages.indexOf(page) + 1]
+        );
+      }
+      console.log('[DB] Seeded default static pages');
+    }
+  } catch (e) {
+    console.error('[DB] Error seeding static pages:', e);
+  }
+
   // Add updated_by column to site_settings if it doesn't exist
   try {
     await client.query(`

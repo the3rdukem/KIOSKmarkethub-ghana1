@@ -1157,6 +1157,23 @@ function AdminDashboardContent() {
     reader.readAsDataURL(file);
   };
 
+  const handleHeroImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (file.size > 1024 * 1024) {
+      toast.error('Hero image must be under 1MB');
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64 = reader.result as string;
+      handleUpdateDbBranding('hero_image_url', base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveAPIConfig = (apiId: string) => {
     updateAPIConfiguration(apiId, {
       apiKey: apiFormData.apiKey,
@@ -1711,6 +1728,25 @@ function AdminDashboardContent() {
                     </div>
                     <div><Label>Hero Headline</Label><Input value={dbBranding.hero_headline || ''} onChange={(e) => handleUpdateDbBranding('hero_headline', e.target.value)} placeholder="Shop with Confidence" /></div>
                     <div><Label>Hero Subheadline</Label><Textarea value={dbBranding.hero_subheadline || ''} onChange={(e) => handleUpdateDbBranding('hero_subheadline', e.target.value)} placeholder="Ghana's most secure marketplace..." /></div>
+                    <div>
+                      <Label>Hero Image (promotional/seasonal banner)</Label>
+                      <p className="text-xs text-muted-foreground mb-2">This appears in the large box on the right side of the homepage hero section. Max 1MB.</p>
+                      <div className="flex items-center gap-4">
+                        {dbBranding.hero_image_url && (
+                          <div className="w-32 h-32 border rounded-lg flex items-center justify-center overflow-hidden bg-gray-50">
+                            <img src={dbBranding.hero_image_url} alt="Hero" className="max-w-full max-h-full object-cover" />
+                          </div>
+                        )}
+                        <div className="flex-1 space-y-2">
+                          <Input type="file" accept="image/*" onChange={handleHeroImageUpload} />
+                          {dbBranding.hero_image_url && (
+                            <Button variant="outline" size="sm" onClick={() => handleUpdateDbBranding('hero_image_url', '')}>
+                              Remove Image
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div><Label>Hero CTA Button Text</Label><Input value={dbBranding.hero_cta_text || ''} onChange={(e) => handleUpdateDbBranding('hero_cta_text', e.target.value)} placeholder="Browse All Products" /></div>
                       <div><Label>Hero CTA Button Link</Label><Input value={dbBranding.hero_cta_link || ''} onChange={(e) => handleUpdateDbBranding('hero_cta_link', e.target.value)} placeholder="/search" /></div>
@@ -1765,8 +1801,31 @@ function AdminDashboardContent() {
                       <Switch checked={dbBranding.promo_banner_enabled === 'true'} onCheckedChange={(checked) => handleUpdateDbBranding('promo_banner_enabled', String(checked))} />
                     </div>
                     {dbBranding.promo_banner_enabled === 'true' && (
-                      <div><Label>Promotional Banner Text</Label><Input value={dbBranding.promo_banner_text || ''} onChange={(e) => handleUpdateDbBranding('promo_banner_text', e.target.value)} placeholder="Free shipping on orders over GHS 100!" /></div>
+                      <div className="space-y-4">
+                        <div><Label>Promotional Banner Text</Label><Input value={dbBranding.promo_banner_text || ''} onChange={(e) => handleUpdateDbBranding('promo_banner_text', e.target.value)} placeholder="Free shipping on orders over GHS 100!" /></div>
+                        <div><Label>Promotional Banner Link (optional)</Label><Input value={dbBranding.promo_banner_link || ''} onChange={(e) => handleUpdateDbBranding('promo_banner_link', e.target.value)} placeholder="/search?sale=true" /></div>
+                      </div>
                     )}
+                    
+                    <div className="border-t pt-4 mt-4">
+                      <h4 className="font-semibold mb-3">Section Titles</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div><Label>Categories Section Title</Label><Input value={dbBranding.categories_title || ''} onChange={(e) => handleUpdateDbBranding('categories_title', e.target.value)} placeholder="Shop by Category" /></div>
+                        <div><Label>Categories Section Subtitle</Label><Input value={dbBranding.categories_subtitle || ''} onChange={(e) => handleUpdateDbBranding('categories_subtitle', e.target.value)} placeholder="Discover products in your favorite categories" /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 mt-3">
+                        <div><Label>Featured Products Title</Label><Input value={dbBranding.featured_title || ''} onChange={(e) => handleUpdateDbBranding('featured_title', e.target.value)} placeholder="Featured Products" /></div>
+                        <div><Label>Featured Products Subtitle</Label><Input value={dbBranding.featured_subtitle || ''} onChange={(e) => handleUpdateDbBranding('featured_subtitle', e.target.value)} placeholder="Products from verified vendors" /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 mt-3">
+                        <div><Label>Stats Section Title</Label><Input value={dbBranding.stats_title || ''} onChange={(e) => handleUpdateDbBranding('stats_title', e.target.value)} placeholder="Join MarketHub Today" /></div>
+                        <div><Label>Stats Section Subtitle</Label><Input value={dbBranding.stats_subtitle || ''} onChange={(e) => handleUpdateDbBranding('stats_subtitle', e.target.value)} placeholder="Ghana's trusted marketplace..." /></div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 mt-3">
+                        <div><Label>CTA Section Title</Label><Input value={dbBranding.cta_title || ''} onChange={(e) => handleUpdateDbBranding('cta_title', e.target.value)} placeholder="Ready to Start?" /></div>
+                        <div><Label>CTA Section Subtitle</Label><Input value={dbBranding.cta_subtitle || ''} onChange={(e) => handleUpdateDbBranding('cta_subtitle', e.target.value)} placeholder="Discover amazing products..." /></div>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
