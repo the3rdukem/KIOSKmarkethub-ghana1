@@ -443,12 +443,6 @@ export default function HomePage() {
                 Join as Vendor
               </Link>
             </Button>
-            <Button size="lg" variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50" asChild>
-              <Link href="/admin/login">
-                <Shield className="w-5 h-5 mr-2" />
-                Admin Access
-              </Link>
-            </Button>
           </div>
         </div>
       </section>

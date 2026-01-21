@@ -144,13 +144,6 @@ export function Footer() {
                       )}
                     </li>
                   ))}
-                  {sectionName === 'Company' && (
-                    <li>
-                      <Link href="/admin/login" className="text-purple-600 hover:text-purple-700 font-medium">
-                        Admin Portal
-                      </Link>
-                    </li>
-                  )}
                 </ul>
               </div>
             );
