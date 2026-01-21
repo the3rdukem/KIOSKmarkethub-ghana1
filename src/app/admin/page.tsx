@@ -886,6 +886,18 @@ function AdminDashboardContent() {
     is_visible: boolean;
     is_external: boolean;
   }>>([]);
+  
+  // Footer link editing state
+  const [editingFooterLink, setEditingFooterLink] = useState<{
+    id: string;
+    section: string;
+    title: string;
+    url: string;
+    order_num: number;
+    is_external: boolean;
+  } | null>(null);
+  const [isFooterLinkDialogOpen, setIsFooterLinkDialogOpen] = useState(false);
+  const [footerLinkToDelete, setFooterLinkToDelete] = useState<string | null>(null);
 
   const [dbOrders, setDbOrders] = useState<Array<{
     id: string;
@@ -1139,6 +1151,99 @@ function AdminDashboardContent() {
       console.error('Failed to toggle footer link:', error);
       toast.error('Failed to update footer link');
     }
+  };
+
+  const handleSaveFooterLink = async () => {
+    if (!editingFooterLink) return;
+    
+    try {
+      const isNew = !editingFooterLink.id;
+      const response = await fetch('/api/admin/footer-links', {
+        method: isNew ? 'POST' : 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(isNew ? {
+          section: editingFooterLink.section,
+          title: editingFooterLink.title,
+          url: editingFooterLink.url,
+          order_num: editingFooterLink.order_num,
+          is_external: editingFooterLink.is_external,
+        } : {
+          id: editingFooterLink.id,
+          section: editingFooterLink.section,
+          title: editingFooterLink.title,
+          url: editingFooterLink.url,
+          order_num: editingFooterLink.order_num,
+          is_external: editingFooterLink.is_external,
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (isNew) {
+          setDbFooterLinks((prev) => [...prev, data.link]);
+          toast.success('Footer link created');
+        } else {
+          setDbFooterLinks((prev) => prev.map((link) => link.id === editingFooterLink.id ? data.link : link));
+          toast.success('Footer link updated');
+        }
+        setIsFooterLinkDialogOpen(false);
+        setEditingFooterLink(null);
+      } else {
+        const err = await response.json();
+        toast.error(err.error || 'Failed to save footer link');
+      }
+    } catch (error) {
+      console.error('Failed to save footer link:', error);
+      toast.error('Failed to save footer link');
+    }
+  };
+
+  const handleDeleteFooterLink = async () => {
+    if (!footerLinkToDelete) return;
+    
+    try {
+      const response = await fetch(`/api/admin/footer-links?id=${footerLinkToDelete}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      
+      if (response.ok) {
+        setDbFooterLinks((prev) => prev.filter((link) => link.id !== footerLinkToDelete));
+        toast.success('Footer link deleted');
+        setFooterLinkToDelete(null);
+      } else {
+        const err = await response.json();
+        toast.error(err.error || 'Failed to delete footer link');
+      }
+    } catch (error) {
+      console.error('Failed to delete footer link:', error);
+      toast.error('Failed to delete footer link');
+    }
+  };
+
+  const openEditFooterLink = (link: typeof dbFooterLinks[0]) => {
+    setEditingFooterLink({
+      id: link.id,
+      section: link.section,
+      title: link.title,
+      url: link.url,
+      order_num: link.order_num,
+      is_external: link.is_external,
+    });
+    setIsFooterLinkDialogOpen(true);
+  };
+
+  const openAddFooterLink = (section: string) => {
+    setEditingFooterLink({
+      id: '',
+      section,
+      title: '',
+      url: '',
+      order_num: 0,
+      is_external: false,
+    });
+    setIsFooterLinkDialogOpen(true);
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -1759,22 +1864,36 @@ function AdminDashboardContent() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2"><Link2 className="w-5 h-5" />Footer Links</CardTitle>
-                    <CardDescription>Toggle visibility of footer links</CardDescription>
+                    <CardDescription>Manage footer links - edit, add, delete, or toggle visibility</CardDescription>
                   </CardHeader>
                   <CardContent>
                     {['For Buyers', 'For Vendors', 'Security', 'Company'].map((section) => {
                       const sectionLinks = dbFooterLinks.filter((link) => link.section === section);
                       return (
-                        <div key={section} className="mb-4">
-                          <h4 className="font-semibold mb-2">{section}</h4>
+                        <div key={section} className="mb-6">
+                          <div className="flex items-center justify-between mb-2">
+                            <h4 className="font-semibold">{section}</h4>
+                            <Button variant="outline" size="sm" onClick={() => openAddFooterLink(section)}>
+                              <Plus className="w-4 h-4 mr-1" /> Add Link
+                            </Button>
+                          </div>
                           <div className="space-y-2">
                             {sectionLinks.map((link) => (
-                              <div key={link.id} className="flex items-center justify-between p-2 border rounded-lg">
-                                <div>
+                              <div key={link.id} className="flex items-center justify-between p-3 border rounded-lg">
+                                <div className="flex-1">
                                   <p className="font-medium text-sm">{link.title}</p>
                                   <code className="text-xs text-muted-foreground">{link.url}</code>
+                                  {link.is_external && <span className="ml-2 text-xs text-blue-600">(external)</span>}
                                 </div>
-                                <Switch checked={link.is_visible} onCheckedChange={() => handleToggleFooterLink(link.id)} />
+                                <div className="flex items-center gap-2">
+                                  <Button variant="ghost" size="sm" onClick={() => openEditFooterLink(link)}>
+                                    <Edit className="w-4 h-4" />
+                                  </Button>
+                                  <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700" onClick={() => setFooterLinkToDelete(link.id)}>
+                                    <Trash2 className="w-4 h-4" />
+                                  </Button>
+                                  <Switch checked={link.is_visible} onCheckedChange={() => handleToggleFooterLink(link.id)} />
+                                </div>
                               </div>
                             ))}
                             {sectionLinks.length === 0 && (
@@ -1786,6 +1905,72 @@ function AdminDashboardContent() {
                     })}
                   </CardContent>
                 </Card>
+
+                {/* Footer Link Edit/Add Dialog */}
+                <Dialog open={isFooterLinkDialogOpen} onOpenChange={setIsFooterLinkDialogOpen}>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>{editingFooterLink?.id ? 'Edit Footer Link' : 'Add Footer Link'}</DialogTitle>
+                      <DialogDescription>
+                        {editingFooterLink?.id ? 'Update the footer link details' : `Add a new link to the "${editingFooterLink?.section}" section`}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>Title</Label>
+                        <Input 
+                          value={editingFooterLink?.title || ''} 
+                          onChange={(e) => setEditingFooterLink(prev => prev ? {...prev, title: e.target.value} : null)}
+                          placeholder="Link title"
+                        />
+                      </div>
+                      <div>
+                        <Label>URL</Label>
+                        <Input 
+                          value={editingFooterLink?.url || ''} 
+                          onChange={(e) => setEditingFooterLink(prev => prev ? {...prev, url: e.target.value} : null)}
+                          placeholder="/page-slug or https://..."
+                        />
+                      </div>
+                      <div>
+                        <Label>Order</Label>
+                        <Input 
+                          type="number"
+                          value={editingFooterLink?.order_num || 0} 
+                          onChange={(e) => setEditingFooterLink(prev => prev ? {...prev, order_num: parseInt(e.target.value) || 0} : null)}
+                          placeholder="0"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Switch 
+                          checked={editingFooterLink?.is_external || false} 
+                          onCheckedChange={(checked) => setEditingFooterLink(prev => prev ? {...prev, is_external: checked} : null)}
+                        />
+                        <Label>External link (opens in new tab)</Label>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" onClick={() => setIsFooterLinkDialogOpen(false)}>Cancel</Button>
+                      <Button onClick={handleSaveFooterLink}>Save</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                {/* Footer Link Delete Confirmation */}
+                <AlertDialog open={!!footerLinkToDelete} onOpenChange={(open) => !open && setFooterLinkToDelete(null)}>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Footer Link?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. The link will be permanently removed from the footer.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleDeleteFooterLink} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
 
                 {/* Homepage Content */}
                 <Card>
