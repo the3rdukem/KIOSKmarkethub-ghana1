@@ -35,8 +35,20 @@ function encryptCredentials(credentials: Record<string, string>): string {
  */
 function decryptCredentials(encryptedData: string): Record<string, string> {
   try {
-    const [ivHex, encrypted] = encryptedData.split(':');
+    if (!encryptedData || typeof encryptedData !== 'string') return {};
+    
+    const parts = encryptedData.split(':');
+    if (parts.length !== 2) return {};
+    
+    const [ivHex, encrypted] = parts;
     if (!ivHex || !encrypted) return {};
+    
+    // Validate IV is proper hex and correct length (16 bytes = 32 hex chars)
+    if (!/^[0-9a-fA-F]{32}$/.test(ivHex)) {
+      console.warn('[INTEGRATIONS] Invalid IV format, credentials may need reconfiguration');
+      return {};
+    }
+    
     const iv = Buffer.from(ivHex, 'hex');
     const key = getKeyBuffer();
     const decipher = createDecipheriv(ALGORITHM, key, iv);
@@ -44,7 +56,7 @@ function decryptCredentials(encryptedData: string): Record<string, string> {
     decrypted += decipher.final('utf8');
     return JSON.parse(decrypted);
   } catch (error) {
-    console.error('[INTEGRATIONS] Failed to decrypt credentials:', error);
+    // Silently return empty for corrupted data - integration will show as needing reconfiguration
     return {};
   }
 }
