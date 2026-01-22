@@ -23,24 +23,49 @@ const DEFAULT_OPTIONS: SupabaseUploadOptions = {
   directory: 'general',
 };
 
-const SUPABASE_URL = 'https://riwmdjgqhrehglvuzhkp.supabase.co';
-const BUCKET_NAME = 'KIOSK-IMAGES';
-
 class SupabaseStorageService {
   private client: SupabaseClient | null = null;
-  private serviceRoleKey: string | null = null;
+  private projectUrl: string = '';
+  private bucketName: string = '';
 
-  async init(serviceRoleKey?: string): Promise<boolean> {
-    const key = serviceRoleKey || this.serviceRoleKey;
-    
-    if (!key) {
-      console.warn('[SUPABASE_STORAGE] No service role key provided');
+  async initFromIntegration(): Promise<boolean> {
+    try {
+      const response = await fetch('/api/integrations?id=supabase_storage', {
+        credentials: 'include',
+      });
+      
+      if (!response.ok) {
+        console.warn('[SUPABASE_STORAGE] Failed to fetch integration config');
+        return false;
+      }
+      
+      const data = await response.json();
+      const integration = data.integration;
+      
+      if (!integration || !integration.isConfigured || !integration.isEnabled) {
+        console.warn('[SUPABASE_STORAGE] Integration not configured or enabled');
+        return false;
+      }
+      
+      const { serviceRoleKey, projectUrl, bucketName } = integration.credentials;
+      
+      if (!serviceRoleKey || !projectUrl || !bucketName) {
+        console.warn('[SUPABASE_STORAGE] Missing required credentials');
+        return false;
+      }
+      
+      return this.init(serviceRoleKey, projectUrl, bucketName);
+    } catch (error) {
+      console.error('[SUPABASE_STORAGE] Failed to init from integration:', error);
       return false;
     }
+  }
 
+  init(serviceRoleKey: string, projectUrl: string, bucketName: string): boolean {
     try {
-      this.serviceRoleKey = key;
-      this.client = createClient(SUPABASE_URL, key, {
+      this.projectUrl = projectUrl;
+      this.bucketName = bucketName;
+      this.client = createClient(projectUrl, serviceRoleKey, {
         auth: {
           autoRefreshToken: false,
           persistSession: false,
@@ -64,7 +89,7 @@ class SupabaseStorageService {
     options: SupabaseUploadOptions = {}
   ): Promise<SupabaseStorageFile> {
     if (!this.client) {
-      throw new Error('Supabase storage not initialized. Please configure the service role key in Admin > API Management.');
+      throw new Error('Supabase storage not initialized. Please configure the integration in Admin > API Management.');
     }
 
     const opts = { ...DEFAULT_OPTIONS, ...options };
@@ -84,7 +109,7 @@ class SupabaseStorageService {
     const filePath = `${opts.directory}/${filename}`;
 
     const { error } = await this.client.storage
-      .from(BUCKET_NAME)
+      .from(this.bucketName)
       .upload(filePath, file, {
         contentType: mimeType,
         upsert: false,
@@ -96,7 +121,7 @@ class SupabaseStorageService {
     }
 
     const { data: urlData } = this.client.storage
-      .from(BUCKET_NAME)
+      .from(this.bucketName)
       .getPublicUrl(filePath);
 
     return {
@@ -133,12 +158,12 @@ class SupabaseStorageService {
     }
 
     try {
-      const pathToDelete = filePath.includes(BUCKET_NAME) 
-        ? filePath.split(`${BUCKET_NAME}/`)[1] 
+      const pathToDelete = filePath.includes(this.bucketName) 
+        ? filePath.split(`${this.bucketName}/`)[1] 
         : filePath;
 
       const { error } = await this.client.storage
-        .from(BUCKET_NAME)
+        .from(this.bucketName)
         .remove([pathToDelete]);
 
       if (error) {
@@ -160,7 +185,7 @@ class SupabaseStorageService {
 
     try {
       const { data, error } = await this.client.storage
-        .from(BUCKET_NAME)
+        .from(this.bucketName)
         .list(directory);
 
       if (error) {
@@ -176,7 +201,7 @@ class SupabaseStorageService {
   }
 
   getPublicUrl(filePath: string): string {
-    return `${SUPABASE_URL}/storage/v1/object/public/${BUCKET_NAME}/${filePath}`;
+    return `${this.projectUrl}/storage/v1/object/public/${this.bucketName}/${filePath}`;
   }
 
   private getExtension(mimeType: string, originalName: string): string {
@@ -204,11 +229,11 @@ class SupabaseStorageService {
   }
 
   getBucketName(): string {
-    return BUCKET_NAME;
+    return this.bucketName;
   }
 
-  getSupabaseUrl(): string {
-    return SUPABASE_URL;
+  getProjectUrl(): string {
+    return this.projectUrl;
   }
 }
 

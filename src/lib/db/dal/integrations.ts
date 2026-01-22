@@ -357,6 +357,45 @@ export const INTEGRATION_SCHEMAS: IntegrationSchema[] = [
       },
     ],
   },
+  {
+    id: 'supabase_storage',
+    name: 'Supabase Storage',
+    description: 'Cloud storage for product images, logos, and other media files using Supabase Storage.',
+    provider: 'Supabase',
+    category: 'storage',
+    icon: 'cloud',
+    documentationUrl: 'https://supabase.com/docs/guides/storage',
+    supportedEnvironments: ['live'],
+    defaultEnvironment: 'live',
+    fields: [
+      {
+        key: 'serviceRoleKey',
+        label: 'Service Role Key',
+        type: 'password',
+        required: true,
+        placeholder: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...',
+        description: 'Supabase service role key for server-side uploads (found in Settings > API)',
+      },
+      {
+        key: 'projectUrl',
+        label: 'Project URL',
+        type: 'url',
+        required: true,
+        placeholder: 'https://xxxxx.supabase.co',
+        description: 'Your Supabase project URL',
+        defaultValue: 'https://riwmdjgqhrehglvuzhkp.supabase.co',
+      },
+      {
+        key: 'bucketName',
+        label: 'Bucket Name',
+        type: 'text',
+        required: true,
+        placeholder: 'images',
+        description: 'Storage bucket name for uploads',
+        defaultValue: 'KIOSK-IMAGES',
+      },
+    ],
+  },
 ];
 
 export interface DbIntegration {
@@ -828,6 +867,57 @@ export async function testSmileIdentityConnection(): Promise<{ success: boolean;
 }
 
 /**
+ * Test Supabase Storage connection
+ */
+async function testSupabaseStorageConnection(): Promise<{ success: boolean; error?: string }> {
+  const integration = await getIntegrationById('supabase_storage');
+  if (!integration || !integration.isConfigured) {
+    return { success: false, error: 'Supabase Storage not configured' };
+  }
+
+  const { serviceRoleKey, projectUrl, bucketName } = integration.credentials;
+  if (!serviceRoleKey || !projectUrl || !bucketName) {
+    return { success: false, error: 'Missing required credentials' };
+  }
+
+  try {
+    // Test by listing bucket contents (simple read operation)
+    const response = await fetch(`${projectUrl}/storage/v1/bucket/${bucketName}`, {
+      headers: {
+        'Authorization': `Bearer ${serviceRoleKey}`,
+        'apikey': serviceRoleKey,
+      },
+    });
+
+    if (response.ok) {
+      await updateIntegrationTestResult('supabase_storage', true);
+      return { success: true };
+    }
+
+    // Check for common errors
+    if (response.status === 401 || response.status === 403) {
+      const error = 'Invalid service role key or insufficient permissions';
+      await updateIntegrationTestResult('supabase_storage', false, error);
+      return { success: false, error };
+    }
+
+    if (response.status === 404) {
+      const error = `Bucket "${bucketName}" not found`;
+      await updateIntegrationTestResult('supabase_storage', false, error);
+      return { success: false, error };
+    }
+
+    const error = `Connection failed: ${response.status} ${response.statusText}`;
+    await updateIntegrationTestResult('supabase_storage', false, error);
+    return { success: false, error };
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Connection failed';
+    await updateIntegrationTestResult('supabase_storage', false, errorMessage);
+    return { success: false, error: errorMessage };
+  }
+}
+
+/**
  * Test integration connection by ID
  */
 export async function testIntegrationConnection(id: string): Promise<{ success: boolean; error?: string }> {
@@ -838,6 +928,8 @@ export async function testIntegrationConnection(id: string): Promise<{ success: 
       return testGoogleMapsConnection();
     case 'smile_identity':
       return testSmileIdentityConnection();
+    case 'supabase_storage':
+      return testSupabaseStorageConnection();
     default:
       // Generic test - just validate credentials exist
       const integration = await getIntegrationById(id);
