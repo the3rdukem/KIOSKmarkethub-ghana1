@@ -44,7 +44,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions.
 - **PostgreSQL**: Managed relational database service.
-- **Image Storage**: Provider-agnostic abstraction for image uploads, with a clear cloud migration path.
+- **Image Storage**: Supabase Storage integration for cloud image hosting, configurable via Admin > API Management. Uses service role key for secure uploads with automatic fallback to local Base64 storage when not configured.
 - **Google OAuth**: OAuth 2.0 integration for buyer and vendor sign-in.
 - **Google Maps Places API**: Location services for address autocompletion, with client-side API key access and HTTP referrer restrictions.
 - **Smile Identity KYC Integration**: Uses the `smile-identity-core` npm SDK for secure biometric and ID verification, with webhook integration for status updates.
