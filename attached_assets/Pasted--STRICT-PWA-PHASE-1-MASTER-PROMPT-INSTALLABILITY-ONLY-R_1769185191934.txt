@@ -1,0 +1,193 @@
+⸻
+
+✅ STRICT PWA PHASE 1 MASTER PROMPT (INSTALLABILITY ONLY)
+
+ROLE
+
+You are a senior Next.js + PWA engineer working on the KIOSK marketplace codebase.
+
+Your job is to make the app PWA-installable only, with zero business logic changes, zero offline write support, and zero regressions.
+
+⸻
+
+🛑 NON-NEGOTIABLE RULES
+	•	Audit first. Do NOT code before auditing.
+	•	No feature creep.
+	•	No offline order/cart/payment logic.
+	•	No background sync.
+	•	No database changes.
+	•	No auth changes.
+	•	No API changes.
+	•	No breaking routing changes.
+	•	No caching of POST/PUT/DELETE requests.
+	•	If unsure → STOP and ASK.
+
+⸻
+
+1️⃣ MANDATORY AUDIT (BEFORE WRITING CODE)
+
+Inspect and report:
+
+A. Project Structure
+	•	Next.js version
+	•	App Router or Pages Router
+	•	next.config.js (or .mjs)
+	•	public/ directory contents
+	•	existing meta tags (if any)
+	•	existing service workers (confirm NONE exist)
+
+B. PWA Readiness Check
+
+Confirm status of:
+	•	manifest.json ❌ / ✅
+	•	service worker ❌ / ✅
+	•	next-pwa or workbox ❌ / ✅
+	•	PWA icons ❌ / ✅
+	•	install prompts ❌ / ✅
+	•	theme-color meta ❌ / ✅
+
+➡️ STOP and produce an audit report before implementation.
+
+⸻
+
+2️⃣ IMPLEMENTATION SCOPE (PHASE 1 ONLY)
+
+Allowed Deliverables
+
+A. Web App Manifest
+Create /public/manifest.json with:
+	•	name: KIOSK
+	•	short_name: KIOSK
+	•	start_url: /
+	•	display: standalone
+	•	background_color
+	•	theme_color
+	•	orientation: portrait
+	•	icons (standard + maskable)
+
+B. App Icons
+Add icons to /public/icons/:
+	•	72x72
+	•	96x96
+	•	128x128
+	•	144x144
+	•	152x152
+	•	192x192
+	•	384x384
+	•	512x512
+	•	Include maskable icons
+
+Do NOT reference external icon URLs.
+
+⸻
+
+C. next-pwa Integration
+	•	Install next-pwa
+	•	Generate service worker automatically
+	•	Cache ONLY:
+	•	static assets
+	•	fonts
+	•	images
+	•	JS/CSS bundles
+
+❌ Do NOT cache:
+	•	API routes
+	•	auth requests
+	•	cart mutations
+	•	order endpoints
+	•	payment endpoints
+
+⸻
+
+D. Meta Tags
+Add required PWA meta tags:
+	•	theme-color
+	•	apple-mobile-web-app-capable
+	•	apple-touch-icon
+	•	viewport-safe configuration
+
+⸻
+
+3️⃣ STRICT OFFLINE RULES
+	•	Offline browsing may work for cached static assets
+	•	Offline interactions must fail gracefully
+	•	No write operations offline
+	•	No queuing
+	•	No retries
+	•	No background sync
+
+⸻
+
+4️⃣ NAMING & BRANDING RULES
+	•	Replace MarketHub → KIOSK in any PWA-related assets
+	•	Do NOT rename legacy code references outside PWA scope
+	•	No global refactors
+
+⸻
+
+5️⃣ REGRESSION SAFETY CHECK
+
+After implementation, verify:
+	•	App builds successfully
+	•	App runs normally online
+	•	Auth still works
+	•	Orders still work
+	•	Payments untouched
+	•	Admin unaffected
+	•	No console errors
+	•	PWA install prompt appears on supported devices
+	•	App launches in standalone mode when installed
+
+⸻
+
+6️⃣ MANDATORY EXIT REPORT
+
+Provide a final report with:
+
+A. Files Added / Modified
+
+(list exact paths)
+
+B. Features Implemented
+	•	Installability ✅
+	•	Standalone mode ✅
+	•	Icons ✅
+	•	Manifest ✅
+	•	Service worker ✅
+
+C. Features Explicitly NOT Implemented
+
+(list offline features NOT done)
+
+D. Regression Confirmation
+
+State explicitly:
+
+“No auth, order, payment, messaging, or admin functionality was modified.”
+
+⸻
+
+🛑 STOP CONDITIONS
+
+If any of the following are required:
+	•	offline cart
+	•	offline checkout
+	•	background sync
+	•	queueing
+	•	data mutation caching
+	•	push notifications
+
+➡️ STOP and ask for approval.
+
+⸻
+
+🎯 SUCCESS DEFINITION
+
+KIOSK:
+	•	Is installable on Android, iOS, Desktop
+	•	Runs in standalone mode
+	•	Has correct branding
+	•	Has zero business logic changes
+	•	Is safe to ship
+
+⸻
