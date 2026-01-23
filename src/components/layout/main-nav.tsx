@@ -431,16 +431,27 @@ export function MainNav() {
         {/* Search Bar (for buyer portal or public) */}
         {showSearch && (
           <div className="flex-1 max-w-lg mx-8">
-            <div className="relative">
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const query = formData.get('q')?.toString().trim();
+                if (query) {
+                  router.push(`/search?q=${encodeURIComponent(query)}`);
+                } else {
+                  router.push('/search');
+                }
+              }}
+              className="relative"
+            >
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <input
                 type="text"
+                name="q"
                 placeholder="Search products..."
                 className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                onClick={() => router.push('/search')}
-                readOnly
               />
-            </div>
+            </form>
           </div>
         )}
 
