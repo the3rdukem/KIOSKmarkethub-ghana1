@@ -51,6 +51,7 @@ export function MainNav() {
   // Hydration state to prevent SSR mismatch
   const [isHydrated, setIsHydrated] = useState(false);
   const [branding, setBranding] = useState<BrandingData>({});
+  const [brandingLoaded, setBrandingLoaded] = useState(false);
 
   // Get auth state - these are safe to call but values may change after hydration
   const user = useAuthStore((state) => state.user);
@@ -71,6 +72,8 @@ export function MainNav() {
         }
       } catch (error) {
         console.error('Failed to fetch branding:', error);
+      } finally {
+        setBrandingLoaded(true);
       }
     }
     fetchBranding();
@@ -111,7 +114,7 @@ export function MainNav() {
     }
   };
 
-  const siteName = branding.site_name || 'MarketHub';
+  const siteName = brandingLoaded ? (branding.site_name || 'KIOSK') : '';
   
   const getPortalTitle = () => {
     if (!safeUser) return siteName;
