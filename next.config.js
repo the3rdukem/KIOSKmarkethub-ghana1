@@ -5,6 +5,13 @@ const withPWA = require('next-pwa')({
   disable: process.env.NODE_ENV === 'development',
   runtimeCaching: [
     {
+      urlPattern: /\/api\/.*/i,
+      handler: 'NetworkOnly',
+      options: {
+        cacheName: 'api-no-cache'
+      }
+    },
+    {
       urlPattern: /^https:\/\/fonts\.(?:gstatic|googleapis)\.com\/.*/i,
       handler: 'CacheFirst',
       options: {
