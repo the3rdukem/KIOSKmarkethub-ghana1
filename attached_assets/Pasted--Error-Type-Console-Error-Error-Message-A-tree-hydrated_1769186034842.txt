@@ -1,0 +1,58 @@
+## Error Type
+Console Error
+
+## Error Message
+A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+
+- A server/client branch `if (typeof window !== 'undefined')`.
+- Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
+- Date formatting in a user's locale which doesn't match the server.
+- External changing data without sending a snapshot of it along with the HTML.
+- Invalid HTML tag nesting.
+
+It can also happen if the client has a browser extension installed which messes with the HTML before React loaded.
+
+https://react.dev/link/hydration-mismatch
+
+  ...
+    <HotReload assetPrefix="" globalError={[...]}>
+      <AppDevOverlayErrorBoundary globalError={[...]}>
+        <ReplaySsrOnlyErrors>
+        <DevRootHTTPAccessFallbackBoundary>
+          <HTTPAccessFallbackBoundary notFound={<NotAllowedRootHTTPFallbackError>}>
+            <HTTPAccessFallbackErrorBoundary pathname="/" notFound={<NotAllowedRootHTTPFallbackError>} ...>
+              <RedirectBoundary>
+                <RedirectErrorBoundary router={{...}}>
+                  <Head>
+                  <__next_root_layout_boundary__>
+                    <SegmentViewNode type="layout" pagePath="layout.tsx">
+                      <SegmentTrieNode>
+                      <link>
+                      <script>
+                      <script>
+                      <script>
+                      <script>
+                      <RootLayout>
+                        <html lang="en" suppressHydrationWarning={true} data-react-source="[project]/...">
+                          <head
++                           data-react-source="[project]/src/app/layout.tsx:66:7"
+-                           data-react-source={null}
+                          >
+                          ...
+                  ...
+
+
+
+    at head (<anonymous>:null:null)
+    at RootLayout (src/app/layout.tsx:66:7)
+
+## Code Frame
+  64 |   return (
+  65 |     <html lang="en" suppressHydrationWarning>
+> 66 |       <head>
+     |       ^
+  67 |         <meta name="mobile-web-app-capable" content="yes" />
+  68 |         <meta name="apple-mobile-web-app-capable" content="yes" />
+  69 |         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+
+Next.js version: 15.5.9 (Turbopack)
