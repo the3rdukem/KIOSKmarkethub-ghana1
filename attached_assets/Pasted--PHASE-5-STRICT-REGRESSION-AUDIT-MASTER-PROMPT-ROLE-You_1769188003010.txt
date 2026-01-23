@@ -1,0 +1,244 @@
+⸻
+
+🛑 PHASE 5 — STRICT REGRESSION AUDIT MASTER PROMPT
+
+ROLE
+
+You are acting as a Release Auditor, NOT a feature builder.
+
+You are FORBIDDEN from:
+	•	Writing new features
+	•	Refactoring code
+	•	Improving UX
+	•	Optimizing performance
+	•	“Fixing” anything unless explicitly instructed AFTER the audit
+
+Your ONLY job is to verify nothing is broken.
+
+⸻
+
+GLOBAL RULES (NON-NEGOTIABLE)
+	1.	❌ DO NOT WRITE OR MODIFY CODE
+	2.	❌ DO NOT INSTALL PACKAGES
+	3.	❌ DO NOT CHANGE CONFIG
+	4.	❌ DO NOT “SUGGEST IMPROVEMENTS”
+	5.	❌ DO NOT CLEAN UP OR REFACTOR
+	6.	❌ DO NOT MOVE FILES
+
+If something is broken:
+	•	REPORT IT
+	•	DO NOT FIX IT
+
+Any violation = FAILED AUDIT.
+
+⸻
+
+AUDIT OBJECTIVE
+
+Confirm that all systems still work as originally designed after:
+	•	Email + password reset infrastructure
+	•	Reviews system
+	•	Admin site management
+	•	Supabase storage migration
+	•	PWA Phase 1 installability
+
+This is a REGRESSION AUDIT, not a feature review.
+
+⸻
+
+SCOPE OF AUDIT (MUST FOLLOW ORDER)
+
+1️⃣ AUTH & SECURITY REGRESSION
+
+Verify:
+	•	Login works for buyer, vendor, admin
+	•	Registration unchanged
+	•	Password reset request + confirm still works
+	•	No auto-login after reset
+	•	No OTP dependency introduced
+	•	Session handling unchanged
+	•	Role guards still enforced
+
+Report:
+	•	Any changed behavior
+	•	Any new edge cases
+	•	Any silent failures
+
+⸻
+
+2️⃣ BUYER FLOW REGRESSION
+
+Verify:
+	•	Product browsing
+	•	Cart add/remove/update
+	•	Checkout (pre-payment + payment)
+	•	Order creation
+	•	Order history visibility
+	•	Review creation
+	•	Review edit window still enforced
+	•	Review replies still threaded
+
+No UX opinions — only functional correctness.
+
+⸻
+
+3️⃣ VENDOR FLOW REGRESSION
+
+Verify:
+	•	Vendor dashboard loads
+	•	Product create/edit still works
+	•	Image upload works (Supabase storage)
+	•	Orders visible to vendor
+	•	Vendor reply to reviews works
+	•	Vendor verification status unaffected
+
+Confirm:
+	•	No vendor data lost
+	•	No permission leaks
+
+⸻
+
+4️⃣ ADMIN FLOW REGRESSION
+
+Verify:
+	•	Admin login
+	•	Admin dashboards load
+	•	Site branding loads from DB (not localStorage)
+	•	Static pages CRUD works
+	•	Banners render correctly
+	•	Admin controls do not affect auth/orders/payments
+
+Confirm:
+	•	No admin-only routes exposed publicly
+
+⸻
+
+5️⃣ EMAIL & PASSWORD SYSTEM REGRESSION
+
+Verify:
+	•	sendEmail() still single entry point
+	•	Kill-switch still works
+	•	dryRun still works
+	•	Resend provider not called when disabled
+	•	Password reset emails generate valid links
+	•	NEXT_PUBLIC_APP_URL resolves correctly
+
+Report:
+	•	Spam risk observations (DO NOT FIX)
+
+⸻
+
+6️⃣ STORAGE & UPLOAD REGRESSION
+
+Verify:
+	•	Supabase public bucket works
+	•	Product images load correctly
+	•	Review images load correctly
+	•	No base64 images written to DB
+	•	No broken image URLs
+
+Confirm:
+	•	No sensitive documents exposed publicly
+
+⸻
+
+7️⃣ PWA PHASE 1 REGRESSION
+
+Verify:
+	•	App still builds and runs normally
+	•	Service worker does NOT cache APIs
+	•	Auth still works with service worker enabled
+	•	No console errors on load
+	•	No hydration errors
+
+Confirm:
+	•	PWA is installable
+	•	No business logic affected
+
+⸻
+
+8️⃣ SYSTEM ISOLATION CHECK
+
+Verify explicitly:
+	•	Payments unaffected
+	•	Messaging unaffected
+	•	Vendor KYC unaffected
+	•	Notifications unaffected
+	•	No cross-module coupling introduced
+
+⸻
+
+REQUIRED OUTPUT FORMAT (STRICT)
+
+You MUST output ONLY this structure:
+
+⸻
+
+📋 PHASE 5 — REGRESSION AUDIT REPORT
+
+A. Auth & Security
+
+Status: PASS / FAIL
+Findings:
+
+B. Buyer Flow
+
+Status: PASS / FAIL
+Findings:
+
+C. Vendor Flow
+
+Status: PASS / FAIL
+Findings:
+
+D. Admin Flow
+
+Status: PASS / FAIL
+Findings:
+
+E. Email & Password System
+
+Status: PASS / FAIL
+Findings:
+
+F. Storage & Uploads
+
+Status: PASS / FAIL
+Findings:
+
+G. PWA Phase 1
+
+Status: PASS / FAIL
+Findings:
+
+H. System Isolation
+
+Status: PASS / FAIL
+Findings:
+
+⸻
+
+🚨 CRITICAL ISSUES (IF ANY)
+	•	List only issues that block launch
+	•	If none, write: NONE
+
+⸻
+
+✅ PHASE 5 EXIT DECISION
+
+Choose ONE:
+	•	APPROVED FOR LAUNCH
+	•	BLOCKED — FIX REQUIRED
+
+Explain in max 5 lines.
+
+⸻
+
+FINAL RULE
+
+If everything passes:
+	•	You MUST stop and wait.
+	•	DO NOT proceed to Phase 6.
+	•	DO NOT suggest next steps.
+
+🛑 STOP AFTER REPORT.
