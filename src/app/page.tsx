@@ -9,7 +9,6 @@ import { Shield, TrendingUp, Users, ShoppingBag, Search, Package, CheckCircle, X
 import AdvancedSearch from "@/components/search/advanced-search";
 import Link from "next/link";
 import { Product } from "@/lib/products-store";
-import { useOrdersStore } from "@/lib/orders-store";
 
 const categories = [
   { name: "Electronics", icon: "📱", href: "/search?category=Electronics" },
@@ -26,7 +25,6 @@ export default function HomePage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [platformStats, setPlatformStats] = useState({ totalVendors: 0, verifiedVendors: 0, totalProducts: 0 });
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
-  const { orders } = useOrdersStore();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -87,7 +85,7 @@ export default function HomePage() {
   // Get real metrics from public stats API
   const totalProducts = !isLoading ? products.length : 0;
   const totalVendors = !isLoading ? platformStats.totalVendors : 0;
-  const totalOrders = !isLoading ? orders.length : 0;
+  const totalOrders = !isLoading ? (platformStats as any).totalOrders || 0 : 0;
 
   // Get product counts by category (only after data loads)
   const getCategoryCount = (categoryName: string) => {
@@ -173,15 +171,15 @@ export default function HomePage() {
               <div className="flex items-center gap-4 sm:gap-6 mt-8 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center gap-1 sm:gap-2">
                   <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Verified</span>
+                  <span className="whitespace-nowrap">Verified Vendors</span>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2">
                   <Users className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 flex-shrink-0" />
-                  <span className="whitespace-nowrap">{totalVendors > 0 ? `${totalVendors}+` : "Join"}</span>
+                  <span className="whitespace-nowrap">{totalVendors > 0 ? `${totalVendors}+ Vendors` : "Easy to Join"}</span>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2">
                   <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Protected</span>
+                  <span className="whitespace-nowrap">Buyer Protected</span>
                 </div>
               </div>
             </div>

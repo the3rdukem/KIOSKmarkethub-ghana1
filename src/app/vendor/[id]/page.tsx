@@ -79,6 +79,7 @@ export default function VendorStorePage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [dbVendor, setDbVendor] = useState<PlatformUser | null>(null);
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
+  const [vendorStats, setVendorStats] = useState<{ totalSales: number }>({ totalSales: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -90,10 +91,16 @@ export default function VendorStorePage() {
       if (!vendorId) return;
       setIsLoading(true);
       try {
-        const [vendorRes, productsRes] = await Promise.all([
+        const [vendorRes, productsRes, statsRes] = await Promise.all([
           fetch(`/api/vendors/${vendorId}`),
-          fetch(`/api/products?vendorId=${vendorId}&status=active`)
+          fetch(`/api/products?vendorId=${vendorId}&status=active`),
+          fetch(`/api/vendors/${vendorId}/stats`)
         ]);
+
+        if (statsRes.ok) {
+          const statsData = await statsRes.json();
+          setVendorStats({ totalSales: statsData.totalSales || 0 });
+        }
 
         if (vendorRes.ok) {
           const vendorData = await vendorRes.json();
@@ -188,8 +195,8 @@ export default function VendorStorePage() {
     return getOrdersByVendor(vendorId);
   }, [isHydrated, vendorId, getOrdersByVendor]);
 
-  // Real metrics from actual data
-  const totalSales = vendorOrders.filter(o => o.status === 'delivered').length;
+  // Real metrics from API data
+  const totalSales = vendorStats.totalSales;
   const totalRevenue = vendorOrders
     .filter(o => o.status === 'delivered')
     .reduce((sum, order) => {

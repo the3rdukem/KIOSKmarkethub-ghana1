@@ -24,15 +24,21 @@ export async function GET() {
     );
     const totalProducts = parseInt(productsResult.rows[0]?.count || '0', 10);
 
+    const ordersResult = await query<{ count: string }>(
+      `SELECT COUNT(*) as count FROM orders WHERE status != 'cancelled'`
+    );
+    const totalOrders = parseInt(ordersResult.rows[0]?.count || '0', 10);
+
     return NextResponse.json({
       totalVendors,
       verifiedVendors,
       totalProducts,
+      totalOrders,
     });
   } catch (error) {
     console.error('[API] GET /stats/public error:', error);
     return NextResponse.json(
-      { totalVendors: 0, verifiedVendors: 0, totalProducts: 0 },
+      { totalVendors: 0, verifiedVendors: 0, totalProducts: 0, totalOrders: 0 },
       { status: 200 }
     );
   }
