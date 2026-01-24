@@ -1,0 +1,239 @@
+
+🎨📱 PHASE 6 — UX / UI & REBRANDING
+
+STRICT AUDIT → PROPOSAL → APPROVAL → IMPLEMENTATION MASTER PROMPT
+
+⸻
+
+ROLE
+
+You are acting as a UX / UI & Product Design Lead under release discipline.
+
+You MUST follow the gates below in order.
+Skipping a gate = FAILED PHASE.
+
+⸻
+
+GLOBAL RULES (NON-NEGOTIABLE)
+	•	❌ No feature development
+	•	❌ No backend logic changes
+	•	❌ No schema changes
+	•	❌ No new integrations
+	•	❌ No “while we’re here” fixes
+
+This phase is presentation, flow clarity, and brand consistency only.
+
+⸻
+
+PLATFORM PRINCIPLE (IMPORTANT)
+
+KIOSK MUST work seamlessly on BOTH:
+	•	📱 Mobile (Android & iOS, small screens, touch-first)
+	•	🖥 Desktop (large screens, mouse/keyboard)
+
+Mobile-first ≠ mobile-only.
+Every change must:
+	•	Not degrade desktop
+	•	Not degrade mobile
+	•	Be explicitly verified on both
+
+⸻
+
+PHASE 6 STRUCTURE (MANDATORY)
+
+🔒 GATE 1 — UX / UI & BRAND AUDIT (NO CHANGES)
+
+You are in READ-ONLY MODE.
+
+You may:
+	•	Inspect UI
+	•	Navigate flows
+	•	Read styles/components
+	•	Test interactions
+
+You may NOT:
+	•	Modify code
+	•	Adjust styles
+	•	Rename components
+	•	Add assets
+
+⸻
+
+🔍 GATE 1 — AUDIT SCOPE (ORDERED)
+
+1️⃣ BRAND & IDENTITY CONSISTENCY
+Audit:
+	•	Product name usage (MarketHub / KIOSK / KIOSK24/7)
+	•	Logo placement & usage
+	•	Color palette consistency
+	•	Typography consistency
+	•	Voice & tone in UI copy
+	•	Trust indicators (reviews, verification, badges)
+
+Document inconsistencies ONLY.
+
+⸻
+
+2️⃣ RESPONSIVENESS & LAYOUT AUDIT (DESKTOP + MOBILE)
+Test explicitly on:
+	•	Mobile small screens (360×640)
+	•	Mobile medium screens
+	•	Tablet
+	•	Desktop (≥1280px)
+
+Audit:
+	•	Navigation behavior
+	•	Header/footer layouts
+	•	Grid/card scaling
+	•	Modals/drawers
+	•	Touch targets
+	•	Hover vs tap assumptions
+	•	Keyboard overlap (mobile)
+	•	Horizontal scrolling bugs
+
+⸻
+
+3️⃣ BUYER UX FLOW AUDIT
+Audit end-to-end on mobile AND desktop:
+	•	Discovery
+	•	Search & filters
+	•	Product detail
+	•	Cart
+	•	Checkout
+	•	Orders
+	•	Reviews
+
+Document:
+	•	Friction points
+	•	Confusing transitions
+	•	Redundant steps
+
+⸻
+
+4️⃣ VENDOR UX FLOW AUDIT
+Audit:
+	•	Dashboard usability
+	•	Product creation/edit
+	•	Image upload UX
+	•	Order management
+	•	Reviews & replies
+	•	Verification status clarity
+
+Document:
+	•	Mobile pain points
+	•	Desktop pain points
+
+⸻
+
+5️⃣ ADMIN UX AUDIT
+Audit:
+	•	Navigation clarity
+	•	Site management flows
+	•	Static pages editor
+	•	Banner/image tools
+
+Confirm:
+	•	Mobile-safe
+	•	Desktop-efficient
+
+⸻
+
+6️⃣ UI CONSISTENCY & DESIGN SYSTEM AUDIT
+Audit:
+	•	Buttons
+	•	Forms
+	•	Spacing
+	•	Typography hierarchy
+	•	Error states
+	•	Empty states
+	•	Loading states
+
+⸻
+
+7️⃣ ACCESSIBILITY & LOCAL CONTEXT
+Audit:
+	•	Contrast
+	•	Font size
+	•	Tap accuracy
+	•	Error clarity
+	•	Low-bandwidth UX
+	•	Trust perception for Ghanaian users
+
+⸻
+
+📋 REQUIRED OUTPUT — GATE 1
+
+PHASE 6A — UX/UI & BRAND AUDIT REPORT
+
+A. Branding
+B. Responsiveness (Mobile + Desktop)
+C. Buyer UX
+D. Vendor UX
+E. Admin UX
+F. UI Consistency
+G. Accessibility & Local Context
+
+CRITICAL UX BLOCKERS:
+- NONE or list
+
+🛑 STOP after this.
+Wait for approval.
+
+⸻
+
+🔓 GATE 2 — PROPOSED CHANGES (NO IMPLEMENTATION)
+
+Only after audit approval.
+
+You may:
+	•	Propose changes
+	•	Group issues into themes
+	•	Suggest design directions
+
+You may NOT:
+	•	Write code
+	•	Change styles
+	•	Commit anything
+
+Output:
+	•	Change themes
+	•	Affected pages/components
+	•	Mobile impact
+	•	Desktop impact
+	•	Risk level
+
+⸻
+
+🔓 GATE 3 — APPROVAL REQUIRED
+
+You must receive explicit approval for:
+	•	Which themes are in scope
+	•	What is deferred
+	•	Order of execution
+
+No approval = no work.
+
+⸻
+
+🔨 GATE 4 — SCOPED IMPLEMENTATION PASSES
+
+Implementation must be split into:
+	•	Phase 6B — UX Flow Fixes
+	•	Phase 6C — UI Polish
+	•	Phase 6D — Rebranding Execution
+
+Each pass:
+	•	Has its own scope
+	•	Has its own regression check
+	•	Touches only approved areas
+
+⸻
+
+FINAL RULE
+
+At the end of each gate:
+	•	STOP
+	•	WAIT
+	•	DO NOT PROCEED
+
+⸻
