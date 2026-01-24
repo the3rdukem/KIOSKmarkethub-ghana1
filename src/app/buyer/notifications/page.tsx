@@ -181,32 +181,31 @@ export default function BuyerNotificationsPage() {
     <SiteLayout>
       <div className="container py-8 max-w-4xl">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <Link href="/buyer/dashboard">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back
-              </Link>
-            </Button>
+        <div className="mb-6">
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
+            <Link href="/buyer/dashboard">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Back
+            </Link>
+          </Button>
+          <div className="flex items-center justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <Bell className="w-6 h-6" />
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Notifications</h1>
                 {unreadCount > 0 && (
                   <Badge className="bg-red-500">{unreadCount}</Badge>
                 )}
               </div>
-              <p className="text-muted-foreground">Stay updated on your orders and activities</p>
+              <p className="text-muted-foreground text-sm sm:text-base">Stay updated on your orders and activities</p>
             </div>
-          </div>
-          <div className="flex gap-2">
-            {unreadCount > 0 && (
-              <Button variant="outline" onClick={handleMarkAllAsRead}>
-                <CheckCircle className="w-4 h-4 mr-2" />
-                Mark All Read
-              </Button>
-            )}
+            <div className="flex gap-2">
+              {unreadCount > 0 && (
+                <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
+                  <CheckCircle className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Mark All Read</span>
+                </Button>
+              )}
+            </div>
           </div>
         </div>
 

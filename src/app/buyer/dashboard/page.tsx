@@ -60,8 +60,8 @@ const statusConfig: Record<string, { color: string; bg: string; label: string }>
   confirmed: { color: "text-blue-700", bg: "bg-blue-100", label: "Confirmed" },
   processing: { color: "text-blue-700", bg: "bg-blue-100", label: "Processing" },
   shipped: { color: "text-purple-700", bg: "bg-purple-100", label: "Shipped" },
-  fulfilled: { color: "text-green-700", bg: "bg-green-100", label: "Fulfilled" },
-  delivered: { color: "text-green-700", bg: "bg-green-100", label: "Delivered" },
+  fulfilled: { color: "text-white", bg: "bg-green-600", label: "Fulfilled" },
+  delivered: { color: "text-white", bg: "bg-green-600", label: "Delivered" },
   cancelled: { color: "text-red-700", bg: "bg-red-100", label: "Cancelled" },
   refunded: { color: "text-gray-700", bg: "bg-gray-100", label: "Refunded" },
 };

@@ -193,7 +193,20 @@ export default function VendorSettingsPage() {
         storeSocialLinks: storeData.socialLinks,
       };
 
-      // Update in users store (primary source of truth)
+      // Persist to database via API
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updatePayload),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to save settings');
+      }
+
+      // Update in users store (for UI sync)
       updateUser(user.id, updatePayload);
 
       // Update in auth store to keep in sync
@@ -203,7 +216,7 @@ export default function VendorSettingsPage() {
       toast.success("Store settings saved successfully!");
     } catch (error) {
       console.error("Failed to save settings:", error);
-      toast.error("Failed to save settings. Please try again.");
+      toast.error(error instanceof Error ? error.message : "Failed to save settings. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -292,12 +305,12 @@ export default function VendorSettingsPage() {
           {/* Main Content */}
           <div className="lg:col-span-3">
             <Tabs defaultValue="store" className="space-y-6">
-              <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="store">Store Info</TabsTrigger>
-                <TabsTrigger value="status">Status</TabsTrigger>
-                <TabsTrigger value="business">Business</TabsTrigger>
-                <TabsTrigger value="notifications">Notifications</TabsTrigger>
-                <TabsTrigger value="security">Security</TabsTrigger>
+              <TabsList className="flex w-full overflow-x-auto">
+                <TabsTrigger value="store" className="flex-shrink-0">Store Info</TabsTrigger>
+                <TabsTrigger value="status" className="flex-shrink-0">Status</TabsTrigger>
+                <TabsTrigger value="business" className="flex-shrink-0">Business</TabsTrigger>
+                <TabsTrigger value="notifications" className="flex-shrink-0">Notifications</TabsTrigger>
+                <TabsTrigger value="security" className="flex-shrink-0">Security</TabsTrigger>
               </TabsList>
 
               {/* Store Information */}

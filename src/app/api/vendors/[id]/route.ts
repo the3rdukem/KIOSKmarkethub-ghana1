@@ -32,9 +32,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         storeDescription: user.store_description,
         storeBanner: user.store_banner,
         storeLogo: user.store_logo,
-        storeStatus: 'open',
-        storeRating: 0,
-        storeResponseTime: '< 24 hours',
+        storeStatus: user.store_status || 'open',
+        storeVacationMessage: user.store_vacation_message || '',
+        storeRating: user.store_rating || 0,
+        storeResponseTime: user.store_response_time || '< 24 hours',
         createdAt: user.created_at,
       },
     });

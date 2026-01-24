@@ -53,6 +53,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Copy, Facebook, Twitter, Mail, Link as LinkIcon } from "lucide-react";
 
 interface ReviewMedia {
   id: string;
@@ -577,9 +584,87 @@ export default function ProductPage() {
                   >
                     <Heart className={`w-5 h-5 ${isWishlisted ? "fill-red-500 text-red-500" : ""}`} />
                   </Button>
-                  <Button variant="ghost" size="sm">
-                    <Share2 className="w-5 h-5" />
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="sm">
+                        <Share2 className="w-5 h-5" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          const shareData = {
+                            title: product.name,
+                            text: `Check out ${product.name} on KIOSK!`,
+                            url: window.location.href,
+                          };
+                          if (navigator.share && navigator.canShare?.(shareData)) {
+                            try {
+                              await navigator.share(shareData);
+                              return;
+                            } catch (err) {
+                              if ((err as Error).name !== 'AbortError') {
+                                toast.error("Failed to share");
+                              }
+                              return;
+                            }
+                          }
+                          try {
+                            await navigator.clipboard.writeText(window.location.href);
+                            toast.success("Link copied to clipboard!");
+                          } catch {
+                            toast.error("Failed to copy link");
+                          }
+                        }}
+                      >
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy Link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          window.open(
+                            `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(window.location.href)}`,
+                            '_blank',
+                            'width=600,height=400'
+                          );
+                        }}
+                      >
+                        <Facebook className="w-4 h-4 mr-2" />
+                        Share on Facebook
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          window.open(
+                            `https://twitter.com/intent/tweet?url=${encodeURIComponent(window.location.href)}&text=${encodeURIComponent(`Check out ${product.name} on KIOSK!`)}`,
+                            '_blank',
+                            'width=600,height=400'
+                          );
+                        }}
+                      >
+                        <Twitter className="w-4 h-4 mr-2" />
+                        Share on X
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          window.open(
+                            `https://wa.me/?text=${encodeURIComponent(`Check out ${product.name} on KIOSK! ${window.location.href}`)}`,
+                            '_blank'
+                          );
+                        }}
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Share on WhatsApp
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          window.location.href = `mailto:?subject=${encodeURIComponent(`Check out ${product.name} on KIOSK!`)}&body=${encodeURIComponent(`I found this product you might like: ${window.location.href}`)}`;
+                        }}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Share via Email
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 

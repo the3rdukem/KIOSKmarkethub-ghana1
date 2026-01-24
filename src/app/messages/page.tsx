@@ -546,7 +546,12 @@ function MessagesPageContent() {
   const renderMessageContent = (content: string, messageType?: string, isOwnMessage?: boolean) => {
     if (messageType === 'image' || content.startsWith('📷 Image:')) {
       const lines = content.split('\n');
-      const urlLine = lines.find(line => line.startsWith('/uploads/') || line.includes('/uploads/'));
+      const urlLine = lines.find(line => 
+        line.startsWith('/uploads/') || 
+        line.includes('/uploads/') || 
+        line.includes('supabase.co/storage') ||
+        line.startsWith('https://') && (line.includes('.jpg') || line.includes('.jpeg') || line.includes('.png') || line.includes('.gif') || line.includes('.webp'))
+      );
       if (urlLine) {
         const imageUrl = urlLine.trim();
         return (
@@ -645,9 +650,9 @@ function MessagesPageContent() {
   const totalUnread = unreadCount;
 
   return (
-    <SiteLayout>
-      <div className="container py-8">
-        <div className="flex h-[calc(100vh-200px)] bg-white rounded-lg border overflow-hidden">
+    <SiteLayout hideBottomNav={showChatOnMobile}>
+      <div className={`${showChatOnMobile ? 'fixed inset-0 z-50 bg-white pt-0' : 'container py-8'}`}>
+        <div className={`flex ${showChatOnMobile ? 'h-[100dvh]' : 'h-[calc(100vh-200px)]'} bg-white ${showChatOnMobile ? '' : 'rounded-lg border'} overflow-hidden`}>
           {/* Conversations Sidebar - Full width on mobile, fixed width on desktop */}
           <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-96 border-r flex-col`}>
             {/* Header */}

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,7 +45,8 @@ import {
   FileSpreadsheet,
   ImageIcon,
   BarChart3,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { useProductsStore, Product } from "@/lib/products-store";
@@ -270,11 +272,18 @@ export default function VendorProductsPage() {
     <SiteLayout>
       <div className="container py-8">
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Product Management</h1>
-            <p className="text-muted-foreground text-sm sm:text-base">Manage your inventory</p>
-          </div>
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
+            <Link href="/vendor">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Back
+            </Link>
+          </Button>
+          <div className="flex justify-between items-center">
+            <div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Product Management</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">Manage your inventory</p>
+            </div>
           <div className="flex gap-3">
             <Dialog open={bulkUploadOpen} onOpenChange={setBulkUploadOpen}>
               <DialogTrigger asChild>
@@ -368,6 +377,7 @@ export default function VendorProductsPage() {
               <Plus className="w-4 h-4 mr-2" />
               Add Product
             </Button>
+          </div>
           </div>
         </div>
 

@@ -99,14 +99,14 @@ const statusConfig: Record<string, { color: string; icon: typeof Clock; label: s
   pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending" },
   processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Payment Confirmed" },
   shipped: { color: "bg-purple-100 text-purple-800", icon: Truck, label: "Shipped" },
-  fulfilled: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Delivered" },
+  fulfilled: { color: "bg-green-600 text-white", icon: CheckCircle, label: "Delivered" },
   cancelled: { color: "bg-red-100 text-red-800", icon: XCircle, label: "Cancelled" },
 };
 
 const itemStatusConfig: Record<string, { color: string; label: string }> = {
   pending: { color: "bg-yellow-100 text-yellow-800", label: "Pending" },
   shipped: { color: "bg-purple-100 text-purple-800", label: "Shipped" },
-  fulfilled: { color: "bg-green-100 text-green-800", label: "Delivered" },
+  fulfilled: { color: "bg-green-600 text-white", label: "Delivered" },
 };
 
 export default function VendorOrdersPage() {

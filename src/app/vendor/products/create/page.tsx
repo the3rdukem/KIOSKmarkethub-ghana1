@@ -539,16 +539,16 @@ export default function CreateProductPage() {
   return (
     <SiteLayout>
       <div className="container py-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/vendor/products">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Products
-            </Button>
-          </Link>
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
+            <Link href="/vendor/products">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Back
+            </Link>
+          </Button>
           <div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Add New Product</h1>
-            <p className="text-muted-foreground">Create a new product listing for your store</p>
+            <p className="text-muted-foreground text-sm sm:text-base">Create a new product listing for your store</p>
           </div>
         </div>
 

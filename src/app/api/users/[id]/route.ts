@@ -220,6 +220,16 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       if (body.storeDescription !== undefined) updates.storeDescription = body.storeDescription;
       if (body.storeBanner !== undefined) updates.storeBanner = body.storeBanner;
       if (body.storeLogo !== undefined) updates.storeLogo = body.storeLogo;
+      if (body.storeStatus !== undefined) updates.storeStatus = body.storeStatus;
+      if (body.storeVacationMessage !== undefined) updates.storeVacationMessage = body.storeVacationMessage;
+      if (body.storeContactEmail !== undefined) updates.storeContactEmail = body.storeContactEmail;
+      if (body.storeContactPhone !== undefined) updates.storeContactPhone = body.storeContactPhone;
+      if (body.storeWebsite !== undefined) updates.storeWebsite = body.storeWebsite;
+      if (body.storeBusinessHours !== undefined) updates.storeBusinessHours = body.storeBusinessHours;
+      if (body.storeReturnPolicy !== undefined) updates.storeReturnPolicy = body.storeReturnPolicy;
+      if (body.storeShippingPolicy !== undefined) updates.storeShippingPolicy = body.storeShippingPolicy;
+      if (body.storeResponseTime !== undefined) updates.storeResponseTime = body.storeResponseTime;
+      if (body.storeSocialLinks !== undefined) updates.storeSocialLinks = body.storeSocialLinks;
     }
 
     // Admin-only fields

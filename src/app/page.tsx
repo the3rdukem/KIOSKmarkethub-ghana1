@@ -132,7 +132,7 @@ export default function HomePage() {
         <div className="container">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="text-lg sm:text-xl md:text-4xl lg:text-6xl font-bold text-gray-900 mb-6">
+              <h1 className="font-bold text-gray-900 mb-6 whitespace-nowrap" style={{ fontSize: 'clamp(1.5rem, 5vw, 3.75rem)' }}>
                 {heroHeadline.includes(' ') ? (
                   <>
                     {heroHeadline.split(' ').slice(0, -1).join(' ')}{' '}
@@ -142,7 +142,7 @@ export default function HomePage() {
                   <span className="text-green-600">{heroHeadline}</span>
                 )}
               </h1>
-              <p className="text-xl text-gray-600 mb-8">
+              <p className="text-sm sm:text-base md:text-lg text-gray-600 mb-8">
                 {heroSubheadline}
               </p>
 
@@ -174,13 +174,13 @@ export default function HomePage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="bg-green-600 hover:bg-green-700" asChild>
+                <Button size="lg" className="bg-green-600 hover:bg-green-700 whitespace-nowrap" asChild>
                   <Link href={heroCtaLink}>
-                    <Search className="w-5 h-5 mr-2" />
-                    {heroCtaText}
+                    <Search className="w-5 h-5 mr-2 flex-shrink-0" />
+                    <span className="truncate">{heroCtaText}</span>
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild>
+                <Button size="lg" variant="outline" className="whitespace-nowrap" asChild>
                   <Link href="/auth/register">
                     Become a Vendor
                   </Link>

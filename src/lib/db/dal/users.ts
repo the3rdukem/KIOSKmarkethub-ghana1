@@ -68,6 +68,16 @@ export interface UpdateUserInput {
   storeDescription?: string;
   storeBanner?: string;
   storeLogo?: string;
+  storeStatus?: 'open' | 'closed' | 'vacation';
+  storeVacationMessage?: string;
+  storeContactEmail?: string;
+  storeContactPhone?: string;
+  storeWebsite?: string;
+  storeBusinessHours?: string;
+  storeReturnPolicy?: string;
+  storeShippingPolicy?: string;
+  storeResponseTime?: string;
+  storeSocialLinks?: string;
   isDeleted?: boolean;
   lastLoginAt?: string;
   createdBy?: string;
@@ -297,6 +307,46 @@ export async function updateUser(id: string, updates: UpdateUserInput): Promise<
   if (updates.storeLogo !== undefined) {
     fields.push(`store_logo = $${paramIndex++}`);
     values.push(updates.storeLogo);
+  }
+  if (updates.storeStatus !== undefined) {
+    fields.push(`store_status = $${paramIndex++}`);
+    values.push(updates.storeStatus);
+  }
+  if (updates.storeVacationMessage !== undefined) {
+    fields.push(`store_vacation_message = $${paramIndex++}`);
+    values.push(updates.storeVacationMessage);
+  }
+  if (updates.storeContactEmail !== undefined) {
+    fields.push(`store_contact_email = $${paramIndex++}`);
+    values.push(updates.storeContactEmail);
+  }
+  if (updates.storeContactPhone !== undefined) {
+    fields.push(`store_contact_phone = $${paramIndex++}`);
+    values.push(updates.storeContactPhone);
+  }
+  if (updates.storeWebsite !== undefined) {
+    fields.push(`store_website = $${paramIndex++}`);
+    values.push(updates.storeWebsite);
+  }
+  if (updates.storeBusinessHours !== undefined) {
+    fields.push(`store_business_hours = $${paramIndex++}`);
+    values.push(updates.storeBusinessHours);
+  }
+  if (updates.storeReturnPolicy !== undefined) {
+    fields.push(`store_return_policy = $${paramIndex++}`);
+    values.push(updates.storeReturnPolicy);
+  }
+  if (updates.storeShippingPolicy !== undefined) {
+    fields.push(`store_shipping_policy = $${paramIndex++}`);
+    values.push(updates.storeShippingPolicy);
+  }
+  if (updates.storeResponseTime !== undefined) {
+    fields.push(`store_response_time = $${paramIndex++}`);
+    values.push(updates.storeResponseTime);
+  }
+  if (updates.storeSocialLinks !== undefined) {
+    fields.push(`store_social_links = $${paramIndex++}`);
+    values.push(updates.storeSocialLinks);
   }
   if (updates.isDeleted !== undefined) {
     fields.push(`is_deleted = $${paramIndex++}`);

@@ -222,10 +222,10 @@ function OrderSuccessContent() {
               <div className="pt-4">
                 <Badge 
                   variant={order.status === 'pending_payment' ? 'secondary' : 'default'} 
-                  className={`text-sm ${order.status === 'processing' ? 'bg-blue-100 text-blue-800' : order.status === 'fulfilled' ? 'bg-green-100 text-green-800' : ''}`}
+                  className={`text-sm ${order.status === 'processing' ? 'bg-blue-100 text-blue-800' : order.status === 'fulfilled' || order.status === 'delivered' ? 'bg-green-600 text-white' : ''}`}
                 >
                   <Clock className="w-3 h-3 mr-1" />
-                  Status: {order.status === 'pending_payment' ? 'Awaiting Payment' : order.status === 'processing' ? 'Processing' : order.status === 'fulfilled' ? 'Fulfilled' : order.status}
+                  Status: {order.status === 'pending_payment' ? 'Awaiting Payment' : order.status === 'processing' ? 'Processing' : order.status === 'fulfilled' || order.status === 'delivered' ? 'Delivered' : order.status}
                 </Badge>
               </div>
             </CardContent>

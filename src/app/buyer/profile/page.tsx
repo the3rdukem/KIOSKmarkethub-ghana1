@@ -276,10 +276,10 @@ export default function BuyerProfilePage() {
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3 mb-6">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger value="addresses">Addresses</TabsTrigger>
-            <TabsTrigger value="security">Security</TabsTrigger>
+          <TabsList className="flex w-full overflow-x-auto mb-6">
+            <TabsTrigger value="profile" className="flex-shrink-0">Profile</TabsTrigger>
+            <TabsTrigger value="addresses" className="flex-shrink-0">Addresses</TabsTrigger>
+            <TabsTrigger value="security" className="flex-shrink-0">Security</TabsTrigger>
           </TabsList>
 
           {/* Profile Tab */}

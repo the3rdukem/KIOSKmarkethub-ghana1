@@ -246,21 +246,6 @@ function LoginPageContent() {
           </CardContent>
         </Card>
 
-        {/* Info Card */}
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="text-blue-800 text-sm">Getting Started</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-xs text-blue-700">
-              New to KIOSK? Create an account to start shopping or selling.
-            </p>
-            <p className="text-xs text-blue-700">
-              For admin access, use the <Link href="/admin/login" className="underline">Admin Login</Link>.
-            </p>
-          </CardContent>
-        </Card>
-
         {/* Register Link */}
         <div className="text-center">
           <p className="text-sm text-gray-600">

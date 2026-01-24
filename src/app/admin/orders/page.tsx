@@ -103,8 +103,8 @@ const statusConfig: Record<string, { color: string; icon: typeof Clock; label: s
   confirmed: { color: "bg-blue-100 text-blue-800", icon: CheckCircle, label: "Confirmed" },
   processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Payment Confirmed" },
   shipped: { color: "bg-purple-100 text-purple-800", icon: Truck, label: "Shipped" },
-  fulfilled: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Fulfilled" },
-  delivered: { color: "bg-green-100 text-green-800", icon: CheckCircle, label: "Delivered" },
+  fulfilled: { color: "bg-green-600 text-white", icon: CheckCircle, label: "Fulfilled" },
+  delivered: { color: "bg-green-600 text-white", icon: CheckCircle, label: "Delivered" },
   cancelled: { color: "bg-red-100 text-red-800", icon: XCircle, label: "Cancelled" },
 };
 
