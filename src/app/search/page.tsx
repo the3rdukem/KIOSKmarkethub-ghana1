@@ -54,6 +54,8 @@ interface CategoryAttribute {
   placeholder?: string;
   helpText?: string;
   options?: string[];
+  min?: number;
+  max?: number;
   order: number;
 }
 
@@ -139,10 +141,12 @@ function SearchPageContent() {
   }, [selectedCategory, apiCategories]);
 
   // Transform formSchema to attributes format for filtering
+  // Supports select, multi_select, checkbox, and number field types
   const categoryAttributes = useMemo((): CategoryAttribute[] => {
     if (!selectedCategoryData?.formSchema) return [];
+    const filterableTypes = ['select', 'multi_select', 'checkbox', 'number'];
     return selectedCategoryData.formSchema
-      .filter(field => field.type === 'select' || field.type === 'multi_select')
+      .filter(field => filterableTypes.includes(field.type))
       .map((field, index) => ({
         id: `attr_${selectedCategoryData.id}_${field.key}`,
         key: field.key,
@@ -151,11 +155,14 @@ function SearchPageContent() {
         required: field.required,
         placeholder: field.placeholder,
         helpText: field.helpText,
-        options: field.options,
+        options: field.type === 'checkbox' ? ['Yes', 'No'] : field.options,
+        min: field.min,
+        max: field.max,
         order: index + 1,
       }));
   }, [selectedCategoryData]);
   const [selectedVendor, setSelectedVendor] = useState("All Vendors");
+  const [vendorSearchQuery, setVendorSearchQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100000]);
   const [priceRangeInitialized, setPriceRangeInitialized] = useState(false);
   const [minRating, setMinRating] = useState(0);
@@ -272,6 +279,13 @@ function SearchPageContent() {
     allProducts.forEach(p => vendorSet.add(p.vendorName));
     return ["All Vendors", ...Array.from(vendorSet).sort()];
   }, [allProducts]);
+
+  // Filter vendors based on search query
+  const filteredVendors = useMemo(() => {
+    if (!vendorSearchQuery.trim()) return uniqueVendors;
+    const query = vendorSearchQuery.toLowerCase();
+    return uniqueVendors.filter(v => v.toLowerCase().includes(query));
+  }, [uniqueVendors, vendorSearchQuery]);
 
   // Advanced filtering and sorting logic
   const filteredAndSortedProducts = useMemo(() => {
@@ -412,25 +426,59 @@ function SearchPageContent() {
 
       <Separator />
 
-      {/* Vendor Filter */}
+      {/* Vendor Filter - Autocomplete for scalability */}
       {uniqueVendors.length > 1 && (
         <>
           <div>
             <Label className="text-sm font-semibold">Vendor</Label>
-            <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
-              {uniqueVendors.map((vendor) => (
-                <button
-                  key={vendor}
-                  onClick={() => setSelectedVendor(vendor)}
-                  className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
-                    selectedVendor === vendor
-                      ? "bg-emerald-100 text-emerald-800 font-medium"
-                      : "hover:bg-gray-100"
-                  }`}
-                >
-                  {vendor}
-                </button>
-              ))}
+            <div className="mt-2 relative">
+              <Input
+                type="text"
+                placeholder="Search vendors..."
+                value={vendorSearchQuery}
+                onChange={(e) => setVendorSearchQuery(e.target.value)}
+                className="w-full text-sm"
+              />
+              {selectedVendor !== "All Vendors" && (
+                <div className="mt-2 flex items-center gap-2">
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    {selectedVendor}
+                    <button
+                      onClick={() => setSelectedVendor("All Vendors")}
+                      className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                </div>
+              )}
+              <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                {filteredVendors.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2 text-center">No vendors found</p>
+                ) : (
+                  filteredVendors.slice(0, 20).map((vendor) => (
+                    <button
+                      key={vendor}
+                      onClick={() => {
+                        setSelectedVendor(vendor);
+                        setVendorSearchQuery("");
+                      }}
+                      className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
+                        selectedVendor === vendor
+                          ? "bg-emerald-100 text-emerald-800 font-medium"
+                          : "hover:bg-gray-100"
+                      }`}
+                    >
+                      {vendor}
+                    </button>
+                  ))
+                )}
+                {filteredVendors.length > 20 && (
+                  <p className="text-xs text-muted-foreground py-1 text-center">
+                    +{filteredVendors.length - 20} more - type to filter
+                  </p>
+                )}
+              </div>
             </div>
           </div>
           <Separator />
@@ -483,7 +531,7 @@ function SearchPageContent() {
             onValueChange={(value) => setPriceRange([value[0], value[1]])}
             min={0}
             max={maxPrice}
-            step={100}
+            step={Math.max(1, Math.floor(maxPrice / 200))}
           />
           <div className="flex justify-between mt-2 text-sm text-muted-foreground">
             <span>GHS {priceRange[0].toLocaleString()}</span>

@@ -227,6 +227,22 @@ export default function HomePage() {
                           alt={slide.title || "Hero slide"} 
                           className="w-full h-full object-cover"
                         />
+                        {(slide.title || slide.subtitle) && (
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4 sm:p-6">
+                            <div className="text-white">
+                              {slide.title && (
+                                <h3 className="text-lg sm:text-xl md:text-2xl font-bold drop-shadow-lg line-clamp-2">
+                                  {slide.title}
+                                </h3>
+                              )}
+                              {slide.subtitle && (
+                                <p className="text-sm sm:text-base mt-1 opacity-90 drop-shadow line-clamp-2">
+                                  {slide.subtitle}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
                       </a>
                     ))}
                     {heroSlides.length > 1 && (
