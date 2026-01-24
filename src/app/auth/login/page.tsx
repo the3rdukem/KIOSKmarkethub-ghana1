@@ -134,13 +134,13 @@ function LoginPageContent() {
         <div className="text-center">
           <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
             <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold">
-              MH
+              K
             </div>
-            <span className="font-bold text-xl">MarketHub</span>
+            <span className="font-bold text-xl">KIOSK</span>
           </Link>
           <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
           <p className="mt-2 text-gray-600">
-            Sign in to your MarketHub account
+            Sign in to your KIOSK account
           </p>
         </div>
 
@@ -253,7 +253,7 @@ function LoginPageContent() {
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-xs text-blue-700">
-              New to MarketHub? Create an account to start shopping or selling.
+              New to KIOSK? Create an account to start shopping or selling.
             </p>
             <p className="text-xs text-blue-700">
               For admin access, use the <Link href="/admin/login" className="underline">Admin Login</Link>.

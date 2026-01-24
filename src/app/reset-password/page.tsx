@@ -107,9 +107,9 @@ function ResetPasswordContent() {
           <div className="text-center">
             <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
               <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold">
-                MH
+                K
               </div>
-              <span className="font-bold text-xl">MarketHub</span>
+              <span className="font-bold text-xl">KIOSK</span>
             </Link>
           </div>
 
@@ -145,9 +145,9 @@ function ResetPasswordContent() {
           <div className="text-center">
             <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
               <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold">
-                MH
+                K
               </div>
-              <span className="font-bold text-xl">MarketHub</span>
+              <span className="font-bold text-xl">KIOSK</span>
             </Link>
           </div>
 

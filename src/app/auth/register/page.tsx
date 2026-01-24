@@ -174,7 +174,7 @@ function RegisterPageContent() {
       }
 
       // Success - single toast only
-      toast.success(`Welcome to MarketHub, ${formData.firstName}!`);
+      toast.success(`Welcome to KIOSK, ${formData.firstName}!`);
 
       if (userType === "vendor") {
         setTimeout(() => {
@@ -203,11 +203,11 @@ function RegisterPageContent() {
         <div className="text-center">
           <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
             <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold">
-              MH
+              K
             </div>
-            <span className="font-bold text-xl">MarketHub</span>
+            <span className="font-bold text-xl">KIOSK</span>
           </Link>
-          <h2 className="text-3xl font-bold text-gray-900">Join MarketHub</h2>
+          <h2 className="text-3xl font-bold text-gray-900">Join KIOSK</h2>
           <p className="mt-2 text-gray-600">
             Create your account to start {userType === "buyer" ? "shopping" : "selling"} today
           </p>

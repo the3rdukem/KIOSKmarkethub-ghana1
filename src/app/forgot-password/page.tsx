@@ -57,9 +57,9 @@ export default function ForgotPasswordPage() {
           <div className="text-center">
             <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
               <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold">
-                MH
+                K
               </div>
-              <span className="font-bold text-xl">MarketHub</span>
+              <span className="font-bold text-xl">KIOSK</span>
             </Link>
           </div>
 
@@ -98,9 +98,9 @@ export default function ForgotPasswordPage() {
         <div className="text-center">
           <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
             <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold">
-              MH
+              K
             </div>
-            <span className="font-bold text-xl">MarketHub</span>
+            <span className="font-bold text-xl">KIOSK</span>
           </Link>
           <h2 className="text-3xl font-bold text-gray-900">Forgot Password?</h2>
           <p className="mt-2 text-gray-600">
