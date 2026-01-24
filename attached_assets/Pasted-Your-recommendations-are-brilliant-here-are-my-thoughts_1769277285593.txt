@@ -1,0 +1,77 @@
+Your recommendations are brilliant, here are my thoughts however. Compare them with yours and see how they work out. 
+
+My thoughts on responsiveness. 
+
+HOMEPAGE
+HERO Text is still displaying as two lines even though agent has tried to fix many times. The text font may be too big of its the Shop Now button 
+
+
+On Homepage, Shop with Confidence text is too small or the same site as brief site description “Ghana’s most….” 
+
+
+GENERAL NOTES. 
+
+Share icon on product page doesn’t pull up any actions
+
+Setting Store To Vacation or Closed In store settings pages DOES not affect store status, It stays open.
+
+There’s this Note on sign in page that says 
+
+Getting Started
+
+New to KIOSK? Create an account to start shopping or selling 
+
+For admin access, use Admin Login Panel. 
+
+This should NOT be there, right?
+
+What is your thought for a Bottom Navigation Bar for logged in USERs to show important and most likely to be used things? 
+
+
+
+VENDOR Dashboard 
+
+On all pages in Vendor, Buyer and Admin Portals, The text size for page tittles has been reduced as I requested BUT it looks very unprofessional, the BACK or return to previous page button comes first, followed by the page tittle and then a button which is wrong. The page tittle is not supposed to be in the middle. Example of this: Buyer Orders page, You see Dashboard button, Page title My Order and Refresh Button. Fix this problem professionally. Apply this fix to all pages in Vendor, Admin and BUYER Dashboards.  FIXES MUST BE APPLIED TO ALL PAGES WITH THIS PROBLEM.  THIS FIX was not applied to the NOTIFICATIONS page, PRODUCT management page, Add New Product page and a few other pages. Please review pages and fix the ones you missed. Fixes must be for all portals. 
+
+Recent orders:
+The fulfilled Badge color makes in hard to see until you tab on it, the in becomes black and white make it visible 
+
+
+
+STORE SETTINGS: 
+Tabs Store Info, Status, Business, Notifications and Security Tab buttons are smooshed together. This seems to be the case with all tabs site wide. Please Fix all tabs so they are not smooshed together in vendor, buyer and Admin Dashboards
+
+
+
+
+
+Analyze my thought, this suggestions show not affect how site is viewed on a desktop. Both desktop and mobile phone must render correctly. 
+
+Give me a detailed report against the audit report, and  your recommendations. 
+
+MESSAGES: 
+
+The current implementation is much better than previous one but could be better.  Perhaps proper full screen? Your thoughts?
+
+Sending IMAGES is sending a link instead of an actual photo, this is same for mobile and desktop. This is the type of link it creates for images: 📷 Image: image.jpg
+https://riwmdjgqhrehglvuzhkp.supabase.co/storage/v1/object/public/KIOSK-IMAGES/messages/1769271766152_fc28bd87.jpg 
+
+The length of the link also breaks messages, for some reason, the link doesn’t get collapsed and the length makes the conversation box cut off. 
+
+
+
+
+Login credentials for every user type so you can conduct full audits. 
+
+Vendor: ven@kiosk.com..gh
+    Password: 123asdqwe
+Buyer: buy@kiosk.com.gh 
+Password: 123asdqwe
+Super Admin: the3rdukem@gmail.com
+Password: 123asdqweX$
+
+Agent must perform analysis of my notes, if a suggestion I made about one page must be applied to another page, agent must report this. Suggestions and fixes are not only for pages mentioned the agent must check all other similar pages to see if they will need same fix. 
+
+These are suggestions. They should be compared to industry standards. They should not break anything on desktop and they should not cause any regressions. 
+
+Agent must report in detail with analysis, comparisons to industry standards, suggestions and how feasible. Agent must not fix anything until I say so
