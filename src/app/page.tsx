@@ -131,7 +131,7 @@ export default function HomePage() {
         <div className="container">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="font-bold text-gray-900 mb-6 whitespace-nowrap" style={{ fontSize: 'clamp(1.5rem, 5vw, 3.75rem)' }}>
+              <h1 className="font-bold text-gray-900 mb-6 whitespace-nowrap" style={{ fontSize: 'clamp(1.25rem, 4vw, 3rem)' }}>
                 {heroHeadline.includes(' ') ? (
                   <>
                     {heroHeadline.split(' ').slice(0, -1).join(' ')}{' '}
@@ -141,7 +141,7 @@ export default function HomePage() {
                   <span className="text-green-600">{heroHeadline}</span>
                 )}
               </h1>
-              <p className="text-base sm:text-lg md:text-xl text-gray-600 mb-8">
+              <p className="text-base sm:text-base md:text-lg text-gray-600 mb-8">
                 {heroSubheadline}
               </p>
 

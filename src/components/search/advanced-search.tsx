@@ -18,7 +18,6 @@ import {
 import {
   Search,
   Clock,
-  TrendingUp,
   Package,
   Store,
   X,
@@ -103,13 +102,6 @@ const mockSuggestions: SearchSuggestion[] = [
   }
 ];
 
-const mockPopularSearches: PopularSearch[] = [
-  { query: "iPhone", count: 1234, trending: true },
-  { query: "MacBook", count: 987, trending: true },
-  { query: "Kente", count: 756, trending: false },
-  { query: "Cocoa", count: 654, trending: false },
-  { query: "Smartphone", count: 543, trending: true }
-];
 
 interface AdvancedSearchProps {
   placeholder?: string;
@@ -436,29 +428,6 @@ export default function AdvancedSearch({
                 </>
               )}
 
-              {/* Popular Searches */}
-              {showPopular && (!debouncedQuery || debouncedQuery.length < 2) && (
-                <>
-                  {(filteredSuggestions.length > 0 || recentSearches.length > 0) && <Separator />}
-                  <CommandGroup heading="Trending">
-                    <div className="px-3 py-2 space-y-2">
-                      <div className="flex flex-wrap gap-2">
-                        {mockPopularSearches.map((search, index) => (
-                          <Badge
-                            key={index}
-                            variant="secondary"
-                            className="cursor-pointer hover:bg-secondary/80 flex items-center gap-1"
-                            onClick={() => handleSearch(search.query)}
-                          >
-                            {search.trending && <TrendingUp className="w-3 h-3" />}
-                            {search.query}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  </CommandGroup>
-                </>
-              )}
 
               {/* Empty State */}
               {filteredSuggestions.length === 0 &&
