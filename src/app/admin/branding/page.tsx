@@ -177,7 +177,7 @@ export default function AdminBrandingPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">Site Branding</h1>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Site Branding</h1>
               <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
                 Master Admin
               </Badge>

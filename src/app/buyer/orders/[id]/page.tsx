@@ -308,7 +308,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
             </Button>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold">Order Details</h1>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Order Details</h1>
                 <Badge className={`${statusConfigMap.bg} ${statusConfigMap.color}`}>{statusConfigMap.label}</Badge>
               </div>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">

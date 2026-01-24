@@ -271,7 +271,7 @@ export default function AdminBannersPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">Promotional Banners</h1>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Promotional Banners</h1>
               <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
                 Master Admin
               </Badge>

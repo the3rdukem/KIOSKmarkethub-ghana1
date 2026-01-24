@@ -181,7 +181,7 @@ function BuyerDashboardContent() {
               <AvatarFallback className="text-lg">{getInitials(user.name)}</AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-2xl font-bold">Welcome back, {user.name.split(" ")[0]}!</h1>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Welcome back, {user.name.split(" ")[0]}!</h1>
               <p className="text-muted-foreground">{user.email}</p>
             </div>
           </div>

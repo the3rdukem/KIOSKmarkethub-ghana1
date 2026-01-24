@@ -192,7 +192,7 @@ export default function BuyerNotificationsPage() {
             <div>
               <div className="flex items-center gap-2">
                 <Bell className="w-6 h-6" />
-                <h1 className="text-2xl font-bold">Notifications</h1>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Notifications</h1>
                 {unreadCount > 0 && (
                   <Badge className="bg-red-500">{unreadCount}</Badge>
                 )}

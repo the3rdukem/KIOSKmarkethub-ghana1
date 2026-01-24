@@ -270,7 +270,7 @@ export default function BuyerProfilePage() {
             </Link>
           </Button>
           <div>
-            <h1 className="text-2xl font-bold">My Profile</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">My Profile</h1>
             <p className="text-muted-foreground">Manage your account settings and addresses</p>
           </div>
         </div>

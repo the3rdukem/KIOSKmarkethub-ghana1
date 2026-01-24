@@ -488,7 +488,7 @@ export default function CheckoutPage() {
     <SiteLayout>
       <div className="container max-w-6xl py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Checkout</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">Checkout</h1>
           <p className="text-muted-foreground">Complete your purchase with Mobile Money</p>
         </div>
 

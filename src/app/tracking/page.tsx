@@ -165,7 +165,7 @@ export default function TrackingPage() {
       <div className="container max-w-4xl py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-2">Track Your Order</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">Track Your Order</h1>
           <p className="text-muted-foreground">
             Enter your order ID to see real-time tracking information
           </p>

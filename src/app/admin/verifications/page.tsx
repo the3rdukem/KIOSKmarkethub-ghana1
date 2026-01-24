@@ -265,7 +265,7 @@ export default function AdminVerificationsPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">Vendor Verification</h1>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Vendor Verification</h1>
               {isMasterAdmin && (
                 <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
                   Master Admin

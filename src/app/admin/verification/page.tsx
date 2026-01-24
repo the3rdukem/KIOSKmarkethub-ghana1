@@ -151,7 +151,7 @@ export default function AdminVerificationPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Vendor Verification Center</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Vendor Verification Center</h1>
             <p className="text-muted-foreground">Review and approve vendor applications</p>
           </div>
           <div className="flex gap-3">

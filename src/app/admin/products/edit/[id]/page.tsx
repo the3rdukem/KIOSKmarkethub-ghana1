@@ -275,7 +275,7 @@ export default function AdminEditProductPage() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
             <Package className="w-6 h-6" />
             Edit Product (Admin)
           </h1>

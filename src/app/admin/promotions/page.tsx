@@ -137,7 +137,7 @@ export default function AdminPromotionsPage() {
           <Link href="/admin"><Button variant="outline" size="sm"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button></Link>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-3xl font-bold">All Promotions</h1>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">All Promotions</h1>
               <Badge variant="outline" className="ml-2"><Eye className="w-3 h-3 mr-1" />Read Only</Badge>
             </div>
             <p className="text-muted-foreground">View all vendor coupons and sales across the platform</p>

@@ -470,7 +470,7 @@ export default function VendorStorePage() {
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                   <div>
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <h1 className="text-2xl md:text-3xl font-bold text-gray-900">{storeName}</h1>
+                      <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">{storeName}</h1>
                       {vendor.verificationStatus === "verified" && (
                         <Badge className="bg-emerald-100 text-emerald-800 border-emerald-200">
                           <ShieldCheck className="w-3 h-3 mr-1" />

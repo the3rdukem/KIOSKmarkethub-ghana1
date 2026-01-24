@@ -493,7 +493,7 @@ function VendorVerificationPageContent() {
       <div className="container max-w-4xl py-8">
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold mb-4">Vendor Verification</h1>
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-4">Vendor Verification</h1>
           <p className="text-muted-foreground">
             Complete verification to build trust with buyers and unlock all seller features.
           </p>

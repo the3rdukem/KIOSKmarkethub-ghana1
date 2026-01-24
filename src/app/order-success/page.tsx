@@ -108,7 +108,7 @@ function OrderSuccessContent() {
         <div className="container py-8">
           <div className="max-w-3xl mx-auto text-center">
             <Loader2 className="w-16 h-16 mx-auto mb-6 animate-spin text-primary" />
-            <h1 className="text-2xl font-bold mb-2">Loading Order Details...</h1>
+            <h1 className="text-xl sm:text-2xl font-bold mb-2">Loading Order Details...</h1>
             <p className="text-muted-foreground">Please wait while we retrieve your order.</p>
           </div>
         </div>
@@ -122,7 +122,7 @@ function OrderSuccessContent() {
         <div className="container py-8">
           <div className="max-w-3xl mx-auto text-center">
             <AlertCircle className="w-16 h-16 mx-auto mb-6 text-amber-500" />
-            <h1 className="text-2xl font-bold mb-2">Order Created</h1>
+            <h1 className="text-xl sm:text-2xl font-bold mb-2">Order Created</h1>
             <p className="text-muted-foreground mb-6">
               Your order has been placed successfully. You can view your orders in your dashboard.
             </p>
@@ -160,7 +160,7 @@ function OrderSuccessContent() {
             <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-            <h1 className="text-3xl font-bold text-green-600 mb-2">Order Confirmed!</h1>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-green-600 mb-2">Order Confirmed!</h1>
             <p className="text-muted-foreground">
               Thank you for your purchase. Your order has been successfully placed.
             </p>
@@ -399,7 +399,7 @@ export default function OrderSuccessPage() {
       <div className="container py-8">
         <div className="max-w-3xl mx-auto text-center">
           <Loader2 className="w-16 h-16 mx-auto mb-6 animate-spin text-primary" />
-          <h1 className="text-2xl font-bold mb-2">Loading...</h1>
+          <h1 className="text-xl sm:text-2xl font-bold mb-2">Loading...</h1>
         </div>
       </div>
     }>
