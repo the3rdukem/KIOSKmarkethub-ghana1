@@ -103,6 +103,7 @@ function MessagesPageContent() {
   const { getProductById } = useProductsStore();
 
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>(null);
+  const [showChatOnMobile, setShowChatOnMobile] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [messageInput, setMessageInput] = useState("");
   const [isSending, setIsSending] = useState(false);
@@ -647,8 +648,8 @@ function MessagesPageContent() {
     <SiteLayout>
       <div className="container py-8">
         <div className="flex h-[calc(100vh-200px)] bg-white rounded-lg border overflow-hidden">
-          {/* Conversations Sidebar */}
-          <div className="w-96 border-r flex flex-col">
+          {/* Conversations Sidebar - Full width on mobile, fixed width on desktop */}
+          <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-96 border-r flex-col`}>
             {/* Header */}
             <div className="p-4 border-b">
               <div className="flex items-center justify-between mb-4">
@@ -713,7 +714,10 @@ function MessagesPageContent() {
                     return (
                       <div
                         key={conv.id}
-                        onClick={() => setSelectedConversationId(conv.id)}
+                        onClick={() => {
+                          setSelectedConversationId(conv.id);
+                          setShowChatOnMobile(true);
+                        }}
                         className={`group p-3 rounded-lg cursor-pointer transition-colors relative ${
                           selectedConversationId === conv.id
                             ? "bg-green-50 border border-green-200"
@@ -817,13 +821,22 @@ function MessagesPageContent() {
             </ScrollArea>
           </div>
 
-          {/* Chat Area */}
-          <div className="flex-1 flex flex-col">
+          {/* Chat Area - Hidden on mobile when no conversation selected, full width when showing */}
+          <div className={`${showChatOnMobile ? 'flex' : 'hidden md:flex'} flex-1 flex-col`}>
             {selectedConversation ? (
               <>
                 {/* Chat Header */}
                 <div className="p-4 border-b flex items-center justify-between">
                   <div className="flex items-center gap-3">
+                    {/* Back button for mobile */}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="md:hidden h-8 w-8 p-0"
+                      onClick={() => setShowChatOnMobile(false)}
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </Button>
                     <Avatar>
                       <AvatarImage src={getParticipantAvatar(selectedConversation)} />
                       <AvatarFallback>

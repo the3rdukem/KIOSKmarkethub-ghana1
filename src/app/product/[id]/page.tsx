@@ -798,10 +798,10 @@ export default function ProductPage() {
 
         <div className="mt-12">
           <Tabs defaultValue="description">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="description">Description</TabsTrigger>
-              <TabsTrigger value="reviews">Reviews ({totalReviews})</TabsTrigger>
-              <TabsTrigger value="shipping">Shipping & Returns</TabsTrigger>
+            <TabsList className="flex w-full overflow-x-auto">
+              <TabsTrigger value="description" className="flex-1 min-w-0 text-xs sm:text-sm">Description</TabsTrigger>
+              <TabsTrigger value="reviews" className="flex-1 min-w-0 text-xs sm:text-sm">Reviews ({totalReviews})</TabsTrigger>
+              <TabsTrigger value="shipping" className="flex-1 min-w-0 text-xs sm:text-sm whitespace-nowrap">Shipping</TabsTrigger>
             </TabsList>
 
             <TabsContent value="description" className="mt-6">

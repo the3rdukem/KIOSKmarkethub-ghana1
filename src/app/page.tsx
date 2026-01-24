@@ -132,7 +132,7 @@ export default function HomePage() {
         <div className="container">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="text-xl sm:text-2xl md:text-4xl lg:text-6xl font-bold text-gray-900 mb-6 whitespace-nowrap">
+              <h1 className="text-lg sm:text-xl md:text-4xl lg:text-6xl font-bold text-gray-900 mb-6">
                 {heroHeadline.includes(' ') ? (
                   <>
                     {heroHeadline.split(' ').slice(0, -1).join(' ')}{' '}

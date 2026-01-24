@@ -259,32 +259,32 @@ export default function VendorSettingsPage() {
     <SiteLayout>
       <div className="container py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
             <Link href="/vendor">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Button>
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Dashboard
             </Link>
+          </Button>
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Store Settings</h1>
               <p className="text-muted-foreground text-sm sm:text-base">Manage store settings</p>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            {hasUnsavedChanges && (
-              <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50">
-                <AlertTriangle className="w-3 h-3 mr-1" />
-                Unsaved Changes
-              </Badge>
-            )}
-            <Link href={`/vendor/${user.id}`} target="_blank">
-              <Button variant="outline" size="sm">
-                <Eye className="w-4 h-4 mr-2" />
-                Preview Store
-              </Button>
-            </Link>
+            <div className="flex items-center gap-2">
+              {hasUnsavedChanges && (
+                <Badge variant="outline" className="text-amber-600 border-amber-300 bg-amber-50 hidden sm:flex">
+                  <AlertTriangle className="w-3 h-3 mr-1" />
+                  Unsaved
+                </Badge>
+              )}
+              <Link href={`/vendor/${user.id}`} target="_blank">
+                <Button variant="outline" size="sm">
+                  <Eye className="w-4 h-4" />
+                  <span className="hidden sm:inline ml-2">Preview</span>
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
 

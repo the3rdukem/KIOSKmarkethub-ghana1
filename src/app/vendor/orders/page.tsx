@@ -314,23 +314,23 @@ export default function VendorOrdersPage() {
   return (
     <SiteLayout>
       <div className="container py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <Link href="/vendor">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Dashboard
-              </Link>
-            </Button>
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
+            <Link href="/vendor">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Dashboard
+            </Link>
+          </Button>
+          <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Orders</h1>
               <p className="text-muted-foreground text-sm sm:text-base">Manage customer orders</p>
             </div>
+            <Button variant="outline" size="sm" onClick={fetchOrders} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline ml-2">Refresh</span>
+            </Button>
           </div>
-          <Button variant="outline" onClick={fetchOrders} disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
         </div>
 
         <Card className="mb-6">

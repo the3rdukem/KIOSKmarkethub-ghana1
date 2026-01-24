@@ -260,13 +260,13 @@ export default function VendorWithdrawPage() {
     <SiteLayout>
       <div className="container py-8">
         {/* Header */}
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/vendor">
-            <Button variant="outline" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-          </Link>
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
+            <Link href="/vendor">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Dashboard
+            </Link>
+          </Button>
           <div>
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Withdraw Earnings</h1>
             <p className="text-muted-foreground text-sm sm:text-base">Request payouts to mobile money or bank</p>

@@ -215,34 +215,34 @@ function VendorAnalyticsContent() {
     <SiteLayout>
       <div className="container py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <Link href="/vendor">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Dashboard
-              </Link>
-            </Button>
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
+            <Link href="/vendor">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Dashboard
+            </Link>
+          </Button>
+          <div className="flex items-center justify-between">
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
-                <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8" />
+                <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6" />
                 Store Analytics
               </h1>
               <p className="text-muted-foreground text-sm sm:text-base">Track your store performance</p>
             </div>
+            <Select value={timeRange} onValueChange={setTimeRange}>
+              <SelectTrigger className="w-32 sm:w-40">
+                <Calendar className="w-4 h-4 mr-1 sm:mr-2 hidden sm:inline" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="7">Last 7 days</SelectItem>
+                <SelectItem value="30">Last 30 days</SelectItem>
+                <SelectItem value="90">Last 90 days</SelectItem>
+                <SelectItem value="365">Last year</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
-          <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-40">
-              <Calendar className="w-4 h-4 mr-2" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="7">Last 7 days</SelectItem>
-              <SelectItem value="30">Last 30 days</SelectItem>
-              <SelectItem value="90">Last 90 days</SelectItem>
-              <SelectItem value="365">Last year</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Key Metrics */}

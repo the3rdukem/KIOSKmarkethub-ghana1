@@ -568,6 +568,79 @@ function SearchPageContent() {
       : 0;
     const isWishlisted = user ? isInWishlist(user.id, product.id) : false;
 
+    if (viewMode === "list") {
+      return (
+        <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden">
+          <div className="flex">
+            <div className="relative w-32 sm:w-40 flex-shrink-0">
+              <Link href={`/product/${product.id}`}>
+                <div className="aspect-square bg-gray-100 overflow-hidden">
+                  {product.images && product.images.length > 0 ? (
+                    <img
+                      src={product.images[0]}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package className="w-10 h-10 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+              </Link>
+              {discount > 0 && (
+                <Badge variant="destructive" className="absolute top-2 left-2 text-xs">
+                  -{discount}%
+                </Badge>
+              )}
+            </div>
+            <CardContent className="flex-1 p-3 sm:p-4 flex flex-col justify-between">
+              <div>
+                <Link href={`/product/${product.id}`}>
+                  <h3 className="font-semibold text-sm sm:text-base line-clamp-2 hover:text-green-600 transition-colors">
+                    {product.name}
+                  </h3>
+                </Link>
+                <div className="flex items-center gap-1 mt-1">
+                  <div className="flex">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className={`w-3 h-3 ${i < Math.floor(rating) ? "text-yellow-400 fill-current" : "text-gray-300"}`} />
+                    ))}
+                  </div>
+                  <span className="text-xs text-muted-foreground">({reviewCount})</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1 truncate">{product.vendorName}</p>
+              </div>
+              <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {product.activeSale ? (
+                    <>
+                      <span className="font-bold text-base sm:text-lg text-green-600">GHS {(product.effectivePrice || product.price).toLocaleString()}</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground line-through">GHS {product.price.toLocaleString()}</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="font-bold text-base sm:text-lg">GHS {product.price.toLocaleString()}</span>
+                      {product.comparePrice && <span className="text-xs sm:text-sm text-muted-foreground line-through">GHS {product.comparePrice.toLocaleString()}</span>}
+                    </>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggleWishlist(product.id)}>
+                    <Heart className={`w-4 h-4 ${isWishlisted ? "fill-red-500 text-red-500" : ""}`} />
+                  </Button>
+                  <Button size="sm" className="bg-green-600 hover:bg-green-700 h-8" disabled={!inStock} onClick={() => handleAddToCart(product)}>
+                    <ShoppingCart className="w-4 h-4" />
+                    <span className="hidden sm:inline ml-1">{inStock ? "Add" : "Out"}</span>
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </div>
+        </Card>
+      );
+    }
+
     return (
       <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden">
         <div className="relative">

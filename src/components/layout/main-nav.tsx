@@ -38,7 +38,9 @@ import {
   X,
   Home,
   HelpCircle,
-  UserCircle
+  UserCircle,
+  Bell,
+  FileText
 } from "lucide-react";
 import {
   Sheet,
@@ -435,7 +437,10 @@ export function MainNav() {
         return [
           ...baseLinks,
           { href: '/buyer/dashboard', label: 'My Dashboard', icon: LayoutDashboard },
+          { href: '/buyer/orders', label: 'My Orders', icon: ShoppingBag },
           { href: '/buyer/wishlist', label: 'Wishlist', icon: Heart },
+          { href: '/messages', label: 'Messages', icon: MessageSquare },
+          { href: '/buyer/notifications', label: 'Notifications', icon: Bell },
         ];
       } else if (effectiveRole === 'vendor') {
         return [
@@ -454,6 +459,12 @@ export function MainNav() {
           { href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
           { href: '/admin/verification', label: 'Verifications', icon: Shield },
           { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
+          { href: '/admin?tab=vendors', label: 'Vendors', icon: Store },
+          { href: '/admin?tab=buyers', label: 'Buyers', icon: Users },
+          { href: '/admin?tab=products', label: 'Products', icon: Package },
+          { href: '/admin?tab=categories', label: 'Categories', icon: Tag },
+          { href: '/admin/audit-logs', label: 'Audit Logs', icon: FileText },
+          { href: '/admin?tab=site-settings', label: 'Site Settings', icon: Settings },
         ];
       }
     }

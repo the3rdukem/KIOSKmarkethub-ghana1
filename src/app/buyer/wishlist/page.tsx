@@ -148,30 +148,30 @@ export default function WishlistPage() {
     <SiteLayout>
       <div className="container py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <Link href="/search">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Continue Shopping
-              </Link>
-            </Button>
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
+            <Link href="/search">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Continue Shopping
+            </Link>
+          </Button>
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <div>
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
-                <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 fill-current" />
+                <Heart className="w-5 h-5 sm:w-6 sm:h-6 text-red-500 fill-current" />
                 My Wishlist
               </h1>
               <p className="text-muted-foreground text-sm sm:text-base">
                 {wishlistProducts.length} {wishlistProducts.length === 1 ? "item" : "items"} saved
               </p>
             </div>
+            {wishlistProducts.length > 0 && (
+              <Button size="sm" onClick={handleMoveAllToCart}>
+                <ShoppingCart className="w-4 h-4" />
+                <span className="hidden sm:inline ml-2">Add All to Cart</span>
+              </Button>
+            )}
           </div>
-          {wishlistProducts.length > 0 && (
-            <Button onClick={handleMoveAllToCart}>
-              <ShoppingCart className="w-4 h-4 mr-2" />
-              Add All to Cart
-            </Button>
-          )}
         </div>
 
         {/* Wishlist Items */}
