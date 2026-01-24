@@ -1,0 +1,84 @@
+Your recommendations are brilliant, here are my thoughts however. Compare them with yours and see how they work out. 
+
+My thoughts on responsiveness. 
+
+HOMEPAGE
+
+Header. On mobile devices notification icon doesn’t have to always show. It should only show in the hamburger menu for a logged in user. A non logged in user doesn’t need a notification icon, does he ?
+
+Hero text font Reduced so it does NOT collapse into two line rows like it’s doing currently. It must stay a single line. IT IS STILL SHOWING TWO ROWS. 
+
+
+The size of the hint in the search bar does not align with the text size site wide. There is a text size problem site wide. Text sizes should be uniform throughout the site. Agent should perform a deep analysis of this. All text type size should be uniform in all portals. For example, On Homepage, Shop with Confidence text is smaller or the same site as brief site description “Ghana’s most….” Where are Texts like “ Join KIOSK Today” and “Ready to Start” are much bigger. It’s unprofessional. The Text sizes should be uniform in all pages and places. 
+
+The three tiles below HERO IMAGE should be horizontal not stacked vertically. They are still stacked vertically and take up too much space.  They should be stacked horizontally, if this is not possible, their height can be reduced in mobile view.
+
+Shop by Category text is too big making the text alignment in that space unprofessional looking. Its should be reduced and laid out properly in alignment with the View All Categories Button.  Apply this Fix the the “Featured Products” text so that it will align properly with the View All Products button
+
+
+VENDOR Dashboard 
+
+The text Vendor Dashboard is soo big it takes up most of the first row cutting off the Add Products Button. Apply this Fix to all Page Tittle texts in the following pages in Vendor dashboard: 
+Product Management Page 
+Orders Page (The back to Dashboard button should be aligned above the Orders text)
+Promotions & Discounts 
+Store Analytics 
+Withdraw Earnings 
+Store Settings
+
+This text resize should be applied to all pages in the buyer dashboard and Admin Dashboard as well.  NOTES: The agent fixed this with a lazy approach. 
+
+On all pages in Vendor, Buyer and Admin Portals, The text size for page tittles has been reduced as I requested BUT it looks very unprofessional, the BACK or return to previous page button comes first, followed by the page tittle and then a button which is wrong. The page tittle is not supposed to be in the middle. Example of this: Buyer Orders page, You see Dashboard button, Page title My Order and Refresh Button. Fix this problem professionally. Apply this fix to all pages in Vendor, Admin and BUYER Dashboards.  FIXES MUST BE APPLIED TO ALL PAGES WITH THIS PROBLEM. 
+
+
+
+I implore agent to login with the provided credentials on a mobile device and take screenshots of each tab in vendor, buy and admin portals. The page layouts are all scrambled. The agent has to wait for each page to load fully before taking a snapshot. The pages load slow. Perform a visual analysis of every single page layout on a mobile device. 
+
+HAMBURGER MENU
+
+The hamburger menu captures all options for vendor BUT DOES NOT do same for BUYER and ADMIN. The hamburger menu must show all options for logged in user that is currently available in the users dropdown MENU. 
+
+
+
+SEARCH RESULTS PAGE: 
+
+There is no list or grid view option. 
+The current list view implementation in desktop is not ideal either. List view should show the product image on the left, price and other information on the right.  THIS FIX should work on box mobile and desktop
+
+
+
+
+PRODUCT DETAILS PAGE:
+
+Description, Reviews, Shipping & Returns buttons overlap 
+
+You May Also like:
+
+Analyze my thought, this suggestions show not affect how site is viewed on a desktop. Both desktop and mobile phone must render correctly. 
+
+Give me a detailed report against the audit report, and  your recommendations. 
+
+MESSAGES: 
+
+This requires a lot of work. I will list my observations but agent NEEDS to analyze this page and suggest how it should work on mobile devices in line with industry standards. 
+On first loading. Only the messages list is displayed, the chat box is cut off completely. 
+When I tap on a message, it shows half of the message list and half of the chat box. 
+
+The text input box is cut off. there is no send button 
+
+
+
+Login credentials for every user type so you can conduct full audits. 
+
+Vendor: ven@kiosk.com..gh
+    Password: 123asdqwe
+Buyer: buy@kiosk.com.gh 
+Password: 123asdqwe
+Super Admin: the3rdukem@gmail.com
+Password: 123asdqweX$
+
+Agent must perform analysis of my notes, if a suggestion I made about one page must be applied to another page, agent must report this. Suggestions and fixes are not only for pages mentioned the agent must check all other similar pages to see if they will need same fix. 
+
+These are suggestions. They should be compared to industry standards. They should not break anything on desktop and they should not cause any regressions. 
+
+Agent must report in detail with analysis, comparisons to industry standards, suggestions and how feasible. Agent must not fix anything until I say so
