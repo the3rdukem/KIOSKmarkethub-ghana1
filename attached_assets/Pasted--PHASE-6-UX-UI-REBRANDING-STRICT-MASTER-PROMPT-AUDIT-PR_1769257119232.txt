@@ -1,0 +1,206 @@
+✅ PHASE 6 — UX/UI & REBRANDING
+
+STRICT MASTER PROMPT (AUDIT → PROPOSE → APPROVE → IMPLEMENT)
+
+This is refined, disciplined, and enforces control.
+
+⸻
+
+🛑 PHASE 6 — UX/UI & REBRANDING MASTER PROMPT (STRICT)
+
+ROLE
+
+You are acting as a UX/UI Auditor & Design Systems Engineer.
+
+You are NOT allowed to immediately redesign or refactor the app.
+
+Your job is to observe, document, and propose — not to “fix”.
+
+⸻
+
+🚨 GLOBAL RULES (NON-NEGOTIABLE)
+	1.	❌ DO NOT modify code during the audit phase
+	2.	❌ DO NOT change layouts, CSS, or components yet
+	3.	❌ DO NOT introduce new UI patterns unapproved
+	4.	❌ DO NOT remove features
+	5.	❌ DO NOT prioritize mobile at the expense of desktop
+
+If something is bad:
+	•	Document it
+	•	Explain why
+	•	Propose a fix
+	•	WAIT for approval
+
+Any implementation without approval = FAILED PHASE.
+
+⸻
+
+🎯 PHASE 6 OBJECTIVE
+
+Prepare KIOSK for real users by fixing:
+	•	UX inconsistencies
+	•	Layout breakages
+	•	Responsiveness issues
+	•	Brand inconsistencies (MarketHub → KIOSK)
+	•	Mobile & desktop parity
+
+This phase is about usability and trust, not new features.
+
+⸻
+
+🧭 PHASE 6 MUST FOLLOW THESE STAGES
+
+STAGE 1 — UX/UI AUDIT (NO CODE)
+
+Audit existing UI only across:
+
+A. GLOBAL NAVIGATION
+	•	Header behavior on mobile vs desktop
+	•	Visibility of:
+	•	Logo
+	•	Search
+	•	Cart
+	•	Notifications
+	•	User menu
+	•	Sign in / Sign up
+	•	Overflow, clipping, hidden actions
+
+B. HOMEPAGE LAYOUT
+	•	Hero section readability on mobile
+	•	Search bar usability
+	•	Featured products layout
+	•	Scroll depth and content density
+	•	CTA visibility
+
+C. FOOTER
+	•	Link grouping
+	•	Vertical vs horizontal layout
+	•	Mobile usability
+	•	Visual hierarchy
+
+D. BUYER EXPERIENCE
+	•	Product cards
+	•	Filters
+	•	Reviews display
+	•	Checkout flow responsiveness
+
+E. VENDOR DASHBOARD
+	•	Sidebar / navigation visibility
+	•	Text clipping
+	•	Table overflow
+	•	Action accessibility on mobile
+	•	User dropdown visibility
+
+F. ADMIN UI
+	•	Consistency with buyer/vendor UI
+	•	Mobile survivability (even if desktop-first)
+
+⸻
+
+STAGE 2 — REBRANDING AUDIT (NO IMPLEMENTATION)
+
+Audit:
+	•	Remaining MarketHub references
+	•	Inconsistent naming (KIOSK vs KIOSK24/7)
+	•	Color usage consistency
+	•	Typography consistency
+	•	Icon style consistency
+
+⸻
+
+STAGE 3 — PROPOSED FIXES (NO CODE)
+
+For each issue, provide:
+	•	Problem description
+	•	Where it occurs
+	•	Why it’s a UX problem
+	•	Proposed solution
+	•	Scope (small / medium / large)
+	•	Affected platforms:
+	•	Mobile
+	•	Desktop
+	•	Both
+
+❗ No fixes yet — proposal only
+
+⸻
+
+STAGE 4 — SCOPED IMPLEMENTATION PLAN
+
+Break work into controlled passes:
+	•	Pass 1: Navigation & menus
+	•	Pass 2: Homepage layout
+	•	Pass 3: Dashboards (buyer/vendor)
+	•	Pass 4: Footer & secondary pages
+	•	Pass 5: Visual polish (spacing, typography)
+
+Each pass must be:
+	•	Isolated
+	•	Reviewable
+	•	Reversible
+
+⸻
+
+📋 REQUIRED OUTPUT FORMAT (STRICT)
+
+📋 PHASE 6 — UX/UI & REBRANDING AUDIT REPORT
+
+A. Global Navigation
+Issues:
+Proposed Fixes:
+
+B. Homepage
+Issues:
+Proposed Fixes:
+
+C. Footer
+Issues:
+Proposed Fixes:
+
+D. Buyer Experience
+Issues:
+Proposed Fixes:
+
+E. Vendor Dashboard
+Issues:
+Proposed Fixes:
+
+F. Admin UI
+Issues:
+Proposed Fixes:
+
+G. Branding & Identity
+Issues:
+Proposed Fixes:
+
+---
+
+📐 RESPONSIVENESS SUMMARY
+Mobile:
+Desktop:
+Parity Risks:
+
+---
+
+🧩 IMPLEMENTATION PASSES (PROPOSED ONLY)
+Pass 1:
+Pass 2:
+Pass 3:
+Pass 4:
+Pass 5:
+
+---
+
+🛑 STOP — AWAIT APPROVAL
+No code changes made.
+
+
+⸻
+
+Why this prompt is correct now
+	•	Respects your phase discipline
+	•	Fixes the mobile issues you demonstrated
+	•	Prevents agent overreach
+	•	Keeps desktop first-class
+	•	Forces approval before implementation
+	•	Aligns with real Ghanaian usage patterns (mobile-heavy but not mobile-only)
