@@ -20,7 +20,6 @@ const categories = [
   { name: "Automotive", icon: "🚗", href: "/search?category=Automotive" },
 ];
 
-const trendingSearches = ["iPhone", "MacBook", "Kente", "Cocoa", "Smartphones"];
 
 export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -142,7 +141,7 @@ export default function HomePage() {
                   <span className="text-green-600">{heroHeadline}</span>
                 )}
               </h1>
-              <p className="text-sm sm:text-base md:text-lg text-gray-600 mb-8">
+              <p className="text-base sm:text-lg md:text-xl text-gray-600 mb-8">
                 {heroSubheadline}
               </p>
 
@@ -155,22 +154,6 @@ export default function HomePage() {
                   autoFocus={false}
                 />
 
-                {/* Trending Searches */}
-                <div className="flex items-center gap-3 mt-4">
-                  <span className="text-sm text-gray-500">Trending:</span>
-                  <div className="flex flex-wrap gap-2">
-                    {trendingSearches.map((search, index) => (
-                      <Link key={index} href={`/search?q=${encodeURIComponent(search)}`}>
-                        <Badge
-                          variant="secondary"
-                          className="cursor-pointer hover:bg-secondary/80 transition-colors"
-                        >
-                          {search}
-                        </Badge>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">

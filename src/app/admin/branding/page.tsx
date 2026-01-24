@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,7 +33,8 @@ import {
   Twitter,
   Instagram,
   Linkedin,
-  Youtube
+  Youtube,
+  ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";
 import { useAuthStore } from "@/lib/auth-store";
@@ -174,36 +176,44 @@ export default function AdminBrandingPage() {
   return (
     <SiteLayout>
       <div className="container py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Site Branding</h1>
-              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-                Master Admin
-              </Badge>
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
+            <Link href="/admin">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Link>
+          </Button>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Site Branding</h1>
+                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                  Master Admin
+                </Badge>
+              </div>
+              <p className="text-muted-foreground">
+                Manage your marketplace's visual identity and branding
+              </p>
             </div>
-            <p className="text-muted-foreground">
-              Manage your marketplace's visual identity and branding
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {hasChanges && (
-              <Badge variant="outline" className="text-amber-600 border-amber-300">
-                Unsaved Changes
-              </Badge>
-            )}
-            <Button variant="outline" onClick={handleReset} disabled={!hasChanges}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Reset
-            </Button>
-            <Button onClick={handleSave} disabled={!hasChanges || isSaving}>
-              {isSaving ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
+            <div className="flex items-center gap-3">
+              {hasChanges && (
+                <Badge variant="outline" className="text-amber-600 border-amber-300">
+                  Unsaved Changes
+                </Badge>
               )}
-              Save Changes
-            </Button>
+              <Button variant="outline" onClick={handleReset} disabled={!hasChanges}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Reset
+              </Button>
+              <Button onClick={handleSave} disabled={!hasChanges || isSaving}>
+                {isSaving ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="w-4 h-4 mr-2" />
+                )}
+                Save Changes
+              </Button>
+            </div>
           </div>
         </div>
 

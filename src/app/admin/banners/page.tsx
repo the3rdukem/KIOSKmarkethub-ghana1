@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,7 +42,8 @@ import {
   Copy,
   ArrowUpDown,
   CheckCircle,
-  XCircle
+  XCircle,
+  ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistance, format } from "date-fns";
@@ -268,25 +270,32 @@ export default function AdminBannersPage() {
   return (
     <SiteLayout>
       <div className="container py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Promotional Banners</h1>
-              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-                Master Admin
-              </Badge>
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
+            <Link href="/admin">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Link>
+          </Button>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Promotional Banners</h1>
+                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                  Master Admin
+                </Badge>
+              </div>
+              <p className="text-muted-foreground">
+                Create and manage promotional banners displayed across the site
+              </p>
             </div>
-            <p className="text-muted-foreground">
-              Create and manage promotional banners displayed across the site
-            </p>
-          </div>
-          <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-            <DialogTrigger asChild>
-              <Button onClick={() => resetForm()}>
-                <Plus className="w-4 h-4 mr-2" />
-                Create Banner
-              </Button>
-            </DialogTrigger>
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+              <DialogTrigger asChild>
+                <Button onClick={() => resetForm()}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Banner
+                </Button>
+              </DialogTrigger>
             <DialogContent className="max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Create Promotional Banner</DialogTitle>
@@ -481,6 +490,7 @@ export default function AdminBannersPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         </div>
 
         {/* Stats */}

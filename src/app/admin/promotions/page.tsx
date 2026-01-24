@@ -133,14 +133,21 @@ export default function AdminPromotionsPage() {
   return (
     <SiteLayout>
       <div className="container py-8">
-        <div className="flex items-center gap-4 mb-8">
-          <Link href="/admin"><Button variant="outline" size="sm"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button></Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">All Promotions</h1>
-              <Badge variant="outline" className="ml-2"><Eye className="w-3 h-3 mr-1" />Read Only</Badge>
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
+            <Link href="/admin">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Link>
+          </Button>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">All Promotions</h1>
+                <Badge variant="outline" className="ml-2"><Eye className="w-3 h-3 mr-1" />Read Only</Badge>
+              </div>
+              <p className="text-muted-foreground">View all vendor coupons and sales across the platform</p>
             </div>
-            <p className="text-muted-foreground">View all vendor coupons and sales across the platform</p>
           </div>
         </div>
 

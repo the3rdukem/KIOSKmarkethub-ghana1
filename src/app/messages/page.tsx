@@ -651,8 +651,8 @@ function MessagesPageContent() {
 
   return (
     <SiteLayout hideBottomNav={showChatOnMobile}>
-      <div className={`${showChatOnMobile ? 'fixed inset-0 z-50 bg-white pt-0' : 'container py-8'}`}>
-        <div className={`flex ${showChatOnMobile ? 'h-[100dvh]' : 'h-[calc(100vh-200px)]'} bg-white ${showChatOnMobile ? '' : 'rounded-lg border'} overflow-hidden`}>
+      <div className={`${showChatOnMobile ? 'fixed inset-0 z-50 bg-white pt-0 md:static md:inset-auto md:z-auto md:bg-transparent md:pt-0' : ''} container py-8 md:py-8`}>
+        <div className={`flex ${showChatOnMobile ? 'h-[100dvh] md:h-[calc(100vh-200px)]' : 'h-[calc(100vh-200px)]'} bg-white rounded-lg border overflow-hidden`}>
           {/* Conversations Sidebar - Full width on mobile, fixed width on desktop */}
           <div className={`${showChatOnMobile ? 'hidden md:flex' : 'flex'} w-full md:w-96 border-r flex-col`}>
             {/* Header */}

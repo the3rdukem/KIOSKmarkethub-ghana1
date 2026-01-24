@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -44,7 +45,8 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
-  RefreshCw
+  RefreshCw,
+  ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, formatDistance } from "date-fns";
@@ -228,31 +230,39 @@ export default function AdminAuditLogsPage() {
     <SiteLayout>
       <div className="container py-8">
         {/* Header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
-                <History className="w-8 h-8" />
-                Audit Logs
-              </h1>
-              <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
-                <Crown className="w-3 h-3 mr-1" />
-                Master Admin Only
-              </Badge>
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
+            <Link href="/admin">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Link>
+          </Button>
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3">
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
+                  <History className="w-8 h-8" />
+                  Audit Logs
+                </h1>
+                <Badge className="bg-gradient-to-r from-amber-500 to-orange-500 text-white">
+                  <Crown className="w-3 h-3 mr-1" />
+                  Master Admin Only
+                </Badge>
+              </div>
+              <p className="text-muted-foreground">
+                Track all sensitive actions across the platform (from PostgreSQL)
+              </p>
             </div>
-            <p className="text-muted-foreground">
-              Track all sensitive actions across the platform (from PostgreSQL)
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" onClick={handleRefresh}>
-              <RefreshCw className="w-4 h-4 mr-2" />
-              Refresh
-            </Button>
-            <Button variant="outline" onClick={handleExportLogs}>
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </Button>
+            <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={handleRefresh}>
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
+              <Button variant="outline" onClick={handleExportLogs}>
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </div>
           </div>
         </div>
 

@@ -244,11 +244,11 @@ export default function AdvancedSearch({
   const getSizeClasses = () => {
     switch (size) {
       case "sm":
-        return "h-10 text-sm";
+        return "h-10 text-sm placeholder:text-xs sm:placeholder:text-sm";
       case "lg":
-        return "h-14 text-lg";
+        return "h-14 text-sm sm:text-base md:text-lg placeholder:text-xs sm:placeholder:text-sm md:placeholder:text-base";
       default:
-        return "h-12 text-base";
+        return "h-12 text-sm sm:text-base placeholder:text-xs sm:placeholder:text-sm";
     }
   };
 
