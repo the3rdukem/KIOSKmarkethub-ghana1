@@ -132,7 +132,7 @@ export default function HomePage() {
         <div className="container">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-bold text-gray-900 mb-6">
+              <h1 className="text-xl sm:text-2xl md:text-4xl lg:text-6xl font-bold text-gray-900 mb-6 whitespace-nowrap">
                 {heroHeadline.includes(' ') ? (
                   <>
                     {heroHeadline.split(' ').slice(0, -1).join(' ')}{' '}
@@ -187,14 +187,14 @@ export default function HomePage() {
                 </Button>
               </div>
 
-              <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-6 mt-8 text-xs sm:text-sm text-gray-600">
+              <div className="flex items-center gap-4 sm:gap-6 mt-8 text-xs sm:text-sm text-gray-600">
                 <div className="flex items-center gap-1 sm:gap-2">
                   <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
                   <span className="whitespace-nowrap">Verified</span>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2">
                   <Users className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 flex-shrink-0" />
-                  <span className="whitespace-nowrap">{totalVendors > 0 ? `${totalVendors}+ vendors` : "Join us"}</span>
+                  <span className="whitespace-nowrap">{totalVendors > 0 ? `${totalVendors}+` : "Join"}</span>
                 </div>
                 <div className="flex items-center gap-1 sm:gap-2">
                   <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
@@ -232,29 +232,29 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Platform Stats */}
-      <section className="py-16 bg-white">
+      {/* Platform Stats - Horizontal on mobile */}
+      <section className="py-8 sm:py-16 bg-white">
         <div className="container">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="text-center">
-              <CardContent className="p-6">
-                <Package className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold mb-2">{totalProducts > 0 ? totalProducts.toLocaleString() : "0"}</h3>
-                <p className="text-muted-foreground">{totalProducts > 0 ? "Products Available" : "Add Your Products"}</p>
+          <div className="flex justify-between sm:grid sm:grid-cols-3 gap-2 sm:gap-8">
+            <Card className="text-center flex-1">
+              <CardContent className="p-3 sm:p-6">
+                <Package className="w-6 h-6 sm:w-12 sm:h-12 text-blue-600 mx-auto mb-1 sm:mb-4" />
+                <h3 className="text-lg sm:text-2xl font-bold mb-0 sm:mb-2">{totalProducts > 0 ? totalProducts.toLocaleString() : "0"}</h3>
+                <p className="text-muted-foreground text-xs sm:text-base">{totalProducts > 0 ? "Products" : "Products"}</p>
               </CardContent>
             </Card>
-            <Card className="text-center">
-              <CardContent className="p-6">
-                <Shield className="w-12 h-12 text-green-600 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold mb-2">100%</h3>
-                <p className="text-muted-foreground">Verified Vendors</p>
+            <Card className="text-center flex-1">
+              <CardContent className="p-3 sm:p-6">
+                <Shield className="w-6 h-6 sm:w-12 sm:h-12 text-green-600 mx-auto mb-1 sm:mb-4" />
+                <h3 className="text-lg sm:text-2xl font-bold mb-0 sm:mb-2">100%</h3>
+                <p className="text-muted-foreground text-xs sm:text-base">Verified</p>
               </CardContent>
             </Card>
-            <Card className="text-center">
-              <CardContent className="p-6">
-                <Users className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-                <h3 className="text-2xl font-bold mb-2">{totalVendors > 0 ? totalVendors.toLocaleString() : "0"}</h3>
-                <p className="text-muted-foreground">{totalVendors > 0 ? "Active Sellers" : "Be the First Seller"}</p>
+            <Card className="text-center flex-1">
+              <CardContent className="p-3 sm:p-6">
+                <Users className="w-6 h-6 sm:w-12 sm:h-12 text-purple-600 mx-auto mb-1 sm:mb-4" />
+                <h3 className="text-lg sm:text-2xl font-bold mb-0 sm:mb-2">{totalVendors > 0 ? totalVendors.toLocaleString() : "0"}</h3>
+                <p className="text-muted-foreground text-xs sm:text-base">{totalVendors > 0 ? "Sellers" : "Sellers"}</p>
               </CardContent>
             </Card>
           </div>
@@ -264,13 +264,13 @@ export default function HomePage() {
       {/* Categories */}
       <section className="py-16 bg-gray-50">
         <div className="container">
-          <div className="flex justify-between items-center mb-12">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 sm:mb-12">
             <div>
-              <h2 className="text-3xl font-bold mb-2">{categoriesTitle}</h2>
-              <p className="text-muted-foreground">{categoriesSubtitle}</p>
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">{categoriesTitle}</h2>
+              <p className="text-muted-foreground text-sm sm:text-base">{categoriesSubtitle}</p>
             </div>
-            <Button variant="outline" asChild>
-              <Link href="/search">View All Categories</Link>
+            <Button variant="outline" size="sm" className="text-xs sm:text-sm" asChild>
+              <Link href="/search">View All</Link>
             </Button>
           </div>
 
@@ -295,17 +295,17 @@ export default function HomePage() {
       {/* Featured Products */}
       <section className="py-16 bg-white">
         <div className="container">
-          <div className="flex justify-between items-center mb-12">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 sm:mb-12">
             <div>
-              <h2 className="text-3xl font-bold mb-2">{featuredTitle}</h2>
-              <p className="text-muted-foreground">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 sm:mb-2">{featuredTitle}</h2>
+              <p className="text-muted-foreground text-sm sm:text-base">
                 {featuredProducts.length > 0
                   ? featuredSubtitle
                   : "Products will appear here once vendors add them"}
               </p>
             </div>
-            <Button variant="outline" asChild>
-              <Link href="/search">View All Products</Link>
+            <Button variant="outline" size="sm" className="text-xs sm:text-sm" asChild>
+              <Link href="/search">View All</Link>
             </Button>
           </div>
 

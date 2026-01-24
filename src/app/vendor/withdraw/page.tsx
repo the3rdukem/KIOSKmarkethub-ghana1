@@ -268,8 +268,8 @@ export default function VendorWithdrawPage() {
             </Button>
           </Link>
           <div>
-            <h1 className="text-3xl font-bold">Withdraw Earnings</h1>
-            <p className="text-muted-foreground">Request payouts to your mobile money or bank account</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Withdraw Earnings</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">Request payouts to mobile money or bank</p>
           </div>
         </div>
 

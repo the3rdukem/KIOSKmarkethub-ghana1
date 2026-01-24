@@ -260,8 +260,8 @@ export default function AdminOrdersPage() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Order Management</h1>
-              <p className="text-muted-foreground">View and manage all orders</p>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Order Management</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">Manage all orders</p>
             </div>
           </div>
           <Button variant="outline" onClick={fetchOrders} disabled={loading}>

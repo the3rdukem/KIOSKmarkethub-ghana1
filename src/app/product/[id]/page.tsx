@@ -568,7 +568,7 @@ export default function ProductPage() {
           <div className="space-y-6">
             <div>
               <div className="flex items-start justify-between mb-2">
-                <h1 className="text-3xl font-bold">{product.name}</h1>
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">{product.name}</h1>
                 <div className="flex gap-2">
                   <Button
                     variant="ghost"
@@ -609,11 +609,11 @@ export default function ProductPage() {
 
             <div className="space-y-2">
               {product.activeSale ? (
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className="text-3xl font-bold text-green-600">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  <span className="text-xl sm:text-2xl md:text-3xl font-bold text-green-600">
                     GHS {(product.effectivePrice || product.price).toLocaleString()}
                   </span>
-                  <span className="text-lg text-muted-foreground line-through">
+                  <span className="text-sm sm:text-lg text-muted-foreground line-through">
                     GHS {product.price.toLocaleString()}
                   </span>
                   <Badge variant="destructive" className="animate-pulse">
@@ -626,13 +626,13 @@ export default function ProductPage() {
                   </Badge>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
-                  <span className="text-3xl font-bold text-green-600">
+                <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+                  <span className="text-xl sm:text-2xl md:text-3xl font-bold text-green-600">
                     GHS {product.price.toLocaleString()}
                   </span>
                   {product.comparePrice && (
                     <>
-                      <span className="text-lg text-muted-foreground line-through">
+                      <span className="text-sm sm:text-lg text-muted-foreground line-through">
                         GHS {product.comparePrice.toLocaleString()}
                       </span>
                       <Badge variant="destructive">-{discount}%</Badge>
@@ -646,24 +646,24 @@ export default function ProductPage() {
             </div>
 
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-12 h-12">
+              <CardContent className="p-3 sm:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Avatar className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
                       <AvatarImage src={vendor?.avatar} />
                       <AvatarFallback>{vendor?.businessName?.[0] || product.vendorName[0]}</AvatarFallback>
                     </Avatar>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-semibold">{vendor?.businessName || product.vendorName}</h3>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-semibold text-sm sm:text-base truncate">{vendor?.businessName || product.vendorName}</h3>
                         {vendor?.verificationStatus === "verified" && (
-                          <Badge variant="default" className="text-xs">
+                          <Badge variant="default" className="text-xs flex-shrink-0">
                             <Shield className="w-3 h-3 mr-1" />
                             Verified
                           </Badge>
                         )}
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-3 text-xs sm:text-sm text-muted-foreground">
                         {vendor?.storeRating && (
                           <div className="flex items-center gap-1">
                             <Star className="w-3 h-3 text-yellow-400 fill-current" />
@@ -673,23 +673,23 @@ export default function ProductPage() {
                         {vendor?.location && (
                           <div className="flex items-center gap-1">
                             <MapPin className="w-3 h-3" />
-                            <span>{vendor.location}</span>
+                            <span className="truncate">{vendor.location}</span>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
                   <div className="flex gap-2">
-                    <Button variant="outline" size="sm" asChild>
+                    <Button variant="outline" size="sm" className="flex-1 sm:flex-none text-xs sm:text-sm" asChild>
                       <Link href={`/vendor/${product.vendorId}`}>
-                        <Store className="w-4 h-4 mr-2" />
-                        Visit Store
+                        <Store className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Visit Store</span>
                       </Link>
                     </Button>
-                    <Button variant="outline" size="sm" asChild>
+                    <Button variant="outline" size="sm" className="flex-1 sm:flex-none text-xs sm:text-sm" asChild>
                       <Link href={`/messages?vendor=${product.vendorId}&product=${product.id}`}>
-                        <MessageSquare className="w-4 h-4 mr-2" />
-                        Contact
+                        <MessageSquare className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">Contact</span>
                       </Link>
                     </Button>
                   </div>
@@ -1134,8 +1134,8 @@ export default function ProductPage() {
 
         {relatedProducts.length > 0 && (
           <div className="mt-12">
-            <h3 className="text-2xl font-bold mb-6">You May Also Like</h3>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <h3 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">You May Also Like</h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
               {relatedProducts.map((item) => (
                 <Link key={item.id} href={`/product/${item.id}`}>
                   <Card className="cursor-pointer hover:shadow-lg transition-shadow">

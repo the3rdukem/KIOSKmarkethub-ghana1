@@ -368,7 +368,7 @@ export default function VendorPromotionsPage() {
       <div className="container py-8">
         <div className="flex items-center gap-4 mb-8">
           <Link href="/vendor"><Button variant="outline" size="sm"><ArrowLeft className="w-4 h-4 mr-2" />Back</Button></Link>
-          <div><h1 className="text-3xl font-bold">Promotions & Discounts</h1><p className="text-muted-foreground">Manage coupons and sales (database-backed)</p></div>
+          <div><h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Promotions & Discounts</h1><p className="text-muted-foreground text-sm sm:text-base">Manage coupons and sales</p></div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">

@@ -224,11 +224,11 @@ function VendorAnalyticsContent() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold flex items-center gap-2">
-                <BarChart3 className="w-8 h-8" />
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
+                <BarChart3 className="w-6 h-6 sm:w-8 sm:h-8" />
                 Store Analytics
               </h1>
-              <p className="text-muted-foreground">Track your store performance</p>
+              <p className="text-muted-foreground text-sm sm:text-base">Track your store performance</p>
             </div>
           </div>
           <Select value={timeRange} onValueChange={setTimeRange}>

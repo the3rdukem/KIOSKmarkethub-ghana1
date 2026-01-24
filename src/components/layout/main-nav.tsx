@@ -440,9 +440,14 @@ export function MainNav() {
       } else if (effectiveRole === 'vendor') {
         return [
           { href: '/vendor', label: 'Dashboard', icon: LayoutDashboard },
+          { href: `/vendor/${safeUser?.id || ''}`, label: 'My Store', icon: Store },
           { href: '/vendor/products', label: 'Products', icon: Package },
           { href: '/vendor/orders', label: 'Orders', icon: ShoppingBag },
+          { href: '/vendor/promotions', label: 'Promotions', icon: Tag },
           { href: '/vendor/analytics', label: 'Analytics', icon: BarChart3 },
+          { href: '/vendor/withdraw', label: 'Withdrawals', icon: Wallet },
+          { href: '/messages', label: 'Messages', icon: MessageSquare },
+          { href: '/vendor/settings', label: 'Store Settings', icon: Settings },
         ];
       } else if (effectiveRole === 'admin' || effectiveRole === 'master_admin') {
         return [
@@ -537,8 +542,10 @@ export function MainNav() {
               {/* Cart (for buyers or unauthenticated) */}
               {showCart && <CartSheet />}
 
-              {/* Notifications */}
-              <NotificationsPanel />
+              {/* Notifications - Hidden on mobile for non-logged-in users */}
+              {safeIsAuthenticated && (
+                <NotificationsPanel />
+              )}
 
               {/* User Menu */}
               {safeIsAuthenticated && safeUser ? (

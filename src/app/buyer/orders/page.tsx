@@ -188,8 +188,8 @@ export default function BuyerOrdersPage() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">My Orders</h1>
-              <p className="text-muted-foreground">View and track your orders</p>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">My Orders</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">View and track your orders</p>
             </div>
           </div>
           <Button variant="outline" onClick={fetchOrders} disabled={loading}>

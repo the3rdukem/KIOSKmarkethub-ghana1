@@ -723,14 +723,14 @@ function SearchPageContent() {
                     )}
                   </Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-80">
+                <SheetContent side="left" className="w-80 overflow-y-auto">
                   <SheetHeader>
                     <SheetTitle>Filters</SheetTitle>
                     <SheetDescription>
                       Narrow down your search results
                     </SheetDescription>
                   </SheetHeader>
-                  <div className="mt-6">
+                  <div className="mt-6 pb-8">
                     <FilterSidebar />
                   </div>
                 </SheetContent>
@@ -750,8 +750,8 @@ function SearchPageContent() {
                 </SelectContent>
               </Select>
 
-              {/* View Mode */}
-              <div className="hidden sm:flex items-center gap-1 border rounded-lg p-1">
+              {/* View Mode - Visible on all screens */}
+              <div className="flex items-center gap-1 border rounded-lg p-1">
                 <Button
                   variant={viewMode === "grid" ? "secondary" : "ghost"}
                   size="sm"
@@ -793,7 +793,7 @@ function SearchPageContent() {
         <div className="flex gap-6">
           {/* Desktop Filters Sidebar */}
           <div className="hidden md:block w-64 flex-shrink-0">
-            <Card className="p-4 sticky top-20">
+            <Card className="p-4 sticky top-20 max-h-[calc(100vh-6rem)] overflow-y-auto">
               <h2 className="font-semibold text-lg mb-4 flex items-center gap-2">
                 <Filter className="w-5 h-5" />
                 Filters
@@ -825,9 +825,9 @@ function SearchPageContent() {
                 )}
               </div>
             ) : (
-              <div className={`grid gap-4 ${
+              <div className={`grid gap-3 sm:gap-4 ${
                 viewMode === "grid"
-                  ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+                  ? "grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
                   : "grid-cols-1"
               }`}>
                 {filteredAndSortedProducts.map((product) => (

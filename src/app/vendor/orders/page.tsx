@@ -323,8 +323,8 @@ export default function VendorOrdersPage() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Orders</h1>
-              <p className="text-muted-foreground">Manage your customer orders</p>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Orders</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">Manage customer orders</p>
             </div>
           </div>
           <Button variant="outline" onClick={fetchOrders} disabled={loading}>

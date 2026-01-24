@@ -1340,7 +1340,7 @@ function AdminDashboardContent() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Admin Dashboard</h1>
               <Badge
                 variant={isMasterAdmin ? "default" : "secondary"}
                 className={isMasterAdmin ? "bg-gradient-to-r from-amber-500 to-orange-500 text-white" : ""}

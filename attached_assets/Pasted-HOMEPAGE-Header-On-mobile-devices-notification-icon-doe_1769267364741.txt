@@ -1,0 +1,69 @@
+HOMEPAGE
+
+Header. On mobile devices notification icon doesn’t have to always show. It should only show in the hamburger menu for a logged in user. A non logged in user doesn’t need a notification icon, does he ?
+
+Hero text font Reduced so it does NOT collapse into two line rows like it’s doing currently. It must stay a single line.  IT STILL SHOWING in two line rows
+
+
+Main Homapage search bar, text hint currently overlaps with ICONS. This is still the case. We can go ahead and remove search by voice icon completely for now. 
+
+The three tiles below HERO IMAGE should be horizontal not stacked vertically. They are still stacked vertically and take up too much space.  They should be stacked horizontally, if this is not possible, their height can be reduced in mobile view.
+
+Shop by Category text is too big making the text alignment in that space unprofessional looking. Its should be reduced and laid out properly in alignment with the View All Categories Button.  Apply this Fix the the “Featured Products” text so that it will align properly with the View All Products button
+
+
+VENDOR Dashboard 
+
+The text Vendor Dashboard is soo big it takes up most of the first row cutting off the Add Products Button. Apply this Fix to all Page Tittle texts in the following pages in Vendor dashboard: 
+Product Management Page 
+Orders Page (The back to Dashboard button should be aligned above the Orders text)
+Promotions & Discounts 
+Store Analytics 
+Withdraw Earnings 
+Store Settings
+
+This text resize should be applied to all pages in the buyer dashboard and Admin Dashboard as well. 
+
+
+
+I implore agent to login with the provided credentials on a mobile device and take screenshots of each tab in vendor, buy and admin portals. The page layouts are all scrambled. The agent has to wait for each page to load fully before taking a snapshot. The pages load slow. Perform a visual analysis of every single page layout on a mobile device. 
+
+HAMBURGER MENU
+
+The implementation is good but it currently doesn’t capture all links in the logged in user dropdown menu. Currently for a logged in vendor, the hamburger menu only shows Dashboard, Products, Orders, Analytics and Logout. It does NOT capture, My Store, Promotions, Withdrawals, Messages, Store Settings. The hamburger menu should show all options in the user drop down menu and if this is implemented right, there will never be no need for a user drop-down menu right? It should cover all options in the user dropdown menu for every user type, Vendor, Buyer, Admin 
+
+
+SEARCH RESULTS PAGE: 
+
+The filter options DO NOT SCROLL. You can only  See Category, Vendor, Price Range, the rest is cut off and there’s no option to scroll 
+
+There is no list or grid view option. 
+The current list view implementation in desktop is not ideal either. List view should show the product image on the left, price and other information on the right. 
+
+The current grid view shows a single row of products stacked vertically. Its should be two products per row. 
+
+
+PRODUCT DETAILS PAGE:
+
+Product name text size should be reduced to save space. The current font size will create problems in the product name is long. The Product Price text size should also be reduced. 
+
+The vendor details tile layout is messy. The store name is collapsed into two lines, Verified Badge  and Visit store Button are touching each other. The Visit Store button overlaps the tile.
+
+You May Also like:
+
+ the products are shown as a single row of products stacked vertically. Its should be two products per row. 
+
+Analyze my thought, this suggestions show not affect how site is viewed on a desktop. Both desktop and mobile phone must render correctly. 
+
+Give me a detailed report against the audit report, and  your recommendations. 
+
+
+Login credentials for every user type so you can conduct full audits. 
+
+Vendor: ven@kiosk.com..gh
+    Password: 123asdqwe
+Buyer: buy@kiosk.com.gh 
+Password: 123asdqwe
+Super Admin: the3rdukem@gmail.com
+Password: 123asdqweX$
+

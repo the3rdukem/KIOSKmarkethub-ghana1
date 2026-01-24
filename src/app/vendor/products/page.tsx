@@ -272,8 +272,8 @@ export default function VendorProductsPage() {
         {/* Header */}
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Product Management</h1>
-            <p className="text-muted-foreground">Manage your inventory and product catalog</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Product Management</h1>
+            <p className="text-muted-foreground text-sm sm:text-base">Manage your inventory</p>
           </div>
           <div className="flex gap-3">
             <Dialog open={bulkUploadOpen} onOpenChange={setBulkUploadOpen}>

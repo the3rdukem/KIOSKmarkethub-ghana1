@@ -157,11 +157,11 @@ export default function WishlistPage() {
               </Link>
             </Button>
             <div>
-              <h1 className="text-3xl font-bold flex items-center gap-2">
-                <Heart className="w-8 h-8 text-red-500 fill-current" />
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-2">
+                <Heart className="w-6 h-6 sm:w-8 sm:h-8 text-red-500 fill-current" />
                 My Wishlist
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm sm:text-base">
                 {wishlistProducts.length} {wishlistProducts.length === 1 ? "item" : "items"} saved
               </p>
             </div>

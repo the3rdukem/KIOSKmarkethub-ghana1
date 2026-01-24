@@ -279,26 +279,26 @@ export default function AdvancedSearch({
             setTimeout(() => setShowDropdown(false), 200);
           }}
           onKeyPress={(e) => e.key === "Enter" && handleSearch()}
-          className={`pl-12 pr-20 ${getSizeClasses()}`}
+          className={`pl-12 pr-10 sm:pr-20 ${getSizeClasses()}`}
         />
         <div className="absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center gap-1">
-          {/* Voice Search */}
+          {/* Voice Search - Hidden on mobile */}
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-auto p-1.5"
+            className="hidden sm:flex h-auto p-1.5"
             onClick={() => alert("Voice search not yet implemented")}
           >
             <Mic className="w-4 h-4 text-muted-foreground" />
           </Button>
 
-          {/* Visual Search */}
+          {/* Visual Search - Hidden on mobile */}
           <Button
             type="button"
             variant="ghost"
             size="sm"
-            className="h-auto p-1.5"
+            className="hidden sm:flex h-auto p-1.5"
             onClick={() => alert("Visual search not yet implemented")}
           >
             <Camera className="w-4 h-4 text-muted-foreground" />

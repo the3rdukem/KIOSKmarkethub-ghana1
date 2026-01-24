@@ -268,8 +268,8 @@ export default function VendorSettingsPage() {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-bold">Store Settings</h1>
-              <p className="text-muted-foreground">Manage your store information and preferences</p>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Store Settings</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">Manage store settings</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
