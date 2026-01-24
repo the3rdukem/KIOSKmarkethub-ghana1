@@ -142,15 +142,15 @@ export interface SiteSettingsAuditLog {
 }
 
 const DEFAULT_BRANDING: SiteBranding = {
-  siteName: 'MarketHub',
+  siteName: 'KIOSK',
   tagline: "Ghana's Trusted Marketplace",
   primaryColor: '#16a34a',
   secondaryColor: '#2563eb',
   accentColor: '#f59e0b',
   footerText: 'Your trusted marketplace for quality products from verified vendors across Ghana.',
-  copyrightText: '© 2024 MarketHub. All rights reserved.',
+  copyrightText: '© 2024 KIOSK. All rights reserved.',
   socialLinks: {},
-  contactEmail: 'support@markethub.gh',
+  contactEmail: 'support@kiosk.com.gh',
   contactPhone: '+233 XX XXX XXXX',
   contactAddress: 'Accra, Ghana',
 };
@@ -160,7 +160,7 @@ const DEFAULT_PAGES: StaticPage[] = [
     id: 'page_about',
     slug: 'about',
     title: 'About Us',
-    content: '<h1>About MarketHub</h1><p>MarketHub is Ghana\'s most trusted online marketplace.</p>',
+    content: '<h1>About KIOSK</h1><p>KIOSK is Ghana\'s most trusted online marketplace.</p>',
     isPublished: true,
     showInFooter: true,
     showInHeader: false,
@@ -172,7 +172,7 @@ const DEFAULT_PAGES: StaticPage[] = [
     id: 'page_terms',
     slug: 'terms',
     title: 'Terms of Service',
-    content: '<h1>Terms of Service</h1><p>By using MarketHub, you agree to these terms...</p>',
+    content: '<h1>Terms of Service</h1><p>By using KIOSK, you agree to these terms...</p>',
     isPublished: true,
     showInFooter: true,
     showInHeader: false,
@@ -211,7 +211,7 @@ const DEFAULT_HOMEPAGE_SECTIONS: HomepageSection[] = [
   { id: 'section_stats', type: 'stats', title: 'Platform Statistics', isVisible: true, order: 2, config: {}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
   { id: 'section_categories', type: 'categories', title: 'Shop by Category', isVisible: true, order: 3, config: {}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
   { id: 'section_featured_products', type: 'featured_products', title: 'Featured Products', isVisible: true, order: 4, config: {}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  { id: 'section_cta', type: 'cta', title: 'Join MarketHub Today', isVisible: true, order: 5, config: {}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+  { id: 'section_cta', type: 'cta', title: 'Join KIOSK Today', isVisible: true, order: 5, config: {}, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
 ];
 
 interface SiteSettingsState {

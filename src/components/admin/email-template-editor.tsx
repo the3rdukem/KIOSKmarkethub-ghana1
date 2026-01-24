@@ -55,7 +55,7 @@ const TEMPLATE_VARIABLES = [
   { key: "{{vendorName}}", label: "Vendor Name", description: "Vendor's business name" },
   { key: "{{productName}}", label: "Product Name", description: "Product title" },
   { key: "{{trackingNumber}}", label: "Tracking Number", description: "Shipment tracking" },
-  { key: "{{siteName}}", label: "Site Name", description: "MarketHub" },
+  { key: "{{siteName}}", label: "Site Name", description: "KIOSK" },
   { key: "{{siteUrl}}", label: "Site URL", description: "Full site URL with protocol" },
   { key: "{{supportEmail}}", label: "Support Email", description: "Support contact" },
 ];
@@ -188,15 +188,15 @@ export function EmailTemplateEditor({
   const previewHtml = formData.bodyHtml
     .replace(/\{\{userName\}\}/g, "John Doe")
     .replace(/\{\{userEmail\}\}/g, "john@example.com")
-    .replace(/\{\{resetLink\}\}/g, "https://markethub.com/reset?token=abc123")
+    .replace(/\{\{resetLink\}\}/g, "https://kiosk.com.gh/reset?token=abc123")
     .replace(/\{\{orderNumber\}\}/g, "ORD-2024-001234")
     .replace(/\{\{orderTotal\}\}/g, "GHS 150.00")
     .replace(/\{\{vendorName\}\}/g, "TechStore Ghana")
     .replace(/\{\{productName\}\}/g, "Wireless Bluetooth Speaker")
     .replace(/\{\{trackingNumber\}\}/g, "GH123456789")
-    .replace(/\{\{siteName\}\}/g, "MarketHub")
-    .replace(/\{\{siteUrl\}\}/g, "https://markethub.com")
-    .replace(/\{\{supportEmail\}\}/g, "support@markethub.com");
+    .replace(/\{\{siteName\}\}/g, "KIOSK")
+    .replace(/\{\{siteUrl\}\}/g, "https://kiosk.com.gh")
+    .replace(/\{\{supportEmail\}\}/g, "support@kiosk.com.gh");
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

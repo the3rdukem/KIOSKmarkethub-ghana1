@@ -110,7 +110,7 @@ export default function HowItWorksPage() {
       <div className="container py-8">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold mb-4">How MarketHub Works</h1>
+          <h1 className="text-4xl font-bold mb-4">How KIOSK Works</h1>
           <p className="text-xl text-muted-foreground mb-8">
             Ghana's most secure marketplace connecting verified vendors with buyers
           </p>
@@ -253,7 +253,7 @@ export default function HowItWorksPage() {
             <div className="text-center mb-8">
               <h3 className="text-2xl font-bold mb-4">Vendor Verification Process</h3>
               <p className="text-muted-foreground">
-                Our comprehensive verification ensures only legitimate vendors can sell on MarketHub
+                Our comprehensive verification ensures only legitimate vendors can sell on KIOSK
               </p>
             </div>
 
@@ -361,7 +361,7 @@ export default function HowItWorksPage() {
           <CardContent className="p-8">
             <h3 className="text-2xl font-bold mb-4">Ready to Get Started?</h3>
             <p className="text-muted-foreground mb-6">
-              Join thousands of buyers and vendors who trust MarketHub for secure online commerce
+              Join thousands of buyers and vendors who trust KIOSK for secure online commerce
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild>

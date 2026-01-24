@@ -215,7 +215,7 @@ function AdminManagementSection({
                       type="email"
                       value={newAdminData.email}
                       onChange={(e) => setNewAdminData({ ...newAdminData, email: e.target.value })}
-                      placeholder="admin@markethub.gh"
+                      placeholder="admin@kiosk.com.gh"
                     />
                   </div>
                   <div>
@@ -642,7 +642,7 @@ function EmailManagementSection() {
             <div className="space-y-2">
               <Label>From Name</Label>
               <Input
-                placeholder="MarketHub"
+                placeholder="KIOSK"
                 value={configForm.fromName}
                 onChange={(e) => setConfigForm({ ...configForm, fromName: e.target.value })}
               />
@@ -1806,7 +1806,7 @@ function AdminDashboardContent() {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
-                      <div><Label>Site Name</Label><Input value={dbBranding.site_name || ''} onChange={(e) => handleUpdateDbBranding('site_name', e.target.value)} placeholder="MarketHub" /></div>
+                      <div><Label>Site Name</Label><Input value={dbBranding.site_name || ''} onChange={(e) => handleUpdateDbBranding('site_name', e.target.value)} placeholder="KIOSK" /></div>
                       <div><Label>Tagline</Label><Input value={dbBranding.tagline || ''} onChange={(e) => handleUpdateDbBranding('tagline', e.target.value)} placeholder="Ghana's Trusted Marketplace" /></div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
@@ -1821,7 +1821,7 @@ function AdminDashboardContent() {
                           <Input type="file" accept="image/*" onChange={handleLogoUpload} className="flex-1" />
                         </div>
                       </div>
-                      <div><Label>Copyright Text</Label><Input value={dbBranding.copyright_text || ''} onChange={(e) => handleUpdateDbBranding('copyright_text', e.target.value)} placeholder="© 2025 MarketHub. All rights reserved." /></div>
+                      <div><Label>Copyright Text</Label><Input value={dbBranding.copyright_text || ''} onChange={(e) => handleUpdateDbBranding('copyright_text', e.target.value)} placeholder="© 2025 KIOSK. All rights reserved." /></div>
                     </div>
                     <div className="grid grid-cols-3 gap-4">
                       <div><Label>Primary Color</Label><div className="flex gap-2"><Input type="color" value={dbBranding.primary_color || '#16a34a'} className="w-12 h-10 p-1" onChange={(e) => handleUpdateDbBranding('primary_color', e.target.value)} /><Input value={dbBranding.primary_color || '#16a34a'} className="flex-1" readOnly /></div></div>
@@ -2004,7 +2004,7 @@ function AdminDashboardContent() {
                         <div><Label>Featured Products Subtitle</Label><Input value={dbBranding.featured_subtitle || ''} onChange={(e) => handleUpdateDbBranding('featured_subtitle', e.target.value)} placeholder="Products from verified vendors" /></div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 mt-3">
-                        <div><Label>Stats Section Title</Label><Input value={dbBranding.stats_title || ''} onChange={(e) => handleUpdateDbBranding('stats_title', e.target.value)} placeholder="Join MarketHub Today" /></div>
+                        <div><Label>Stats Section Title</Label><Input value={dbBranding.stats_title || ''} onChange={(e) => handleUpdateDbBranding('stats_title', e.target.value)} placeholder="Join KIOSK Today" /></div>
                         <div><Label>Stats Section Subtitle</Label><Input value={dbBranding.stats_subtitle || ''} onChange={(e) => handleUpdateDbBranding('stats_subtitle', e.target.value)} placeholder="Ghana's trusted marketplace..." /></div>
                       </div>
                       <div className="grid grid-cols-2 gap-4 mt-3">

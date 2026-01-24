@@ -15,8 +15,8 @@ import type { Metadata } from "next";
  */
 
 export const metadata: Metadata = {
-  title: "My Account - MarketHub",
-  description: "Your MarketHub dashboard",
+  title: "My Account - KIOSK",
+  description: "Your KIOSK dashboard",
 };
 
 export default function BuyerLayout({

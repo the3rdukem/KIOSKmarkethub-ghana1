@@ -69,7 +69,7 @@ export async function POST(request: NextRequest) {
       provider: body.provider || 'none',
       apiKey: body.apiKey,
       fromEmail: body.fromEmail,
-      fromName: body.fromName || 'MarketHub',
+      fromName: body.fromName || 'KIOSK',
       dryRun: body.dryRun !== false,
       region: body.region,
     };

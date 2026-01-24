@@ -350,7 +350,7 @@ export function StaticPagesManagement() {
                 <Input 
                   value={formData.metaTitle} 
                   onChange={(e) => setFormData({ ...formData, metaTitle: e.target.value })}
-                  placeholder="About Us - MarketHub"
+                  placeholder="About Us - KIOSK"
                 />
               </div>
               <div>

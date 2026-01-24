@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
     if (result.success && result.token && result.expiresAt) {
       const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5000';
       const resetLink = `${baseUrl}/reset-password?token=${result.token}`;
-      const siteName = 'MarketHub';
-      const supportEmail = 'support@markethub.com';
+      const siteName = 'KIOSK';
+      const supportEmail = 'support@kiosk.com.gh';
       
       await sendEmail({
         to: email,

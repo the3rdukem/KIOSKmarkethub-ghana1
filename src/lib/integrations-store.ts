@@ -176,7 +176,7 @@ const defaultIntegrations: Integration[] = [
         label: 'Sender ID',
         type: 'text',
         required: true,
-        placeholder: 'MarketHub',
+        placeholder: 'KIOSK',
         description: 'Registered sender ID (max 11 characters)',
       },
     ],

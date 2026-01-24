@@ -124,8 +124,8 @@ export interface SystemSettings {
 }
 
 const DEFAULT_SYSTEM_SETTINGS: SystemSettings = {
-  platformName: 'MarketHub',
-  platformUrl: 'https://markethub.gh',
+  platformName: 'KIOSK',
+  platformUrl: 'https://kiosk.com.gh',
   maintenanceMode: false,
   registrationEnabled: true,
   vendorRegistrationEnabled: true,

@@ -80,7 +80,7 @@ export function Footer() {
     fetchData();
   }, []);
 
-  const siteName = branding.site_name || 'MarketHub';
+  const siteName = branding.site_name || 'KIOSK';
   const copyrightText = branding.copyright_text || `© ${new Date().getFullYear()} ${siteName}. All rights reserved. Built with security and trust in mind.`;
 
   return (

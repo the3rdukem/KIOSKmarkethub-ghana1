@@ -76,7 +76,7 @@ export default function HomePage() {
   const categoriesSubtitle = siteSettings.categories_subtitle || 'Discover products in your favorite categories';
   const featuredTitle = siteSettings.featured_title || 'Featured Products';
   const featuredSubtitle = siteSettings.featured_subtitle || 'Products from verified vendors';
-  const statsTitle = siteSettings.stats_title || 'Join MarketHub Today';
+  const statsTitle = siteSettings.stats_title || 'Join KIOSK Today';
   const statsSubtitle = siteSettings.stats_subtitle || "Ghana's trusted marketplace for buyers and sellers";
   const ctaTitle = siteSettings.cta_title || 'Ready to Start?';
   const ctaSubtitle = siteSettings.cta_subtitle || 'Discover amazing products from verified vendors across Ghana';
@@ -314,7 +314,7 @@ export default function HomePage() {
               <Package className="w-20 h-20 text-gray-300 mx-auto mb-4" />
               <h3 className="text-xl font-semibold mb-2">No Products Yet</h3>
               <p className="text-muted-foreground mb-6">
-                Be the first to list your products on MarketHub!
+                Be the first to list your products on KIOSK!
               </p>
               <Button asChild>
                 <Link href="/auth/register">

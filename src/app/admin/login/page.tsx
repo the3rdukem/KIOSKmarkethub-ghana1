@@ -127,7 +127,7 @@ export default function AdminLoginPage() {
               <ShieldCheck className="w-7 h-7 text-white" />
             </div>
             <div>
-              <span className="font-bold text-2xl text-white">MarketHub</span>
+              <span className="font-bold text-2xl text-white">KIOSK</span>
               <Badge variant="outline" className="ml-2 border-amber-500 text-amber-400">
                 Admin
               </Badge>
@@ -170,7 +170,7 @@ export default function AdminLoginPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10 bg-slate-700/50 border-slate-600 text-white placeholder-slate-500 focus:border-green-500"
-                    placeholder="admin@markethub.gh"
+                    placeholder="admin@kiosk.com.gh"
                     disabled={isLocked || isLoading}
                     autoComplete="email"
                   />

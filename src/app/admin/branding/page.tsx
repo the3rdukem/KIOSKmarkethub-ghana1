@@ -248,7 +248,7 @@ export default function AdminBrandingPage() {
                       id="siteName"
                       value={formData.siteName}
                       onChange={(e) => handleInputChange('siteName', e.target.value)}
-                      placeholder="MarketHub"
+                      placeholder="KIOSK"
                     />
                     <p className="text-xs text-muted-foreground">
                       This appears in the header and browser tab
@@ -288,7 +288,7 @@ export default function AdminBrandingPage() {
                     id="copyrightText"
                     value={formData.copyrightText}
                     onChange={(e) => handleInputChange('copyrightText', e.target.value)}
-                    placeholder="© 2024 MarketHub. All rights reserved."
+                    placeholder="© 2024 KIOSK. All rights reserved."
                   />
                 </div>
               </CardContent>

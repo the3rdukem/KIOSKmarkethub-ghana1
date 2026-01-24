@@ -15,8 +15,8 @@ import type { Metadata } from "next";
  */
 
 export const metadata: Metadata = {
-  title: "Admin Portal - MarketHub",
-  description: "MarketHub Administration",
+  title: "Admin Portal - KIOSK",
+  description: "KIOSK Administration",
 };
 
 export default function AdminLayout({

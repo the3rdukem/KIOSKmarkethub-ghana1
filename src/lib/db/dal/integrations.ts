@@ -224,7 +224,7 @@ export const INTEGRATION_SCHEMAS: IntegrationSchema[] = [
         label: 'Sender ID',
         type: 'text',
         required: true,
-        placeholder: 'MarketHub',
+        placeholder: 'KIOSK',
         description: 'Registered sender ID (max 11 characters)',
       },
     ],

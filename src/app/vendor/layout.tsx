@@ -15,8 +15,8 @@ import type { Metadata } from "next";
  */
 
 export const metadata: Metadata = {
-  title: "Vendor Portal - MarketHub",
-  description: "Manage your store on MarketHub",
+  title: "Vendor Portal - KIOSK",
+  description: "Manage your store on KIOSK",
 };
 
 export default function VendorLayout({

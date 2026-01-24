@@ -178,7 +178,7 @@ export default function VendorLoginPage() {
             <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white font-bold">
               <Store className="w-5 h-5" />
             </div>
-            <span className="font-bold text-xl">MarketHub Vendor</span>
+            <span className="font-bold text-xl">KIOSK Vendor</span>
           </Link>
           <h2 className="text-3xl font-bold text-gray-900">
             {activeTab === "login" ? "Welcome Back" : "Become a Vendor"}
@@ -462,7 +462,7 @@ export default function VendorLoginPage() {
         {/* Back to Homepage */}
         <div className="text-center">
           <Link href="/" className="text-sm text-gray-600 hover:text-gray-900">
-            ← Back to MarketHub
+            ← Back to KIOSK
           </Link>
         </div>
       </div>

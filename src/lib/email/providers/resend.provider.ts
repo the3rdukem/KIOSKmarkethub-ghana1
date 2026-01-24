@@ -16,7 +16,7 @@ export class ResendEmailProvider implements EmailProvider {
   constructor(apiKey: string, fromEmail: string, fromName?: string) {
     this.client = new Resend(apiKey);
     this.fromEmail = fromEmail;
-    this.fromName = fromName || 'MarketHub';
+    this.fromName = fromName || 'KIOSK';
   }
 
   async send(params: SendEmailParams): Promise<SendEmailResult> {
