@@ -1,0 +1,69 @@
+Your recommendations are brilliant, here are my thoughts however. Compare them with yours and see how they work out. 
+
+My thoughts on responsiveness. 
+
+HOMEPAGE
+
+On mobile devices Login/Sign replaced with Account icon.
+
+No search bar in header since there’s a search bar on the homepage already. 
+
+Hero text font Reduced so it does NOT collapse into two line rows like it’s doing currently. It must stay a single line. 
+
+Main Homapage search bar, text hint currently overlaps with ICONS 
+
+The three tiles below HERO IMAGE should be horizontal not stacked vertically. 
+
+Featured Products are currently stacked in SINGLE VERTICAL ROWS making the page scroll endlessly. It be two products per row to reduce scroll. 
+
+Footer Links Sections are stacked vertically, one sections per row. It should be two sections per row as in:
+
+FOR BUYERS     FOR VENDORS
+
+
+SECURITY          COMPANY
+
+
+My thoughts on responsiveness. 
+
+VENDOR Dashboard 
+
+The text Vendor Dashboard is soo big it takes up most of the first row cutting off the Add Products Button
+
+The Stat tiles are currently stacked in single vertical rows, Can we make it double? As in:
+
+Total Revenue         Products 
+
+Orders                      Completed
+
+Sales Overview tile can be reduced a bit 
+
+Recent orders needs too much work. I will attach an image for agent to review. Please check attached IMAGE
+
+￼
+
+
+
+As you can see, order ID takes up most of the space, pushing everything else out. Texts overlap the table and the fulfilled labels load blank until you tap on it.
+
+
+I implore agent to login with the provided credentials on a mobile device and take screenshots of each tab in vendor, buy and admin portals. The page layouts are all scrambled. The agent has to wait for each page to load fully before taking a snapshot. The pages load slow. Perform a visual analysis of every single page layout on a mobile device. 
+
+HAMBURGER MENU
+
+Can with make USERDROP DOWN MENU and Hamburger menu? In line with modern web apps
+
+Analyze my thought, this suggestions show not affect how site is viewed on a desktop. Both desktop and mobile phone must render correctly. 
+
+Give me a detailed report against the audit report, and  your recommendations. 
+
+
+Login credentials for every user type so you can conduct full audits. 
+
+Vendor: ven@kiosk.com..gh
+    Password: 123asdqwe
+Buyer: buy@kiosk.com.gh 
+Password: 123asdqwe
+Super Admin: the3rdukem@gmail.com
+Password: 123asdqweX$
+
