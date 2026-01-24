@@ -1485,6 +1485,11 @@ function AdminDashboardContent() {
                           <ImageIcon className="w-4 h-4 mr-2" />Promotional Banners
                         </a>
                       </Button>
+                      <Button className="w-full justify-start" variant="outline" asChild>
+                        <a href="/admin/hero-slides">
+                          <ImageIcon className="w-4 h-4 mr-2" />Hero Slideshow
+                        </a>
+                      </Button>
                     </>
                   )}
                 </CardContent>

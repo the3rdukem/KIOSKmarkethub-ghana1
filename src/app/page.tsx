@@ -20,19 +20,32 @@ const categories = [
 ];
 
 
+interface HeroSlide {
+  id: string;
+  title: string | null;
+  subtitle: string | null;
+  image_url: string;
+  link_url: string | null;
+  order_num: number;
+  is_active: boolean;
+}
+
 export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [platformStats, setPlatformStats] = useState({ totalVendors: 0, verifiedVendors: 0, totalProducts: 0 });
   const [siteSettings, setSiteSettings] = useState<Record<string, string>>({});
+  const [heroSlides, setHeroSlides] = useState<HeroSlide[]>([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [productsRes, statsRes, settingsRes] = await Promise.all([
+        const [productsRes, statsRes, settingsRes, slidesRes] = await Promise.all([
           fetch('/api/products?status=active', { credentials: 'include' }),
           fetch('/api/stats/public'),
           fetch('/api/site-settings/public'),
+          fetch('/api/hero-slides?active=true'),
         ]);
         
         if (productsRes.ok) {
@@ -49,6 +62,11 @@ export default function HomePage() {
           const data = await settingsRes.json();
           setSiteSettings(data.settings || {});
         }
+
+        if (slidesRes.ok) {
+          const data = await slidesRes.json();
+          setHeroSlides(data.slides || []);
+        }
       } catch (error) {
         console.error('Failed to fetch data:', error);
       } finally {
@@ -57,6 +75,14 @@ export default function HomePage() {
     };
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (heroSlides.length <= 1) return;
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
+    }, 5000);
+    return () => clearInterval(interval);
+  }, [heroSlides.length]);
 
   const [promoBannerDismissed, setPromoBannerDismissed] = useState(false);
   
@@ -186,7 +212,38 @@ export default function HomePage() {
 
             <div className="relative">
               <div className="aspect-square bg-gradient-to-br from-green-100 to-blue-100 rounded-2xl flex items-center justify-center overflow-hidden">
-                {heroImageUrl ? (
+                {heroSlides.length > 0 ? (
+                  <div className="relative w-full h-full">
+                    {heroSlides.map((slide, index) => (
+                      <a
+                        key={slide.id}
+                        href={slide.link_url || undefined}
+                        className={`absolute inset-0 transition-opacity duration-500 ${
+                          index === currentSlide ? 'opacity-100' : 'opacity-0'
+                        } ${slide.link_url ? 'cursor-pointer' : ''}`}
+                      >
+                        <img 
+                          src={slide.image_url} 
+                          alt={slide.title || "Hero slide"} 
+                          className="w-full h-full object-cover"
+                        />
+                      </a>
+                    ))}
+                    {heroSlides.length > 1 && (
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                        {heroSlides.map((_, index) => (
+                          <button
+                            key={index}
+                            onClick={() => setCurrentSlide(index)}
+                            className={`w-2 h-2 rounded-full transition-colors ${
+                              index === currentSlide ? 'bg-white' : 'bg-white/50'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ) : heroImageUrl ? (
                   <img 
                     src={heroImageUrl} 
                     alt="Shop with confidence" 

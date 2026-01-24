@@ -875,6 +875,28 @@ async function runMigrations(client: PoolClient): Promise<void> {
     console.error('[DB] Error seeding footer links:', e);
   }
 
+  // PHASE 11: Create hero_slides table for slideshow carousel
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS hero_slides (
+        id TEXT PRIMARY KEY,
+        title TEXT,
+        subtitle TEXT,
+        image_url TEXT NOT NULL,
+        link_url TEXT,
+        order_num INTEGER DEFAULT 0,
+        is_active BOOLEAN DEFAULT TRUE,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
+      );
+      CREATE INDEX IF NOT EXISTS idx_hero_slides_active ON hero_slides(is_active);
+      CREATE INDEX IF NOT EXISTS idx_hero_slides_order ON hero_slides(order_num);
+    `);
+    console.log('[DB] PHASE 11: Created hero_slides table');
+  } catch (e) {
+    // Table may already exist
+  }
+
   // Create sales table if it doesn't exist (multi-product support via join table)
   try {
     await client.query(`
