@@ -431,19 +431,6 @@ export default function VendorLoginPage() {
           </CardContent>
         </Card>
 
-        {/* Demo Credentials */}
-        <Card className="border-blue-200 bg-blue-50">
-          <CardHeader>
-            <CardTitle className="text-blue-800 text-sm">Demo Vendor Account</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-xs">
-              <p><strong>Email:</strong> vendor@demo.com</p>
-              <p><strong>Password:</strong> password123</p>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Verification Process Info */}
         <Card className="border-green-200 bg-green-50">
           <CardContent className="p-4">

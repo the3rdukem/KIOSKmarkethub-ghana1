@@ -241,19 +241,6 @@ export default function AdminLoginPage() {
           </CardContent>
         </Card>
 
-        {/* Credentials Info */}
-        <Card className="bg-slate-800/30 border-slate-700">
-          <CardHeader>
-            <CardTitle className="text-slate-300 text-sm">Master Admin Credentials</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="text-xs text-slate-400">
-              <p><strong>Email:</strong> the3rdukem@gmail.com</p>
-              <p><strong>Password:</strong> 123asdqweX$</p>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Security Info */}
         <div className="text-center space-y-2">
           <p className="text-sm text-slate-500">

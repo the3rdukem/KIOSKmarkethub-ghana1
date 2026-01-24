@@ -33,8 +33,21 @@ import {
   Tag,
   BarChart3,
   Wallet,
-  Loader2
+  Loader2,
+  Menu,
+  X,
+  Home,
+  HelpCircle,
+  UserCircle
 } from "lucide-react";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetClose,
+} from "@/components/ui/sheet";
 import { useAuthStore, UserRole } from "@/lib/auth-store";
 import { NotificationsPanel } from "@/components/notifications/notifications-panel";
 import { toast } from "sonner";
@@ -52,6 +65,10 @@ export function MainNav() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [branding, setBranding] = useState<BrandingData>({});
   const [brandingLoaded, setBrandingLoaded] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Check if we're on the homepage (has its own search)
+  const isHomepage = pathname === '/';
 
   // Get auth state - these are safe to call but values may change after hydration
   const user = useAuthStore((state) => state.user);
@@ -399,11 +416,44 @@ export function MainNav() {
     }
   };
 
-  // Determine if we should show the search bar
-  const showSearch = !safeUser || safeUser.role === "buyer";
+  // Determine if we should show the search bar (hide on homepage - it has its own search)
+  const showSearch = (!safeUser || safeUser.role === "buyer") && !isHomepage;
 
   // Determine if we should show cart
   const showCart = !safeUser || safeUser.role === "buyer";
+
+  // Mobile navigation links
+  const getMobileNavLinks = () => {
+    const baseLinks = [
+      { href: '/', label: 'Home', icon: Home },
+      { href: '/search', label: 'Browse Products', icon: Search },
+      { href: '/how-it-works', label: 'How It Works', icon: HelpCircle },
+    ];
+    
+    if (safeIsAuthenticated && safeUser) {
+      if (effectiveRole === 'buyer') {
+        return [
+          ...baseLinks,
+          { href: '/buyer/dashboard', label: 'My Dashboard', icon: LayoutDashboard },
+          { href: '/buyer/wishlist', label: 'Wishlist', icon: Heart },
+        ];
+      } else if (effectiveRole === 'vendor') {
+        return [
+          { href: '/vendor', label: 'Dashboard', icon: LayoutDashboard },
+          { href: '/vendor/products', label: 'Products', icon: Package },
+          { href: '/vendor/orders', label: 'Orders', icon: ShoppingBag },
+          { href: '/vendor/analytics', label: 'Analytics', icon: BarChart3 },
+        ];
+      } else if (effectiveRole === 'admin' || effectiveRole === 'master_admin') {
+        return [
+          { href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
+          { href: '/admin/verification', label: 'Verifications', icon: Shield },
+          { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
+        ];
+      }
+    }
+    return baseLinks;
+  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -428,9 +478,9 @@ export function MainNav() {
           </Link>
         </div>
 
-        {/* Search Bar (for buyer portal or public) */}
+        {/* Search Bar (for buyer portal or public) - Hidden on mobile */}
         {showSearch && (
-          <div className="flex-1 max-w-lg mx-8">
+          <div className="hidden md:flex flex-1 max-w-lg mx-8">
             <form 
               onSubmit={(e) => {
                 e.preventDefault();
@@ -442,7 +492,7 @@ export function MainNav() {
                   router.push('/search');
                 }
               }}
-              className="relative"
+              className="relative w-full"
             >
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
               <input
@@ -533,15 +583,107 @@ export function MainNav() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <div className="flex items-center space-x-2">
-                  <Button variant="ghost" size="sm" asChild>
-                    <Link href="/auth/login">Sign In</Link>
+                <>
+                  {/* Desktop: Full Sign In / Register buttons */}
+                  <div className="hidden sm:flex items-center space-x-2">
+                    <Button variant="ghost" size="sm" asChild>
+                      <Link href="/auth/login">Sign In</Link>
+                    </Button>
+                    <Button size="sm" asChild>
+                      <Link href="/auth/register">Register</Link>
+                    </Button>
+                  </div>
+                  {/* Mobile: Account icon */}
+                  <Button variant="ghost" size="sm" className="sm:hidden" asChild>
+                    <Link href="/auth/login">
+                      <UserCircle className="w-6 h-6" />
+                    </Link>
                   </Button>
-                  <Button size="sm" asChild>
-                    <Link href="/auth/register">Register</Link>
-                  </Button>
-                </div>
+                </>
               )}
+
+              {/* Hamburger Menu - Mobile Only */}
+              <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+                <SheetTrigger asChild>
+                  <Button variant="ghost" size="sm" className="md:hidden p-2">
+                    <Menu className="w-6 h-6" />
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" className="w-80">
+                  <SheetHeader>
+                    <SheetTitle className="flex items-center gap-2">
+                      <div className={`w-8 h-8 rounded-lg ${getPortalColor()} flex items-center justify-center text-white font-bold`}>
+                        K
+                      </div>
+                      <span>KIOSK</span>
+                    </SheetTitle>
+                  </SheetHeader>
+                  <nav className="mt-8 flex flex-col space-y-1">
+                    {getMobileNavLinks().map((link) => (
+                      <SheetClose asChild key={link.href}>
+                        <Link
+                          href={link.href}
+                          className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+                            pathname === link.href 
+                              ? 'bg-green-50 text-green-700' 
+                              : 'hover:bg-gray-100'
+                          }`}
+                          onClick={() => setMobileMenuOpen(false)}
+                        >
+                          <link.icon className="w-5 h-5" />
+                          {link.label}
+                        </Link>
+                      </SheetClose>
+                    ))}
+                    
+                    {/* Auth actions in mobile menu */}
+                    {!safeIsAuthenticated && (
+                      <>
+                        <div className="border-t my-4" />
+                        <SheetClose asChild>
+                          <Link
+                            href="/auth/login"
+                            className="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-gray-100"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <User className="w-5 h-5" />
+                            Sign In
+                          </Link>
+                        </SheetClose>
+                        <SheetClose asChild>
+                          <Link
+                            href="/auth/register"
+                            className="flex items-center gap-3 px-4 py-3 rounded-lg bg-green-600 text-white hover:bg-green-700"
+                            onClick={() => setMobileMenuOpen(false)}
+                          >
+                            <UserCircle className="w-5 h-5" />
+                            Create Account
+                          </Link>
+                        </SheetClose>
+                      </>
+                    )}
+                    
+                    {safeIsAuthenticated && safeUser && (
+                      <>
+                        <div className="border-t my-4" />
+                        <div className="px-4 py-2 text-sm text-muted-foreground">
+                          Signed in as {safeUser.email}
+                        </div>
+                        <button
+                          onClick={() => {
+                            setMobileMenuOpen(false);
+                            handleLogout();
+                          }}
+                          className="flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 w-full text-left"
+                        >
+                          <LogOut className="w-5 h-5" />
+                          Log out
+                        </button>
+                      </>
+                    )}
+                  </nav>
+                </SheetContent>
+              </Sheet>
             </>
           )}
         </div>

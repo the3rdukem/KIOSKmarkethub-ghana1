@@ -141,19 +141,19 @@ function VendorDashboardContent() {
         />
 
         {/* Header */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Vendor Dashboard</h1>
-            <p className="text-muted-foreground">Welcome back, {user.businessName || user.name}</p>
+            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Vendor Dashboard</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">Welcome back, {user.businessName || user.name}</p>
           </div>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={() => router.push("/vendor/analytics")}>
-              <BarChart3 className="w-4 h-4 mr-2" />
-              Reports
+          <div className="flex gap-2 sm:gap-3">
+            <Button variant="outline" size="sm" className="flex-1 sm:flex-none" onClick={() => router.push("/vendor/analytics")}>
+              <BarChart3 className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Reports</span>
             </Button>
-            <Button onClick={() => router.push("/vendor/products/create")}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Product
+            <Button size="sm" className="flex-1 sm:flex-none" onClick={() => router.push("/vendor/products/create")}>
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Add Product</span>
             </Button>
           </div>
         </div>
@@ -162,50 +162,50 @@ function VendorDashboardContent() {
           {/* Main Content */}
           <div className="lg:col-span-2 space-y-8">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 pb-2">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Total Revenue</CardTitle>
                   <DollarSign className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">GHS {totalRevenue.toLocaleString()}</div>
+                <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+                  <div className="text-lg sm:text-2xl font-bold truncate">GHS {totalRevenue.toLocaleString()}</div>
                   <p className="text-xs text-muted-foreground">
                     From {totalOrders} orders
                   </p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Products</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 pb-2">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Products</CardTitle>
                   <Package className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalProducts}</div>
+                <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+                  <div className="text-lg sm:text-2xl font-bold">{totalProducts}</div>
                   <p className="text-xs text-muted-foreground">
                     {activeProducts} active
                   </p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Orders</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 pb-2">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Orders</CardTitle>
                   <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{totalOrders}</div>
+                <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+                  <div className="text-lg sm:text-2xl font-bold">{totalOrders}</div>
                   <p className="text-xs text-muted-foreground">
                     {pendingOrders} pending
                   </p>
                 </CardContent>
               </Card>
               <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Completed</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 pb-2">
+                  <CardTitle className="text-xs sm:text-sm font-medium">Completed</CardTitle>
                   <CheckCircle className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{completedOrders}</div>
+                <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
+                  <div className="text-lg sm:text-2xl font-bold">{completedOrders}</div>
                   <p className="text-xs text-muted-foreground">
                     Delivered orders
                   </p>
@@ -267,21 +267,19 @@ function VendorDashboardContent() {
                     </Button>
                   </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {recentOrders.map((order) => (
-                      <div key={order.id} className="flex items-center justify-between p-3 border rounded-lg">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4">
-                            <div>
-                              <p className="font-medium">{order.id.slice(0, 15)}...</p>
-                              <p className="text-sm text-muted-foreground">{order.buyerName}</p>
-                            </div>
-                            <div>
-                              <p className="font-medium">GHS {(order.total || 0).toLocaleString()}</p>
-                            </div>
+                      <div key={order.id} className="p-3 border rounded-lg">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium text-sm truncate">#{order.id.slice(-6).toUpperCase()}</p>
+                            <p className="text-xs text-muted-foreground truncate">{order.buyerName}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-semibold text-sm">GHS {(order.total || 0).toLocaleString()}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between gap-2">
                           {getStatusBadge(order.status)}
                           <span className="text-xs text-muted-foreground">
                             {formatDistance(new Date(order.createdAt), new Date(), { addSuffix: true })}

@@ -132,7 +132,7 @@ export default function HomePage() {
         <div className="container">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 mb-6">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-6xl font-bold text-gray-900 mb-6">
                 {heroHeadline.includes(' ') ? (
                   <>
                     {heroHeadline.split(' ').slice(0, -1).join(' ')}{' '}
@@ -187,18 +187,18 @@ export default function HomePage() {
                 </Button>
               </div>
 
-              <div className="flex items-center gap-6 mt-8 text-sm text-gray-600">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-4 h-4 text-green-600" />
-                  <span>All vendors verified</span>
+              <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center sm:gap-6 mt-8 text-xs sm:text-sm text-gray-600">
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
+                  <span className="whitespace-nowrap">Verified</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Users className="w-4 h-4 text-blue-600" />
-                  <span>{totalVendors > 0 ? `${totalVendors}+ active vendors` : "Join our vendors"}</span>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <Users className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 flex-shrink-0" />
+                  <span className="whitespace-nowrap">{totalVendors > 0 ? `${totalVendors}+ vendors` : "Join us"}</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-600" />
-                  <span>Buyer protection</span>
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
+                  <span className="whitespace-nowrap">Protected</span>
                 </div>
               </div>
             </div>
@@ -323,7 +323,7 @@ export default function HomePage() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
               {featuredProducts.map((product) => (
                 <Link key={product.id} href={`/product/${product.id}`}>
                   <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 group hover:scale-[1.02]">

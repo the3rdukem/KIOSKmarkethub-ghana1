@@ -87,7 +87,7 @@ export function Footer() {
     <footer className="bg-gray-50 border-t">
       <div className="container py-12">
         {/* Trust Indicators */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-8 mb-12">
           <div className="flex items-center space-x-3">
             <Shield className="w-8 h-8 text-green-600" />
             <div>
@@ -119,7 +119,7 @@ export function Footer() {
         </div>
 
         {/* Links */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 mb-8">
           {SECTION_ORDER.map((sectionName) => {
             const links = sections[sectionName] || [];
             return (
