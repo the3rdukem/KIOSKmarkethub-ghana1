@@ -1184,6 +1184,24 @@ async function runMigrations(client: PoolClient): Promise<void> {
 
   console.log('[DB] PHASE 5B: Updated fulfillment_status constraint for Phase 7B');
 
+  // PHASE 5C: Add Phase 7D columns for courier-assisted delivery
+  try {
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS courier_provider TEXT`);
+  } catch (e) { /* Column may already exist */ }
+  try {
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS courier_reference TEXT`);
+  } catch (e) { /* Column may already exist */ }
+  try {
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS delivered_at TEXT`);
+  } catch (e) { /* Column may already exist */ }
+  try {
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS disputed_at TEXT`);
+  } catch (e) { /* Column may already exist */ }
+  try {
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS dispute_reason TEXT`);
+  } catch (e) { /* Column may already exist */ }
+  console.log('[DB] PHASE 5C: Added Phase 7D delivery columns to orders table');
+
   // PHASE 6: Create messaging tables for buyer-vendor communication
   try {
     await client.query(`
