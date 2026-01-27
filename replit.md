@@ -17,6 +17,8 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - Modern and responsive design using Tailwind CSS and `shadcn/ui`.
 - Admin UI includes fixed table layouts and consistent column widths.
 - Enhanced search page UX with Radix Select for category filters, dynamic price sliders, and category attribute filters.
+- **Phase 7C Tab Navigation**: All dashboard tabs (Admin, Buyer, Vendor) use URL-synced state via `useSearchParams` + `router.push`, enabling direct linking to specific tabs (e.g., `/buyer/dashboard?tab=orders`).
+- **API Performance Optimizations**: Products API defaults to limit=50 (max 200), Orders API defaults to limit=100 (max 500). Input validation prevents NaN and negative values. Database indexes on `products(category)`, `products(status)`, `orders(status)`, `orders(created_at DESC)` for faster queries.
 
 **Technical Implementations:**
 - **Database**: PostgreSQL with a Data Access Layer (DAL) using `pg` for connection pooling. Schema enforces comprehensive constraints.
