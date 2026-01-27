@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -802,6 +802,7 @@ function EmailManagementSection() {
 
 function AdminDashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user } = useAuthStore();
   const {
     users, disputes, apiConfigurations, auditLogs,
@@ -824,8 +825,19 @@ function AdminDashboardContent() {
 
   const pendingApprovals = getPendingCount();
 
-  const [selectedTab, setSelectedTab] = useState("overview");
+  const urlTab = searchParams.get("tab") || "overview";
+  const [selectedTab, setSelectedTab] = useState(urlTab);
   const [selectedVendor, setSelectedVendor] = useState<PlatformUser | null>(null);
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab") || "overview";
+    setSelectedTab(tabFromUrl);
+  }, [searchParams]);
+
+  const handleTabChange = (value: string) => {
+    setSelectedTab(value);
+    router.push(`/admin?tab=${value}`, { scroll: false });
+  };
   const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
   const [rejectionReason, setRejectionReason] = useState("");
   const [disputeResolution, setDisputeResolution] = useState("");
@@ -1392,7 +1404,7 @@ function AdminDashboardContent() {
           </CardContent></Card>
         </div>
 
-        <Tabs value={selectedTab} onValueChange={setSelectedTab}>
+        <Tabs value={selectedTab} onValueChange={handleTabChange}>
           <TabsList className="mb-6 flex-wrap h-auto gap-1">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="buyers">

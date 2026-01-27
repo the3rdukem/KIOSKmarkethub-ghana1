@@ -63,6 +63,17 @@ function VendorAnalyticsContent() {
   const [timeRange, setTimeRange] = useState("30");
   const initialTab = searchParams.get("tab") || "products";
   const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab") || "products";
+    setActiveTab(tabFromUrl);
+  }, [searchParams]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    router.push(`/vendor/analytics?tab=${value}`, { scroll: false });
+  };
+  
   const [vendorProducts, setVendorProducts] = useState<Product[]>([]);
   const [productReviews, setProductReviews] = useState<NormalizedReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -322,7 +333,7 @@ function VendorAnalyticsContent() {
           </Card>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
           <TabsList>
             <TabsTrigger value="products">Recent Orders</TabsTrigger>
             <TabsTrigger value="orders">Order Status</TabsTrigger>

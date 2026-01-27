@@ -69,11 +69,15 @@ export async function GET(request: NextRequest) {
     }
 
     if (limit) {
-      options.limit = parseInt(limit, 10);
+      const parsedLimit = parseInt(limit, 10);
+      options.limit = !isNaN(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 200) : 50;
+    } else {
+      options.limit = 50;
     }
 
     if (offset) {
-      options.offset = parseInt(offset, 10);
+      const parsedOffset = parseInt(offset, 10);
+      options.offset = !isNaN(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
     }
 
     const products = await getProducts(options);

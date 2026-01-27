@@ -91,6 +91,16 @@ function BuyerDashboardContent() {
   const [activeTab, setActiveTab] = useState(initialTab);
   const [buyerOrders, setBuyerOrders] = useState<Order[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(true);
+
+  useEffect(() => {
+    const tabFromUrl = searchParams.get("tab") || "overview";
+    setActiveTab(tabFromUrl);
+  }, [searchParams]);
+
+  const handleTabChange = (value: string) => {
+    setActiveTab(value);
+    router.push(`/buyer/dashboard?tab=${value}`, { scroll: false });
+  };
   const [wishlistData, setWishlistData] = useState<Array<{
     id: string;
     productId: string;
@@ -256,7 +266,7 @@ function BuyerDashboardContent() {
           </Card>
         </div>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="mb-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="orders">

@@ -411,7 +411,11 @@ async function createSchema(client: PoolClient): Promise<void> {
     CREATE INDEX IF NOT EXISTS idx_categories_parent ON categories(parent_id);
     CREATE INDEX IF NOT EXISTS idx_products_vendor ON products(vendor_id);
     CREATE INDEX IF NOT EXISTS idx_products_category ON products(category_id);
+    CREATE INDEX IF NOT EXISTS idx_products_category_text ON products(category);
+    CREATE INDEX IF NOT EXISTS idx_products_status ON products(status);
     CREATE INDEX IF NOT EXISTS idx_orders_buyer ON orders(buyer_id);
+    CREATE INDEX IF NOT EXISTS idx_orders_status ON orders(status);
+    CREATE INDEX IF NOT EXISTS idx_orders_created ON orders(created_at DESC);
     CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token_hash);
     CREATE INDEX IF NOT EXISTS idx_carts_owner ON carts(owner_type, owner_id);
   `);

@@ -52,15 +52,20 @@ export async function GET(request: NextRequest) {
 
     let orders;
 
+    const rawLimit = limit ? parseInt(limit, 10) : 100;
+    const parsedLimit = !isNaN(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 500) : 100;
+    const rawOffset = offset ? parseInt(offset, 10) : 0;
+    const parsedOffset = !isNaN(rawOffset) && rawOffset >= 0 ? rawOffset : 0;
+
     if (session.user_role === 'admin' || session.user_role === 'master_admin') {
       // Admins see all orders
-      orders = await getOrders({ status, limit: limit ? parseInt(limit, 10) : undefined, offset: offset ? parseInt(offset, 10) : undefined });
+      orders = await getOrders({ status, limit: parsedLimit, offset: parsedOffset });
     } else if (session.user_role === 'vendor') {
       // Vendors see orders containing their products (use new order_items table)
-      orders = await getOrdersForVendor(session.user_id);
+      orders = await getOrdersForVendor(session.user_id, parsedLimit, parsedOffset);
     } else {
       // Buyers see their own orders
-      orders = await getOrders({ buyerId: session.user_id, status });
+      orders = await getOrders({ buyerId: session.user_id, status, limit: parsedLimit, offset: parsedOffset });
     }
 
     // Transform orders and include order_items for vendor-scoped data

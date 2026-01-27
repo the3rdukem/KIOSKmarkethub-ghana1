@@ -889,8 +889,8 @@ export async function getOrderItemsByVendor(vendorId: string): Promise<DbOrderIt
  * Orders in 'created' or 'pending_payment' status are NOT visible to vendors since payment is not confirmed.
  * This prevents vendors from seeing orders that may never be paid.
  */
-export async function getOrdersForVendor(vendorId: string): Promise<DbOrder[]> {
-  const result = await query<DbOrder>(`
+export async function getOrdersForVendor(vendorId: string, limit?: number, offset?: number): Promise<DbOrder[]> {
+  let sql = `
     SELECT DISTINCT o.* FROM orders o
     INNER JOIN order_items oi ON o.id = oi.order_id
     WHERE oi.vendor_id = $1
@@ -898,7 +898,22 @@ export async function getOrdersForVendor(vendorId: string): Promise<DbOrder[]> {
       AND o.status NOT IN ('created', 'pending_payment')
       AND (o.status != 'cancelled' OR o.payment_status = 'refunded')
     ORDER BY o.created_at DESC
-  `, [vendorId]);
+  `;
+  
+  const params: unknown[] = [vendorId];
+  let paramIndex = 2;
+  
+  if (limit !== undefined) {
+    sql += ` LIMIT $${paramIndex++}`;
+    params.push(limit);
+  }
+  
+  if (offset !== undefined) {
+    sql += ` OFFSET $${paramIndex++}`;
+    params.push(offset);
+  }
+  
+  const result = await query<DbOrder>(sql, params);
   return result.rows;
 }
 
