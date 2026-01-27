@@ -940,15 +940,17 @@ export async function packOrderItem(itemId: string, vendorId: string): Promise<b
 
 /**
  * Phase 7B: Hand item to courier (vendor action)
- * Transitions item from 'packed' to 'handed_to_courier'
+ * Transitions item from 'packed' or 'shipped' to 'handed_to_courier'
+ * Also accepts 'pending' for legacy compatibility (direct ship without pack step)
  */
 export async function handItemToCourier(itemId: string, vendorId: string): Promise<boolean> {
   const now = new Date().toISOString();
   
+  // Accept 'pending', 'packed', or legacy 'shipped' - allows legacy "ship" to work
   const result = await query(
     `UPDATE order_items 
      SET fulfillment_status = 'handed_to_courier', updated_at = $1
-     WHERE id = $2 AND vendor_id = $3 AND fulfillment_status IN ('packed', 'shipped')`,
+     WHERE id = $2 AND vendor_id = $3 AND fulfillment_status IN ('pending', 'packed', 'shipped')`,
     [now, itemId, vendorId]
   );
   

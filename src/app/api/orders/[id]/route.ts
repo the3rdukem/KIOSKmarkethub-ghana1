@@ -14,8 +14,9 @@ import {
   getVendorItemsForOrder,
   updateOrder,
   cancelOrderWithInventoryRestore,
-  shipOrderItem,
   fulfillOrderItem,
+  packOrderItem,
+  handItemToCourier,
   parseOrderItems,
   parseShippingAddress,
   type UpdateOrderInput,
@@ -237,8 +238,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const { action, itemId } = body;
 
-    if (action !== 'ship' && action !== 'fulfill') {
-      return NextResponse.json({ error: 'Invalid action. Use: ship or fulfill' }, { status: 400 });
+    const validActions = ['pack', 'handToCourier', 'markDelivered', 'ship', 'fulfill'];
+    if (!validActions.includes(action)) {
+      return NextResponse.json({ error: 'Invalid action. Use: pack, handToCourier, markDelivered' }, { status: 400 });
     }
 
     if (!itemId) {
@@ -248,18 +250,52 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const user = await getUserById(session.user_id);
     const vendorName = user?.business_name || user?.name || 'A vendor';
 
-    if (action === 'ship') {
-      // Ship action: transitions item from 'pending' to 'shipped'
-      const success = await shipOrderItem(itemId, session.user_id);
+    if (action === 'pack') {
+      // Phase 7B: Pack action - transitions item from 'pending' to 'packed'
+      const success = await packOrderItem(itemId, session.user_id);
 
       if (!success) {
         return NextResponse.json({ 
-          error: 'Failed to ship item. Item may not exist, may belong to another vendor, or may not be in pending status.' 
+          error: 'Failed to pack item. Item may not exist, may belong to another vendor, or may not be in pending status.' 
         }, { status: 400 });
       }
 
       await createAuditLog({
-        action: 'ORDER_ITEM_SHIPPED',
+        action: 'ORDER_ITEM_PACKED',
+        category: 'order',
+        adminId: session.user_id,
+        adminName: user?.name || 'Vendor',
+        adminEmail: user?.email || '',
+        adminRole: session.user_role,
+        targetId: id,
+        targetType: 'order_item',
+        targetName: `Order Item ${itemId}`,
+        details: JSON.stringify({ orderId: id, itemId }),
+      });
+
+      // Notify buyer about packing
+      createNotification({
+        userId: order.buyer_id,
+        role: 'buyer',
+        type: 'order_fulfilled',
+        title: 'Order Being Prepared',
+        message: `${vendorName} is preparing your order for shipping!`,
+        payload: { orderId: id, itemId, vendorName },
+      }).catch(err => console.error('[NOTIFICATION] Failed to notify buyer:', err));
+
+    } else if (action === 'handToCourier' || action === 'ship') {
+      // Phase 7B: Hand to courier action - transitions item from 'packed' to 'handed_to_courier'
+      // 'ship' is legacy action that now maps to handItemToCourier (packed/shipped -> handed_to_courier)
+      const success = await handItemToCourier(itemId, session.user_id);
+
+      if (!success) {
+        return NextResponse.json({ 
+          error: 'Failed to hand item to courier. Item may not exist, may belong to another vendor, or may not be in the correct status.' 
+        }, { status: 400 });
+      }
+
+      await createAuditLog({
+        action: 'ORDER_ITEM_HANDED_TO_COURIER',
         category: 'order',
         adminId: session.user_id,
         adminName: user?.name || 'Vendor',
@@ -276,17 +312,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         userId: order.buyer_id,
         role: 'buyer',
         type: 'order_fulfilled',
-        title: 'Order Shipped',
-        message: `${vendorName} has shipped your order item and it's on its way!`,
+        title: 'Order Out for Delivery',
+        message: `${vendorName} has handed your order to the courier. It's on its way!`,
         payload: { orderId: id, itemId, vendorName },
       }).catch(err => console.error('[NOTIFICATION] Failed to notify buyer:', err));
-    } else {
-      // Fulfill action: transitions item from 'shipped' to 'fulfilled' (delivered)
+
+    } else if (action === 'markDelivered' || action === 'fulfill') {
+      // Phase 7B: Mark delivered action - transitions item from 'handed_to_courier' to 'delivered'
+      // 'fulfill' is legacy action that now does the same thing
       const success = await fulfillOrderItem(itemId, session.user_id);
 
       if (!success) {
         return NextResponse.json({ 
-          error: 'Failed to mark item as delivered. Item may not exist, may belong to another vendor, or may not be in shipped status.' 
+          error: 'Failed to mark item as delivered. Item may not exist, may belong to another vendor, or may not be with courier.' 
         }, { status: 400 });
       }
 
@@ -309,7 +347,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         role: 'buyer',
         type: 'order_fulfilled',
         title: 'Order Delivered',
-        message: `Your order from ${vendorName} has been delivered!`,
+        message: `Your order from ${vendorName} has been delivered! You have 48 hours to raise any issues.`,
         payload: { orderId: id, itemId, vendorName },
       }).catch(err => console.error('[NOTIFICATION] Failed to notify buyer:', err));
     }

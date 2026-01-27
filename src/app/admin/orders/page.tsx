@@ -467,7 +467,10 @@ export default function AdminOrdersPage() {
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Payment Status</span>
                       <Badge variant={selectedOrder.paymentStatus === 'paid' ? 'default' : selectedOrder.paymentStatus === 'failed' ? 'destructive' : 'outline'}>
-                        {selectedOrder.paymentStatus}
+                        {selectedOrder.paymentStatus === 'paid' ? 'Complete' : 
+                         selectedOrder.paymentStatus === 'pending' ? 'Pending' :
+                         selectedOrder.paymentStatus === 'failed' ? 'Failed' :
+                         selectedOrder.paymentStatus}
                       </Badge>
                     </div>
                     {selectedOrder.paymentProvider && (

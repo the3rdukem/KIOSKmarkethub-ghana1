@@ -498,7 +498,10 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Status</span>
                   <Badge variant={order.paymentStatus === "paid" ? "default" : "secondary"} className={order.paymentStatus === "paid" ? "bg-green-600" : ""}>
-                    {order.paymentStatus || 'pending'}
+                    {order.paymentStatus === 'paid' ? 'Payment Complete' : 
+                     order.paymentStatus === 'pending' ? 'Awaiting Payment' :
+                     order.paymentStatus === 'failed' ? 'Payment Failed' :
+                     order.paymentStatus || 'Awaiting Payment'}
                   </Badge>
                 </div>
                 {order.couponCode && (

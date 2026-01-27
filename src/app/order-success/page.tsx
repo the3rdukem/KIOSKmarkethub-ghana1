@@ -280,7 +280,10 @@ function OrderSuccessContent() {
                       className={order.paymentStatus === 'paid' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'}
                     >
                       <Clock className="w-3 h-3 mr-1" />
-                      Payment {order.paymentStatus === 'pending' ? 'Pending' : order.paymentStatus === 'paid' ? 'Paid' : order.paymentStatus}
+                      {order.paymentStatus === 'paid' ? 'Payment Complete' : 
+                       order.paymentStatus === 'pending' ? 'Payment Pending' : 
+                       order.paymentStatus === 'failed' ? 'Payment Failed' :
+                       `Payment ${order.paymentStatus}`}
                     </Badge>
                   </div>
                 </div>

@@ -137,6 +137,10 @@ export default function VendorOrdersPage() {
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [packingItemId, setPackingItemId] = useState<string | null>(null);
+  const [handingToCourierId, setHandingToCourierId] = useState<string | null>(null);
+  const [deliveringItemId, setDeliveringItemId] = useState<string | null>(null);
+  // Legacy state for compatibility
   const [shippingItemId, setShippingItemId] = useState<string | null>(null);
   const [fulfillingItemId, setFulfillingItemId] = useState<string | null>(null);
 
@@ -189,6 +193,115 @@ export default function VendorOrdersPage() {
     }
   };
 
+  // Phase 7B: Pack item (pending -> packed)
+  const handlePackItem = async (orderId: string, itemId: string) => {
+    setPackingItemId(itemId);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'pack',
+          itemId,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Item marked as packed');
+        fetchOrders();
+        if (selectedOrder && selectedOrder.id === orderId) {
+          const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
+          if (updatedResponse.ok) {
+            const data = await updatedResponse.json();
+            setSelectedOrder(data.order);
+          }
+        }
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to pack item');
+      }
+    } catch (error) {
+      console.error('Failed to pack item:', error);
+      toast.error('Failed to pack item');
+    } finally {
+      setPackingItemId(null);
+    }
+  };
+
+  // Phase 7B: Hand to courier (packed -> handed_to_courier)
+  const handleHandToCourier = async (orderId: string, itemId: string) => {
+    setHandingToCourierId(itemId);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'handToCourier',
+          itemId,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Item handed to courier');
+        fetchOrders();
+        if (selectedOrder && selectedOrder.id === orderId) {
+          const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
+          if (updatedResponse.ok) {
+            const data = await updatedResponse.json();
+            setSelectedOrder(data.order);
+          }
+        }
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to hand to courier');
+      }
+    } catch (error) {
+      console.error('Failed to hand to courier:', error);
+      toast.error('Failed to hand to courier');
+    } finally {
+      setHandingToCourierId(null);
+    }
+  };
+
+  // Phase 7B: Mark delivered (handed_to_courier -> delivered)
+  const handleMarkDelivered = async (orderId: string, itemId: string) => {
+    setDeliveringItemId(itemId);
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'markDelivered',
+          itemId,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success('Item marked as delivered');
+        fetchOrders();
+        if (selectedOrder && selectedOrder.id === orderId) {
+          const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
+          if (updatedResponse.ok) {
+            const data = await updatedResponse.json();
+            setSelectedOrder(data.order);
+          }
+        }
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to mark as delivered');
+      }
+    } catch (error) {
+      console.error('Failed to mark as delivered:', error);
+      toast.error('Failed to mark as delivered');
+    } finally {
+      setDeliveringItemId(null);
+    }
+  };
+
+  // Legacy handlers for compatibility
   const handleShipItem = async (orderId: string, itemId: string) => {
     setShippingItemId(itemId);
     try {
@@ -319,10 +432,12 @@ export default function VendorOrdersPage() {
   };
 
   const hasItemsNeedingAction = (order: Order) => {
-    // Items need action if they are pending (need to ship) or shipped (need to confirm delivery)
+    // Phase 7B: Items need action if they are not in terminal states (delivered/fulfilled)
     return getVendorItems(order).some(item => 
       item.fulfillmentStatus === 'pending' || 
-      item.fulfillmentStatus === 'shipped' || 
+      item.fulfillmentStatus === 'packed' || 
+      item.fulfillmentStatus === 'handed_to_courier' ||
+      item.fulfillmentStatus === 'shipped' || // Legacy
       !item.fulfillmentStatus
     );
   };
@@ -558,31 +673,51 @@ export default function VendorOrdersPage() {
                               <p className="font-medium">GHS {(item.finalPrice != null ? item.finalPrice : item.unitPrice * item.quantity).toFixed(2)}</p>
                               {getItemStatusBadge(item.fulfillmentStatus || 'pending')}
                             </div>
+                            {/* Phase 7B: Step 1 - Pack item (pending -> packed) */}
                             {(item.fulfillmentStatus === 'pending' || !item.fulfillmentStatus) && 
                              selectedOrder.status !== 'cancelled' && (
                               <Button
                                 size="sm"
-                                onClick={() => handleShipItem(selectedOrder.id, item.id)}
-                                disabled={shippingItemId !== null || fulfillingItemId !== null}
+                                onClick={() => handlePackItem(selectedOrder.id, item.id)}
+                                disabled={packingItemId !== null || handingToCourierId !== null || deliveringItemId !== null}
                               >
-                                {shippingItemId === item.id ? (
+                                {packingItemId === item.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
                                   <>
-                                    <Truck className="w-4 h-4 mr-1" />
-                                    Mark Shipped
+                                    <Package className="w-4 h-4 mr-1" />
+                                    Mark Packed
                                   </>
                                 )}
                               </Button>
                             )}
-                            {item.fulfillmentStatus === 'shipped' && 
+                            {/* Phase 7B: Step 2 - Hand to courier (packed -> handed_to_courier) */}
+                            {item.fulfillmentStatus === 'packed' && 
                              selectedOrder.status !== 'cancelled' && (
                               <Button
                                 size="sm"
-                                onClick={() => handleFulfillItem(selectedOrder.id, item.id)}
-                                disabled={shippingItemId !== null || fulfillingItemId !== null}
+                                onClick={() => handleHandToCourier(selectedOrder.id, item.id)}
+                                disabled={packingItemId !== null || handingToCourierId !== null || deliveringItemId !== null}
                               >
-                                {fulfillingItemId === item.id ? (
+                                {handingToCourierId === item.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <Truck className="w-4 h-4 mr-1" />
+                                    Hand to Courier
+                                  </>
+                                )}
+                              </Button>
+                            )}
+                            {/* Phase 7B: Step 3 - Mark delivered (handed_to_courier -> delivered) */}
+                            {(item.fulfillmentStatus === 'handed_to_courier' || item.fulfillmentStatus === 'shipped') && 
+                             selectedOrder.status !== 'cancelled' && (
+                              <Button
+                                size="sm"
+                                onClick={() => handleMarkDelivered(selectedOrder.id, item.id)}
+                                disabled={packingItemId !== null || handingToCourierId !== null || deliveringItemId !== null}
+                              >
+                                {deliveringItemId === item.id ? (
                                   <Loader2 className="w-4 h-4 animate-spin" />
                                 ) : (
                                   <>
