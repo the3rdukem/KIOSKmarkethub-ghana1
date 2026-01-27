@@ -122,39 +122,100 @@ export function useOrderOperations() {
 }
 
 /**
- * Get order status display info
+ * Phase 7B: Normalize legacy status to display status
  */
-export function getOrderStatusInfo(status: Order['status']) {
-  const statusMap: Record<Order['status'], { label: string; color: string; description: string }> = {
-    pending: {
-      label: 'Pending',
+export function normalizeStatusForDisplay(status: string): string {
+  const legacyMap: Record<string, string> = {
+    'pending_payment': 'created',
+    'processing': 'confirmed',
+    'shipped': 'out_for_delivery',
+    'fulfilled': 'delivered',
+  };
+  return legacyMap[status] || status;
+}
+
+/**
+ * Get order status display info
+ * Phase 7B: Updated with new status lifecycle
+ */
+export function getOrderStatusInfo(status: Order['status'] | string) {
+  const statusMap: Record<string, { label: string; color: string; description: string }> = {
+    // Phase 7B: New statuses
+    created: {
+      label: 'Awaiting Payment',
       color: 'bg-yellow-100 text-yellow-800',
-      description: 'Order is awaiting confirmation',
+      description: 'Order created, awaiting payment',
     },
     confirmed: {
-      label: 'Confirmed',
+      label: 'Payment Confirmed',
       color: 'bg-blue-100 text-blue-800',
-      description: 'Order has been confirmed',
+      description: 'Payment received, awaiting preparation',
     },
-    processing: {
-      label: 'Processing',
+    preparing: {
+      label: 'Preparing',
       color: 'bg-purple-100 text-purple-800',
-      description: 'Order is being prepared',
+      description: 'Vendor is preparing your order',
     },
-    shipped: {
-      label: 'Shipped',
+    ready_for_pickup: {
+      label: 'Ready for Pickup',
       color: 'bg-indigo-100 text-indigo-800',
-      description: 'Order has been shipped',
+      description: 'Order is ready for courier pickup',
+    },
+    out_for_delivery: {
+      label: 'Out for Delivery',
+      color: 'bg-cyan-100 text-cyan-800',
+      description: 'Order is on its way to you',
     },
     delivered: {
       label: 'Delivered',
       color: 'bg-green-100 text-green-800',
       description: 'Order has been delivered',
     },
+    completed: {
+      label: 'Completed',
+      color: 'bg-emerald-100 text-emerald-800',
+      description: 'Order completed successfully',
+    },
+    delivery_failed: {
+      label: 'Delivery Failed',
+      color: 'bg-orange-100 text-orange-800',
+      description: 'Delivery attempt was unsuccessful',
+    },
+    disputed: {
+      label: 'Disputed',
+      color: 'bg-amber-100 text-amber-800',
+      description: 'Buyer has raised a dispute',
+    },
     cancelled: {
       label: 'Cancelled',
       color: 'bg-red-100 text-red-800',
       description: 'Order was cancelled',
+    },
+    // Legacy statuses (for backward compatibility)
+    pending: {
+      label: 'Pending',
+      color: 'bg-yellow-100 text-yellow-800',
+      description: 'Order is awaiting confirmation',
+    },
+    pending_payment: {
+      label: 'Awaiting Payment',
+      color: 'bg-yellow-100 text-yellow-800',
+      description: 'Order created, awaiting payment',
+    },
+    processing: {
+      label: 'Payment Confirmed',
+      color: 'bg-blue-100 text-blue-800',
+      description: 'Payment received, vendor preparing',
+    },
+    shipped: {
+      label: 'Shipped',
+      color: 'bg-indigo-100 text-indigo-800',
+      description: 'Order has been shipped',
+    },
+    fulfilled: {
+      label: 'Delivered',
+      color: 'bg-green-100 text-green-800',
+      description: 'Order has been delivered',
     },
     refunded: {
       label: 'Refunded',
@@ -168,22 +229,75 @@ export function getOrderStatusInfo(status: Order['status']) {
 
 /**
  * Get available status transitions based on current status
+ * Phase 7B: Updated with new status lifecycle
  */
-export function getAvailableStatusTransitions(currentStatus: Order['status'], userRole: 'buyer' | 'vendor' | 'admin'): Order['status'][] {
-  const transitions: Record<Order['status'], Record<string, Order['status'][]>> = {
+export function getAvailableStatusTransitions(currentStatus: Order['status'] | string, userRole: 'buyer' | 'vendor' | 'admin'): string[] {
+  const transitions: Record<string, Record<string, string[]>> = {
+    // Phase 7B: New status transitions
+    created: {
+      vendor: [],
+      admin: ['cancelled'],
+      buyer: ['cancelled'],
+    },
+    confirmed: {
+      vendor: ['preparing'],
+      admin: ['preparing', 'cancelled'],
+      buyer: [],
+    },
+    preparing: {
+      vendor: ['ready_for_pickup'],
+      admin: ['ready_for_pickup', 'cancelled'],
+      buyer: [],
+    },
+    ready_for_pickup: {
+      vendor: ['out_for_delivery'],
+      admin: ['out_for_delivery', 'cancelled'],
+      buyer: [],
+    },
+    out_for_delivery: {
+      vendor: ['delivered', 'delivery_failed'],
+      admin: ['delivered', 'delivery_failed', 'cancelled'],
+      buyer: [],
+    },
+    delivered: {
+      vendor: [],
+      admin: ['completed', 'cancelled'],
+      buyer: ['disputed'],
+    },
+    delivery_failed: {
+      vendor: ['out_for_delivery'],
+      admin: ['out_for_delivery', 'cancelled'],
+      buyer: [],
+    },
+    disputed: {
+      vendor: [],
+      admin: ['completed', 'cancelled'],
+      buyer: [],
+    },
+    completed: {
+      vendor: [],
+      admin: [],
+      buyer: [],
+    },
+    cancelled: {
+      vendor: [],
+      admin: [],
+      buyer: [],
+    },
+    // Legacy statuses
     pending: {
       vendor: ['confirmed', 'cancelled'],
       admin: ['confirmed', 'cancelled'],
       buyer: ['cancelled'],
     },
-    confirmed: {
-      vendor: ['processing', 'cancelled'],
-      admin: ['processing', 'cancelled'],
+    pending_payment: {
+      vendor: [],
+      admin: ['cancelled'],
       buyer: [],
     },
     processing: {
-      vendor: ['shipped'],
-      admin: ['shipped', 'cancelled'],
+      vendor: ['preparing'],
+      admin: ['preparing', 'cancelled'],
       buyer: [],
     },
     shipped: {
@@ -191,15 +305,10 @@ export function getAvailableStatusTransitions(currentStatus: Order['status'], us
       admin: ['delivered'],
       buyer: [],
     },
-    delivered: {
-      vendor: [],
-      admin: ['refunded'],
-      buyer: [],
-    },
-    cancelled: {
+    fulfilled: {
       vendor: [],
       admin: [],
-      buyer: [],
+      buyer: ['disputed'],
     },
     refunded: {
       vendor: [],

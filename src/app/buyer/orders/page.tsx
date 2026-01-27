@@ -74,13 +74,22 @@ interface Order {
 }
 
 const statusConfig: Record<string, { color: string; icon: typeof Clock; label: string }> = {
+  // Phase 7B: New statuses
+  created: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Awaiting Payment" },
+  confirmed: { color: "bg-blue-100 text-blue-800", icon: CheckCircle, label: "Payment Confirmed" },
+  preparing: { color: "bg-purple-100 text-purple-800", icon: Package, label: "Preparing" },
+  ready_for_pickup: { color: "bg-indigo-100 text-indigo-800", icon: Package, label: "Ready for Pickup" },
+  out_for_delivery: { color: "bg-cyan-100 text-cyan-800", icon: Truck, label: "Out for Delivery" },
+  delivered: { color: "bg-green-600 text-white", icon: CheckCircle, label: "Delivered" },
+  completed: { color: "bg-emerald-100 text-emerald-800", icon: CheckCircle, label: "Completed" },
+  delivery_failed: { color: "bg-orange-100 text-orange-800", icon: XCircle, label: "Delivery Failed" },
+  disputed: { color: "bg-amber-100 text-amber-800", icon: Clock, label: "Disputed" },
+  // Legacy statuses
   pending_payment: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Awaiting Payment" },
   pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending" },
-  confirmed: { color: "bg-blue-100 text-blue-800", icon: CheckCircle, label: "Confirmed" },
-  processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Order Confirmed" },
-  shipped: { color: "bg-purple-100 text-purple-800", icon: Truck, label: "Shipped" },
+  processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Payment Confirmed" },
+  shipped: { color: "bg-cyan-100 text-cyan-800", icon: Truck, label: "Shipped" },
   fulfilled: { color: "bg-green-600 text-white", icon: CheckCircle, label: "Delivered" },
-  delivered: { color: "bg-green-600 text-white", icon: CheckCircle, label: "Delivered" },
   cancelled: { color: "bg-red-100 text-red-800", icon: XCircle, label: "Cancelled" },
 };
 

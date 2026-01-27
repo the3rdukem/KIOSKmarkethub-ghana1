@@ -28,7 +28,14 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Cart System**: Secure ownership model supporting guest and authenticated users, with guest-to-user cart merging.
 - **Reviews System**: Database-backed system for product reviews with 15-minute edit window enforcement, vendor reply locking (edits blocked after vendor responds), single vendor reply (append-only), and admin moderation (hide/unhide/delete). No standalone buyer reviews page - buyers access reviews through product pages.
 - **Promotions System**: Database-backed coupons and sales management, allowing vendors to create promotions.
-- **Order Pipeline**: Server-side order management with PostgreSQL, covering checkout flows (inventory decrement, audit logging), vendor fulfillment, and admin cancellation (inventory restoration). Includes real-time status updates and robust inventory reservation using atomic transactions. **Order Status Flow**: `pending_payment` → `processing` (payment confirmed) → `shipped` → `fulfilled` (delivered). UI displays: "Awaiting Payment" → "Order Confirmed" → "Shipped" → "Delivered". Vendors have two-step fulfillment: "Mark as Shipped" then "Mark as Delivered".
+- **Order Pipeline (Phase 7B Refactor)**: Server-side order management with PostgreSQL, covering checkout flows (inventory decrement, audit logging), vendor fulfillment, and admin cancellation (inventory restoration). Uses three-track status model:
+  - **Order Status**: `created` → `confirmed` (payment received) → `preparing` → `ready_for_pickup` → `out_for_delivery` → `delivered` → `completed` (terminal). Also: `cancelled`, `disputed`, `delivery_failed`.
+  - **Item Fulfillment**: `pending` → `packed` → `handed_to_courier` → `delivered`.
+  - **Payment Status**: Separate track via Paystack webhook.
+  - **48-hour Dispute Window**: Buyers can raise disputes within 48 hours after delivery. Orders auto-complete to `completed` after 48 hours with no dispute.
+  - **Status Transition Guards**: `isValidStatusTransition` validates all status changes with actor permissions (system/vendor/buyer/admin), returns 409 Conflict on invalid transitions.
+  - **Legacy Compatibility**: All old statuses (`pending_payment`, `processing`, `shipped`, `fulfilled`) still work via normalization functions.
+  - **Migration Endpoint**: `/api/admin/migrate-orders-phase7b` adds new columns (`courier_provider`, `courier_reference`, `delivered_at`, `disputed_at`, `dispute_reason`) and optionally migrates legacy statuses.
 - **Auth Redirect Security**: Utilizes `getSafeRedirectUrl()` to prevent open redirect vulnerabilities.
 - **Buyer Orders Persistence**: Buyer orders are synced with the Zustand store upon user identity changes.
 - **Database-Backed Wishlist**: `wishlist_items` table with CRUD operations, API endpoints, and a store that syncs with the database for authenticated users and uses `localStorage` for guests.

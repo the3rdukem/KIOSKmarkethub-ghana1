@@ -95,17 +95,33 @@ interface Order {
 }
 
 const statusConfig: Record<string, { color: string; icon: typeof Clock; label: string }> = {
-  pending_payment: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending Payment" },
+  // Phase 7B: New statuses
+  created: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Awaiting Payment" },
+  confirmed: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Payment Confirmed" },
+  preparing: { color: "bg-purple-100 text-purple-800", icon: Package, label: "Preparing" },
+  ready_for_pickup: { color: "bg-indigo-100 text-indigo-800", icon: Package, label: "Ready for Pickup" },
+  out_for_delivery: { color: "bg-cyan-100 text-cyan-800", icon: Truck, label: "Out for Delivery" },
+  delivered: { color: "bg-green-600 text-white", icon: CheckCircle, label: "Delivered" },
+  completed: { color: "bg-emerald-100 text-emerald-800", icon: CheckCircle, label: "Completed" },
+  delivery_failed: { color: "bg-orange-100 text-orange-800", icon: XCircle, label: "Delivery Failed" },
+  disputed: { color: "bg-amber-100 text-amber-800", icon: Clock, label: "Disputed" },
+  // Legacy statuses for backward compatibility
+  pending_payment: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Awaiting Payment" },
   pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending" },
   processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Payment Confirmed" },
-  shipped: { color: "bg-purple-100 text-purple-800", icon: Truck, label: "Shipped" },
+  shipped: { color: "bg-cyan-100 text-cyan-800", icon: Truck, label: "Shipped" },
   fulfilled: { color: "bg-green-600 text-white", icon: CheckCircle, label: "Delivered" },
   cancelled: { color: "bg-red-100 text-red-800", icon: XCircle, label: "Cancelled" },
 };
 
 const itemStatusConfig: Record<string, { color: string; label: string }> = {
+  // Phase 7B: New item statuses
   pending: { color: "bg-yellow-100 text-yellow-800", label: "Pending" },
-  shipped: { color: "bg-purple-100 text-purple-800", label: "Shipped" },
+  packed: { color: "bg-purple-100 text-purple-800", label: "Packed" },
+  handed_to_courier: { color: "bg-cyan-100 text-cyan-800", label: "With Courier" },
+  delivered: { color: "bg-green-600 text-white", label: "Delivered" },
+  // Legacy
+  shipped: { color: "bg-cyan-100 text-cyan-800", label: "Shipped" },
   fulfilled: { color: "bg-green-600 text-white", label: "Delivered" },
 };
 

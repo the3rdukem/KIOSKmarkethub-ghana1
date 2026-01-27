@@ -1,0 +1,216 @@
+PHASE 7B APPROVED
+
+Scope unlocked: IMPLEMENTATION — but with discipline
+
+Phase 7B is NOT courier integration yet.
+It is the structural refactor that makes delivery possible without breaking trust, payments, or history.
+
+⸻
+
+🛠️ PHASE 7B — ORDER STATUS REFACTOR
+
+STRICT IMPLEMENTATION MASTER PROMPT
+
+ROLE
+
+You are a Core Systems Engineer implementing an approved design.
+
+You are NOT a product designer.
+
+You are NOT allowed to invent new flows.
+
+You must implement exactly what was approved in Phase 7A.
+
+⸻
+
+🚨 GLOBAL RULES (NON-NEGOTIABLE)
+	1.	❌ NO new features beyond approved design
+	2.	❌ NO UX redesigns beyond what is required to support status changes
+	3.	❌ NO courier API integrations
+	4.	❌ NO third-party SDKs
+	5.	❌ NO infra migration
+	6.	❌ NO silent breaking changes
+
+If something is unclear:
+	•	STOP
+	•	REPORT
+	•	ASK FOR CONFIRMATION
+
+⸻
+
+🎯 PHASE 7B OBJECTIVE
+
+Refactor the order lifecycle to support:
+	•	Vendor-initiated delivery
+	•	External courier workflows
+	•	Buyer dispute windows
+	•	Fraud-resistant completion
+
+WITHOUT:
+	•	Breaking existing orders
+	•	Affecting Paystack logic
+	•	Affecting payouts
+	•	Affecting reviews
+	•	Affecting analytics
+
+⸻
+
+📦 IMPLEMENTATION SCOPE (IN ORDER)
+
+1️⃣ DATABASE & ENUM REFACTOR
+
+Implement the approved three-track model:
+
+Payment Status (UNCHANGED)
+
+pending → paid | failed | refunded
+
+Order Status (NEW — REPLACES CURRENT)
+
+created
+confirmed
+preparing
+ready_for_pickup
+out_for_delivery
+delivered
+completed   (system, after 48h)
+delivery_failed
+cancelled   (admin only)
+disputed
+
+Rules:
+	•	Must be strictly forward-only, except:
+	•	delivery_failed → out_for_delivery
+	•	delivered → disputed
+	•	completed is terminal
+	•	cancelled is terminal
+
+⚠️ Existing orders MUST be migrated safely:
+	•	processing → preparing
+	•	shipped → out_for_delivery
+	•	fulfilled → delivered
+
+No data loss allowed.
+
+⸻
+
+2️⃣ ORDER ITEM FULFILLMENT STATUS (PER VENDOR ITEM)
+
+Implement per-item fulfillment:
+
+pending
+packed
+handed_to_courier
+delivered
+
+Rules:
+	•	Vendor can only update their own items
+	•	Order status progression depends on all items
+	•	Partial fulfillment supported (multi-vendor order)
+
+⸻
+
+3️⃣ STATUS TRANSITION GUARDS (CRITICAL)
+
+You MUST enforce:
+
+Transition	Allowed By
+created → confirmed	System (Paystack webhook)
+confirmed → preparing	Vendor
+preparing → ready_for_pickup	Vendor
+ready_for_pickup → out_for_delivery	Vendor
+out_for_delivery → delivered	Vendor
+delivered → completed	System (48h, no dispute)
+delivered → disputed	Buyer
+* → cancelled	Admin only
+
+Any invalid transition:
+	•	Return 409 Conflict
+	•	Log audit entry
+	•	Do NOT silently fail
+
+⸻
+
+4️⃣ DISPUTE WINDOW ENFORCEMENT
+
+Implement:
+	•	48-hour timer after delivered
+	•	Buyer can open dispute within window
+	•	Dispute locks:
+	•	payout
+	•	completion
+	•	Admin resolves dispute → moves to completed or refund flow
+
+No dispute UI polish yet — logic only.
+
+⸻
+
+5️⃣ AUDIT TRAIL (MANDATORY)
+
+Every status change must record:
+	•	previous_status
+	•	new_status
+	•	actor (system/vendor/buyer/admin)
+	•	timestamp
+	•	order_id
+	•	item_id (if applicable)
+
+This is non-optional.
+
+⸻
+
+6️⃣ BACKWARD COMPATIBILITY CHECK
+
+Verify explicitly:
+	•	Old orders still render correctly
+	•	Old admin views still load
+	•	Analytics queries don’t break
+	•	Reviews still reference correct order state
+	•	Refund logic untouched
+
+⸻
+
+🧪 REQUIRED TESTS (NO SKIPPING)
+
+You must manually verify:
+	•	Multi-vendor order
+	•	Vendor A marks ready, Vendor B delays
+	•	Buyer disputes after delivery
+	•	Buyer misses dispute window → auto completion
+	•	Admin cancellation
+	•	Payment success → confirmed mapping
+	•	Existing orders migration integrity
+
+⸻
+
+📄 REQUIRED OUTPUT FORMAT (STRICT)
+
+You MUST output:
+
+⸻
+
+📋 PHASE 7B — IMPLEMENTATION REPORT
+
+A. Schema Changes
+B. Migration Strategy
+C. Status Transition Rules
+D. Dispute Logic
+E. Audit Trail
+F. Backward Compatibility
+G. Risks Introduced
+
+⸻
+
+🚨 BLOCKERS (IF ANY)
+* List only blockers
+* If none: NONE
+
+⸻
+
+✅ PHASE 7B EXIT DECISION
+* READY FOR PHASE 7C
+* or BLOCKED — FIX REQUIRED
+
+⸻
+
+🛑 STOP AFTER REPORT

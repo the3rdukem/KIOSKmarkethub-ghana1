@@ -1,25 +1,162 @@
 /**
  * Orders Data Access Layer
  *
- * PHASE 2: Checkout & Order Pipeline
+ * PHASE 7B: Order Status Refactor
  * Server-side only - provides CRUD operations for orders.
  * 
- * Status transitions:
- * - pending_payment → cancelled (admin only)
- * - pending_payment → fulfilled (when all items fulfilled by vendors)
+ * Three-track status model:
+ * 1. Payment Status: pending → paid | failed | refunded
+ * 2. Order Status: created → confirmed → preparing → ready_for_pickup → out_for_delivery → delivered → completed
+ * 3. Item Fulfillment: pending → packed → handed_to_courier → delivered
+ * 
+ * Dispute window: 48 hours after delivery for buyer to raise issues
  */
 
 import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
+import { createAuditLog } from './audit';
 
-// Phase 2 status types - industry-standard order flow
-// Flow: pending_payment → processing → shipped → fulfilled (delivered)
-// 'processing' = payment confirmed, vendor preparing order
-// 'shipped' = order handed to carrier
-// 'fulfilled' = delivered to customer (displayed as "Delivered" in UI)
-export type OrderStatus = 'pending_payment' | 'processing' | 'shipped' | 'cancelled' | 'fulfilled';
+// Phase 7B: New order status model with full lifecycle
+// Legacy statuses mapped: pending_payment→created, processing→confirmed, shipped→out_for_delivery, fulfilled→delivered
+export type OrderStatus = 
+  | 'created'           // Order submitted, awaiting payment (legacy: pending_payment)
+  | 'confirmed'         // Payment successful (legacy: processing)
+  | 'preparing'         // Vendor is packing
+  | 'ready_for_pickup'  // Ready for courier pickup
+  | 'out_for_delivery'  // Courier dispatched (legacy: shipped)
+  | 'delivered'         // Vendor confirms delivery (legacy: fulfilled)
+  | 'completed'         // System: 48h passed, no disputes
+  | 'delivery_failed'   // Delivery attempt failed
+  | 'cancelled'         // Admin cancelled
+  | 'disputed'          // Buyer raised dispute
+  // Legacy aliases for backward compatibility
+  | 'pending_payment'   // Maps to 'created'
+  | 'processing'        // Maps to 'confirmed'
+  | 'shipped'           // Maps to 'out_for_delivery'
+  | 'fulfilled';        // Maps to 'delivered'
+
 export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
-export type FulfillmentStatus = 'pending' | 'shipped' | 'fulfilled';
+
+// Phase 7B: New fulfillment status with courier handoff
+export type FulfillmentStatus = 'pending' | 'packed' | 'handed_to_courier' | 'delivered' 
+  // Legacy aliases
+  | 'shipped' | 'fulfilled';
+
+/**
+ * Normalize legacy status to new status
+ */
+export function normalizeOrderStatus(status: string): OrderStatus {
+  const legacyMap: Record<string, OrderStatus> = {
+    'pending_payment': 'created',
+    'processing': 'confirmed',
+    'shipped': 'out_for_delivery',
+    'fulfilled': 'delivered',
+  };
+  return (legacyMap[status] || status) as OrderStatus;
+}
+
+/**
+ * Normalize legacy fulfillment status
+ */
+export function normalizeFulfillmentStatus(status: string): FulfillmentStatus {
+  const legacyMap: Record<string, FulfillmentStatus> = {
+    'shipped': 'handed_to_courier',
+    'fulfilled': 'delivered',
+  };
+  return (legacyMap[status] || status) as FulfillmentStatus;
+}
+
+/**
+ * Valid order status transitions (Phase 7B)
+ * Returns the allowed next statuses for a given current status
+ */
+export function getValidOrderTransitions(currentStatus: OrderStatus): OrderStatus[] {
+  const normalized = normalizeOrderStatus(currentStatus);
+  const transitions: Record<string, OrderStatus[]> = {
+    'created': ['confirmed', 'cancelled'],
+    'confirmed': ['preparing', 'cancelled'],
+    'preparing': ['ready_for_pickup', 'cancelled'],
+    'ready_for_pickup': ['out_for_delivery', 'cancelled'],
+    'out_for_delivery': ['delivered', 'delivery_failed', 'cancelled'],
+    'delivered': ['completed', 'disputed'],
+    'delivery_failed': ['out_for_delivery', 'cancelled'], // Can retry or cancel
+    'disputed': ['completed', 'cancelled'], // Admin resolution
+    'completed': [], // Terminal
+    'cancelled': [], // Terminal
+  };
+  return transitions[normalized] || [];
+}
+
+/**
+ * Check if a status transition is valid
+ */
+export function isValidStatusTransition(
+  fromStatus: OrderStatus, 
+  toStatus: OrderStatus,
+  actor: 'system' | 'vendor' | 'buyer' | 'admin'
+): { valid: boolean; reason?: string } {
+  const normalizedFrom = normalizeOrderStatus(fromStatus);
+  const normalizedTo = normalizeOrderStatus(toStatus);
+  
+  const validTransitions = getValidOrderTransitions(normalizedFrom);
+  
+  if (!validTransitions.includes(normalizedTo)) {
+    return { 
+      valid: false, 
+      reason: `Invalid transition from '${normalizedFrom}' to '${normalizedTo}'` 
+    };
+  }
+  
+  // Actor-specific rules
+  const actorRules: Record<string, Record<string, string[]>> = {
+    'system': {
+      'created': ['confirmed'],
+      'delivered': ['completed'],
+    },
+    'vendor': {
+      'confirmed': ['preparing'],
+      'preparing': ['ready_for_pickup'],
+      'ready_for_pickup': ['out_for_delivery'],
+      'out_for_delivery': ['delivered', 'delivery_failed'],
+      'delivery_failed': ['out_for_delivery'],
+    },
+    'buyer': {
+      'delivered': ['disputed'],
+    },
+    'admin': {
+      // Admin can do any valid transition
+      '*': validTransitions.map(s => s as string),
+    },
+  };
+  
+  if (actor === 'admin') {
+    return { valid: true };
+  }
+  
+  const allowedForActor = actorRules[actor]?.[normalizedFrom] || [];
+  if (!allowedForActor.includes(normalizedTo)) {
+    return { 
+      valid: false, 
+      reason: `Actor '${actor}' cannot transition from '${normalizedFrom}' to '${normalizedTo}'` 
+    };
+  }
+  
+  return { valid: true };
+}
+
+/**
+ * Valid item fulfillment transitions
+ */
+export function getValidFulfillmentTransitions(currentStatus: FulfillmentStatus): FulfillmentStatus[] {
+  const normalized = normalizeFulfillmentStatus(currentStatus);
+  const transitions: Record<string, FulfillmentStatus[]> = {
+    'pending': ['packed'],
+    'packed': ['handed_to_courier'],
+    'handed_to_courier': ['delivered'],
+    'delivered': [], // Terminal
+  };
+  return transitions[normalized] || [];
+}
 
 export interface OrderItem {
   productId: string;
@@ -63,6 +200,11 @@ export interface DbOrder {
   paid_at: string | null;
   shipping_address: string; // JSON
   tracking_number: string | null;
+  courier_provider: string | null;  // Phase 7B: Selected courier (Bolt, Yango, etc.)
+  courier_reference: string | null; // Phase 7B: External booking reference
+  delivered_at: string | null;      // Phase 7B: When order was marked delivered (for 48h window)
+  disputed_at: string | null;       // Phase 7B: When dispute was raised
+  dispute_reason: string | null;    // Phase 7B: Reason for dispute
   notes: string | null;
   coupon_code: string | null;
   created_at: string;
@@ -109,6 +251,11 @@ export interface UpdateOrderInput {
   status?: OrderStatus;
   paymentStatus?: PaymentStatus;
   trackingNumber?: string;
+  courierProvider?: string;    // Phase 7B: Selected courier
+  courierReference?: string;   // Phase 7B: External booking reference
+  deliveredAt?: string;        // Phase 7B: When marked delivered
+  disputedAt?: string;         // Phase 7B: When dispute raised
+  disputeReason?: string;      // Phase 7B: Reason for dispute
   notes?: string;
 }
 
@@ -146,7 +293,7 @@ export async function createOrder(
     input.tax || 0,
     input.total,
     input.currency || 'GHS',
-    'pending_payment',
+    'created', // Phase 7B: Use 'created' for new orders
     'pending',
     input.paymentMethod || null,
     JSON.stringify(input.shippingAddress),
@@ -222,7 +369,7 @@ export async function createOrder(
     tax: input.tax || 0,
     total: input.total,
     currency: input.currency || 'GHS',
-    status: 'pending_payment',
+    status: 'created', // Phase 7B: Use 'created' for new orders
     payment_status: 'pending',
     payment_method: input.paymentMethod || null,
     payment_reference: null,
@@ -230,6 +377,11 @@ export async function createOrder(
     paid_at: null,
     shipping_address: JSON.stringify(input.shippingAddress),
     tracking_number: null,
+    courier_provider: null,     // Phase 7B
+    courier_reference: null,    // Phase 7B
+    delivered_at: null,         // Phase 7B
+    disputed_at: null,          // Phase 7B
+    dispute_reason: null,       // Phase 7B
     notes: input.notes || null,
     coupon_code: input.couponCode || null,
     created_at: now,
@@ -318,7 +470,8 @@ export async function getOrdersByVendor(vendorId: string): Promise<DbOrder[]> {
 }
 
 /**
- * Update order
+ * Update order (internal - no transition validation)
+ * For validated transitions, use transitionOrderStatus instead
  */
 export async function updateOrder(id: string, updates: UpdateOrderInput): Promise<DbOrder | null> {
   const now = new Date().toISOString();
@@ -342,6 +495,26 @@ export async function updateOrder(id: string, updates: UpdateOrderInput): Promis
     fields.push(`tracking_number = $${paramIndex++}`);
     values.push(updates.trackingNumber);
   }
+  if (updates.courierProvider !== undefined) {
+    fields.push(`courier_provider = $${paramIndex++}`);
+    values.push(updates.courierProvider);
+  }
+  if (updates.courierReference !== undefined) {
+    fields.push(`courier_reference = $${paramIndex++}`);
+    values.push(updates.courierReference);
+  }
+  if (updates.deliveredAt !== undefined) {
+    fields.push(`delivered_at = $${paramIndex++}`);
+    values.push(updates.deliveredAt);
+  }
+  if (updates.disputedAt !== undefined) {
+    fields.push(`disputed_at = $${paramIndex++}`);
+    values.push(updates.disputedAt);
+  }
+  if (updates.disputeReason !== undefined) {
+    fields.push(`dispute_reason = $${paramIndex++}`);
+    values.push(updates.disputeReason);
+  }
   if (updates.notes !== undefined) {
     fields.push(`notes = $${paramIndex++}`);
     values.push(updates.notes);
@@ -359,13 +532,165 @@ export async function updateOrder(id: string, updates: UpdateOrderInput): Promis
 }
 
 /**
+ * Phase 7B: Transition order status with validation and audit logging
+ * Returns success or error with appropriate HTTP status code
+ */
+export async function transitionOrderStatus(
+  orderId: string,
+  newStatus: OrderStatus,
+  actor: { id: string; role: 'system' | 'vendor' | 'buyer' | 'admin'; name?: string; email?: string },
+  options?: { 
+    courierProvider?: string; 
+    courierReference?: string;
+    disputeReason?: string;
+  }
+): Promise<{ success: boolean; error?: string; statusCode?: number; order?: DbOrder }> {
+  const order = await getOrderById(orderId);
+  if (!order) {
+    return { success: false, error: 'Order not found', statusCode: 404 };
+  }
+  
+  const currentStatus = order.status;
+  const validation = isValidStatusTransition(currentStatus, newStatus, actor.role);
+  
+  if (!validation.valid) {
+    // Log the invalid transition attempt
+    await createAuditLog({
+      action: 'ORDER_TRANSITION_REJECTED',
+      category: 'order',
+      adminId: actor.id,
+      adminName: actor.name || actor.role,
+      adminEmail: actor.email || '',
+      adminRole: actor.role,
+      targetId: orderId,
+      targetType: 'order',
+      targetName: `Order ${orderId}`,
+      details: JSON.stringify({
+        previousStatus: currentStatus,
+        attemptedStatus: newStatus,
+        reason: validation.reason,
+      }),
+      severity: 'warning',
+    });
+    
+    return { success: false, error: validation.reason, statusCode: 409 };
+  }
+  
+  const now = new Date().toISOString();
+  const updates: UpdateOrderInput = { status: newStatus };
+  
+  // Handle special status transitions
+  if (newStatus === 'delivered' || normalizeOrderStatus(newStatus) === 'delivered') {
+    updates.deliveredAt = now;
+  }
+  
+  if (newStatus === 'disputed') {
+    updates.disputedAt = now;
+    if (options?.disputeReason) {
+      updates.disputeReason = options.disputeReason;
+    }
+  }
+  
+  if (newStatus === 'out_for_delivery' && options?.courierProvider) {
+    updates.courierProvider = options.courierProvider;
+    if (options.courierReference) {
+      updates.courierReference = options.courierReference;
+    }
+  }
+  
+  const updatedOrder = await updateOrder(orderId, updates);
+  
+  if (!updatedOrder) {
+    return { success: false, error: 'Failed to update order', statusCode: 500 };
+  }
+  
+  // Log successful transition
+  await createAuditLog({
+    action: 'ORDER_STATUS_CHANGED',
+    category: 'order',
+    adminId: actor.id,
+    adminName: actor.name || actor.role,
+    adminEmail: actor.email || '',
+    adminRole: actor.role,
+    targetId: orderId,
+    targetType: 'order',
+    targetName: `Order ${orderId}`,
+    details: JSON.stringify({
+      previousStatus: currentStatus,
+      newStatus: newStatus,
+      courierProvider: options?.courierProvider,
+      courierReference: options?.courierReference,
+      disputeReason: options?.disputeReason,
+    }),
+  });
+  
+  return { success: true, order: updatedOrder };
+}
+
+/**
+ * Phase 7B: Check if order is within dispute window (48 hours after delivery)
+ */
+export function isWithinDisputeWindow(order: DbOrder): boolean {
+  if (!order.delivered_at) return false;
+  
+  const deliveredAt = new Date(order.delivered_at);
+  const now = new Date();
+  const hoursSinceDelivery = (now.getTime() - deliveredAt.getTime()) / (1000 * 60 * 60);
+  
+  return hoursSinceDelivery <= 48;
+}
+
+/**
+ * Phase 7B: Get orders that are eligible for auto-completion
+ * (delivered more than 48 hours ago, not disputed, not already completed)
+ */
+export async function getOrdersEligibleForCompletion(): Promise<DbOrder[]> {
+  const cutoffTime = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+  
+  const result = await query<DbOrder>(`
+    SELECT * FROM orders 
+    WHERE status = 'delivered' 
+      AND delivered_at IS NOT NULL 
+      AND delivered_at < $1
+    ORDER BY delivered_at ASC
+  `, [cutoffTime]);
+  
+  return result.rows;
+}
+
+/**
+ * Phase 7B: Auto-complete delivered orders after 48h dispute window
+ * Should be called by a scheduled job
+ */
+export async function autoCompleteDeliveredOrders(): Promise<number> {
+  const eligibleOrders = await getOrdersEligibleForCompletion();
+  let completedCount = 0;
+  
+  for (const order of eligibleOrders) {
+    const result = await transitionOrderStatus(
+      order.id,
+      'completed',
+      { id: 'system', role: 'system', name: 'System', email: '' }
+    );
+    
+    if (result.success) {
+      completedCount++;
+    }
+  }
+  
+  return completedCount;
+}
+
+/**
  * Update order payment status (for Paystack webhook integration)
  * This function updates payment-specific fields after payment confirmation.
  * Only updates fields that have actual values (not null/undefined).
  * 
  * IMPORTANT: When paymentStatus is 'paid' AND order is still in 'pending_payment',
- * also updates main order status to 'processing' to reflect payment confirmation.
+ * also updates main order status to 'confirmed' to reflect payment confirmation.
  * This conditional check prevents webhook retries from downgrading already-fulfilled orders.
+ * 
+ * Phase 7B: Uses 'confirmed' status (legacy: 'processing') and handles both 'created' and 'pending_payment'
  */
 export async function updateOrderPaymentStatus(
   id: string,
@@ -387,12 +712,12 @@ export async function updateOrderPaymentStatus(
   fields.push(`payment_status = $${paramIndex++}`);
   values.push(updates.paymentStatus);
 
-  // When payment is confirmed as 'paid' AND order is still awaiting payment,
-  // update main order status to 'processing'. This prevents webhook retries
-  // from downgrading orders that have already been fulfilled.
-  if (updates.paymentStatus === 'paid' && currentOrder.status === 'pending_payment') {
+  // Phase 7B: When payment is confirmed as 'paid' AND order is still awaiting payment,
+  // update main order status to 'confirmed'. Handles both legacy 'pending_payment' and new 'created'
+  const normalizedStatus = normalizeOrderStatus(currentOrder.status);
+  if (updates.paymentStatus === 'paid' && normalizedStatus === 'created') {
     fields.push(`status = $${paramIndex++}`);
-    values.push('processing');
+    values.push('confirmed');
   }
 
   if (updates.paymentReference !== undefined && updates.paymentReference !== null) {
@@ -443,7 +768,7 @@ export async function deleteOrder(id: string): Promise<boolean> {
 }
 
 /**
- * Get order stats (Phase 2 status values)
+ * Get order stats (Phase 7B status values with legacy support)
  */
 export async function getOrderStats(vendorId?: string): Promise<{
   totalOrders: number;
@@ -470,11 +795,12 @@ export async function getOrderStats(vendorId?: string): Promise<{
       const vendorTotal = vendorItemsForOrder.reduce((sum, item) => sum + item.final_price, 0);
       totalRevenue += vendorTotal;
 
-      if (order.status === 'pending_payment') {
+      const normalizedStatus = normalizeOrderStatus(order.status);
+      if (normalizedStatus === 'created') {
         pendingOrders++;
-      } else if (order.status === 'fulfilled') {
+      } else if (normalizedStatus === 'delivered' || normalizedStatus === 'completed') {
         completedOrders++;
-      } else if (order.status === 'cancelled') {
+      } else if (normalizedStatus === 'cancelled') {
         cancelledOrders++;
       }
     }
@@ -488,6 +814,7 @@ export async function getOrderStats(vendorId?: string): Promise<{
     };
   }
 
+  // Phase 7B: Include both legacy and new statuses for backward compatibility
   const statsResult = await query<{
     totalorders: string;
     pendingorders: string;
@@ -497,8 +824,8 @@ export async function getOrderStats(vendorId?: string): Promise<{
   }>(`
     SELECT
       COUNT(*) as totalOrders,
-      SUM(CASE WHEN status = 'pending_payment' THEN 1 ELSE 0 END) as pendingOrders,
-      SUM(CASE WHEN status = 'fulfilled' THEN 1 ELSE 0 END) as completedOrders,
+      SUM(CASE WHEN status IN ('pending_payment', 'created') THEN 1 ELSE 0 END) as pendingOrders,
+      SUM(CASE WHEN status IN ('fulfilled', 'delivered', 'completed') THEN 1 ELSE 0 END) as completedOrders,
       SUM(CASE WHEN status = 'cancelled' THEN 1 ELSE 0 END) as cancelledOrders,
       SUM(CASE WHEN payment_status = 'paid' THEN total ELSE 0 END) as totalRevenue
     FROM orders
@@ -558,8 +885,8 @@ export async function getOrderItemsByVendor(vendorId: string): Promise<DbOrderIt
 /**
  * Get orders containing items for a specific vendor (using order_items table)
  * 
- * PHASE 3B: Vendors only see PAID orders (processing, fulfilled, or cancelled-after-payment).
- * Orders in 'pending_payment' status are NOT visible to vendors since payment is not confirmed.
+ * Phase 7B: Vendors only see PAID orders (confirmed and beyond, or cancelled-after-payment).
+ * Orders in 'created' or 'pending_payment' status are NOT visible to vendors since payment is not confirmed.
  * This prevents vendors from seeing orders that may never be paid.
  */
 export async function getOrdersForVendor(vendorId: string): Promise<DbOrder[]> {
@@ -567,7 +894,8 @@ export async function getOrdersForVendor(vendorId: string): Promise<DbOrder[]> {
     SELECT DISTINCT o.* FROM orders o
     INNER JOIN order_items oi ON o.id = oi.order_id
     WHERE oi.vendor_id = $1
-      AND o.status IN ('processing', 'fulfilled', 'cancelled')
+      AND o.status IN ('confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery', 'delivered', 'completed', 'processing', 'shipped', 'fulfilled', 'cancelled', 'disputed', 'delivery_failed')
+      AND o.status NOT IN ('created', 'pending_payment')
       AND (o.status != 'cancelled' OR o.payment_status = 'refunded')
     ORDER BY o.created_at DESC
   `, [vendorId]);
@@ -586,35 +914,85 @@ export async function getVendorItemsForOrder(orderId: string, vendorId: string):
 }
 
 /**
- * Ship an order item (vendor action)
- * Transitions item from 'pending' to 'shipped'
- * Returns true if successful, false if item not found or not in pending status
+ * Phase 7B: Pack an order item (vendor action)
+ * Transitions item from 'pending' to 'packed'
  */
-export async function shipOrderItem(itemId: string, vendorId: string): Promise<boolean> {
+export async function packOrderItem(itemId: string, vendorId: string): Promise<boolean> {
   const now = new Date().toISOString();
   
   const result = await query(
     `UPDATE order_items 
-     SET fulfillment_status = 'shipped', updated_at = $1
+     SET fulfillment_status = 'packed', updated_at = $1
      WHERE id = $2 AND vendor_id = $3 AND fulfillment_status = 'pending'`,
     [now, itemId, vendorId]
   );
   
   if ((result.rowCount ?? 0) === 0) return false;
   
-  // Check if all items in the order are now shipped and update order status
+  // Check if all items are packed and update order status to 'preparing'
   const item = await query<DbOrderItem>('SELECT order_id FROM order_items WHERE id = $1', [itemId]);
   if (item.rows.length > 0) {
-    await checkAndUpdateOrderShipped(item.rows[0].order_id);
+    await checkAndUpdateOrderPreparing(item.rows[0].order_id);
   }
   
   return true;
 }
 
 /**
- * Check if all items in an order are shipped and update order status to 'shipped'
+ * Phase 7B: Hand item to courier (vendor action)
+ * Transitions item from 'packed' to 'handed_to_courier'
  */
-export async function checkAndUpdateOrderShipped(orderId: string): Promise<boolean> {
+export async function handItemToCourier(itemId: string, vendorId: string): Promise<boolean> {
+  const now = new Date().toISOString();
+  
+  const result = await query(
+    `UPDATE order_items 
+     SET fulfillment_status = 'handed_to_courier', updated_at = $1
+     WHERE id = $2 AND vendor_id = $3 AND fulfillment_status IN ('packed', 'shipped')`,
+    [now, itemId, vendorId]
+  );
+  
+  if ((result.rowCount ?? 0) === 0) return false;
+  
+  // Check if all items are handed to courier and update order status
+  const item = await query<DbOrderItem>('SELECT order_id FROM order_items WHERE id = $1', [itemId]);
+  if (item.rows.length > 0) {
+    await checkAndUpdateOrderOutForDelivery(item.rows[0].order_id);
+  }
+  
+  return true;
+}
+
+/**
+ * Ship an order item (vendor action) - LEGACY, now calls handItemToCourier
+ * Transitions item from 'pending' to 'handed_to_courier' (was 'shipped')
+ * Returns true if successful, false if item not found or not in pending/packed status
+ */
+export async function shipOrderItem(itemId: string, vendorId: string): Promise<boolean> {
+  const now = new Date().toISOString();
+  
+  // Phase 7B: First pack if pending, then hand to courier
+  const result = await query(
+    `UPDATE order_items 
+     SET fulfillment_status = 'handed_to_courier', updated_at = $1
+     WHERE id = $2 AND vendor_id = $3 AND fulfillment_status IN ('pending', 'packed')`,
+    [now, itemId, vendorId]
+  );
+  
+  if ((result.rowCount ?? 0) === 0) return false;
+  
+  const item = await query<DbOrderItem>('SELECT order_id FROM order_items WHERE id = $1', [itemId]);
+  if (item.rows.length > 0) {
+    await checkAndUpdateOrderOutForDelivery(item.rows[0].order_id);
+  }
+  
+  return true;
+}
+
+/**
+ * Phase 7B: Check if all items in an order are preparing and update order status
+ */
+export async function checkAndUpdateOrderPreparing(orderId: string): Promise<boolean> {
   const pendingItems = await query<{ count: string }>(
     `SELECT COUNT(*) as count FROM order_items WHERE order_id = $1 AND fulfillment_status = 'pending'`,
     [orderId]
@@ -623,8 +1001,11 @@ export async function checkAndUpdateOrderShipped(orderId: string): Promise<boole
   const pendingCount = parseInt(pendingItems.rows[0]?.count || '0', 10);
   
   if (pendingCount === 0) {
-    // All items shipped - update order status to 'shipped'
-    await updateOrder(orderId, { status: 'shipped' });
+    // All items packed or beyond - update order status to 'preparing'
+    const order = await getOrderById(orderId);
+    if (order && normalizeOrderStatus(order.status) === 'confirmed') {
+      await updateOrder(orderId, { status: 'preparing' });
+    }
     return true;
   }
   
@@ -632,23 +1013,56 @@ export async function checkAndUpdateOrderShipped(orderId: string): Promise<boole
 }
 
 /**
+ * Phase 7B: Check if all items are out for delivery
+ */
+export async function checkAndUpdateOrderOutForDelivery(orderId: string): Promise<boolean> {
+  const notHandedItems = await query<{ count: string }>(
+    `SELECT COUNT(*) as count FROM order_items WHERE order_id = $1 AND fulfillment_status NOT IN ('handed_to_courier', 'delivered', 'shipped', 'fulfilled')`,
+    [orderId]
+  );
+  
+  const notHandedCount = parseInt(notHandedItems.rows[0]?.count || '0', 10);
+  
+  if (notHandedCount === 0) {
+    // All items out for delivery - update order status
+    const order = await getOrderById(orderId);
+    const normalized = normalizeOrderStatus(order?.status || '');
+    if (normalized !== 'out_for_delivery' && normalized !== 'delivered' && normalized !== 'completed') {
+      await updateOrder(orderId, { status: 'out_for_delivery' });
+    }
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Check if all items in an order are shipped/handed to courier and update order status
+ * LEGACY - calls checkAndUpdateOrderOutForDelivery
+ */
+export async function checkAndUpdateOrderShipped(orderId: string): Promise<boolean> {
+  return checkAndUpdateOrderOutForDelivery(orderId);
+}
+
+/**
  * Fulfill/deliver an order item (vendor action)
- * Transitions item from 'shipped' to 'fulfilled' (delivered)
- * Returns true if successful, false if item not found or not in shipped status
+ * Phase 7B: Transitions item from 'handed_to_courier'/'shipped' to 'delivered' (was 'fulfilled')
+ * Returns true if successful, false if item not found or not in correct status
  */
 export async function fulfillOrderItem(itemId: string, vendorId: string): Promise<boolean> {
   const now = new Date().toISOString();
   
+  // Phase 7B: Accept both 'handed_to_courier' and legacy 'shipped' status
   const result = await query(
     `UPDATE order_items 
-     SET fulfillment_status = 'fulfilled', fulfilled_at = $1, updated_at = $1
-     WHERE id = $2 AND vendor_id = $3 AND fulfillment_status = 'shipped'`,
+     SET fulfillment_status = 'delivered', fulfilled_at = $1, updated_at = $1
+     WHERE id = $2 AND vendor_id = $3 AND fulfillment_status IN ('handed_to_courier', 'shipped')`,
     [now, itemId, vendorId]
   );
   
   if ((result.rowCount ?? 0) === 0) return false;
   
-  // Check if all items in the order are now fulfilled
+  // Check if all items in the order are now delivered
   const item = await query<DbOrderItem>('SELECT order_id FROM order_items WHERE id = $1', [itemId]);
   if (item.rows.length > 0) {
     await checkAndUpdateOrderFulfillment(item.rows[0].order_id);
@@ -658,19 +1072,22 @@ export async function fulfillOrderItem(itemId: string, vendorId: string): Promis
 }
 
 /**
- * Check if all items in an order are fulfilled and update order status
+ * Check if all items in an order are delivered and update order status
+ * Phase 7B: Updates to 'delivered' and sets delivered_at timestamp for dispute window
  */
 export async function checkAndUpdateOrderFulfillment(orderId: string): Promise<boolean> {
+  // Phase 7B: Accept both 'delivered' and legacy 'fulfilled' as completed
   const unfulfilledItems = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM order_items WHERE order_id = $1 AND fulfillment_status != 'fulfilled'`,
+    `SELECT COUNT(*) as count FROM order_items WHERE order_id = $1 AND fulfillment_status NOT IN ('delivered', 'fulfilled')`,
     [orderId]
   );
   
   const unfulfilledCount = parseInt(unfulfilledItems.rows[0]?.count || '0', 10);
   
   if (unfulfilledCount === 0) {
-    // All items fulfilled (delivered) - update order status
-    await updateOrder(orderId, { status: 'fulfilled' });
+    // All items delivered - update order status and set delivered_at
+    const now = new Date().toISOString();
+    await updateOrder(orderId, { status: 'delivered', deliveredAt: now });
     return true;
   }
   
@@ -678,11 +1095,52 @@ export async function checkAndUpdateOrderFulfillment(orderId: string): Promise<b
 }
 
 /**
+ * Phase 7B: Buyer raises a dispute within the 48-hour window
+ */
+export async function raiseDispute(
+  orderId: string, 
+  buyerId: string, 
+  reason: string
+): Promise<{ success: boolean; error?: string; statusCode?: number }> {
+  const order = await getOrderById(orderId);
+  if (!order) {
+    return { success: false, error: 'Order not found', statusCode: 404 };
+  }
+  
+  // Verify buyer owns this order
+  if (order.buyer_id !== buyerId) {
+    return { success: false, error: 'Not authorized to dispute this order', statusCode: 403 };
+  }
+  
+  const normalized = normalizeOrderStatus(order.status);
+  
+  // Can only dispute delivered orders
+  if (normalized !== 'delivered') {
+    return { success: false, error: 'Can only dispute delivered orders', statusCode: 400 };
+  }
+  
+  // Check 48-hour dispute window
+  if (!isWithinDisputeWindow(order)) {
+    return { success: false, error: 'Dispute window has expired (48 hours after delivery)', statusCode: 400 };
+  }
+  
+  const result = await transitionOrderStatus(
+    orderId,
+    'disputed',
+    { id: buyerId, role: 'buyer' },
+    { disputeReason: reason }
+  );
+  
+  return result;
+}
+
+/**
  * Cancel order with inventory restoration (admin action)
  * This restores inventory for all items in the order
  * 
- * For 'pending_payment' orders: Simply cancels (no payment was made)
- * For 'processing' orders: Cancels and marks as 'refunded' since payment was already received
+ * Phase 7B: Handles both legacy and new statuses
+ * For 'created'/'pending_payment' orders: Simply cancels (no payment was made)
+ * For 'confirmed'/'processing' and beyond: Cancels and marks as 'refunded' since payment was already received
  */
 export async function cancelOrderWithInventoryRestore(orderId: string): Promise<{
   success: boolean;
@@ -696,9 +1154,12 @@ export async function cancelOrderWithInventoryRestore(orderId: string): Promise<
     return { success: false, error: 'Order not found' };
   }
   
-  // Only pending_payment and processing orders can be cancelled
-  // 'processing' means payment confirmed but not yet fulfilled
-  if (order.status !== 'pending_payment' && order.status !== 'processing') {
+  const normalized = normalizeOrderStatus(order.status);
+  
+  // Phase 7B: Cancellable statuses (not completed or already cancelled)
+  const cancellableStatuses = ['created', 'confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery', 'delivered', 'disputed', 'delivery_failed'];
+  
+  if (!cancellableStatuses.includes(normalized)) {
     return { success: false, error: `Cannot cancel order with status: ${order.status}` };
   }
   
