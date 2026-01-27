@@ -206,7 +206,7 @@ function OrderSuccessContent() {
                 )}
                 <div className="flex justify-between">
                   <span>Shipping:</span>
-                  <span>{order.shippingFee === 0 ? "FREE" : `GHS ${order.shippingFee.toFixed(2)}`}</span>
+                  <span className="text-gray-600">Paid on Delivery</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Tax:</span>

@@ -129,6 +129,40 @@ const itemStatusConfig: Record<string, { color: string; label: string }> = {
   fulfilled: { color: "bg-green-600 text-white", label: "Delivered" },
 };
 
+// Phase 7D: Get vendor-specific delivery stage for multi-vendor orders
+function getVendorDeliveryStage(vendorItems: OrderItem[]): { label: string; color: string } {
+  if (vendorItems.length === 0) {
+    return { label: "No Items", color: "bg-gray-100 text-gray-600" };
+  }
+
+  // Check if all items are delivered
+  const allDelivered = vendorItems.every(item => item.vendorDeliveredAt || item.fulfillmentStatus === 'delivered' || item.fulfillmentStatus === 'fulfilled');
+  if (allDelivered) {
+    return { label: "Delivered", color: "bg-green-600 text-white" };
+  }
+
+  // Check if any items are out for delivery (courier booked)
+  const anyWithCourier = vendorItems.some(item => item.vendorCourierProvider);
+  if (anyWithCourier) {
+    return { label: "Out for Delivery", color: "bg-cyan-100 text-cyan-800" };
+  }
+
+  // Check if any items are ready for pickup
+  const anyReadyForPickup = vendorItems.some(item => item.vendorReadyForPickupAt);
+  if (anyReadyForPickup) {
+    return { label: "Ready for Pickup", color: "bg-indigo-100 text-indigo-800" };
+  }
+
+  // Check if any items are packed
+  const anyPacked = vendorItems.some(item => item.fulfillmentStatus === 'packed');
+  if (anyPacked) {
+    return { label: "Packing", color: "bg-purple-100 text-purple-800" };
+  }
+
+  // Default: needs fulfillment
+  return { label: "Needs Fulfillment", color: "bg-amber-100 text-amber-800" };
+}
+
 interface CourierDeepLink {
   nativeUrl: string;
   webUrl: string;
@@ -243,13 +277,31 @@ function openCourierApp(courierLink: CourierDeepLink) {
   const isMobile = isMobileDevice();
   
   if (isMobile && courierLink.supportsNativeDeepLink && courierLink.nativeUrl) {
-    const startTime = Date.now();
+    let appOpened = false;
+    let timeoutId: NodeJS.Timeout | null = null;
     
+    // Listen for visibility change - if page becomes hidden, app opened successfully
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        appOpened = true;
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Try to open native app
     window.location.href = courierLink.nativeUrl;
     
-    setTimeout(() => {
-      if (Date.now() - startTime < 2000) {
-        window.location.href = courierLink.webUrl;
+    // Fallback to web if app didn't open after 1.5 seconds
+    timeoutId = setTimeout(() => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if (!appOpened && courierLink.webUrl) {
+        window.open(courierLink.webUrl, '_blank', 'noopener,noreferrer');
       }
     }, 1500);
   } else if (courierLink.webUrl) {
@@ -566,32 +618,31 @@ export default function VendorOrdersPage() {
       });
 
       if (response.ok) {
-        toast.success(`Courier booked via ${selectedCourier}. Order is out for delivery!`);
         setIsCourierModalOpen(false);
         
         // Phase 7D: Open courier app/website with pre-filled delivery details
         if (selectedCourier !== 'Other') {
           const fullAddress = `${selectedOrder.shippingAddress.address}, ${selectedOrder.shippingAddress.city}, ${selectedOrder.shippingAddress.region}, Ghana`;
           
-          // Geocode address for Uber and Yango coordinate-based prefill
+          // Geocode address for Uber and Yango coordinate-based prefill (silent - no toast)
           let dropoffCoords: GeoCoordinates | null = null;
           if (selectedCourier === 'Uber' || selectedCourier === 'Yango') {
-            toast.info('Getting delivery location coordinates...');
             dropoffCoords = await geocodeAddress(fullAddress);
-            if (!dropoffCoords) {
-              toast.warning('Could not get coordinates - address will need to be entered manually');
-            }
           }
           
           const courierLink = getCourierDeepLink(selectedCourier, selectedOrder.shippingAddress, dropoffCoords);
           if (courierLink.webUrl || courierLink.nativeUrl) {
-            const isMobile = isMobileDevice();
+            // Single consolidated toast message
             const message = courierLink.supportsPrefill
-              ? `Opening ${courierLink.name} with delivery address prefilled...`
-              : `Opening ${courierLink.name} - please enter delivery address manually`;
-            toast.info(message);
+              ? `Courier booked! Opening ${courierLink.name} with delivery address...`
+              : `Courier booked! Opening ${courierLink.name}...`;
+            toast.success(message);
             openCourierApp(courierLink);
+          } else {
+            toast.success(`Courier booked via ${selectedCourier}!`);
           }
+        } else {
+          toast.success(`Courier booked via ${selectedCourier}!`);
         }
         
         fetchOrders();
@@ -842,7 +893,19 @@ export default function VendorOrdersPage() {
                           <TableCell>
                             <span className="font-medium">GHS {vendorTotal.toFixed(2)}</span>
                           </TableCell>
-                          <TableCell>{getStatusBadge(order.status)}</TableCell>
+                          <TableCell>
+                            {(() => {
+                              const vendorItems = (order.orderItems || order.items || []).filter(
+                                (item: OrderItem) => item.vendorId === user?.id
+                              );
+                              const deliveryStage = getVendorDeliveryStage(vendorItems);
+                              return (
+                                <Badge className={deliveryStage.color}>
+                                  {deliveryStage.label}
+                                </Badge>
+                              );
+                            })()}
+                          </TableCell>
                           <TableCell>
                             <span className="text-sm text-muted-foreground">
                               {formatDistance(new Date(order.createdAt), new Date(), { addSuffix: true })}

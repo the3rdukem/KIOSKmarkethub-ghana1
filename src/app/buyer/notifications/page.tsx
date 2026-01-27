@@ -28,7 +28,7 @@ import {
   Smartphone,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
-import { useNotificationsStore, Notification, NotificationType } from "@/lib/notifications-store";
+import { useNotificationsStore, Notification, NotificationType, NotificationChannel } from "@/lib/notifications-store";
 import { formatDistance } from "date-fns";
 import { toast } from "sonner";
 
@@ -58,6 +58,8 @@ export default function BuyerNotificationsPage() {
   const [isHydrated, setIsHydrated] = useState(false);
   const [activeTab, setActiveTab] = useState("all");
   const [filter, setFilter] = useState<NotificationType | "all">("all");
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+  const [dbNotifications, setDbNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -68,6 +70,44 @@ export default function BuyerNotificationsPage() {
       router.push("/auth/login");
     }
   }, [isHydrated, isAuthenticated, router]);
+
+  // Fetch notifications from database API
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!isHydrated || !isAuthenticated || !user) return;
+      
+      setIsLoadingNotifications(true);
+      try {
+        const response = await fetch('/api/notifications', {
+          credentials: 'include',
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          // Map database notifications to match the store format
+          const mappedNotifications: Notification[] = (data.notifications || []).map((n: { id: string; user_id: string; type: string; title: string; message: string; is_read: boolean; created_at: string; payload?: { orderId?: string; productId?: string } }) => ({
+            id: n.id,
+            userId: n.user_id,
+            type: n.type as NotificationType,
+            title: n.title,
+            message: n.message,
+            orderId: n.payload?.orderId,
+            productId: n.payload?.productId,
+            read: n.is_read,
+            channels: ['in_app'] as NotificationChannel[],
+            createdAt: n.created_at,
+          }));
+          setDbNotifications(mappedNotifications);
+        }
+      } catch (error) {
+        console.error('Failed to fetch notifications:', error);
+      } finally {
+        setIsLoadingNotifications(false);
+      }
+    };
+    
+    fetchNotifications();
+  }, [isHydrated, isAuthenticated, user]);
 
   if (!isHydrated) {
     return (
@@ -83,8 +123,13 @@ export default function BuyerNotificationsPage() {
     return null;
   }
 
-  const notifications = getNotificationsByUser(user.id);
-  const unreadCount = getUnreadCount(user.id);
+  // Combine store notifications with database notifications, prefer DB
+  const storeNotifications = getNotificationsByUser(user.id);
+  const allNotifications = [...dbNotifications, ...storeNotifications.filter(
+    sn => !dbNotifications.some(dn => dn.id === sn.id)
+  )].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const notifications = allNotifications;
+  const unreadCount = notifications.filter(n => !n.read).length;
   const preferences = getPreferences(user.id);
 
   const filteredNotifications = filter === "all"

@@ -344,18 +344,32 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   <span>Fulfillment Progress</span>
                   <span>{fulfilledCount} of {totalItems} items fulfilled</span>
                 </div>
-                <Progress value={(fulfilledCount / totalItems) * 100} className="h-2" />
+                {(() => {
+                  const progressValue = (fulfilledCount / totalItems) * 100;
+                  const isCompleted = order.status === 'delivered' || order.status === 'completed' || order.status === 'fulfilled';
+                  const hasIssue = order.status === 'cancelled' || order.status === 'disputed' || order.status === 'delivery_failed';
+                  const progressColor = hasIssue 
+                    ? '[&>div]:bg-red-500' 
+                    : isCompleted 
+                    ? '[&>div]:bg-green-500' 
+                    : '[&>div]:bg-yellow-500';
+                  return (
+                    <Progress value={progressValue} className={`h-2 ${progressColor}`} />
+                  );
+                })()}
               </div>
               <div className="flex justify-between">
                 {orderSteps.map((step, index) => {
                   const StepIcon = step.icon;
                   const isCompleted = index <= currentStep;
                   const isCurrent = index === currentStep;
+                  const hasIssue = order.status === 'cancelled' || order.status === 'disputed' || order.status === 'delivery_failed';
                   return (
                     <div key={step.status} className="flex flex-col items-center">
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${
+                        hasIssue && isCurrent ? "bg-red-100 text-red-600" :
                         isCompleted ? "bg-green-100 text-green-600" :
-                        isCurrent ? "bg-blue-100 text-blue-600" :
+                        isCurrent ? "bg-yellow-100 text-yellow-600" :
                         "bg-gray-100 text-gray-400"
                       }`}>
                         <StepIcon className="w-5 h-5" />
@@ -494,7 +508,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Shipping</span>
-                  <span>{order.shippingFee === 0 ? "FREE" : `GHS ${order.shippingFee.toFixed(2)}`}</span>
+                  <span className="text-gray-600">Paid on Delivery</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tax</span>

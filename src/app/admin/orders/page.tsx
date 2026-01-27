@@ -548,7 +548,7 @@ export default function AdminOrdersPage() {
                       )}
                       <div className="flex justify-between text-sm">
                         <span>Shipping</span>
-                        <span>{selectedOrder.shippingFee === 0 ? 'FREE' : `GHS ${selectedOrder.shippingFee.toFixed(2)}`}</span>
+                        <span className="text-gray-600">Paid on Delivery</span>
                       </div>
                       <div className="flex justify-between text-sm">
                         <span>Tax</span>

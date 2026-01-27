@@ -18,6 +18,14 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ShoppingCart,
   Package,
   Truck,
@@ -34,7 +42,8 @@ import {
   CheckCircle,
   Loader2,
   Tag,
-  X
+  X,
+  AlertCircle
 } from "lucide-react";
 import { isPaystackEnabled, openPaystackPopup, formatAmount, generatePaymentReference, fetchPaystackConfig } from "@/lib/services/paystack";
 import { AddressAutocomplete } from "@/components/integrations/address-autocomplete";
@@ -227,6 +236,19 @@ export default function CheckoutPage() {
   const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number; couponId: string; vendorId: string; eligibleSubtotal: number } | null>(null);
   const [couponError, setCouponError] = useState("");
   const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+  
+  // Out of stock modal state
+  const [outOfStockModal, setOutOfStockModal] = useState<{
+    isOpen: boolean;
+    productName: string;
+    availableQuantity?: number;
+    errorMessage: string;
+  }>({
+    isOpen: false,
+    productName: '',
+    availableQuantity: undefined,
+    errorMessage: '',
+  });
 
 
   useEffect(() => {
@@ -369,11 +391,29 @@ export default function CheckoutPage() {
       const result = await response.json();
 
       if (!response.ok) {
-        if (result.validationErrors) {
+        // Check for out of stock / inventory error
+        const errorMsg = result.error || 'Failed to create order';
+        const isInventoryError = errorMsg.toLowerCase().includes('insufficient stock') || 
+                                  errorMsg.toLowerCase().includes('out of stock') ||
+                                  errorMsg.toLowerCase().includes('not enough');
+        
+        if (isInventoryError) {
+          // Parse product name and available quantity from error message
+          const stockMatch = errorMsg.match(/Insufficient stock for (.+?)\. Available: (\d+)/);
+          const productName = stockMatch ? stockMatch[1] : 'This item';
+          const availableQty = stockMatch ? parseInt(stockMatch[2]) : undefined;
+          
+          setOutOfStockModal({
+            isOpen: true,
+            productName,
+            availableQuantity: availableQty,
+            errorMessage: errorMsg,
+          });
+        } else if (result.validationErrors) {
           const firstError = result.validationErrors[0];
           toast.error(firstError.message);
         } else {
-          toast.error(result.error || 'Failed to create order');
+          toast.error(errorMsg);
         }
         setIsCreatingOrder(false);
         return null;
@@ -796,8 +836,8 @@ export default function CheckoutPage() {
                       )}
                       <div className="flex justify-between">
                         <span>Shipping:</span>
-                        <span className={shipping === 0 ? "text-green-600" : ""}>
-                          {shipping === 0 ? "FREE" : `GHS ${shipping.toFixed(2)}`}
+                        <span className="text-gray-600">
+                          Paid on Delivery
                         </span>
                       </div>
                       <div className="flex justify-between">
@@ -811,14 +851,6 @@ export default function CheckoutPage() {
                       </div>
                     </div>
 
-                    {shipping === 0 && (
-                      <Alert className="border-green-200 bg-green-50">
-                        <CheckCircle className="h-4 w-4 text-green-600" />
-                        <AlertDescription className="text-green-800">
-                          🎉 You qualify for free shipping!
-                        </AlertDescription>
-                      </Alert>
-                    )}
                   </>
                 )}
               </CardContent>
@@ -957,6 +989,80 @@ export default function CheckoutPage() {
           </div>
         </div>
       </div>
+
+      {/* Out of Stock Modal */}
+      <Dialog 
+        open={outOfStockModal.isOpen} 
+        onOpenChange={(open) => setOutOfStockModal(prev => ({ ...prev, isOpen: open }))}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <AlertCircle className="w-5 h-5" />
+              Item Unavailable
+            </DialogTitle>
+            <DialogDescription>
+              We're sorry, but there's an issue with one of your items.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+              <p className="font-medium text-gray-900 mb-1">
+                {outOfStockModal.productName}
+              </p>
+              {outOfStockModal.availableQuantity !== undefined && (
+                <p className="text-sm text-gray-600">
+                  Only <span className="font-semibold text-red-600">{outOfStockModal.availableQuantity}</span> available in stock
+                </p>
+              )}
+              {outOfStockModal.availableQuantity === 0 && (
+                <p className="text-sm text-red-600 mt-1">
+                  This item is currently out of stock
+                </p>
+              )}
+            </div>
+            
+            <p className="text-sm text-gray-600">
+              What would you like to do?
+            </p>
+          </div>
+          
+          <DialogFooter className="flex-col sm:flex-col gap-2">
+            {outOfStockModal.availableQuantity !== undefined && outOfStockModal.availableQuantity > 0 && (
+              <Button 
+                className="w-full bg-green-600 hover:bg-green-700"
+                onClick={() => {
+                  setOutOfStockModal(prev => ({ ...prev, isOpen: false }));
+                  router.push('/cart');
+                }}
+              >
+                Update Cart Quantity
+              </Button>
+            )}
+            <Button 
+              variant="outline" 
+              className="w-full"
+              onClick={() => {
+                setOutOfStockModal(prev => ({ ...prev, isOpen: false }));
+                router.push('/cart');
+              }}
+            >
+              {outOfStockModal.availableQuantity === 0 ? 'Remove Item from Cart' : 'Go to Cart'}
+            </Button>
+            <Button 
+              variant="ghost" 
+              className="w-full"
+              onClick={() => {
+                setOutOfStockModal(prev => ({ ...prev, isOpen: false }));
+                router.push('/search');
+              }}
+            >
+              Continue Shopping
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SiteLayout>
   );
 }
