@@ -35,11 +35,18 @@ import { toast } from "sonner";
 const notificationTypeConfig: Record<NotificationType, { icon: React.ComponentType<{ className?: string }>; color: string; bg: string }> = {
   order_status: { icon: Package, color: "text-blue-600", bg: "bg-blue-100" },
   order_new: { icon: Package, color: "text-green-600", bg: "bg-green-100" },
+  order_created: { icon: Package, color: "text-green-600", bg: "bg-green-100" },
+  order_paid: { icon: CreditCard, color: "text-purple-600", bg: "bg-purple-100" },
+  order_cancelled: { icon: Package, color: "text-red-600", bg: "bg-red-100" },
+  order_fulfilled: { icon: Package, color: "text-emerald-600", bg: "bg-emerald-100" },
+  order_disputed: { icon: Package, color: "text-amber-600", bg: "bg-amber-100" },
   payment: { icon: CreditCard, color: "text-purple-600", bg: "bg-purple-100" },
   review: { icon: Star, color: "text-yellow-600", bg: "bg-yellow-100" },
   message: { icon: MessageSquare, color: "text-indigo-600", bg: "bg-indigo-100" },
   system: { icon: Bell, color: "text-gray-600", bg: "bg-gray-100" },
 };
+
+const defaultNotificationConfig = { icon: Bell, color: "text-gray-600", bg: "bg-gray-100" };
 
 export default function BuyerNotificationsPage() {
   const router = useRouter();
@@ -161,7 +168,7 @@ export default function BuyerNotificationsPage() {
   };
 
   const NotificationItem = ({ notification }: { notification: Notification }) => {
-    const config = notificationTypeConfig[notification.type];
+    const config = notificationTypeConfig[notification.type] || defaultNotificationConfig;
     const Icon = config.icon;
 
     return (

@@ -348,13 +348,13 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                   const progressValue = (fulfilledCount / totalItems) * 100;
                   const isCompleted = order.status === 'delivered' || order.status === 'completed' || order.status === 'fulfilled';
                   const hasIssue = order.status === 'cancelled' || order.status === 'disputed' || order.status === 'delivery_failed';
-                  const progressColor = hasIssue 
-                    ? '[&>div]:bg-red-500' 
+                  const indicatorColor = hasIssue 
+                    ? 'bg-red-500' 
                     : isCompleted 
-                    ? '[&>div]:bg-green-500' 
-                    : '[&>div]:bg-yellow-500';
+                    ? 'bg-green-500' 
+                    : 'bg-yellow-500';
                   return (
-                    <Progress value={progressValue} className={`h-2 ${progressColor}`} />
+                    <Progress value={progressValue} className="h-2" indicatorClassName={indicatorColor} />
                   );
                 })()}
               </div>

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-export type NotificationType = 'order_status' | 'order_new' | 'payment' | 'review' | 'message' | 'system';
+export type NotificationType = 'order_status' | 'order_new' | 'order_created' | 'order_paid' | 'order_cancelled' | 'order_fulfilled' | 'order_disputed' | 'payment' | 'review' | 'message' | 'system';
 export type NotificationChannel = 'in_app' | 'email' | 'sms';
 
 export interface Notification {
