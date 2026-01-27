@@ -1,0 +1,31 @@
+Partial Passes Real Usage Report:
+
+B.  Google OAuth button shows persistent "Loading..." spinner state
+The button does load eventually. This issue is a result of really SLOW LOADING TIMES through the app. 
+
+Homepage Takes about 15 seconds to load product, vendor and sales stats, as well as featured products. Search Results page also takes about 15 seconds to load products. This is Same for orders, in buyer, vendor and admin, as well as almost all tabs and pages that need to load information like users, orders, products, vendors. What is causing these extremely slow loading times? Is it the current Relplit preview limitation ? 
+
+C. Buyer Experience /buyer/orders - Renders completely blank white screen : Again a problem with loading times. The page does show but it takes 15+ seconds to load that’s why agent keeps seeing blank. Agent really needs to investigate slow loading times. There’s an issue here: My Orders link in the Buyer Dropdown menu leads to recent orders tab instead of leading to  /buyer/orders
+
+F. Admin Panel UX
+* ISSUES:
+    * /admin/orders - Renders completely blank white screen (no loading indicator, no error, no content): Loads but slowly, that’s why agent sees blank page. 
+
+
+    * /admin/dashboard - Returns 404 (main admin is at /admin): Main admin is available at /admin as agent noted in the Overview Tab
+
+    * /admin/products - Returns 404 (route doesn't exist; only edit route exists)
+    * /admin/users - Returns 404 (route doesn't exist)
+    * /admin/vendors - Returns 404 (route doesn't exist) : /admin/products, /admin/users, /admin/vendors: the related pages work in TABS but Admin DROPDOWN MENU is severely broken. The links in the dropdown don’t seem to connect to the Tab it’s supposed to even though the link changes in the address bar. For example, if I click Products in drop down, URL changes to /admin?tab=products but nothing happens. Same with:
+* User Management in dropdown: URL changes to /admin?tab=buyers, NOTHING HAPPENS
+* Vendor Management in drodown: URL changes to /admin?tab=vendors but nothing happens 
+* Categories in dropdown: URL changes to /admin?tab=categories NO action
+* Site settings  in dropdown: URL changes to /admin?tab=site-settings NO action
+* API management   in dropdown: URL changes to /admin?tab=api NO action
+* Admin Users  in dropdown: URL changes to /admin?tab=admins NO action
+
+I am certain this behavior is same in VENDOR and BUYER panel as well.
+
+
+Investigate and report
+
