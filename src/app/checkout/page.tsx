@@ -43,7 +43,8 @@ import {
   Loader2,
   Tag,
   X,
-  AlertCircle
+  AlertCircle,
+  Store
 } from "lucide-react";
 import { isPaystackEnabled, openPaystackPopup, formatAmount, generatePaymentReference, fetchPaystackConfig } from "@/lib/services/paystack";
 import { AddressAutocomplete } from "@/components/integrations/address-autocomplete";
@@ -230,6 +231,7 @@ export default function CheckoutPage() {
     phone: ""
   });
   const [paymentMethod, setPaymentMethod] = useState("mobile_money");
+  const [deliveryMethod, setDeliveryMethod] = useState<"delivery" | "pickup">("delivery");
 
   // Coupon state
   const [couponCode, setCouponCode] = useState("");
@@ -289,6 +291,18 @@ export default function CheckoutPage() {
 
   // Get the selected address or use new address
   const getShippingAddress = () => {
+    // For pickup orders, return minimal info (just contact details)
+    if (deliveryMethod === 'pickup') {
+      return {
+        fullName: user?.name || newAddress.name || "",
+        phone: user?.phone || newAddress.phone || "",
+        address: "Pickup from store",
+        city: "N/A",
+        region: "N/A",
+        isPickup: true,
+      };
+    }
+    
     if (!useNewAddress && selectedAddressId) {
       const selectedAddr = savedAddresses.find(a => a.id === selectedAddressId);
       if (selectedAddr) {
@@ -329,8 +343,17 @@ export default function CheckoutPage() {
 
     const shippingAddress = getShippingAddress();
 
-    if (!shippingAddress.address || !shippingAddress.city || !shippingAddress.region) {
-      toast.error("Please provide a complete shipping address");
+    // Only validate full address for delivery orders
+    if (deliveryMethod === 'delivery') {
+      if (!shippingAddress.address || !shippingAddress.city || !shippingAddress.region) {
+        toast.error("Please provide a complete shipping address");
+        return null;
+      }
+    }
+    
+    // For pickup, validate phone number is available
+    if (deliveryMethod === 'pickup' && !shippingAddress.phone) {
+      toast.error("Please ensure your phone number is on file for pickup coordination");
       return null;
     }
 
@@ -465,7 +488,7 @@ export default function CheckoutPage() {
 
   const subtotal = hydrated ? getTotalPrice() : 0;
   const couponDiscount = appliedCoupon?.discount || 0;
-  const shipping = subtotal > 500 ? 0 : 25.00;
+  const shipping = deliveryMethod === 'pickup' ? 0 : (subtotal > 500 ? 0 : 25.00);
   const tax = (subtotal - couponDiscount) * 0.025; // 2.5% tax after discount
   const total = subtotal - couponDiscount + shipping + tax;
 
@@ -579,7 +602,66 @@ export default function CheckoutPage() {
               </Card>
             )}
 
-            {/* Shipping Address */}
+            {/* Delivery Method */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="w-5 h-5" />
+                  Delivery Method
+                </CardTitle>
+                <CardDescription>Choose how you want to receive your order</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <RadioGroup
+                  value={deliveryMethod}
+                  onValueChange={(value) => setDeliveryMethod(value as "delivery" | "pickup")}
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="delivery" id="delivery" />
+                    <Label htmlFor="delivery" className="flex-1 cursor-pointer">
+                      <div className={`border rounded-lg p-4 hover:bg-accent transition-colors ${deliveryMethod === 'delivery' ? 'border-green-500 bg-green-50' : ''}`}>
+                        <div className="flex items-center gap-3">
+                          <Truck className={`w-6 h-6 ${deliveryMethod === 'delivery' ? 'text-green-600' : 'text-gray-500'}`} />
+                          <div>
+                            <p className="font-medium">Home Delivery</p>
+                            <p className="text-sm text-muted-foreground">Delivered to your address</p>
+                            <p className="text-xs text-green-600 mt-1">Shipping paid on delivery</p>
+                          </div>
+                        </div>
+                      </div>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="pickup" id="pickup" />
+                    <Label htmlFor="pickup" className="flex-1 cursor-pointer">
+                      <div className={`border rounded-lg p-4 hover:bg-accent transition-colors ${deliveryMethod === 'pickup' ? 'border-green-500 bg-green-50' : ''}`}>
+                        <div className="flex items-center gap-3">
+                          <Store className={`w-6 h-6 ${deliveryMethod === 'pickup' ? 'text-green-600' : 'text-gray-500'}`} />
+                          <div>
+                            <p className="font-medium">Pickup from Store</p>
+                            <p className="text-sm text-muted-foreground">Collect from vendor</p>
+                            <p className="text-xs text-green-600 mt-1">Free - No shipping fee</p>
+                          </div>
+                        </div>
+                      </div>
+                    </Label>
+                  </div>
+                </RadioGroup>
+
+                {deliveryMethod === 'pickup' && (
+                  <Alert className="mt-4 bg-blue-50 border-blue-200">
+                    <Store className="h-4 w-4 text-blue-600" />
+                    <AlertDescription className="text-blue-800">
+                      After placing your order, each vendor will contact you with their pickup location and available times. Your contact phone number will be shared with vendors.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Shipping Address - Only show for delivery */}
+            {deliveryMethod === 'delivery' && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -742,6 +824,7 @@ export default function CheckoutPage() {
                 )}
               </CardContent>
             </Card>
+            )}
 
             {/* Order Summary */}
             <Card>
@@ -836,8 +919,8 @@ export default function CheckoutPage() {
                       )}
                       <div className="flex justify-between">
                         <span>Shipping:</span>
-                        <span className="text-gray-600">
-                          Paid on Delivery
+                        <span className={deliveryMethod === 'pickup' ? 'text-green-600 font-medium' : 'text-gray-600'}>
+                          {deliveryMethod === 'pickup' ? 'Free (Pickup)' : 'Paid on Delivery'}
                         </span>
                       </div>
                       <div className="flex justify-between">

@@ -92,17 +92,17 @@ export default function BuyerNotificationsPage() {
         if (response.ok) {
           const data = await response.json();
           // Map database notifications to match the store format
-          const mappedNotifications: Notification[] = (data.notifications || []).map((n: { id: string; user_id: string; type: string; title: string; message: string; is_read: boolean; created_at: string; payload?: { orderId?: string; productId?: string } }) => ({
+          const mappedNotifications: Notification[] = (data.notifications || []).map((n: { id: string; userId: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; payload?: { orderId?: string; productId?: string } }) => ({
             id: n.id,
-            userId: n.user_id,
+            userId: n.userId,
             type: n.type as NotificationType,
             title: n.title,
             message: n.message,
             orderId: n.payload?.orderId,
             productId: n.payload?.productId,
-            read: n.is_read,
+            read: n.isRead,
             channels: ['in_app'] as NotificationChannel[],
-            createdAt: n.created_at,
+            createdAt: n.createdAt,
           }));
           setDbNotifications(mappedNotifications);
         }
