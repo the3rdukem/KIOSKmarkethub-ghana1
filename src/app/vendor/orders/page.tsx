@@ -134,6 +134,12 @@ interface CourierDeepLink {
   webUrl: string;
   name: string;
   supportsNativeDeepLink: boolean;
+  supportsPrefill: boolean;
+}
+
+interface GeoCoordinates {
+  lat: number;
+  lng: number;
 }
 
 function isMobileDevice(): boolean {
@@ -141,12 +147,34 @@ function isMobileDevice(): boolean {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
+async function geocodeAddress(address: string): Promise<GeoCoordinates | null> {
+  try {
+    const response = await fetch('/api/geocode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ address }),
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return { lat: data.lat, lng: data.lng };
+    }
+    return null;
+  } catch (error) {
+    console.error('[Geocode] Failed to geocode address:', error);
+    return null;
+  }
+}
+
 function getCourierDeepLink(
   courier: string,
-  deliveryAddress: { address: string; city: string; region: string; fullName: string; phone: string }
+  deliveryAddress: { address: string; city: string; region: string; fullName: string; phone: string },
+  dropoffCoords?: GeoCoordinates | null
 ): CourierDeepLink {
-  const fullAddress = `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.region}`;
+  const fullAddress = `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.region}, Ghana`;
   const encodedAddress = encodeURIComponent(fullAddress);
+  const encodedName = encodeURIComponent(deliveryAddress.fullName);
   
   switch (courier) {
     case 'Bolt':
@@ -155,20 +183,42 @@ function getCourierDeepLink(
         webUrl: `https://bolt.eu/en-gh/`,
         name: 'Bolt',
         supportsNativeDeepLink: true,
+        supportsPrefill: false,
       };
     case 'Uber':
+      if (dropoffCoords) {
+        return {
+          nativeUrl: `uber://?action=setPickup&pickup[latitude]=my_location&pickup[longitude]=my_location&dropoff[latitude]=${dropoffCoords.lat}&dropoff[longitude]=${dropoffCoords.lng}&dropoff[formatted_address]=${encodedAddress}&dropoff[nickname]=${encodedName}`,
+          webUrl: `https://m.uber.com/ul/?action=setPickup&pickup[latitude]=my_location&pickup[longitude]=my_location&dropoff[latitude]=${dropoffCoords.lat}&dropoff[longitude]=${dropoffCoords.lng}&dropoff[formatted_address]=${encodedAddress}&dropoff[nickname]=${encodedName}`,
+          name: 'Uber',
+          supportsNativeDeepLink: true,
+          supportsPrefill: true,
+        };
+      }
       return {
-        nativeUrl: `uber://?action=setPickup&dropoff[formatted_address]=${encodedAddress}&dropoff[nickname]=${encodeURIComponent(deliveryAddress.fullName)}`,
-        webUrl: `https://m.uber.com/go/pickup?drop[0][addressLine1]=${encodedAddress}&drop[0][label]=${encodeURIComponent(deliveryAddress.fullName)}`,
+        nativeUrl: `uber://?action=setPickup&dropoff[formatted_address]=${encodedAddress}&dropoff[nickname]=${encodedName}`,
+        webUrl: `https://m.uber.com/ul/?action=setPickup&dropoff[formatted_address]=${encodedAddress}&dropoff[nickname]=${encodedName}`,
         name: 'Uber',
         supportsNativeDeepLink: true,
+        supportsPrefill: true,
       };
     case 'Yango':
+      if (dropoffCoords) {
+        const yangoUrl = `https://yango.go.link/route?end-lat=${dropoffCoords.lat}&end-lon=${dropoffCoords.lng}&ref=kiosk&lang=en&adj_t=vokme8e_nd9s9z9&adj_deeplink_js=1`;
+        return {
+          nativeUrl: yangoUrl,
+          webUrl: yangoUrl,
+          name: 'Yango',
+          supportsNativeDeepLink: true,
+          supportsPrefill: true,
+        };
+      }
       return {
-        nativeUrl: `yandexnavi://`,
-        webUrl: `https://yango.yandex.com/`,
+        nativeUrl: `https://yango.com/en_gh/`,
+        webUrl: `https://yango.com/en_gh/`,
         name: 'Yango',
-        supportsNativeDeepLink: true,
+        supportsNativeDeepLink: false,
+        supportsPrefill: false,
       };
     case 'Qargo':
       return {
@@ -176,6 +226,7 @@ function getCourierDeepLink(
         webUrl: `https://qargo.io/`,
         name: 'Qargo',
         supportsNativeDeepLink: false,
+        supportsPrefill: false,
       };
     default:
       return {
@@ -183,6 +234,7 @@ function getCourierDeepLink(
         webUrl: '',
         name: courier,
         supportsNativeDeepLink: false,
+        supportsPrefill: false,
       };
   }
 }
@@ -519,11 +571,23 @@ export default function VendorOrdersPage() {
         
         // Phase 7D: Open courier app/website with pre-filled delivery details
         if (selectedCourier !== 'Other') {
-          const courierLink = getCourierDeepLink(selectedCourier, selectedOrder.shippingAddress);
+          const fullAddress = `${selectedOrder.shippingAddress.address}, ${selectedOrder.shippingAddress.city}, ${selectedOrder.shippingAddress.region}, Ghana`;
+          
+          // Geocode address for Uber and Yango coordinate-based prefill
+          let dropoffCoords: GeoCoordinates | null = null;
+          if (selectedCourier === 'Uber' || selectedCourier === 'Yango') {
+            toast.info('Getting delivery location coordinates...');
+            dropoffCoords = await geocodeAddress(fullAddress);
+            if (!dropoffCoords) {
+              toast.warning('Could not get coordinates - address will need to be entered manually');
+            }
+          }
+          
+          const courierLink = getCourierDeepLink(selectedCourier, selectedOrder.shippingAddress, dropoffCoords);
           if (courierLink.webUrl || courierLink.nativeUrl) {
             const isMobile = isMobileDevice();
-            const message = isMobile && courierLink.supportsNativeDeepLink
-              ? `Opening ${courierLink.name} app...`
+            const message = courierLink.supportsPrefill
+              ? `Opening ${courierLink.name} with delivery address prefilled...`
               : `Opening ${courierLink.name} - please enter delivery address manually`;
             toast.info(message);
             openCourierApp(courierLink);
