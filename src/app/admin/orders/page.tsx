@@ -109,8 +109,8 @@ const statusConfig: Record<string, { color: string; icon: typeof Clock; label: s
   delivery_failed: { color: "bg-orange-100 text-orange-800", icon: XCircle, label: "Delivery Failed" },
   disputed: { color: "bg-amber-100 text-amber-800", icon: Clock, label: "Disputed" },
   // Legacy statuses
-  pending_payment: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending Payment" },
-  pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending" },
+  pending_payment: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Awaiting Payment" },
+  pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Awaiting Payment" },
   processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Payment Confirmed" },
   shipped: { color: "bg-cyan-100 text-cyan-800", icon: Truck, label: "Shipped" },
   fulfilled: { color: "bg-green-600 text-white", icon: CheckCircle, label: "Fulfilled" },
@@ -299,10 +299,13 @@ export default function AdminOrdersPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="pending_payment">Pending Payment</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="processing">Processing</SelectItem>
-                  <SelectItem value="fulfilled">Fulfilled</SelectItem>
+                  <SelectItem value="created">Awaiting Payment</SelectItem>
+                  <SelectItem value="confirmed">Payment Confirmed</SelectItem>
+                  <SelectItem value="preparing">Preparing</SelectItem>
+                  <SelectItem value="out_for_delivery">Out for Delivery</SelectItem>
+                  <SelectItem value="delivered">Delivered</SelectItem>
+                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="disputed">Disputed</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
@@ -466,10 +469,10 @@ export default function AdminOrdersPage() {
                   <CardContent className="text-sm space-y-2">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Payment Status</span>
-                      <Badge variant={selectedOrder.paymentStatus === 'paid' ? 'default' : selectedOrder.paymentStatus === 'failed' ? 'destructive' : 'outline'}>
-                        {selectedOrder.paymentStatus === 'paid' ? 'Complete' : 
-                         selectedOrder.paymentStatus === 'pending' ? 'Pending' :
-                         selectedOrder.paymentStatus === 'failed' ? 'Failed' :
+                      <Badge variant={selectedOrder.paymentStatus === 'paid' ? 'default' : selectedOrder.paymentStatus === 'failed' ? 'destructive' : 'outline'} className={selectedOrder.paymentStatus === 'paid' ? 'bg-green-600' : ''}>
+                        {selectedOrder.paymentStatus === 'paid' ? 'Payment Complete' : 
+                         selectedOrder.paymentStatus === 'pending' ? 'Awaiting Payment' :
+                         selectedOrder.paymentStatus === 'failed' ? 'Payment Failed' :
                          selectedOrder.paymentStatus}
                       </Badge>
                     </div>
@@ -515,8 +518,18 @@ export default function AdminOrdersPage() {
                           </div>
                           <div className="text-right">
                             <p className="font-medium">GHS {(item.finalPrice != null ? item.finalPrice : item.unitPrice * item.quantity).toFixed(2)}</p>
-                            <Badge variant="outline" className="text-xs">
-                              {item.fulfillmentStatus || 'pending'}
+                            <Badge variant="outline" className={`text-xs ${
+                              item.fulfillmentStatus === 'delivered' || item.fulfillmentStatus === 'fulfilled' ? 'bg-green-50 text-green-700' :
+                              item.fulfillmentStatus === 'handed_to_courier' || item.fulfillmentStatus === 'shipped' ? 'bg-cyan-50 text-cyan-700' :
+                              item.fulfillmentStatus === 'packed' ? 'bg-purple-50 text-purple-700' :
+                              'bg-yellow-50 text-yellow-700'
+                            }`}>
+                              {item.fulfillmentStatus === 'delivered' ? 'Delivered' :
+                               item.fulfillmentStatus === 'fulfilled' ? 'Delivered' :
+                               item.fulfillmentStatus === 'handed_to_courier' ? 'With Courier' :
+                               item.fulfillmentStatus === 'shipped' ? 'Shipped' :
+                               item.fulfillmentStatus === 'packed' ? 'Packed' :
+                               'Awaiting Processing'}
                             </Badge>
                           </div>
                         </div>

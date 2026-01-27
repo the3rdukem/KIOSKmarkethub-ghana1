@@ -86,7 +86,7 @@ const statusConfig: Record<string, { color: string; icon: typeof Clock; label: s
   disputed: { color: "bg-amber-100 text-amber-800", icon: Clock, label: "Disputed" },
   // Legacy statuses
   pending_payment: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Awaiting Payment" },
-  pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Pending" },
+  pending: { color: "bg-yellow-100 text-yellow-800", icon: Clock, label: "Awaiting Payment" },
   processing: { color: "bg-blue-100 text-blue-800", icon: Package, label: "Payment Confirmed" },
   shipped: { color: "bg-cyan-100 text-cyan-800", icon: Truck, label: "Shipped" },
   fulfilled: { color: "bg-green-600 text-white", icon: CheckCircle, label: "Delivered" },
