@@ -19,6 +19,9 @@ import {
   handItemToCourier,
   parseOrderItems,
   parseShippingAddress,
+  transitionOrderStatus,
+  normalizeOrderStatus,
+  type DbOrder,
   type UpdateOrderInput,
 } from '@/lib/db/dal/orders';
 import { createAuditLog } from '@/lib/db/dal/audit';
@@ -204,7 +207,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
 /**
  * PATCH /api/orders/[id]
- * Vendor: Fulfill order items
+ * Vendor: Fulfill order items or perform order-level delivery actions
+ * 
+ * Phase 7D: Added order-level actions:
+ * - readyForPickup: Mark order ready for courier pickup (requires all items packed)
+ * - bookCourier: Book courier and mark order out for delivery
+ * - markOrderDelivered: Mark entire order as delivered
  */
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
@@ -236,19 +244,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     const body = await request.json();
-    const { action, itemId } = body;
+    const { action, itemId, courierProvider, courierReference } = body;
 
-    const validActions = ['pack', 'handToCourier', 'markDelivered', 'ship', 'fulfill'];
+    const validActions = ['pack', 'handToCourier', 'markDelivered', 'ship', 'fulfill', 'readyForPickup', 'bookCourier', 'markOrderDelivered'];
     if (!validActions.includes(action)) {
-      return NextResponse.json({ error: 'Invalid action. Use: pack, handToCourier, markDelivered' }, { status: 400 });
-    }
-
-    if (!itemId) {
-      return NextResponse.json({ error: 'Item ID required' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid action. Use: pack, handToCourier, markDelivered, readyForPickup, bookCourier, markOrderDelivered' }, { status: 400 });
     }
 
     const user = await getUserById(session.user_id);
     const vendorName = user?.business_name || user?.name || 'A vendor';
+
+    // Phase 7D: Order-level actions (no itemId required)
+    if (action === 'readyForPickup' || action === 'bookCourier' || action === 'markOrderDelivered') {
+      return handleOrderLevelAction(id, action, session, user, order, courierProvider, courierReference);
+    }
+
+    // Item-level actions require itemId
+    if (!itemId) {
+      return NextResponse.json({ error: 'Item ID required' }, { status: 400 });
+    }
 
     if (action === 'pack') {
       // Phase 7B: Pack action - transitions item from 'pending' to 'packed'
@@ -464,4 +478,199 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     console.error('Cancel order error:', error);
     return NextResponse.json({ error: 'Failed to cancel order' }, { status: 500 });
   }
+}
+
+/**
+ * Phase 7D: Handle order-level delivery actions
+ * These actions affect the entire order status, not individual items
+ */
+async function handleOrderLevelAction(
+  orderId: string,
+  action: string,
+  session: { user_id: string; user_role: string },
+  user: { name?: string; email?: string; business_name?: string } | null,
+  order: DbOrder,
+  courierProvider?: string,
+  courierReference?: string
+): Promise<NextResponse> {
+  const vendorName = user?.business_name || user?.name || 'Vendor';
+  const normalizedStatus = normalizeOrderStatus(order.status);
+
+  if (action === 'readyForPickup') {
+    // Phase 7D: Mark order ready for courier pickup
+    // Preconditions: Order must be in 'preparing' status, all items must be packed
+    if (normalizedStatus !== 'preparing') {
+      return NextResponse.json({ 
+        error: `Cannot mark as ready for pickup. Order must be in 'preparing' status. Current: ${order.status}` 
+      }, { status: 409 });
+    }
+
+    // Check all items are packed
+    const orderItems = await getOrderItemsByOrderId(orderId);
+    const unpacked = orderItems.filter(item => 
+      item.fulfillment_status === 'pending'
+    );
+    if (unpacked.length > 0) {
+      return NextResponse.json({ 
+        error: `Cannot mark as ready for pickup. ${unpacked.length} item(s) still pending packing.` 
+      }, { status: 400 });
+    }
+
+    const result = await transitionOrderStatus(
+      orderId,
+      'ready_for_pickup',
+      { id: session.user_id, role: 'vendor', name: user?.name, email: user?.email }
+    );
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: result.statusCode || 500 });
+    }
+
+    await createAuditLog({
+      action: 'ORDER_READY_FOR_PICKUP',
+      category: 'order',
+      adminId: session.user_id,
+      adminName: user?.name || 'Vendor',
+      adminEmail: user?.email || '',
+      adminRole: session.user_role,
+      targetId: orderId,
+      targetType: 'order',
+      targetName: `Order ${orderId}`,
+      details: JSON.stringify({ previousStatus: order.status }),
+    });
+
+    createNotification({
+      userId: order.buyer_id,
+      role: 'buyer',
+      type: 'order_fulfilled',
+      title: 'Order Ready for Pickup',
+      message: `${vendorName} has your order ready and is arranging delivery!`,
+      payload: { orderId },
+    }).catch(err => console.error('[NOTIFICATION] Failed:', err));
+
+    return NextResponse.json({
+      success: true,
+      message: 'Order marked as ready for pickup',
+      order: result.order,
+    });
+
+  } else if (action === 'bookCourier') {
+    // Phase 7D: Book courier and mark order out for delivery
+    // Preconditions: Order must be in 'ready_for_pickup' status
+    if (normalizedStatus !== 'ready_for_pickup') {
+      return NextResponse.json({ 
+        error: `Cannot book courier. Order must be in 'ready_for_pickup' status. Current: ${order.status}` 
+      }, { status: 409 });
+    }
+
+    if (!courierProvider) {
+      return NextResponse.json({ error: 'Courier provider is required' }, { status: 400 });
+    }
+
+    // Update all items to handed_to_courier
+    const orderItems = await getOrderItemsByOrderId(orderId);
+    for (const item of orderItems) {
+      if (item.fulfillment_status === 'packed') {
+        await handItemToCourier(item.id, item.vendor_id);
+      }
+    }
+
+    const result = await transitionOrderStatus(
+      orderId,
+      'out_for_delivery',
+      { id: session.user_id, role: 'vendor', name: user?.name, email: user?.email },
+      { courierProvider, courierReference }
+    );
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: result.statusCode || 500 });
+    }
+
+    await createAuditLog({
+      action: 'ORDER_COURIER_BOOKED',
+      category: 'order',
+      adminId: session.user_id,
+      adminName: user?.name || 'Vendor',
+      adminEmail: user?.email || '',
+      adminRole: session.user_role,
+      targetId: orderId,
+      targetType: 'order',
+      targetName: `Order ${orderId}`,
+      details: JSON.stringify({ courierProvider, courierReference }),
+    });
+
+    createNotification({
+      userId: order.buyer_id,
+      role: 'buyer',
+      type: 'order_fulfilled',
+      title: 'Order Out for Delivery',
+      message: `${vendorName} has dispatched your order via ${courierProvider}. It's on the way!`,
+      payload: { orderId, courierProvider, courierReference },
+    }).catch(err => console.error('[NOTIFICATION] Failed:', err));
+
+    return NextResponse.json({
+      success: true,
+      message: 'Courier booked, order out for delivery',
+      order: result.order,
+      courierProvider,
+      courierReference,
+    });
+
+  } else if (action === 'markOrderDelivered') {
+    // Phase 7D: Mark entire order as delivered (vendor declaration)
+    // Preconditions: Order must be in 'out_for_delivery' status
+    if (normalizedStatus !== 'out_for_delivery') {
+      return NextResponse.json({ 
+        error: `Cannot mark as delivered. Order must be 'out_for_delivery'. Current: ${order.status}` 
+      }, { status: 409 });
+    }
+
+    // Mark all items as delivered
+    const orderItems = await getOrderItemsByOrderId(orderId);
+    for (const item of orderItems) {
+      if (item.fulfillment_status === 'handed_to_courier') {
+        await fulfillOrderItem(item.id, item.vendor_id);
+      }
+    }
+
+    const result = await transitionOrderStatus(
+      orderId,
+      'delivered',
+      { id: session.user_id, role: 'vendor', name: user?.name, email: user?.email }
+    );
+
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: result.statusCode || 500 });
+    }
+
+    await createAuditLog({
+      action: 'ORDER_MARKED_DELIVERED',
+      category: 'order',
+      adminId: session.user_id,
+      adminName: user?.name || 'Vendor',
+      adminEmail: user?.email || '',
+      adminRole: session.user_role,
+      targetId: orderId,
+      targetType: 'order',
+      targetName: `Order ${orderId}`,
+      details: JSON.stringify({ deliveredAt: new Date().toISOString() }),
+    });
+
+    createNotification({
+      userId: order.buyer_id,
+      role: 'buyer',
+      type: 'order_fulfilled',
+      title: 'Order Delivered',
+      message: `Your order from ${vendorName} has been delivered! You have 48 hours to raise any issues.`,
+      payload: { orderId },
+    }).catch(err => console.error('[NOTIFICATION] Failed:', err));
+
+    return NextResponse.json({
+      success: true,
+      message: 'Order marked as delivered. 48-hour dispute window started.',
+      order: result.order,
+    });
+  }
+
+  return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
 }

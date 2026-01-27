@@ -1,0 +1,258 @@
+PHASE 7D — STRICT DELIVERY IMPLEMENTATION MASTER PROMPT
+
+ROLE
+
+You are acting as a Delivery Systems Implementer, not a product designer, not a UX engineer, not an optimizer.
+
+Your job is to enable courier-assisted delivery using the approved Phase 7A–7C design and existing locked UX.
+
+⸻
+
+🚫 ABSOLUTE PROHIBITIONS (NON-NEGOTIABLE)
+
+You are FORBIDDEN from:
+	•	❌ Changing UX layout, spacing, or navigation
+	•	❌ Adding or removing pages
+	•	❌ Introducing new dashboards
+	•	❌ Refactoring unrelated order logic
+	•	❌ Touching authentication, payments, reviews, messaging
+	•	❌ “Improving” responsiveness (UX is LOCKED)
+	•	❌ Renaming statuses outside the approved model
+	•	❌ Introducing real courier APIs
+	•	❌ Storing rider PII (names, phones, GPS, photos)
+
+If you think UX “needs adjustment”:
+	•	STOP
+	•	REPORT
+	•	DO NOT IMPLEMENT
+
+Any violation = FAILED PHASE
+
+⸻
+
+🔐 UX LOCK ACKNOWLEDGEMENT (MANDATORY)
+
+Before proceeding, you must explicitly confirm:
+
+“Phase 6 UX/UI is locked. All delivery work will adapt to existing UI surfaces only.”
+
+Failure to acknowledge = STOP
+
+⸻
+
+🎯 PHASE 7D OBJECTIVE
+
+Enable semi-automated delivery support that:
+	•	Works with external couriers (Bolt, Uber, Yango, Qargo)
+	•	Requires no courier API integration
+	•	Preserves no-scam policy
+	•	Adds auditability and dispute safety
+	•	Does not alter buyer or vendor UX structure
+
+This phase is about workflow enablement, not visual redesign.
+
+⸻
+
+📦 APPROVED DELIVERY MODEL (DO NOT DEVIATE)
+
+Order Status Track (FINAL)
+
+created
+→ confirmed
+→ preparing
+→ ready_for_pickup
+→ out_for_delivery
+→ delivered
+→ completed (system only)
+
+Item Fulfillment Track
+
+pending
+→ packed
+→ handed_to_courier
+→ delivered
+
+Payment Track
+
+pending → paid | failed | refunded
+
+
+⸻
+
+🧩 ALLOWED IMPLEMENTATION SURFACE (STRICT)
+
+You may ONLY implement delivery using:
+
+1️⃣ Existing Order Action Buttons
+	•	Reuse current action slots
+	•	Labels may change, layout may NOT
+
+2️⃣ Modals / Dialogs
+	•	Courier selection modal
+	•	Courier reference input
+	•	Confirmation dialogs
+
+3️⃣ Backend Logic & APIs
+	•	Status transitions
+	•	Validation
+	•	Audit logging
+	•	Timers / background jobs
+
+4️⃣ Notifications (Non-visual)
+	•	Status change notifications
+	•	Dispute reminders
+
+⸻
+
+🚚 DELIVERY IMPLEMENTATION REQUIREMENTS
+
+A. Vendor Delivery Actions
+
+Implement the following vendor actions ONLY when valid:
+	1.	Mark Ready for Pickup
+	•	Preconditions:
+	•	Order = preparing
+	•	All items = packed
+	•	Effects:
+	•	Order → ready_for_pickup
+	•	Timestamp logged
+	2.	Select Courier
+	•	Modal with options:
+	•	Bolt
+	•	Uber
+	•	Yango
+	•	Qargo
+	•	Other
+	•	Optional input:
+	•	courier_reference (text)
+	3.	Courier Booked
+	•	Vendor confirms booking externally
+	•	Order → out_for_delivery
+	•	Item fulfillment → handed_to_courier
+	4.	Mark Delivered
+	•	Vendor declaration only
+	•	Order → delivered
+	•	Sets delivered_at
+	•	Starts 48-hour dispute window
+
+⸻
+
+B. Courier Trigger Behavior (NO API INTEGRATION)
+
+Allowed:
+	•	Deep links (if supported)
+	•	External site opening in new tab
+	•	Pre-filled data via URL where possible
+
+Explicitly forbidden:
+	•	API keys
+	•	Webhooks
+	•	Tracking ingestion
+	•	Rider identity storage
+
+⸻
+
+C. Buyer Delivery Safeguards
+
+Implement:
+	•	48-hour dispute window (already built)
+	•	Buyer dispute endpoint enforcement
+	•	Clear delivery status visibility
+	•	No buyer “mark delivered” power
+
+⸻
+
+D. System Automation (MANDATORY)
+
+You MUST implement:
+	•	Scheduled auto-completion
+	•	delivered → completed after 48h
+	•	Skip if disputed
+	•	Safe idempotent execution
+	•	System actor attribution
+
+If scheduling is not available:
+	•	Document fallback (manual admin trigger)
+	•	DO NOT silently skip
+
+⸻
+
+🛡️ SAFETY & ISOLATION RULES
+
+Verify and enforce:
+	•	Delivery logic does NOT:
+	•	Trigger payouts
+	•	Modify payment state
+	•	Affect messaging
+	•	Affect reviews
+	•	Affect PWA behavior
+	•	Admin retains override capability
+	•	All transitions logged
+
+⸻
+
+🧪 REQUIRED VALIDATION (BEFORE REPORTING DONE)
+
+You MUST verify:
+	•	Legacy orders still work
+	•	New statuses render correctly
+	•	Invalid transitions return 409
+	•	Unauthorized actors receive 401/403
+	•	Dispute window blocks auto-completion
+	•	Courier fields are optional
+	•	No UX regressions
+
+⸻
+
+📋 REQUIRED OUTPUT FORMAT (STRICT)
+
+You MUST output ONLY:
+
+⸻
+
+📋 PHASE 7D — DELIVERY IMPLEMENTATION REPORT
+
+Implemented Features
+	•	…
+
+Status Transitions Enabled
+	•	…
+
+Courier Support
+	•	…
+
+Automation
+	•	…
+
+Guards & Protections
+	•	…
+
+Known Limitations
+	•	…
+
+⸻
+
+🚨 BLOCKERS (IF ANY)
+	•	If none, write: NONE
+
+⸻
+
+✅ PHASE 7D EXIT DECISION
+
+Choose ONE:
+	•	READY FOR DELIVERY SOFT LAUNCH
+	•	BLOCKED — FIX REQUIRED
+
+(Max 5 lines)
+
+⸻
+
+🛑 FINAL STOP RULE
+
+After reporting:
+	•	❌ Do NOT continue to Phase 8
+	•	❌ Do NOT suggest enhancements
+	•	❌ Do NOT touch UX
+	•	❌ Do NOT optimize
+
+STOP. WAIT FOR APPROVAL.

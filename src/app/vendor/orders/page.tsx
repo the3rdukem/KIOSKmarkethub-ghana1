@@ -143,6 +143,12 @@ export default function VendorOrdersPage() {
   // Legacy state for compatibility
   const [shippingItemId, setShippingItemId] = useState<string | null>(null);
   const [fulfillingItemId, setFulfillingItemId] = useState<string | null>(null);
+  
+  // Phase 7D: Order-level delivery state
+  const [isCourierModalOpen, setIsCourierModalOpen] = useState(false);
+  const [selectedCourier, setSelectedCourier] = useState<string>("");
+  const [courierReference, setCourierReference] = useState("");
+  const [orderActionLoading, setOrderActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -370,6 +376,125 @@ export default function VendorOrdersPage() {
     } finally {
       setFulfillingItemId(null);
     }
+  };
+
+  // Phase 7D: Mark order ready for courier pickup
+  const handleReadyForPickup = async (orderId: string) => {
+    setOrderActionLoading('readyForPickup');
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'readyForPickup' }),
+      });
+
+      if (response.ok) {
+        toast.success('Order marked as ready for pickup');
+        fetchOrders();
+        const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
+        if (updatedResponse.ok) {
+          const data = await updatedResponse.json();
+          setSelectedOrder(data.order);
+        }
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to update order');
+      }
+    } catch (error) {
+      console.error('Failed to mark ready for pickup:', error);
+      toast.error('Failed to update order');
+    } finally {
+      setOrderActionLoading(null);
+    }
+  };
+
+  // Phase 7D: Open courier selection modal
+  const openCourierModal = () => {
+    setSelectedCourier("");
+    setCourierReference("");
+    setIsCourierModalOpen(true);
+  };
+
+  // Phase 7D: Book courier and mark out for delivery
+  const handleBookCourier = async () => {
+    if (!selectedOrder || !selectedCourier) return;
+    
+    setOrderActionLoading('bookCourier');
+    try {
+      const response = await fetch(`/api/orders/${selectedOrder.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          action: 'bookCourier',
+          courierProvider: selectedCourier,
+          courierReference: courierReference || undefined,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(`Courier booked via ${selectedCourier}. Order is out for delivery!`);
+        setIsCourierModalOpen(false);
+        fetchOrders();
+        const updatedResponse = await fetch(`/api/orders/${selectedOrder.id}`, { credentials: 'include' });
+        if (updatedResponse.ok) {
+          const data = await updatedResponse.json();
+          setSelectedOrder(data.order);
+        }
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to book courier');
+      }
+    } catch (error) {
+      console.error('Failed to book courier:', error);
+      toast.error('Failed to book courier');
+    } finally {
+      setOrderActionLoading(null);
+    }
+  };
+
+  // Phase 7D: Mark entire order as delivered
+  const handleMarkOrderDelivered = async (orderId: string) => {
+    setOrderActionLoading('markOrderDelivered');
+    try {
+      const response = await fetch(`/api/orders/${orderId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action: 'markOrderDelivered' }),
+      });
+
+      if (response.ok) {
+        toast.success('Order marked as delivered. 48-hour dispute window started.');
+        fetchOrders();
+        const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
+        if (updatedResponse.ok) {
+          const data = await updatedResponse.json();
+          setSelectedOrder(data.order);
+        }
+      } else {
+        const data = await response.json();
+        toast.error(data.error || 'Failed to mark order as delivered');
+      }
+    } catch (error) {
+      console.error('Failed to mark order as delivered:', error);
+      toast.error('Failed to mark order as delivered');
+    } finally {
+      setOrderActionLoading(null);
+    }
+  };
+
+  // Phase 7D: Get available courier deep links
+  const getCourierLinks = (address: string): { name: string; url?: string }[] => {
+    const encodedAddress = encodeURIComponent(address);
+    return [
+      { name: 'Bolt', url: `https://bolt.eu` },
+      { name: 'Uber', url: `https://uber.com` },
+      { name: 'Yango', url: `https://yango.com` },
+      { name: 'Qargo', url: undefined },
+      { name: 'Other', url: undefined },
+    ];
   };
 
   if (!isHydrated) {
@@ -746,6 +871,56 @@ export default function VendorOrdersPage() {
                   </CardContent>
                 </Card>
 
+                {/* Phase 7D: Order-level delivery actions - inline buttons only, no new layout */}
+                {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'completed' && (
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {/* Step 1: Ready for Pickup (when order is 'preparing' and all items packed) */}
+                    {selectedOrder.status === 'preparing' && (
+                      <Button
+                        onClick={() => handleReadyForPickup(selectedOrder.id)}
+                        disabled={orderActionLoading !== null}
+                        size="sm"
+                      >
+                        {orderActionLoading === 'readyForPickup' ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                        ) : (
+                          <Package className="w-4 h-4 mr-1" />
+                        )}
+                        Ready for Pickup
+                      </Button>
+                    )}
+
+                    {/* Step 2: Book Courier (when order is 'ready_for_pickup') */}
+                    {selectedOrder.status === 'ready_for_pickup' && (
+                      <Button
+                        onClick={openCourierModal}
+                        disabled={orderActionLoading !== null}
+                        size="sm"
+                      >
+                        <Truck className="w-4 h-4 mr-1" />
+                        Book Courier
+                      </Button>
+                    )}
+
+                    {/* Step 3: Mark Delivered (when order is 'out_for_delivery') */}
+                    {selectedOrder.status === 'out_for_delivery' && (
+                      <Button
+                        onClick={() => handleMarkOrderDelivered(selectedOrder.id)}
+                        disabled={orderActionLoading !== null}
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {orderActionLoading === 'markOrderDelivered' ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                        ) : (
+                          <CheckCircle className="w-4 h-4 mr-1" />
+                        )}
+                        Mark Delivered
+                      </Button>
+                    )}
+                  </div>
+                )}
+
                 {selectedOrder.status === 'cancelled' && (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                     <div className="flex items-center gap-2 text-red-800">
@@ -759,6 +934,80 @@ export default function VendorOrdersPage() {
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsDetailsOpen(false)}>
                 Close
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Phase 7D: Courier Selection Modal */}
+        <Dialog open={isCourierModalOpen} onOpenChange={setIsCourierModalOpen}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Book a Courier</DialogTitle>
+              <DialogDescription>
+                Select your courier service and optionally add a booking reference
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Courier Service</Label>
+                <Select value={selectedCourier} onValueChange={setSelectedCourier}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a courier..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Bolt">Bolt</SelectItem>
+                    <SelectItem value="Uber">Uber</SelectItem>
+                    <SelectItem value="Yango">Yango</SelectItem>
+                    <SelectItem value="Qargo">Qargo</SelectItem>
+                    <SelectItem value="Other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Booking Reference (optional)</Label>
+                <Input
+                  placeholder="e.g., BOL-123456"
+                  value={courierReference}
+                  onChange={(e) => setCourierReference(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Enter the reference number from your courier booking
+                </p>
+              </div>
+              {selectedCourier && selectedCourier !== 'Other' && selectedCourier !== 'Qargo' && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    Open{' '}
+                    <a 
+                      href={selectedCourier === 'Bolt' ? 'https://bolt.eu' : 
+                            selectedCourier === 'Uber' ? 'https://uber.com' : 
+                            'https://yango.com'}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium underline"
+                    >
+                      {selectedCourier} app/website
+                    </a>
+                    {' '}to book your delivery, then enter the reference above.
+                  </p>
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setIsCourierModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleBookCourier}
+                disabled={!selectedCourier || orderActionLoading === 'bookCourier'}
+              >
+                {orderActionLoading === 'bookCourier' ? (
+                  <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                ) : (
+                  <Truck className="w-4 h-4 mr-2" />
+                )}
+                Confirm & Dispatch
               </Button>
             </DialogFooter>
           </DialogContent>
