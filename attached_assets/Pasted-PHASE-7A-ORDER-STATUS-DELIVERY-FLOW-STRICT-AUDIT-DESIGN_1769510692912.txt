@@ -1,0 +1,195 @@
+PHASE 7A — ORDER STATUS & DELIVERY FLOW
+
+STRICT AUDIT → DESIGN → APPROVAL MASTER PROMPT
+
+ROLE
+
+You are acting as a Systems Architect & Process Auditor, NOT a feature implementer.
+
+Your responsibility is to:
+	1.	Audit the current order status lifecycle
+	2.	Identify logical gaps and delivery blockers
+	3.	Propose a correct, scalable order + delivery model
+	4.	STOP and wait for approval before any implementation
+
+⸻
+
+GLOBAL RULES (NON-NEGOTIABLE)
+	1.	❌ DO NOT WRITE OR MODIFY CODE
+	2.	❌ DO NOT CHANGE DATABASE SCHEMAS
+	3.	❌ DO NOT ADD DELIVERY PROVIDERS
+	4.	❌ DO NOT REFACTOR EXISTING LOGIC
+	5.	❌ DO NOT IMPLEMENT ANY UI
+	6.	❌ DO NOT ASSUME FINAL COURIER PROVIDERS
+
+If something is wrong:
+	•	REPORT IT
+	•	MODEL IT
+	•	DO NOT FIX IT
+
+Any violation = FAILED PHASE.
+
+⸻
+
+PHASE 7A OBJECTIVE
+
+Design a future-proof order lifecycle that:
+	•	Fixes current status inconsistencies
+	•	Supports manual + semi-automated third-party delivery
+	•	Preserves the “no scam” policy
+	•	Works with cash-on-delivery delivery fees
+	•	Does NOT lock Kiosk into a single courier provider
+	•	Keeps Kiosk out of logistics liability
+
+⸻
+
+AUDIT SCOPE (MUST FOLLOW ORDER)
+
+⸻
+
+1️⃣ CURRENT ORDER STATUS AUDIT
+
+Audit and document:
+	•	All existing order statuses (exact values)
+	•	Where each status is set (buyer, vendor, system, payment webhook)
+	•	Which transitions are allowed vs blocked
+	•	Which transitions are irreversible
+	•	Any ambiguous or overloaded statuses
+
+Explicitly answer:
+	•	Does “Payment Received” mean paid OR just authorized?
+	•	Is “Shipped” vendor-controlled or system-controlled?
+	•	Is “Delivered” verifiable or trust-based?
+	•	What happens if delivery fails?
+
+⸻
+
+2️⃣ PAYMENT VS DELIVERY SEPARATION AUDIT
+
+Verify whether:
+	•	Payment state and delivery state are conflated
+	•	Order can be “paid” but not “delivered”
+	•	Order can be “delivered” without confirmation
+	•	Refund eligibility is clearly tied to a state
+
+Identify:
+	•	Any state where disputes become ambiguous
+	•	Any state that allows buyer or vendor abuse
+
+⸻
+
+3️⃣ DELIVERY REALITY CHECK (GHANA CONTEXT)
+
+Audit assumptions against reality:
+	•	Delivery handled by Bolt / Uber / Yango / Qargo
+	•	Rider is external, not Kiosk employee
+	•	Delivery fee paid directly by buyer on receipt
+	•	Delivery tracking happens outside Kiosk
+	•	Proof of delivery = rider + buyer confirmation, not GPS
+
+Document:
+	•	What Kiosk can reliably automate
+	•	What must remain manual or declarative
+	•	What Kiosk must NEVER be responsible for
+
+⸻
+
+4️⃣ PROPOSED IDEAL ORDER STATUS MODEL (DESIGN ONLY)
+
+Design a clean, explicit status sequence with:
+	•	Separate Payment Status
+	•	Separate Fulfillment Status
+	•	Separate Delivery Status (even if lightweight)
+
+Example (NOT FINAL, just structure):
+	•	Order Created
+	•	Payment Confirmed
+	•	Vendor Preparing
+	•	Ready for Pickup
+	•	Out for Delivery (external)
+	•	Delivered (buyer confirmed)
+	•	Completed
+	•	Cancelled / Failed
+
+For each status:
+	•	Who triggers it
+	•	What it means legally
+	•	Whether it’s reversible
+	•	What it unlocks or locks
+
+⸻
+
+5️⃣ DELIVERY TRIGGER MECHANISM (NO CODE)
+
+Design the semi-automated flow you described:
+	•	Vendor clicks “Ready for Pickup”
+	•	System prepares delivery payload (addresses, contacts)
+	•	Vendor selects courier
+	•	System opens courier web/app (deep link or new tab)
+	•	Vendor completes booking externally
+	•	Kiosk records delivery intent, not tracking
+
+Explicitly state:
+	•	What data Kiosk stores
+	•	What data Kiosk never stores
+	•	What confirms “Delivered” inside Kiosk
+
+⸻
+
+6️⃣ RISK & LIABILITY AUDIT
+
+Identify:
+	•	Fraud risks
+	•	False delivery claims
+	•	Vendor abuse vectors
+	•	Buyer abuse vectors
+	•	Legal exposure if delivery goes wrong
+
+Propose process-level mitigations only
+(NO code, NO tools)
+
+⸻
+
+REQUIRED OUTPUT FORMAT (STRICT)
+
+You MUST output ONLY this structure:
+
+⸻
+
+📋 PHASE 7A — ORDER & DELIVERY AUDIT REPORT
+
+A. Current Order Status Audit
+
+Findings:
+
+B. Payment vs Delivery Separation
+
+Findings:
+
+C. Delivery Reality Constraints
+
+Findings:
+
+D. Proposed Order Status Model
+
+(Table or bullet list)
+
+E. Delivery Trigger Flow (Design Only)
+
+Steps:
+
+F. Risks & Mitigations
+
+List:
+
+⸻
+
+🛑 STOPPING RULE
+
+After completing the report:
+	•	❌ DO NOT IMPLEMENT
+	•	❌ DO NOT SUGGEST SCHEMA CHANGES
+	•	❌ DO NOT MOVE TO PHASE 7B
+	•	WAIT for explicit approval
+
+⸻
