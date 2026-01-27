@@ -816,42 +816,9 @@ export default function VendorOrdersPage() {
                                 )}
                               </Button>
                             )}
-                            {/* Phase 7B: Step 2 - Hand to courier (packed -> handed_to_courier) */}
-                            {item.fulfillmentStatus === 'packed' && 
-                             selectedOrder.status !== 'cancelled' && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleHandToCourier(selectedOrder.id, item.id)}
-                                disabled={packingItemId !== null || handingToCourierId !== null || deliveringItemId !== null}
-                              >
-                                {handingToCourierId === item.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <Truck className="w-4 h-4 mr-1" />
-                                    Hand to Courier
-                                  </>
-                                )}
-                              </Button>
-                            )}
-                            {/* Phase 7B: Step 3 - Mark delivered (handed_to_courier -> delivered) */}
-                            {(item.fulfillmentStatus === 'handed_to_courier' || item.fulfillmentStatus === 'shipped') && 
-                             selectedOrder.status !== 'cancelled' && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleMarkDelivered(selectedOrder.id, item.id)}
-                                disabled={packingItemId !== null || handingToCourierId !== null || deliveringItemId !== null}
-                              >
-                                {deliveringItemId === item.id ? (
-                                  <Loader2 className="w-4 h-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <CheckCircle className="w-4 h-4 mr-1" />
-                                    Mark Delivered
-                                  </>
-                                )}
-                              </Button>
-                            )}
+                            {/* Phase 7D: Item-level courier/delivery actions are now handled at order level */}
+                            {/* "Book Courier" at order level handles all items → handed_to_courier */}
+                            {/* "Mark Delivered" at order level handles all items → delivered */}
                           </div>
                         </div>
                       ))}
