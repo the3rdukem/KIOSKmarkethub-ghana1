@@ -11,12 +11,12 @@ import Link from "next/link";
 import { Product } from "@/lib/products-store";
 
 const categories = [
-  { name: "Electronics", icon: "📱", href: "/search?category=Electronics" },
-  { name: "Fashion", icon: "👕", href: "/search?category=Fashion%20%26%20Clothing" },
-  { name: "Home & Garden", icon: "🏠", href: "/search?category=Home%20%26%20Garden" },
-  { name: "Sports", icon: "⚽", href: "/search?category=Sports%20%26%20Outdoors" },
-  { name: "Books", icon: "📚", href: "/search?category=Books%20%26%20Media" },
-  { name: "Automotive", icon: "🚗", href: "/search?category=Automotive" },
+  { name: "Vehicles", icon: "🚗", href: "/search?category=Vehicles" },
+  { name: "Mobile Phones", icon: "📱", href: "/search?category=Mobile%20Phones" },
+  { name: "Electronics", icon: "💻", href: "/search?category=Electronics" },
+  { name: "Home Furniture", icon: "🛋️", href: "/search?category=Home%20Furniture%20%26%20Deco" },
+  { name: "Fashion", icon: "👗", href: "/search?category=Fashion" },
+  { name: "Food & Farming", icon: "🌾", href: "/search?category=Food%2C%20Agriculture%20%26%20Farming" },
 ];
 
 
