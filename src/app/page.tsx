@@ -214,46 +214,68 @@ export default function HomePage() {
               <div className="aspect-square bg-gradient-to-br from-green-100 to-blue-100 rounded-2xl flex items-center justify-center overflow-hidden">
                 {heroSlides.length > 0 ? (
                   <div className="relative w-full h-full">
-                    {heroSlides.map((slide, index) => (
-                      <a
-                        key={slide.id}
-                        href={slide.link_url || undefined}
-                        className={`absolute inset-0 transition-opacity duration-500 ${
-                          index === currentSlide ? 'opacity-100' : 'opacity-0'
-                        } ${slide.link_url ? 'cursor-pointer' : ''}`}
-                      >
-                        <img 
-                          src={slide.image_url} 
-                          alt={slide.title || "Hero slide"} 
-                          className="w-full h-full object-cover"
-                        />
-                        {(slide.title || slide.subtitle) && (
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4 sm:p-6">
-                            <div className="text-white">
-                              {slide.title && (
-                                <h3 className="text-lg sm:text-xl md:text-2xl font-bold drop-shadow-lg line-clamp-2">
-                                  {slide.title}
-                                </h3>
-                              )}
-                              {slide.subtitle && (
-                                <p className="text-sm sm:text-base mt-1 opacity-90 drop-shadow line-clamp-2">
-                                  {slide.subtitle}
-                                </p>
-                              )}
+                    {heroSlides.map((slide, index) => {
+                      const slideContent = (
+                        <>
+                          <img 
+                            src={slide.image_url} 
+                            alt={slide.title || "Hero slide"} 
+                            className="w-full h-full object-cover"
+                          />
+                          {(slide.title || slide.subtitle) && (
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4 sm:p-6 pointer-events-none">
+                              <div className="text-white">
+                                {slide.title && (
+                                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold drop-shadow-lg line-clamp-2">
+                                    {slide.title}
+                                  </h3>
+                                )}
+                                {slide.subtitle && (
+                                  <p className="text-sm sm:text-base mt-1 opacity-90 drop-shadow line-clamp-2">
+                                    {slide.subtitle}
+                                  </p>
+                                )}
+                              </div>
                             </div>
-                          </div>
-                        )}
-                      </a>
-                    ))}
+                          )}
+                        </>
+                      );
+                      
+                      return slide.link_url ? (
+                        <a
+                          key={slide.id}
+                          href={slide.link_url}
+                          className={`absolute inset-0 transition-opacity duration-500 cursor-pointer ${
+                            index === currentSlide ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
+                          }`}
+                        >
+                          {slideContent}
+                        </a>
+                      ) : (
+                        <div
+                          key={slide.id}
+                          className={`absolute inset-0 transition-opacity duration-500 ${
+                            index === currentSlide ? 'opacity-100 z-[1]' : 'opacity-0 z-0'
+                          }`}
+                        >
+                          {slideContent}
+                        </div>
+                      );
+                    })}
                     {heroSlides.length > 1 && (
-                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-10">
+                      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2 z-20">
                         {heroSlides.map((_, index) => (
                           <button
                             key={index}
-                            onClick={() => setCurrentSlide(index)}
-                            className={`w-2 h-2 rounded-full transition-colors ${
-                              index === currentSlide ? 'bg-white' : 'bg-white/50'
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              setCurrentSlide(index);
+                            }}
+                            className={`w-3 h-3 rounded-full transition-colors border-2 border-white/80 ${
+                              index === currentSlide ? 'bg-white' : 'bg-white/30'
                             }`}
+                            aria-label={`Go to slide ${index + 1}`}
                           />
                         ))}
                       </div>

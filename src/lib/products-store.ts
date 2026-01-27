@@ -1,5 +1,4 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
 export interface ActiveSale {
   id: string;
@@ -86,7 +85,6 @@ interface ProductsState {
 }
 
 export const useProductsStore = create<ProductsState>()(
-  persist(
     (set, get) => ({
       products: [],
       lastSyncedAt: null,
@@ -271,9 +269,5 @@ export const useProductsStore = create<ProductsState>()(
       getProductsByCategory: (category) => get().products.filter(p => p.category === category && p.status === 'active'),
 
       getFeaturedProducts: () => get().products.filter(p => p.isFeatured && p.status === 'active'),
-    }),
-    {
-      name: 'marketplace-products',
-    }
-  )
+    })
 );
