@@ -125,6 +125,54 @@ const itemStatusConfig: Record<string, { color: string; label: string }> = {
   fulfilled: { color: "bg-green-600 text-white", label: "Delivered" },
 };
 
+interface CourierDeepLink {
+  url: string;
+  name: string;
+  supportsDeepLink: boolean;
+}
+
+function getCourierDeepLink(
+  courier: string,
+  deliveryAddress: { address: string; city: string; region: string; fullName: string; phone: string }
+): CourierDeepLink {
+  const fullAddress = `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.region}`;
+  const encodedAddress = encodeURIComponent(fullAddress);
+  const encodedPhone = encodeURIComponent(deliveryAddress.phone);
+  
+  switch (courier) {
+    case 'Bolt':
+      return {
+        url: `https://bolt.eu/en-gh/`,
+        name: 'Bolt',
+        supportsDeepLink: false,
+      };
+    case 'Uber':
+      return {
+        url: `https://m.uber.com/go/pickup?drop[0][addressLine1]=${encodedAddress}&drop[0][label]=${encodeURIComponent(deliveryAddress.fullName)}`,
+        name: 'Uber',
+        supportsDeepLink: true,
+      };
+    case 'Yango':
+      return {
+        url: `https://yango.yandex.com/`,
+        name: 'Yango',
+        supportsDeepLink: false,
+      };
+    case 'Qargo':
+      return {
+        url: `https://qargo.io/`,
+        name: 'Qargo',
+        supportsDeepLink: false,
+      };
+    default:
+      return {
+        url: '',
+        name: courier,
+        supportsDeepLink: false,
+      };
+  }
+}
+
 export default function VendorOrdersPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
@@ -436,6 +484,19 @@ export default function VendorOrdersPage() {
       if (response.ok) {
         toast.success(`Courier booked via ${selectedCourier}. Order is out for delivery!`);
         setIsCourierModalOpen(false);
+        
+        // Phase 7D: Open courier app/website with pre-filled delivery details
+        if (selectedCourier !== 'Other') {
+          const courierLink = getCourierDeepLink(selectedCourier, selectedOrder.shippingAddress);
+          if (courierLink.url) {
+            const message = courierLink.supportsDeepLink 
+              ? `Opening ${courierLink.name} with delivery details...`
+              : `Opening ${courierLink.name} - please enter delivery address manually`;
+            toast.info(message);
+            window.open(courierLink.url, '_blank', 'noopener,noreferrer');
+          }
+        }
+        
         fetchOrders();
         const updatedResponse = await fetch(`/api/orders/${selectedOrder.id}`, { credentials: 'include' });
         if (updatedResponse.ok) {
