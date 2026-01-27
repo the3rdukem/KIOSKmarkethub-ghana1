@@ -59,6 +59,10 @@ interface OrderItem {
   productName: string;
   vendorId: string;
   vendorName: string;
+  vendorReadyForPickupAt?: string;
+  vendorCourierProvider?: string;
+  vendorCourierReference?: string;
+  vendorDeliveredAt?: string;
   quantity: number;
   unitPrice: number;
   finalPrice?: number | null;
@@ -126,9 +130,15 @@ const itemStatusConfig: Record<string, { color: string; label: string }> = {
 };
 
 interface CourierDeepLink {
-  url: string;
+  nativeUrl: string;
+  webUrl: string;
   name: string;
-  supportsDeepLink: boolean;
+  supportsNativeDeepLink: boolean;
+}
+
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 }
 
 function getCourierDeepLink(
@@ -137,39 +147,61 @@ function getCourierDeepLink(
 ): CourierDeepLink {
   const fullAddress = `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.region}`;
   const encodedAddress = encodeURIComponent(fullAddress);
-  const encodedPhone = encodeURIComponent(deliveryAddress.phone);
   
   switch (courier) {
     case 'Bolt':
       return {
-        url: `https://bolt.eu/en-gh/`,
+        nativeUrl: `bolt://`,
+        webUrl: `https://bolt.eu/en-gh/`,
         name: 'Bolt',
-        supportsDeepLink: false,
+        supportsNativeDeepLink: true,
       };
     case 'Uber':
       return {
-        url: `https://m.uber.com/go/pickup?drop[0][addressLine1]=${encodedAddress}&drop[0][label]=${encodeURIComponent(deliveryAddress.fullName)}`,
+        nativeUrl: `uber://?action=setPickup&dropoff[formatted_address]=${encodedAddress}&dropoff[nickname]=${encodeURIComponent(deliveryAddress.fullName)}`,
+        webUrl: `https://m.uber.com/go/pickup?drop[0][addressLine1]=${encodedAddress}&drop[0][label]=${encodeURIComponent(deliveryAddress.fullName)}`,
         name: 'Uber',
-        supportsDeepLink: true,
+        supportsNativeDeepLink: true,
       };
     case 'Yango':
       return {
-        url: `https://yango.yandex.com/`,
+        nativeUrl: `yandexnavi://`,
+        webUrl: `https://yango.yandex.com/`,
         name: 'Yango',
-        supportsDeepLink: false,
+        supportsNativeDeepLink: true,
       };
     case 'Qargo':
       return {
-        url: `https://qargo.io/`,
+        nativeUrl: '',
+        webUrl: `https://qargo.io/`,
         name: 'Qargo',
-        supportsDeepLink: false,
+        supportsNativeDeepLink: false,
       };
     default:
       return {
-        url: '',
+        nativeUrl: '',
+        webUrl: '',
         name: courier,
-        supportsDeepLink: false,
+        supportsNativeDeepLink: false,
       };
+  }
+}
+
+function openCourierApp(courierLink: CourierDeepLink) {
+  const isMobile = isMobileDevice();
+  
+  if (isMobile && courierLink.supportsNativeDeepLink && courierLink.nativeUrl) {
+    const startTime = Date.now();
+    
+    window.location.href = courierLink.nativeUrl;
+    
+    setTimeout(() => {
+      if (Date.now() - startTime < 2000) {
+        window.location.href = courierLink.webUrl;
+      }
+    }, 1500);
+  } else if (courierLink.webUrl) {
+    window.open(courierLink.webUrl, '_blank', 'noopener,noreferrer');
   }
 }
 
@@ -426,19 +458,19 @@ export default function VendorOrdersPage() {
     }
   };
 
-  // Phase 7D: Mark order ready for courier pickup
-  const handleReadyForPickup = async (orderId: string) => {
-    setOrderActionLoading('readyForPickup');
+  // Phase 7D Multi-Vendor: Mark vendor's items ready for courier pickup
+  const handleVendorReadyForPickup = async (orderId: string) => {
+    setOrderActionLoading('vendorReadyForPickup');
     try {
       const response = await fetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ action: 'readyForPickup' }),
+        body: JSON.stringify({ action: 'vendorReadyForPickup' }),
       });
 
       if (response.ok) {
-        toast.success('Order marked as ready for pickup');
+        toast.success('Your items are ready for pickup');
         fetchOrders();
         const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
         if (updatedResponse.ok) {
@@ -464,18 +496,18 @@ export default function VendorOrdersPage() {
     setIsCourierModalOpen(true);
   };
 
-  // Phase 7D: Book courier and mark out for delivery
-  const handleBookCourier = async () => {
+  // Phase 7D Multi-Vendor: Book courier for vendor's items
+  const handleVendorBookCourier = async () => {
     if (!selectedOrder || !selectedCourier) return;
     
-    setOrderActionLoading('bookCourier');
+    setOrderActionLoading('vendorBookCourier');
     try {
       const response = await fetch(`/api/orders/${selectedOrder.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          action: 'bookCourier',
+          action: 'vendorBookCourier',
           courierProvider: selectedCourier,
           courierReference: courierReference || undefined,
         }),
@@ -488,12 +520,13 @@ export default function VendorOrdersPage() {
         // Phase 7D: Open courier app/website with pre-filled delivery details
         if (selectedCourier !== 'Other') {
           const courierLink = getCourierDeepLink(selectedCourier, selectedOrder.shippingAddress);
-          if (courierLink.url) {
-            const message = courierLink.supportsDeepLink 
-              ? `Opening ${courierLink.name} with delivery details...`
+          if (courierLink.webUrl || courierLink.nativeUrl) {
+            const isMobile = isMobileDevice();
+            const message = isMobile && courierLink.supportsNativeDeepLink
+              ? `Opening ${courierLink.name} app...`
               : `Opening ${courierLink.name} - please enter delivery address manually`;
             toast.info(message);
-            window.open(courierLink.url, '_blank', 'noopener,noreferrer');
+            openCourierApp(courierLink);
           }
         }
         
@@ -516,18 +549,19 @@ export default function VendorOrdersPage() {
   };
 
   // Phase 7D: Mark entire order as delivered
-  const handleMarkOrderDelivered = async (orderId: string) => {
-    setOrderActionLoading('markOrderDelivered');
+  // Phase 7D Multi-Vendor: Mark vendor's items as delivered
+  const handleVendorMarkDelivered = async (orderId: string) => {
+    setOrderActionLoading('vendorMarkDelivered');
     try {
       const response = await fetch(`/api/orders/${orderId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ action: 'markOrderDelivered' }),
+        body: JSON.stringify({ action: 'vendorMarkDelivered' }),
       });
 
       if (response.ok) {
-        toast.success('Order marked as delivered. 48-hour dispute window started.');
+        toast.success('Your items marked as delivered. 48-hour dispute window started.');
         fetchOrders();
         const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
         if (updatedResponse.ok) {
@@ -536,11 +570,11 @@ export default function VendorOrdersPage() {
         }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to mark order as delivered');
+        toast.error(data.error || 'Failed to mark items as delivered');
       }
     } catch (error) {
-      console.error('Failed to mark order as delivered:', error);
-      toast.error('Failed to mark order as delivered');
+      console.error('Failed to mark items as delivered:', error);
+      toast.error('Failed to mark items as delivered');
     } finally {
       setOrderActionLoading(null);
     }
@@ -899,55 +933,75 @@ export default function VendorOrdersPage() {
                   </CardContent>
                 </Card>
 
-                {/* Phase 7D: Order-level delivery actions - inline buttons only, no new layout */}
-                {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'completed' && (
-                  <div className="flex flex-wrap gap-2 pt-2">
-                    {/* Step 1: Ready for Pickup (when order is 'preparing' and all items packed) */}
-                    {selectedOrder.status === 'preparing' && (
-                      <Button
-                        onClick={() => handleReadyForPickup(selectedOrder.id)}
-                        disabled={orderActionLoading !== null}
-                        size="sm"
-                      >
-                        {orderActionLoading === 'readyForPickup' ? (
-                          <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                        ) : (
-                          <Package className="w-4 h-4 mr-1" />
-                        )}
-                        Ready for Pickup
-                      </Button>
-                    )}
+                {/* Phase 7D Multi-Vendor: Per-vendor delivery actions based on vendor's items status */}
+                {selectedOrder.status !== 'cancelled' && selectedOrder.status !== 'completed' && (() => {
+                  const vendorItems = getOrderItems(selectedOrder).filter(item => item.vendorId === user?.id);
+                  const allPacked = vendorItems.length > 0 && vendorItems.every(item => item.fulfillmentStatus !== 'pending');
+                  const hasReadyForPickup = vendorItems.some(item => item.vendorReadyForPickupAt);
+                  const allWithCourier = vendorItems.length > 0 && vendorItems.every(item => 
+                    item.fulfillmentStatus === 'handed_to_courier' || item.fulfillmentStatus === 'shipped'
+                  );
+                  const allDelivered = vendorItems.length > 0 && vendorItems.every(item => 
+                    item.fulfillmentStatus === 'delivered' || item.fulfillmentStatus === 'fulfilled'
+                  );
+                  
+                  return (
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      {/* Step 1: Ready for Pickup (when all vendor's items are packed) */}
+                      {allPacked && !hasReadyForPickup && !allWithCourier && (
+                        <Button
+                          onClick={() => handleVendorReadyForPickup(selectedOrder.id)}
+                          disabled={orderActionLoading !== null}
+                          size="sm"
+                        >
+                          {orderActionLoading === 'vendorReadyForPickup' ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                          ) : (
+                            <Package className="w-4 h-4 mr-1" />
+                          )}
+                          Ready for Pickup
+                        </Button>
+                      )}
 
-                    {/* Step 2: Book Courier (when order is 'ready_for_pickup') */}
-                    {selectedOrder.status === 'ready_for_pickup' && (
-                      <Button
-                        onClick={openCourierModal}
-                        disabled={orderActionLoading !== null}
-                        size="sm"
-                      >
-                        <Truck className="w-4 h-4 mr-1" />
-                        Book Courier
-                      </Button>
-                    )}
+                      {/* Step 2: Book Courier (when vendor has marked ready for pickup) */}
+                      {hasReadyForPickup && !allWithCourier && (
+                        <Button
+                          onClick={openCourierModal}
+                          disabled={orderActionLoading !== null}
+                          size="sm"
+                        >
+                          <Truck className="w-4 h-4 mr-1" />
+                          Book Courier
+                        </Button>
+                      )}
 
-                    {/* Step 3: Mark Delivered (when order is 'out_for_delivery') */}
-                    {selectedOrder.status === 'out_for_delivery' && (
-                      <Button
-                        onClick={() => handleMarkOrderDelivered(selectedOrder.id)}
-                        disabled={orderActionLoading !== null}
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        {orderActionLoading === 'markOrderDelivered' ? (
-                          <Loader2 className="w-4 h-4 animate-spin mr-1" />
-                        ) : (
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                        )}
-                        Mark Delivered
-                      </Button>
-                    )}
-                  </div>
-                )}
+                      {/* Step 3: Mark Delivered (when all vendor's items are with courier) */}
+                      {allWithCourier && !allDelivered && (
+                        <Button
+                          onClick={() => handleVendorMarkDelivered(selectedOrder.id)}
+                          disabled={orderActionLoading !== null}
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                        >
+                          {orderActionLoading === 'vendorMarkDelivered' ? (
+                            <Loader2 className="w-4 h-4 animate-spin mr-1" />
+                          ) : (
+                            <CheckCircle className="w-4 h-4 mr-1" />
+                          )}
+                          Mark Delivered
+                        </Button>
+                      )}
+                      
+                      {/* Status indicators */}
+                      {allDelivered && (
+                        <div className="flex items-center gap-2 text-green-600 text-sm">
+                          <CheckCircle className="w-4 h-4" />
+                          <span>Your items have been delivered</span>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {selectedOrder.status === 'cancelled' && (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -1027,10 +1081,10 @@ export default function VendorOrdersPage() {
                 Cancel
               </Button>
               <Button 
-                onClick={handleBookCourier}
-                disabled={!selectedCourier || orderActionLoading === 'bookCourier'}
+                onClick={handleVendorBookCourier}
+                disabled={!selectedCourier || orderActionLoading === 'vendorBookCourier'}
               >
-                {orderActionLoading === 'bookCourier' ? (
+                {orderActionLoading === 'vendorBookCourier' ? (
                   <Loader2 className="w-4 h-4 animate-spin mr-2" />
                 ) : (
                   <Truck className="w-4 h-4 mr-2" />

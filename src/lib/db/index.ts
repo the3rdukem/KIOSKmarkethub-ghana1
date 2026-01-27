@@ -1202,6 +1202,21 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) { /* Column may already exist */ }
   console.log('[DB] PHASE 5C: Added Phase 7D delivery columns to orders table');
 
+  // PHASE 5D: Add per-vendor delivery columns to order_items for multi-vendor orders
+  try {
+    await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS vendor_courier_provider TEXT`);
+  } catch (e) { /* Column may already exist */ }
+  try {
+    await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS vendor_courier_reference TEXT`);
+  } catch (e) { /* Column may already exist */ }
+  try {
+    await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS vendor_delivered_at TEXT`);
+  } catch (e) { /* Column may already exist */ }
+  try {
+    await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS vendor_ready_for_pickup_at TEXT`);
+  } catch (e) { /* Column may already exist */ }
+  console.log('[DB] PHASE 5D: Added per-vendor delivery columns to order_items table');
+
   // PHASE 6: Create messaging tables for buyer-vendor communication
   try {
     await client.query(`

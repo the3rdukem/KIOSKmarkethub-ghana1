@@ -21,6 +21,10 @@ import {
   parseShippingAddress,
   transitionOrderStatus,
   normalizeOrderStatus,
+  markVendorItemsReadyForPickup,
+  bookVendorCourier,
+  markVendorItemsDelivered,
+  getVendorDeliveryStatus,
   type DbOrder,
   type UpdateOrderInput,
 } from '@/lib/db/dal/orders';
@@ -98,6 +102,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
           fulfillmentStatus: item.fulfillment_status,
           fulfilledAt: item.fulfilled_at,
           image: item.image,
+          vendorCourierProvider: item.vendor_courier_provider,
+          vendorCourierReference: item.vendor_courier_reference,
+          vendorReadyForPickupAt: item.vendor_ready_for_pickup_at,
+          vendorDeliveredAt: item.vendor_delivered_at,
         })),
         subtotal: order.subtotal,
         discountTotal: order.discount_total || 0,
@@ -246,15 +254,25 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const body = await request.json();
     const { action, itemId, courierProvider, courierReference } = body;
 
-    const validActions = ['pack', 'handToCourier', 'markDelivered', 'ship', 'fulfill', 'readyForPickup', 'bookCourier', 'markOrderDelivered'];
+    const validActions = [
+      'pack', 'handToCourier', 'markDelivered', 'ship', 'fulfill', 
+      'readyForPickup', 'bookCourier', 'markOrderDelivered',
+      // Phase 7D Multi-Vendor: Per-vendor delivery actions
+      'vendorReadyForPickup', 'vendorBookCourier', 'vendorMarkDelivered'
+    ];
     if (!validActions.includes(action)) {
-      return NextResponse.json({ error: 'Invalid action. Use: pack, handToCourier, markDelivered, readyForPickup, bookCourier, markOrderDelivered' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
     }
 
     const user = await getUserById(session.user_id);
     const vendorName = user?.business_name || user?.name || 'A vendor';
 
-    // Phase 7D: Order-level actions (no itemId required)
+    // Phase 7D Multi-Vendor: Per-vendor delivery actions (no itemId required)
+    if (action === 'vendorReadyForPickup' || action === 'vendorBookCourier' || action === 'vendorMarkDelivered') {
+      return handleVendorDeliveryAction(id, action, session, user, order, courierProvider, courierReference);
+    }
+
+    // Phase 7D: Order-level actions (no itemId required) - kept for backward compatibility
     if (action === 'readyForPickup' || action === 'bookCourier' || action === 'markOrderDelivered') {
       return handleOrderLevelAction(id, action, session, user, order, courierProvider, courierReference);
     }
@@ -673,4 +691,137 @@ async function handleOrderLevelAction(
   }
 
   return NextResponse.json({ error: 'Unknown action' }, { status: 400 });
+}
+
+/**
+ * Phase 7D Multi-Vendor: Handle per-vendor delivery actions
+ * Each vendor manages their own items' delivery independently
+ */
+async function handleVendorDeliveryAction(
+  orderId: string,
+  action: string,
+  session: { user_id: string; user_role: string },
+  user: { name?: string; email?: string; business_name?: string } | null,
+  order: DbOrder,
+  courierProvider?: string,
+  courierReference?: string
+): Promise<NextResponse> {
+  const vendorName = user?.business_name || user?.name || 'Vendor';
+  const vendorId = session.user_id;
+
+  if (action === 'vendorReadyForPickup') {
+    // Mark vendor's items as ready for pickup
+    const result = await markVendorItemsReadyForPickup(orderId, vendorId);
+    
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    await createAuditLog({
+      action: 'VENDOR_ITEMS_READY_FOR_PICKUP',
+      category: 'order',
+      adminId: vendorId,
+      adminName: user?.name || 'Vendor',
+      adminEmail: user?.email || '',
+      adminRole: session.user_role,
+      targetId: orderId,
+      targetType: 'order',
+      targetName: `Order ${orderId}`,
+      details: JSON.stringify({ vendorId, itemsUpdated: result.itemsUpdated }),
+    });
+
+    createNotification({
+      userId: order.buyer_id,
+      role: 'buyer',
+      type: 'order_fulfilled',
+      title: 'Items Ready for Pickup',
+      message: `${vendorName}'s items are ready for courier pickup!`,
+      payload: { orderId, vendorId, vendorName },
+    }).catch(err => console.error('[NOTIFICATION] Failed:', err));
+
+    return NextResponse.json({
+      success: true,
+      message: 'Your items are marked as ready for pickup',
+      itemsUpdated: result.itemsUpdated,
+    });
+  }
+
+  if (action === 'vendorBookCourier') {
+    if (!courierProvider) {
+      return NextResponse.json({ error: 'Courier provider is required' }, { status: 400 });
+    }
+
+    const result = await bookVendorCourier(orderId, vendorId, courierProvider, courierReference);
+    
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    await createAuditLog({
+      action: 'VENDOR_COURIER_BOOKED',
+      category: 'order',
+      adminId: vendorId,
+      adminName: user?.name || 'Vendor',
+      adminEmail: user?.email || '',
+      adminRole: session.user_role,
+      targetId: orderId,
+      targetType: 'order',
+      targetName: `Order ${orderId}`,
+      details: JSON.stringify({ vendorId, courierProvider, courierReference, itemsUpdated: result.itemsUpdated }),
+    });
+
+    createNotification({
+      userId: order.buyer_id,
+      role: 'buyer',
+      type: 'order_fulfilled',
+      title: 'Items Out for Delivery',
+      message: `${vendorName} has dispatched your items via ${courierProvider}!`,
+      payload: { orderId, vendorId, vendorName, courierProvider },
+    }).catch(err => console.error('[NOTIFICATION] Failed:', err));
+
+    return NextResponse.json({
+      success: true,
+      message: `Courier booked via ${courierProvider}. Items out for delivery!`,
+      itemsUpdated: result.itemsUpdated,
+      courierProvider,
+    });
+  }
+
+  if (action === 'vendorMarkDelivered') {
+    const result = await markVendorItemsDelivered(orderId, vendorId);
+    
+    if (!result.success) {
+      return NextResponse.json({ error: result.error }, { status: 400 });
+    }
+
+    await createAuditLog({
+      action: 'VENDOR_ITEMS_DELIVERED',
+      category: 'order',
+      adminId: vendorId,
+      adminName: user?.name || 'Vendor',
+      adminEmail: user?.email || '',
+      adminRole: session.user_role,
+      targetId: orderId,
+      targetType: 'order',
+      targetName: `Order ${orderId}`,
+      details: JSON.stringify({ vendorId, itemsUpdated: result.itemsUpdated }),
+    });
+
+    createNotification({
+      userId: order.buyer_id,
+      role: 'buyer',
+      type: 'order_fulfilled',
+      title: 'Items Delivered',
+      message: `${vendorName}'s items have been delivered! You have 48 hours to raise any issues.`,
+      payload: { orderId, vendorId, vendorName },
+    }).catch(err => console.error('[NOTIFICATION] Failed:', err));
+
+    return NextResponse.json({
+      success: true,
+      message: 'Your items are marked as delivered. 48-hour dispute window started.',
+      itemsUpdated: result.itemsUpdated,
+    });
+  }
+
+  return NextResponse.json({ error: 'Unknown vendor action' }, { status: 400 });
 }

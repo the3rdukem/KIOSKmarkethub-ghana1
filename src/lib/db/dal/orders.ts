@@ -228,6 +228,10 @@ export interface DbOrderItem {
   variations: string | null; // JSON
   created_at: string;
   updated_at: string;
+  vendor_courier_provider: string | null;
+  vendor_courier_reference: string | null;
+  vendor_ready_for_pickup_at: string | null;
+  vendor_delivered_at: string | null;
 }
 
 export interface CreateOrderInput {
@@ -1212,4 +1216,195 @@ export async function getOrderWithItems(orderId: string): Promise<{
   
   const items = await getOrderItemsByOrderId(orderId);
   return { order, items };
+}
+
+/**
+ * Phase 7D Multi-Vendor: Mark vendor's items as ready for pickup
+ * Only affects items belonging to the specified vendor
+ */
+export async function markVendorItemsReadyForPickup(
+  orderId: string, 
+  vendorId: string
+): Promise<{ success: boolean; error?: string; itemsUpdated: number }> {
+  const now = new Date().toISOString();
+  
+  // Get vendor's items for this order
+  const vendorItems = await query<DbOrderItem>(
+    `SELECT * FROM order_items WHERE order_id = $1 AND vendor_id = $2`,
+    [orderId, vendorId]
+  );
+  
+  if (vendorItems.rows.length === 0) {
+    return { success: false, error: 'No items found for this vendor in this order', itemsUpdated: 0 };
+  }
+  
+  // Check if all vendor's items are packed
+  const unpackedItems = vendorItems.rows.filter(item => item.fulfillment_status === 'pending');
+  if (unpackedItems.length > 0) {
+    return { 
+      success: false, 
+      error: `${unpackedItems.length} item(s) still need to be packed before marking ready for pickup`,
+      itemsUpdated: 0 
+    };
+  }
+  
+  // Update all vendor's packed items to mark ready for pickup timestamp
+  const result = await query(
+    `UPDATE order_items 
+     SET vendor_ready_for_pickup_at = $1, updated_at = $1
+     WHERE order_id = $2 AND vendor_id = $3 AND fulfillment_status = 'packed'`,
+    [now, orderId, vendorId]
+  );
+  
+  return { success: true, itemsUpdated: result.rowCount ?? 0 };
+}
+
+/**
+ * Phase 7D Multi-Vendor: Book courier for vendor's items
+ * Sets courier info on all vendor's items and transitions to handed_to_courier
+ */
+export async function bookVendorCourier(
+  orderId: string,
+  vendorId: string,
+  courierProvider: string,
+  courierReference?: string
+): Promise<{ success: boolean; error?: string; itemsUpdated: number }> {
+  const now = new Date().toISOString();
+  
+  // Get vendor's items for this order
+  const vendorItems = await query<DbOrderItem>(
+    `SELECT * FROM order_items WHERE order_id = $1 AND vendor_id = $2`,
+    [orderId, vendorId]
+  );
+  
+  if (vendorItems.rows.length === 0) {
+    return { success: false, error: 'No items found for this vendor in this order', itemsUpdated: 0 };
+  }
+  
+  // Check if vendor has marked ready for pickup
+  const notReadyItems = vendorItems.rows.filter(item => !item.vendor_ready_for_pickup_at && item.fulfillment_status === 'packed');
+  if (notReadyItems.length > 0) {
+    return { 
+      success: false, 
+      error: 'Items must be marked as ready for pickup first',
+      itemsUpdated: 0 
+    };
+  }
+  
+  // Update all vendor's items with courier info and status
+  const result = await query(
+    `UPDATE order_items 
+     SET fulfillment_status = 'handed_to_courier',
+         vendor_courier_provider = $1,
+         vendor_courier_reference = $2,
+         updated_at = $3
+     WHERE order_id = $4 AND vendor_id = $5 AND fulfillment_status = 'packed'`,
+    [courierProvider, courierReference || null, now, orderId, vendorId]
+  );
+  
+  // Check if the whole order should transition
+  await checkAndUpdateOrderOutForDelivery(orderId);
+  
+  return { success: true, itemsUpdated: result.rowCount ?? 0 };
+}
+
+/**
+ * Phase 7D Multi-Vendor: Mark vendor's items as delivered
+ * Sets delivered timestamp and transitions items to delivered status
+ */
+export async function markVendorItemsDelivered(
+  orderId: string,
+  vendorId: string
+): Promise<{ success: boolean; error?: string; itemsUpdated: number }> {
+  const now = new Date().toISOString();
+  
+  // Get vendor's items for this order
+  const vendorItems = await query<DbOrderItem>(
+    `SELECT * FROM order_items WHERE order_id = $1 AND vendor_id = $2`,
+    [orderId, vendorId]
+  );
+  
+  if (vendorItems.rows.length === 0) {
+    return { success: false, error: 'No items found for this vendor in this order', itemsUpdated: 0 };
+  }
+  
+  // Check if all vendor's items have been handed to courier
+  const notWithCourier = vendorItems.rows.filter(item => 
+    item.fulfillment_status !== 'handed_to_courier' && item.fulfillment_status !== 'shipped'
+  );
+  if (notWithCourier.length > 0) {
+    return { 
+      success: false, 
+      error: 'All items must be with courier before marking as delivered',
+      itemsUpdated: 0 
+    };
+  }
+  
+  // Update all vendor's items to delivered
+  const result = await query(
+    `UPDATE order_items 
+     SET fulfillment_status = 'delivered',
+         vendor_delivered_at = $1,
+         fulfilled_at = $1,
+         updated_at = $1
+     WHERE order_id = $2 AND vendor_id = $3 AND fulfillment_status IN ('handed_to_courier', 'shipped')`,
+    [now, orderId, vendorId]
+  );
+  
+  // Check if the whole order should transition to delivered
+  await checkAndUpdateOrderFulfillment(orderId);
+  
+  return { success: true, itemsUpdated: result.rowCount ?? 0 };
+}
+
+/**
+ * Phase 7D Multi-Vendor: Get vendor's delivery status for an order
+ */
+export async function getVendorDeliveryStatus(
+  orderId: string,
+  vendorId: string
+): Promise<{
+  totalItems: number;
+  packedItems: number;
+  readyForPickup: boolean;
+  withCourier: boolean;
+  delivered: boolean;
+  courierProvider?: string;
+  courierReference?: string;
+} | null> {
+  const vendorItems = await query<DbOrderItem & { 
+    vendor_ready_for_pickup_at?: string;
+    vendor_courier_provider?: string;
+    vendor_courier_reference?: string;
+    vendor_delivered_at?: string;
+  }>(
+    `SELECT * FROM order_items WHERE order_id = $1 AND vendor_id = $2`,
+    [orderId, vendorId]
+  );
+  
+  if (vendorItems.rows.length === 0) return null;
+  
+  const items = vendorItems.rows;
+  const packedItems = items.filter(i => 
+    i.fulfillment_status !== 'pending'
+  ).length;
+  const readyForPickup = items.every(i => i.vendor_ready_for_pickup_at);
+  const withCourier = items.every(i => 
+    i.fulfillment_status === 'handed_to_courier' || i.fulfillment_status === 'shipped'
+  );
+  const delivered = items.every(i => 
+    i.fulfillment_status === 'delivered' || i.fulfillment_status === 'fulfilled'
+  );
+  
+  const firstItem = items[0];
+  
+  return {
+    totalItems: items.length,
+    packedItems,
+    readyForPickup,
+    withCourier,
+    delivered,
+    courierProvider: firstItem.vendor_courier_provider,
+    courierReference: firstItem.vendor_courier_reference,
+  };
 }

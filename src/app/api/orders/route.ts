@@ -72,7 +72,7 @@ export async function GET(request: NextRequest) {
     const transformedOrders = await Promise.all(orders.map(async (order) => {
       const orderItems = await getOrderItemsByOrderId(order.id);
       
-      // Normalize orderItems to consistent format
+      // Normalize orderItems to consistent format with per-vendor delivery fields
       const normalizedOrderItems = orderItems.map(item => ({
         id: item.id,
         productId: item.product_id,
@@ -86,6 +86,10 @@ export async function GET(request: NextRequest) {
         fulfillmentStatus: item.fulfillment_status,
         fulfilledAt: item.fulfilled_at,
         image: item.image,
+        vendorCourierProvider: item.vendor_courier_provider,
+        vendorCourierReference: item.vendor_courier_reference,
+        vendorReadyForPickupAt: item.vendor_ready_for_pickup_at,
+        vendorDeliveredAt: item.vendor_delivered_at,
       }));
 
       // Also normalize legacy items to have same fields for backwards compatibility
