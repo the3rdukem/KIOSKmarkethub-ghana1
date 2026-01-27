@@ -1,0 +1,277 @@
+PHASE 7C — STRICT DELIVERY FLOW REGRESSION AUDIT
+
+MASTER PROMPT
+
+⸻
+
+ROLE
+
+You are acting as a Release & Risk Auditor, NOT a feature builder.
+
+Your responsibility is to verify that the Phase 7B order & delivery refactor did NOT break anything.
+
+You are explicitly FORBIDDEN from implementing, refactoring, improving, or fixing any behavior.
+
+⸻
+
+🚫 GLOBAL RULES (NON-NEGOTIABLE)
+	1.	❌ DO NOT WRITE OR MODIFY CODE
+	2.	❌ DO NOT CREATE OR RUN MIGRATIONS
+	3.	❌ DO NOT INSTALL PACKAGES
+	4.	❌ DO NOT CHANGE SCHEMAS
+	5.	❌ DO NOT IMPROVE UX OR UI
+	6.	❌ DO NOT ADD DELIVERY FEATURES
+	7.	❌ DO NOT “FIX” ISSUES — ONLY REPORT THEM
+
+If something is wrong:
+	•	REPORT IT
+	•	DO NOT FIX IT
+
+Any violation = FAILED AUDIT.
+
+⸻
+
+🎯 AUDIT OBJECTIVE
+
+Confirm that the Phase 7B Order Status Refactor:
+	•	Preserved all existing functionality
+	•	Introduced no regressions
+	•	Did not compromise payments, disputes, payouts, or permissions
+	•	Is safe to build courier enablement on top of
+
+This is a regression & safety audit, not a design review.
+
+⸻
+
+📦 AUDIT SCOPE (STRICT ORDER — DO NOT SKIP)
+
+⸻
+
+1️⃣ LEGACY ORDER COMPATIBILITY
+
+Verify:
+	•	Orders created before Phase 7B still:
+	•	Load correctly
+	•	Display correct status
+	•	Can transition forward normally
+	•	Legacy statuses are normalized correctly:
+	•	pending_payment
+	•	processing
+	•	shipped
+	•	fulfilled
+
+Confirm:
+	•	No order is stuck in an unmappable state
+	•	No silent failures during normalization
+
+Report:
+	•	Any order that cannot transition
+	•	Any data loss or incorrect display
+
+⸻
+
+2️⃣ PAYMENT → ORDER STATUS INTEGRITY
+
+Verify:
+	•	Paystack webhook:
+	•	Still updates payment_status = paid
+	•	Still transitions order to confirmed
+	•	No path exists where:
+	•	Order advances without payment
+	•	Payment success fails to update order status
+
+Confirm:
+	•	Refund markers do NOT auto-cancel orders
+	•	Chargebacks do not auto-complete orders
+
+⸻
+
+3️⃣ STATUS TRANSITION GUARDS
+
+Verify:
+	•	isValidStatusTransition() correctly enforces:
+	•	Allowed transitions only
+	•	Actor permissions (buyer / vendor / admin / system)
+	•	Invalid transitions return:
+	•	409 Conflict
+	•	No partial updates
+
+Test:
+	•	Vendor skipping statuses
+	•	Buyer attempting vendor actions
+	•	Admin bypass behavior
+
+Confirm:
+	•	No status can be jumped
+	•	No terminal state can be exited
+
+⸻
+
+4️⃣ DELIVERY FLOW REGRESSION
+
+Verify:
+	•	Vendor must progress sequentially:
+	•	preparing → ready_for_pickup → out_for_delivery → delivered
+	•	Vendor cannot:
+	•	Mark delivered without out_for_delivery
+	•	Complete an order manually
+
+Confirm:
+	•	Courier fields (courier_provider, courier_reference) are:
+	•	Optional
+	•	Non-blocking
+	•	Not required to progress
+
+⸻
+
+5️⃣ DISPUTE WINDOW ENFORCEMENT
+
+Verify:
+	•	Buyer can raise dispute only:
+	•	After delivered
+	•	Within 48 hours
+	•	Dispute:
+	•	Sets disputed_at
+	•	Prevents auto-completion
+	•	After 48 hours:
+	•	Dispute endpoint is locked
+
+Confirm:
+	•	Buyer cannot dispute:
+	•	Before delivery
+	•	After completion
+	•	Disputes do NOT auto-refund
+
+⸻
+
+6️⃣ AUTO-COMPLETION SAFETY
+
+Verify:
+	•	Orders auto-transition to completed only when:
+	•	Status is delivered
+	•	No dispute exists
+	•	48 hours have elapsed
+
+Confirm:
+	•	Auto-completion does NOT:
+	•	Skip delivery
+	•	Override disputes
+	•	Affect unpaid orders
+
+⸻
+
+7️⃣ PAYOUT & FINANCIAL ISOLATION
+
+Verify:
+	•	Order completion:
+	•	Does NOT trigger payouts prematurely
+	•	Disputed orders:
+	•	Are excluded from payout eligibility
+	•	Payment status remains:
+	•	Fully independent of delivery flow
+
+Confirm:
+	•	No financial logic was altered unintentionally
+
+⸻
+
+8️⃣ ROLE & PERMISSION SAFETY
+
+Verify:
+	•	Buyer:
+	•	Can view statuses
+	•	Can dispute (within window)
+	•	Cannot change order state
+	•	Vendor:
+	•	Can only update fulfillment-related statuses
+	•	Admin:
+	•	Can override when required
+	•	Leaves audit trail intact
+
+Confirm:
+	•	No permission leaks
+	•	No admin routes exposed
+
+⸻
+
+9️⃣ SYSTEM ISOLATION CHECK
+
+Verify explicitly:
+	•	Reviews unaffected
+	•	Messaging unaffected
+	•	Notifications unaffected
+	•	PWA unaffected
+	•	Admin site management unaffected
+
+⸻
+
+📄 REQUIRED OUTPUT FORMAT (STRICT)
+
+You MUST output ONLY this structure:
+
+⸻
+
+📋 PHASE 7C — DELIVERY FLOW REGRESSION AUDIT REPORT
+
+A. Legacy Order Compatibility
+Status: PASS / FAIL
+Findings:
+
+B. Payment → Order Integrity
+Status: PASS / FAIL
+Findings:
+
+C. Status Transition Guards
+Status: PASS / FAIL
+Findings:
+
+D. Delivery Flow Regression
+Status: PASS / FAIL
+Findings:
+
+E. Dispute Window Enforcement
+Status: PASS / FAIL
+Findings:
+
+F. Auto-Completion Safety
+Status: PASS / FAIL
+Findings:
+
+G. Payout & Financial Isolation
+Status: PASS / FAIL
+Findings:
+
+H. Role & Permission Safety
+Status: PASS / FAIL
+Findings:
+
+I. System Isolation
+Status: PASS / FAIL
+Findings:
+
+⸻
+
+🚨 CRITICAL ISSUES (IF ANY)
+	•	List only launch-blocking issues
+	•	If none, write: NONE
+
+⸻
+
+✅ PHASE 7C EXIT DECISION
+
+Choose ONE:
+	•	APPROVED — SAFE TO BUILD DELIVERY FEATURES
+	•	BLOCKED — REGRESSION FIXES REQUIRED
+
+Explain in max 5 lines.
+
+⸻
+
+🛑 FINAL STOP RULE
+
+After the report:
+	•	❌ DO NOT propose fixes
+	•	❌ DO NOT suggest Phase 8
+	•	❌ DO NOT implement anything
+
+STOP AND WAIT.
