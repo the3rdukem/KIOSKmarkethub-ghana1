@@ -206,6 +206,16 @@ export async function POST(request: NextRequest) {
     const tax = body.tax || 0;
     const total = subtotal - discountTotal + shippingFee + tax;
 
+    console.log('[ORDER_CREATE] Totals:', { 
+      subtotal, 
+      discountTotal, 
+      shippingFee, 
+      tax, 
+      total,
+      couponCode: body.couponCode,
+      bodyDiscountTotal: body.discountTotal 
+    });
+
     // Build order input
     const orderInput: CreateOrderInput = {
       buyerId: session.user_id,

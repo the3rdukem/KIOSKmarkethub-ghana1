@@ -339,19 +339,31 @@ export default function CheckoutPage() {
         variations: item.variations
       }));
 
+      const orderPayload = {
+        items: orderItems,
+        shippingAddress,
+        discountTotal: couponDiscount,
+        shippingFee: shipping,
+        tax,
+        paymentMethod,
+        couponCode: appliedCoupon?.code,
+      };
+      
+      console.log('[CHECKOUT] Creating order with:', {
+        subtotal,
+        couponDiscount,
+        shipping,
+        tax,
+        total,
+        appliedCoupon,
+        orderPayload
+      });
+
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          items: orderItems,
-          shippingAddress,
-          discountTotal: couponDiscount,
-          shippingFee: shipping,
-          tax,
-          paymentMethod,
-          couponCode: appliedCoupon?.code,
-        }),
+        body: JSON.stringify(orderPayload),
       });
 
       const result = await response.json();
