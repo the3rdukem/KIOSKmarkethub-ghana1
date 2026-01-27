@@ -1141,7 +1141,11 @@ async function runMigrations(client: PoolClient): Promise<void> {
     `);
     await client.query(`
       ALTER TABLE orders ADD CONSTRAINT orders_status_check 
-      CHECK(status IN ('pending_payment', 'pending', 'cancelled', 'fulfilled', 'confirmed', 'processing', 'shipped', 'delivered', 'refunded'))
+      CHECK(status IN (
+        'created', 'confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery', 
+        'delivered', 'completed', 'cancelled', 'disputed', 'delivery_failed',
+        'pending_payment', 'pending', 'fulfilled', 'processing', 'shipped', 'refunded'
+      ))
     `);
   } catch (e) {
     // Constraint may already exist or table structure differs
@@ -1161,20 +1165,20 @@ async function runMigrations(client: PoolClient): Promise<void> {
 
   console.log('[DB] PHASE 5: Added CHECK constraints to orders table');
 
-  // PHASE 5B: Update fulfillment_status constraint to include 'shipped'
+  // PHASE 5B: Update fulfillment_status constraint for Phase 7B item statuses
   try {
     await client.query(`
       ALTER TABLE order_items DROP CONSTRAINT IF EXISTS order_items_fulfillment_status_check
     `);
     await client.query(`
       ALTER TABLE order_items ADD CONSTRAINT order_items_fulfillment_status_check 
-      CHECK(fulfillment_status IN ('pending', 'shipped', 'fulfilled'))
+      CHECK(fulfillment_status IN ('pending', 'packed', 'handed_to_courier', 'delivered', 'shipped', 'fulfilled'))
     `);
   } catch (e) {
     // Constraint may already exist or table structure differs
   }
 
-  console.log('[DB] PHASE 5B: Updated fulfillment_status constraint to include shipped');
+  console.log('[DB] PHASE 5B: Updated fulfillment_status constraint for Phase 7B');
 
   // PHASE 6: Create messaging tables for buyer-vendor communication
   try {
