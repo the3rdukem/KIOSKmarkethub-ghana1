@@ -55,13 +55,22 @@ interface Order {
 }
 
 const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
-  pending_payment: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Pending Payment" },
-  pending: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Pending" },
-  confirmed: { color: "text-blue-700", bg: "bg-blue-100", label: "Confirmed" },
-  processing: { color: "text-blue-700", bg: "bg-blue-100", label: "Processing" },
-  shipped: { color: "text-purple-700", bg: "bg-purple-100", label: "Shipped" },
-  fulfilled: { color: "text-white", bg: "bg-green-600", label: "Fulfilled" },
+  // Phase 7B: New statuses
+  created: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Awaiting Payment" },
+  confirmed: { color: "text-blue-700", bg: "bg-blue-100", label: "Payment Confirmed" },
+  preparing: { color: "text-purple-700", bg: "bg-purple-100", label: "Preparing" },
+  ready_for_pickup: { color: "text-indigo-700", bg: "bg-indigo-100", label: "Ready for Pickup" },
+  out_for_delivery: { color: "text-cyan-700", bg: "bg-cyan-100", label: "Out for Delivery" },
   delivered: { color: "text-white", bg: "bg-green-600", label: "Delivered" },
+  completed: { color: "text-emerald-700", bg: "bg-emerald-100", label: "Completed" },
+  delivery_failed: { color: "text-orange-700", bg: "bg-orange-100", label: "Delivery Failed" },
+  disputed: { color: "text-amber-700", bg: "bg-amber-100", label: "Disputed" },
+  // Legacy statuses
+  pending_payment: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Awaiting Payment" },
+  pending: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Awaiting Payment" },
+  processing: { color: "text-blue-700", bg: "bg-blue-100", label: "Payment Confirmed" },
+  shipped: { color: "text-cyan-700", bg: "bg-cyan-100", label: "Shipped" },
+  fulfilled: { color: "text-white", bg: "bg-green-600", label: "Delivered" },
   cancelled: { color: "text-red-700", bg: "bg-red-100", label: "Cancelled" },
   refunded: { color: "text-gray-700", bg: "bg-gray-100", label: "Refunded" },
 };

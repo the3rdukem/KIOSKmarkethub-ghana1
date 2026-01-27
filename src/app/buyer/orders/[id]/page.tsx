@@ -79,16 +79,29 @@ interface OrderDetailPageProps {
 
 const orderSteps = [
   { status: "pending_payment", label: "Order Placed", icon: Package },
-  { status: "processing", label: "Payment Confirmed", icon: Clock },
-  { status: "fulfilled", label: "Fulfilled", icon: CheckCircle },
+  { status: "confirmed", label: "Payment Confirmed", icon: Clock },
+  { status: "preparing", label: "Preparing", icon: Package },
+  { status: "out_for_delivery", label: "Out for Delivery", icon: Truck },
+  { status: "delivered", label: "Delivered", icon: CheckCircle },
 ];
 
 const statusConfig: Record<string, { color: string; bg: string; label: string }> = {
-  pending_payment: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Pending Payment" },
-  pending: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Pending" },
-  processing: { color: "text-blue-700", bg: "bg-blue-100", label: "Payment Confirmed - Processing" },
-  fulfilled: { color: "text-white", bg: "bg-green-600", label: "Delivered" },
+  // Phase 7B: New statuses
+  created: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Awaiting Payment" },
+  confirmed: { color: "text-blue-700", bg: "bg-blue-100", label: "Payment Confirmed" },
+  preparing: { color: "text-purple-700", bg: "bg-purple-100", label: "Preparing" },
+  ready_for_pickup: { color: "text-indigo-700", bg: "bg-indigo-100", label: "Ready for Pickup" },
+  out_for_delivery: { color: "text-cyan-700", bg: "bg-cyan-100", label: "Out for Delivery" },
   delivered: { color: "text-white", bg: "bg-green-600", label: "Delivered" },
+  completed: { color: "text-emerald-700", bg: "bg-emerald-100", label: "Completed" },
+  delivery_failed: { color: "text-orange-700", bg: "bg-orange-100", label: "Delivery Failed" },
+  disputed: { color: "text-amber-700", bg: "bg-amber-100", label: "Disputed" },
+  // Legacy statuses
+  pending_payment: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Awaiting Payment" },
+  pending: { color: "text-yellow-700", bg: "bg-yellow-100", label: "Awaiting Payment" },
+  processing: { color: "text-blue-700", bg: "bg-blue-100", label: "Payment Confirmed" },
+  shipped: { color: "text-cyan-700", bg: "bg-cyan-100", label: "Shipped" },
+  fulfilled: { color: "text-white", bg: "bg-green-600", label: "Delivered" },
   cancelled: { color: "text-red-700", bg: "bg-red-100", label: "Cancelled" },
 };
 
@@ -211,10 +224,12 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
   const getCurrentStep = () => {
     if (order.status === "cancelled") return -1;
-    if (order.status === "fulfilled" || order.status === "delivered") return 2;
-    // 'processing' means payment confirmed, awaiting fulfillment
-    if (order.status === "processing") return 1;
-    // 'pending_payment' is initial state
+    // Phase 7B statuses
+    if (order.status === "completed" || order.status === "delivered" || order.status === "fulfilled") return 4;
+    if (order.status === "out_for_delivery" || order.status === "shipped") return 3;
+    if (order.status === "preparing" || order.status === "ready_for_pickup") return 2;
+    if (order.status === "confirmed" || order.status === "processing") return 1;
+    // 'pending_payment', 'pending', 'created' are initial states
     return 0;
   };
 
@@ -380,7 +395,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Package className="w-5 h-5" />
-                  Order Items
+                  Ordered Items
                 </CardTitle>
                 <CardDescription>{orderItems.length} item(s)</CardDescription>
               </CardHeader>
@@ -410,8 +425,18 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                         <div className="flex items-center gap-4 mt-2">
                           <span className="text-sm">Qty: {item.quantity}</span>
                           <span className="font-medium">GHS {itemTotal.toFixed(2)}</span>
-                          <Badge variant="outline" className={item.fulfillmentStatus === 'fulfilled' ? 'bg-green-50 text-green-700' : 'bg-yellow-50 text-yellow-700'}>
-                            {item.fulfillmentStatus === 'fulfilled' ? 'Fulfilled' : 'Pending'}
+                          <Badge variant="outline" className={
+                            item.fulfillmentStatus === 'delivered' || item.fulfillmentStatus === 'fulfilled' ? 'bg-green-50 text-green-700' :
+                            item.fulfillmentStatus === 'handed_to_courier' || item.fulfillmentStatus === 'shipped' ? 'bg-cyan-50 text-cyan-700' :
+                            item.fulfillmentStatus === 'packed' ? 'bg-purple-50 text-purple-700' :
+                            'bg-yellow-50 text-yellow-700'
+                          }>
+                            {item.fulfillmentStatus === 'delivered' ? 'Delivered' :
+                             item.fulfillmentStatus === 'fulfilled' ? 'Delivered' :
+                             item.fulfillmentStatus === 'handed_to_courier' ? 'With Courier' :
+                             item.fulfillmentStatus === 'shipped' ? 'Shipped' :
+                             item.fulfillmentStatus === 'packed' ? 'Packed' :
+                             'Awaiting Processing'}
                           </Badge>
                         </div>
                       </div>
