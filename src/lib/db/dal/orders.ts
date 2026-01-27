@@ -964,32 +964,6 @@ export async function handItemToCourier(itemId: string, vendorId: string): Promi
 }
 
 /**
- * Ship an order item (vendor action) - LEGACY, now calls handItemToCourier
- * Transitions item from 'pending' to 'handed_to_courier' (was 'shipped')
- * Returns true if successful, false if item not found or not in pending/packed status
- */
-export async function shipOrderItem(itemId: string, vendorId: string): Promise<boolean> {
-  const now = new Date().toISOString();
-  
-  // Phase 7B: First pack if pending, then hand to courier
-  const result = await query(
-    `UPDATE order_items 
-     SET fulfillment_status = 'handed_to_courier', updated_at = $1
-     WHERE id = $2 AND vendor_id = $3 AND fulfillment_status IN ('pending', 'packed')`,
-    [now, itemId, vendorId]
-  );
-  
-  if ((result.rowCount ?? 0) === 0) return false;
-  
-  const item = await query<DbOrderItem>('SELECT order_id FROM order_items WHERE id = $1', [itemId]);
-  if (item.rows.length > 0) {
-    await checkAndUpdateOrderOutForDelivery(item.rows[0].order_id);
-  }
-  
-  return true;
-}
-
-/**
  * Phase 7B: Check if all items in an order are preparing and update order status
  */
 export async function checkAndUpdateOrderPreparing(orderId: string): Promise<boolean> {
