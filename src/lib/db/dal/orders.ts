@@ -551,6 +551,25 @@ export async function transitionOrderStatus(
   }
   
   const currentStatus = order.status;
+  const normalizedCurrent = normalizeOrderStatus(currentStatus);
+  const normalizedTarget = normalizeOrderStatus(newStatus);
+  
+  // Idempotent: If already at target status, return success without error
+  // This handles race conditions where auto-update functions already transitioned the order
+  if (normalizedCurrent === normalizedTarget) {
+    // Still update courier info if provided and transitioning to out_for_delivery
+    if (newStatus === 'out_for_delivery' && options?.courierProvider) {
+      const updates: UpdateOrderInput = {};
+      updates.courierProvider = options.courierProvider;
+      if (options.courierReference) {
+        updates.courierReference = options.courierReference;
+      }
+      const updatedOrder = await updateOrder(orderId, updates);
+      return { success: true, order: updatedOrder || order };
+    }
+    return { success: true, order };
+  }
+  
   const validation = isValidStatusTransition(currentStatus, newStatus, actor.role);
   
   if (!validation.valid) {
