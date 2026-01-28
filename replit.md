@@ -9,6 +9,7 @@ I want to be asked before you make any major changes.
 I prefer detailed explanations for complex solutions.
 Do not make changes to files in the `src/lib/` directory unless explicitly instructed.
 I prefer clear and concise communication.
+**ALL fixes and features MUST be Render.com deploy friendly** - no Replit-specific dependencies.
 
 ## Launch Roadmap
 
