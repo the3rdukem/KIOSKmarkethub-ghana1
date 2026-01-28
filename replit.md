@@ -51,12 +51,12 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Analytics Event Tracking**: Non-blocking, fire-and-forget analytics for tracking user interactions, ready for external provider integration.
 - **Site Content Management System**: Fully database-backed site content management allowing admin control over branding (logo, site name, tagline), promotional banners (toggle, text, link), hero slideshow (carousel with 5-second auto-rotation, admin-managed slides with image/title/link at `/admin/hero-slides`), footer links (custom ordering/visibility), homepage section titles (categories, featured, stats, CTA sections), and static pages with full CRUD (create, edit, delete) accessible at `/pages/[slug]`. Static pages can be toggled published/draft and footer visibility directly from admin list. All content changes take effect without code deployment.
 - **PWA Support (Phase 1 - Installability)**: Progressive Web App features implemented using `next-pwa`. Includes web app manifest (`/public/manifest.json`), 10 app icons (8 standard sizes + 2 maskable at 192x192 and 512x512), PWA meta tags in layout.tsx. Service worker caches only static assets (fonts, images, JS/CSS bundles). API routes explicitly excluded from caching using NetworkOnly strategy. PWA branding uses "KIOSK" name with green theme (#16a34a). No offline write support, no background sync - installability only.
-- **Commission System (Phase 12)**: Platform revenue generation via automated commission calculation and tracking.
+- **Commission System (Phase 12 - COMPLETE)**: Platform revenue generation via automated commission calculation and tracking.
   - **3-Tier Priority**: Vendor-specific rate → Category rate → Default rate (8%)
   - **Database Schema**: `commission_rate` in vendors/categories tables, `platform_commission`/`vendor_earnings` in orders and order_items tables
   - **Commission DAL** (`src/lib/db/dal/commission.ts`): Full calculation logic with `calculateCommission()`, rate getters/setters, summary statistics
   - **Order Integration**: Commission calculated atomically during order creation, stored at both order and order_item level for multi-vendor support
-  - **Admin UI**: `/admin/commission` page for managing default, category, and vendor-specific rates with earnings summary
+  - **Admin UI**: `/admin/commission` page for managing default, category, and vendor-specific rates with earnings summary (wrapped in SiteLayout for consistent navigation)
   - **Vendor Dashboard**: Updated to show earnings after platform fee, with pending vs completed breakdown
 
 ## External Dependencies
