@@ -22,6 +22,29 @@ I prefer clear and concise communication.
 
 **Subtotal: ~16-21 days**
 
+### Tier 2 - FIRST MONTH (Post-launch priorities)
+| Feature | Est. Days | Notes |
+|---------|-----------|-------|
+| Email Notifications (Order events) | 3-4 | Bundle with SMS |
+| Low Stock Alerts (Email/SMS) | 1-2 | Quick add to existing system |
+| Admin Dashboard Analytics | 4-5 | Platform oversight |
+| Export Functionality (CSV) | 2-3 | Quick win |
+| Social Sharing (WhatsApp focus) | 1-2 | Quick win |
+| Recently Viewed Products | 2-3 | Quick win |
+| Real Vendor Analytics | 3-4 | Vendor satisfaction |
+
+**Subtotal: ~16-23 days**
+
+### Tier 3 - GROWTH PHASE (Months 2-3)
+| Feature | Est. Days | Notes |
+|---------|-----------|-------|
+| Product Variants (Inventory per variant) | 5-7 | Important for fashion vendors |
+| Saved Payment Methods (Cards only) | 3-4 | Card users only, ~20-30% benefit |
+| Push Notifications (PWA Phase 2) | 3-4 | Mobile engagement |
+| Bulk Order Discounts (Vendor controlled) | 3-4 | B2B potential |
+
+**Subtotal: ~14-19 days**
+
 ## System Architecture
 The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui` for UI components, ensuring a modern and responsive user experience. PostgreSQL serves as the primary database, managed with a focus on connection pooling and asynchronous data access. An API-first approach governs all major data interactions.
 
