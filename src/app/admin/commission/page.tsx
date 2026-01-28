@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Percent, Save, TrendingUp, DollarSign, Store, FolderTree } from 'lucide-react';
-import { AdminAuthGuard } from '@/components/auth/auth-guard';
+import { ArrowLeft, Percent, Save, TrendingUp, DollarSign, Store, FolderTree, Loader2 } from 'lucide-react';
+import { useAuthStore } from '@/lib/auth-store';
+import { toast } from 'sonner';
 
 interface CommissionSummary {
   totalOrders: number;
@@ -33,8 +34,10 @@ interface VendorRate {
   commission_rate: number | null;
 }
 
-function CommissionPageContent() {
+export default function CommissionPage() {
   const router = useRouter();
+  const { user, isAuthenticated } = useAuthStore();
+  const [isHydrated, setIsHydrated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [defaultRate, setDefaultRate] = useState(8);
@@ -47,7 +50,25 @@ function CommissionPageContent() {
   const [categoryRates, setCategoryRates] = useState<Record<string, string>>({});
   const [vendorRates, setVendorRates] = useState<Record<string, string>>({});
 
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    if (!isAuthenticated) {
+      router.push("/admin/login");
+      return;
+    }
+    if (user?.role !== "admin" && user?.role !== "master_admin") {
+      toast.error("Access denied. Admin privileges required.");
+      router.push("/");
+    }
+  }, [isAuthenticated, user, router, isHydrated]);
+
   const fetchCommissionData = useCallback(async () => {
+    if (!isHydrated || !isAuthenticated) return;
     try {
       const response = await fetch('/api/admin/commission');
       if (!response.ok) {
@@ -80,11 +101,13 @@ function CommissionPageContent() {
     } finally {
       setLoading(false);
     }
-  }, [router]);
+  }, [router, isHydrated, isAuthenticated]);
 
   useEffect(() => {
-    fetchCommissionData();
-  }, [fetchCommissionData]);
+    if (isHydrated && isAuthenticated) {
+      fetchCommissionData();
+    }
+  }, [fetchCommissionData, isHydrated, isAuthenticated]);
 
   const saveDefaultRate = async () => {
     setSaving(true);
@@ -165,16 +188,15 @@ function CommissionPageContent() {
     }).format(amount);
   };
 
-  if (loading) {
+  if (!isHydrated || !isAuthenticated || loading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 w-48 bg-gray-200 rounded"></div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map(i => (
-              <div key={i} className="h-32 bg-gray-200 rounded"></div>
-            ))}
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-indigo-50">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
           </div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-1">Loading Commission Management</h2>
+          <p className="text-sm text-muted-foreground">Verifying session...</p>
         </div>
       </div>
     );
@@ -274,9 +296,9 @@ function CommissionPageContent() {
                   <Save className="h-4 w-4" /> Save
                 </Button>
               </div>
-              <p className="text-sm text-muted-foreground">
+              <span className="text-sm text-muted-foreground">
                 Current rate: <Badge variant="secondary">{defaultRate}%</Badge>
-              </p>
+              </span>
             </CardContent>
           </Card>
         </TabsContent>
@@ -464,13 +486,5 @@ function CommissionPageContent() {
         </TabsContent>
       </Tabs>
     </div>
-  );
-}
-
-export default function CommissionPage() {
-  return (
-    <AdminAuthGuard>
-      <CommissionPageContent />
-    </AdminAuthGuard>
   );
 }

@@ -26,7 +26,7 @@ import { createAuditLog } from '@/lib/db/dal/audit';
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const sessionToken = cookieStore.get('admin_session')?.value;
+    const sessionToken = cookieStore.get('session_token')?.value;
 
     if (!sessionToken) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
-    const sessionToken = cookieStore.get('admin_session')?.value;
+    const sessionToken = cookieStore.get('session_token')?.value;
 
     if (!sessionToken) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -132,12 +132,10 @@ export async function POST(request: NextRequest) {
       await createAuditLog({
         action: 'commission_rate_updated',
         category: 'admin',
-        admin_id: session.user_id,
-        admin_name: session.user_name || 'Admin',
-        admin_email: session.user_email || '',
-        admin_role: session.user_role || 'admin',
-        target_type: type,
-        target_id: categoryId || vendorId || 'default',
+        adminId: session.user_id,
+        adminRole: session.user_role || 'admin',
+        targetType: type,
+        targetId: categoryId || vendorId || 'default',
         details: auditDetails,
         severity: 'info'
       });

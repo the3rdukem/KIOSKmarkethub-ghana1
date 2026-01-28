@@ -1,0 +1,94 @@
+
+
+When I tried to navigate to Admin/commission
+
+It redirects to login page, auto logins, then the commission management page shows briefly only for it to load back to dashboard 
+
+Two console errors
+
+
+## Error Type
+Console Error
+
+## Error Message
+In HTML, <div> cannot be a descendant of <p>.
+This will cause a hydration error.
+
+  ...
+    <div className="container ..." data-react-source="[project]/...">
+      <div>
+      <Tabs defaultValue="default" className="space-y-4" data-react-source="[project]/...">
+        <TabsProvider scope={undefined} baseId="radix-_r_0_" value="default" ...>
+          <Primitive.div dir="ltr" data-orientation="horizontal" className="space-y-4" data-react-source="[project]/..." ...>
+            <div dir="ltr" data-orientation="horizontal" className="space-y-4" data-react-source="[project]/..." ...>
+              <_c>
+              <_c4 value="default" data-react-source="[project]/...">
+                <TabsContent ref={null} className="mt-2 ring-..." value="default" data-react-source="[project]/...">
+                  <Presence present={true}>
+                    <Primitive.div data-state="active" data-orientation="horizontal" role="tabpanel" ...>
+                      <div data-state="active" data-orientation="horizontal" role="tabpanel" ...>
+                        <_c data-react-source="[project]/...">
+                          <div ref={null} className="rounded-xl..." data-react-source="[project]/...">
+                            <_c2>
+                            <_c8 className="space-y-4" data-react-source="[project]/...">
+                              <div ref={null} className="p-6 pt-0 s..." data-react-source="[project]/...">
+                                <div>
+>                               <p
+>                                 className="text-sm text-muted-foreground"
+>                                 data-react-source="[project]/src/app/admin/commission/page.tsx:277:15"
+>                               >
+                                  <Badge variant="secondary" data-react-source="[project]/...">
+>                                   <div
+>                                     className="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font..."
+>                                     data-react-source="[project]/src/components/ui/badge.tsx:32:5"
+>                                   >
+              ...
+
+
+
+    at div (<anonymous>:null:null)
+    at Badge (src/components/ui/badge.tsx:32:5)
+    at CommissionPageContent (src/app/admin/commission/page.tsx:278:31)
+    at CommissionPage (src/app/admin/commission/page.tsx:473:7)
+
+## Code Frame
+  30 | function Badge({ className, variant, ...props }: BadgeProps) {
+  31 |   return (
+> 32 |     <div className={cn(badgeVariants({ variant }), className)} {...props} />
+     |     ^
+  33 |   )
+  34 | }
+  35 |
+
+Next.js version: 15.5.9 (Turbopack)
+
+
+
+And 
+
+
+## Error Type
+Console Error
+
+## Error Message
+<p> cannot contain a nested <div>.
+See this log for the ancestor stack trace.
+
+
+    at p (<anonymous>:null:null)
+    at CommissionPageContent (src/app/admin/commission/page.tsx:277:15)
+    at CommissionPage (src/app/admin/commission/page.tsx:473:7)
+
+## Code Frame
+  275 |                 </Button>
+  276 |               </div>
+> 277 |               <p className="text-sm text-muted-foreground">
+      |               ^
+  278 |                 Current rate: <Badge variant="secondary">{defaultRate}%</Badge>
+  279 |               </p>
+  280 |             </CardContent>
+
+Next.js version: 15.5.9 (Turbopack)
+
+
+Investigate and REPORT. No page in admin portal redirects to logon before auto loading to the intended page. Wh is this happening for commissions page?
