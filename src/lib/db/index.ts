@@ -12,13 +12,32 @@
 
 import { Pool, PoolClient, QueryResult } from 'pg';
 
+// Detect if running in Replit environment
+function isReplitEnvironment(): boolean {
+  return !!(process.env.REPL_ID || process.env.REPLIT_DEV_DOMAIN);
+}
+
 // Build database connection string
-// Priority: DATABASE_URL first (for external deployments), then Replit PG* vars
+// Priority: 
+// - On Replit: Use native PostgreSQL (PGHOST, etc.) for local development
+// - On Render/Production: Use DATABASE_URL for external database (Supabase)
 function buildConnectionString(): string {
-  // Check for DATABASE_URL first (used by external platforms like Render, Vercel, etc.)
+  const pgHost = process.env.PGHOST;
+  const pgDatabase = process.env.PGDATABASE;
+  const pgUser = process.env.PGUSER;
+  const pgPassword = process.env.PGPASSWORD;
+  const pgPort = process.env.PGPORT || '5432';
   const databaseUrl = process.env.DATABASE_URL;
+
+  // On Replit: Prefer native PostgreSQL for development
+  if (isReplitEnvironment() && pgHost && pgDatabase && pgUser && pgPassword) {
+    console.log('[DB] Using Replit native PostgreSQL (development)');
+    return `postgresql://${pgUser}:${encodeURIComponent(pgPassword)}@${pgHost}:${pgPort}/${pgDatabase}`;
+  }
+
+  // On external platforms (Render, Vercel, etc.): Use DATABASE_URL
   if (databaseUrl && !databaseUrl.includes('sqlite')) {
-    console.log('[DB] Using DATABASE_URL');
+    console.log('[DB] Using DATABASE_URL (production)');
     // Handle postgres:// vs postgresql:// prefix mismatch
     if (databaseUrl.startsWith('postgres://')) {
       return databaseUrl.replace(/^postgres:\/\//, 'postgresql://');
@@ -26,13 +45,7 @@ function buildConnectionString(): string {
     return databaseUrl;
   }
 
-  // Fallback to Replit's native PostgreSQL environment variables
-  const pgHost = process.env.PGHOST;
-  const pgDatabase = process.env.PGDATABASE;
-  const pgUser = process.env.PGUSER;
-  const pgPassword = process.env.PGPASSWORD;
-  const pgPort = process.env.PGPORT || '5432';
-
+  // Fallback to Replit's native PostgreSQL if available
   if (pgHost && pgDatabase && pgUser && pgPassword) {
     console.log('[DB] Using Replit PostgreSQL environment variables');
     return `postgresql://${pgUser}:${encodeURIComponent(pgPassword)}@${pgHost}:${pgPort}/${pgDatabase}`;
@@ -47,6 +60,11 @@ const connectionString = buildConnectionString();
 
 // Determine if SSL should be used (required for external databases like Supabase)
 function shouldUseSSL(): boolean {
+  // No SSL needed for Replit's native PostgreSQL
+  if (isReplitEnvironment() && process.env.PGHOST) {
+    return false;
+  }
+  
   const dbUrl = process.env.DATABASE_URL || '';
   // Enable SSL for Supabase, Neon, or any external PostgreSQL provider
   return dbUrl.includes('supabase.co') || 
