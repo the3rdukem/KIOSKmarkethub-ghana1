@@ -492,7 +492,7 @@ export async function getPayoutById(payoutId: string): Promise<VendorPayout | nu
 /**
  * Get payout by reference (for webhook handlers)
  */
-export async function getPayoutByReference(reference: string): Promise<(VendorPayout & { vendor_phone?: string; vendor_name?: string }) | null> {
+export async function getPayoutByReference(reference: string): Promise<(VendorPayout & { vendor_phone?: string; vendor_name?: string; bank_account_name?: string }) | null> {
   try {
     const result = await query(
       `SELECT vp.*, vba.bank_name, vba.account_number, vba.account_name, vba.account_type,
@@ -511,6 +511,7 @@ export async function getPayoutByReference(reference: string): Promise<(VendorPa
       ...payout,
       vendor_phone: row.vendor_phone,
       vendor_name: row.vendor_name,
+      bank_account_name: row.account_name,
     };
   } catch (error) {
     console.error('[Payouts] Error getting payout by reference:', error);
