@@ -18,7 +18,10 @@ export type SMSEventType =
   | 'dispute_opened'
   | 'dispute_resolved'
   | 'welcome_buyer'
-  | 'welcome_vendor';
+  | 'welcome_vendor'
+  | 'payout_processing'
+  | 'payout_completed'
+  | 'payout_failed';
 
 export type SMSStatus = 'pending' | 'sent' | 'failed' | 'delivered';
 

@@ -12,7 +12,8 @@ import { createAuditLog } from '@/lib/db/dal/audit';
 import { createHash } from 'crypto';
 import { sendOrderConfirmationSMS, sendVendorNewOrderSMS } from '@/lib/services/arkesel-sms';
 import { getUserById } from '@/lib/db/dal/users';
-import { updatePayoutStatus, getPayoutById } from '@/lib/db/dal/payouts';
+import { updatePayoutStatus, getPayoutById, getPayoutByReference } from '@/lib/db/dal/payouts';
+import { sendSMS } from '@/lib/services/arkesel-sms';
 
 interface PaystackEvent {
   event: string;
@@ -413,7 +414,28 @@ async function handleTransferSuccess(data: TransferData): Promise<void> {
 
     console.log(`[PAYSTACK_WEBHOOK] Payout ${data.reference} marked as successful`);
     
-    // TODO: Send SMS notification to vendor about successful payout
+    // Send SMS notification to vendor
+    try {
+      const payout = await getPayoutByReference(data.reference);
+      if (payout?.vendor_phone) {
+        const amountGHS = (data.amount / 100).toFixed(2);
+        await sendSMS({
+          phone: payout.vendor_phone,
+          eventType: 'payout_completed',
+          recipientId: payout.vendor_id,
+          recipientRole: 'vendor',
+          recipientName: payout.vendor_name,
+          variables: {
+            amount: amountGHS,
+            reference: data.reference,
+            account: payout.bank_account_name || 'your account',
+          },
+        });
+        console.log(`[PAYSTACK_WEBHOOK] SMS sent to vendor for payout ${data.reference}`);
+      }
+    } catch (smsError) {
+      console.error('[PAYSTACK_WEBHOOK] Failed to send payout SMS:', smsError);
+    }
   } catch (error) {
     console.error(`[PAYSTACK_WEBHOOK] Failed to process transfer success:`, error);
   }
@@ -455,7 +477,28 @@ async function handleTransferFailed(data: TransferData): Promise<void> {
 
     console.log(`[PAYSTACK_WEBHOOK] Payout ${data.reference} marked as failed: ${failureReason}`);
     
-    // TODO: Send SMS notification to vendor about failed payout
+    // Send SMS notification to vendor
+    try {
+      const payout = await getPayoutByReference(data.reference);
+      if (payout?.vendor_phone) {
+        const amountGHS = (data.amount / 100).toFixed(2);
+        await sendSMS({
+          phone: payout.vendor_phone,
+          eventType: 'payout_failed',
+          recipientId: payout.vendor_id,
+          recipientRole: 'vendor',
+          recipientName: payout.vendor_name,
+          variables: {
+            amount: amountGHS,
+            reference: data.reference,
+            reason: failureReason,
+          },
+        });
+        console.log(`[PAYSTACK_WEBHOOK] SMS sent to vendor for failed payout ${data.reference}`);
+      }
+    } catch (smsError) {
+      console.error('[PAYSTACK_WEBHOOK] Failed to send payout SMS:', smsError);
+    }
   } catch (error) {
     console.error(`[PAYSTACK_WEBHOOK] Failed to process transfer failure:`, error);
   }
@@ -495,7 +538,28 @@ async function handleTransferReversed(data: TransferData): Promise<void> {
 
     console.log(`[PAYSTACK_WEBHOOK] Payout ${data.reference} marked as reversed`);
     
-    // TODO: Send SMS notification to vendor about reversed payout
+    // Send SMS notification to vendor (use failed template for reversed)
+    try {
+      const payout = await getPayoutByReference(data.reference);
+      if (payout?.vendor_phone) {
+        const amountGHS = (data.amount / 100).toFixed(2);
+        await sendSMS({
+          phone: payout.vendor_phone,
+          eventType: 'payout_failed',
+          recipientId: payout.vendor_id,
+          recipientRole: 'vendor',
+          recipientName: payout.vendor_name,
+          variables: {
+            amount: amountGHS,
+            reference: data.reference,
+            reason: 'Transfer was reversed by the bank',
+          },
+        });
+        console.log(`[PAYSTACK_WEBHOOK] SMS sent to vendor for reversed payout ${data.reference}`);
+      }
+    } catch (smsError) {
+      console.error('[PAYSTACK_WEBHOOK] Failed to send payout SMS:', smsError);
+    }
   } catch (error) {
     console.error(`[PAYSTACK_WEBHOOK] Failed to process transfer reversal:`, error);
   }

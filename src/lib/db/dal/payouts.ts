@@ -490,6 +490,35 @@ export async function getPayoutById(payoutId: string): Promise<VendorPayout | nu
 }
 
 /**
+ * Get payout by reference (for webhook handlers)
+ */
+export async function getPayoutByReference(reference: string): Promise<(VendorPayout & { vendor_phone?: string; vendor_name?: string }) | null> {
+  try {
+    const result = await query(
+      `SELECT vp.*, vba.bank_name, vba.account_number, vba.account_name, vba.account_type,
+              u.phone as vendor_phone, v.business_name as vendor_name
+       FROM vendor_payouts vp
+       LEFT JOIN vendor_bank_accounts vba ON vp.bank_account_id = vba.id
+       LEFT JOIN users u ON vp.vendor_id = u.id
+       LEFT JOIN vendors v ON vp.vendor_id = v.user_id
+       WHERE vp.reference = $1`,
+      [reference]
+    );
+    if (result.rows.length === 0) return null;
+    const row = result.rows[0];
+    const payout = mapRowToPayout(row);
+    return {
+      ...payout,
+      vendor_phone: row.vendor_phone,
+      vendor_name: row.vendor_name,
+    };
+  } catch (error) {
+    console.error('[Payouts] Error getting payout by reference:', error);
+    return null;
+  }
+}
+
+/**
  * Request a withdrawal (vendor-initiated)
  */
 export async function requestWithdrawal(request: WithdrawalRequest): Promise<{ success: boolean; payout?: VendorPayout; error?: string }> {
