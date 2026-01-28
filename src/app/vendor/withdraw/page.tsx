@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -43,7 +44,9 @@ import {
   Loader2,
   XCircle,
   Building,
-  Phone
+  Phone,
+  Info,
+  Percent
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { useOrdersStore } from "@/lib/orders-store";
@@ -88,8 +91,33 @@ export default function VendorWithdrawPage() {
   const [showOTPVerification, setShowOTPVerification] = useState(false);
   const [otpVerified, setOtpVerified] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [commissionData, setCommissionData] = useState<{
+    grossSales: number;
+    commission: number;
+    commissionRate: number;
+    commissionSource: 'vendor' | 'category' | 'default';
+  } | null>(null);
 
   const { isEnabled: otpEnabled } = useArkeselOTP();
+
+  // Fetch commission data from vendor stats
+  useEffect(() => {
+    if (isHydrated && user) {
+      fetch('/api/vendor/stats', { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.earnings) {
+            setCommissionData({
+              grossSales: data.earnings.grossSales || 0,
+              commission: data.earnings.commission || 0,
+              commissionRate: data.earnings.commissionRate || 0.08,
+              commissionSource: data.earnings.commissionSource || 'default'
+            });
+          }
+        })
+        .catch(err => console.error('Failed to fetch commission data:', err));
+    }
+  }, [isHydrated, user]);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -272,6 +300,65 @@ export default function VendorWithdrawPage() {
             <p className="text-muted-foreground text-sm sm:text-base">Request payouts to mobile money or bank</p>
           </div>
         </div>
+
+        {/* Commission Summary Card */}
+        {commissionData && commissionData.grossSales > 0 && (
+          <Card className="mb-6 border-l-4 border-l-blue-500">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Percent className="w-4 h-4" />
+                  Earnings Summary
+                </CardTitle>
+                <Badge 
+                  variant="outline" 
+                  className={
+                    commissionData.commissionSource === 'vendor' 
+                      ? 'text-green-600 border-green-600' 
+                      : commissionData.commissionSource === 'category'
+                      ? 'text-blue-600 border-blue-600'
+                      : 'text-gray-600 border-gray-600'
+                  }
+                >
+                  {commissionData.commissionSource === 'vendor' 
+                    ? `Partner Rate: ${(commissionData.commissionRate * 100).toFixed(0)}%`
+                    : commissionData.commissionSource === 'category'
+                    ? `Category Rate: ${(commissionData.commissionRate * 100).toFixed(0)}%`
+                    : `Standard Rate: ${(commissionData.commissionRate * 100).toFixed(0)}%`
+                  }
+                </Badge>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Gross Sales</p>
+                  <p className="text-lg font-bold">GHS {commissionData.grossSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div className="p-3 bg-red-50 rounded-lg">
+                  <div className="flex items-center justify-center gap-1 mb-1">
+                    <p className="text-xs text-muted-foreground">Platform Fee ({(commissionData.commissionRate * 100).toFixed(0)}%)</p>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="text-xs">Covers payment processing, buyer protection, and marketplace services.</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                  <p className="text-lg font-bold text-red-600">- GHS {commissionData.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                </div>
+                <div className="p-3 bg-green-50 rounded-lg">
+                  <p className="text-xs text-muted-foreground mb-1">Your Earnings</p>
+                  <p className="text-lg font-bold text-green-600">GHS {(commissionData.grossSales - commissionData.commission).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Balance Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

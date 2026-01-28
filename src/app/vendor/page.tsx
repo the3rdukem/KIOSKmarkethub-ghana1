@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DollarSign,
   Package,
@@ -23,7 +24,9 @@ import {
   Settings,
   Eye,
   Loader2,
-  MessageSquare
+  MessageSquare,
+  Info,
+  Percent
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { VendorAuthGuard } from "@/components/auth/auth-guard";
@@ -53,9 +56,11 @@ interface VendorStats {
     buyerName: string;
   }>;
   earnings?: {
+    grossSales: number;
     total: number;
     commission: number;
     commissionRate: number;
+    commissionSource: 'vendor' | 'category' | 'default';
     pending: number;
     completed: number;
   };
@@ -179,15 +184,36 @@ function VendorDashboardContent() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 pb-2">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Your Earnings</CardTitle>
+                  <div className="flex items-center gap-1">
+                    <CardTitle className="text-xs sm:text-sm font-medium">Your Earnings</CardTitle>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Info className="h-3 w-3 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs">
+                          <p className="font-semibold mb-1">Platform Fee Breakdown</p>
+                          <p className="text-xs">The platform fee covers payment processing, buyer protection, and marketplace services.</p>
+                          {stats?.earnings?.commissionSource === 'vendor' && (
+                            <p className="text-xs mt-1 text-green-600">You have a partner rate!</p>
+                          )}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
                   <DollarSign className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
                   <div className="text-lg sm:text-2xl font-bold text-green-600 truncate">
                     GHS {(stats?.earnings?.total ?? totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    After {((stats?.earnings?.commissionRate ?? 0.08) * 100).toFixed(0)}% platform fee
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    {stats?.earnings?.commissionSource === 'vendor' ? (
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 text-green-600 border-green-600">Partner Rate</Badge>
+                    ) : stats?.earnings?.commissionSource === 'category' ? (
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 text-blue-600 border-blue-600">Category Rate</Badge>
+                    ) : null}
+                    {((stats?.earnings?.commissionRate ?? 0.08) * 100).toFixed(0)}% fee applied
                   </p>
                 </CardContent>
               </Card>
@@ -229,11 +255,34 @@ function VendorDashboardContent() {
               </Card>
             </div>
 
-            {/* Sales Overview Placeholder */}
+            {/* Sales Overview */}
             <Card>
               <CardHeader>
-                <CardTitle>Sales Overview</CardTitle>
-                <CardDescription>Your sales performance</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Sales Overview</CardTitle>
+                    <CardDescription>Your sales performance and earnings breakdown</CardDescription>
+                  </div>
+                  {stats?.earnings?.commissionSource && (
+                    <Badge 
+                      variant="outline" 
+                      className={
+                        stats.earnings.commissionSource === 'vendor' 
+                          ? 'text-green-600 border-green-600' 
+                          : stats.earnings.commissionSource === 'category'
+                          ? 'text-blue-600 border-blue-600'
+                          : 'text-gray-600 border-gray-600'
+                      }
+                    >
+                      {stats.earnings.commissionSource === 'vendor' 
+                        ? `Partner Rate: ${((stats.earnings.commissionRate) * 100).toFixed(0)}%`
+                        : stats.earnings.commissionSource === 'category'
+                        ? `Category Rate: ${((stats.earnings.commissionRate) * 100).toFixed(0)}%`
+                        : `Standard Rate: ${((stats.earnings.commissionRate) * 100).toFixed(0)}%`
+                      }
+                    </Badge>
+                  )}
+                </div>
               </CardHeader>
               <CardContent>
                 {totalOrders === 0 ? (
@@ -245,32 +294,69 @@ function VendorDashboardContent() {
                     </div>
                   </div>
                 ) : (
-                  <div className="h-64 bg-gray-50 rounded-lg p-4">
-                    <div className="flex flex-col h-full justify-center space-y-4">
-                      <div className="text-center">
-                        <TrendingUp className="w-10 h-10 text-green-500 mx-auto mb-2" />
-                        <p className="text-2xl font-bold text-green-600">
-                          GHS {(stats?.earnings?.total ?? totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  <div className="space-y-6">
+                    {/* Earnings Breakdown */}
+                    <div className="bg-gray-50 rounded-lg p-4 space-y-3">
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                        <span className="text-sm text-muted-foreground">Gross Sales</span>
+                        <span className="text-lg font-semibold">
+                          GHS {(stats?.earnings?.grossSales ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm text-muted-foreground">Platform Fee ({((stats?.earnings?.commissionRate ?? 0.08) * 100).toFixed(0)}%)</span>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <Info className="h-3 w-3 text-muted-foreground" />
+                              </TooltipTrigger>
+                              <TooltipContent className="max-w-xs">
+                                <p className="text-xs mb-2">This fee covers:</p>
+                                <ul className="text-xs list-disc list-inside space-y-1">
+                                  <li>Payment processing</li>
+                                  <li>Buyer protection</li>
+                                  <li>Marketplace services</li>
+                                  <li>Customer support</li>
+                                </ul>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <span className="text-lg font-semibold text-red-600">
+                          - GHS {(stats?.earnings?.commission ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 bg-green-50 -mx-4 px-4 rounded-b-lg">
+                        <span className="text-sm font-medium text-green-800">Your Earnings</span>
+                        <span className="text-xl font-bold text-green-600">
+                          GHS {(stats?.earnings?.total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Earnings Status */}
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 bg-amber-50 rounded-lg border border-amber-200">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Clock className="h-4 w-4 text-amber-600" />
+                          <span className="text-xs font-medium text-amber-800">Pending</span>
+                        </div>
+                        <p className="text-lg font-bold text-amber-700">
+                          GHS {(stats?.earnings?.pending ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                         </p>
-                        <p className="text-sm text-muted-foreground">Total Earnings</p>
+                        <p className="text-xs text-amber-600">Orders in progress</p>
                       </div>
-                      <div className="grid grid-cols-2 gap-4 text-center">
-                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                          <p className="text-lg font-semibold text-amber-600">
-                            GHS {(stats?.earnings?.pending ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </p>
-                          <p className="text-xs text-muted-foreground">Pending</p>
+                      <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CheckCircle className="h-4 w-4 text-green-600" />
+                          <span className="text-xs font-medium text-green-800">Ready to Withdraw</span>
                         </div>
-                        <div className="p-2 bg-white rounded-lg shadow-sm">
-                          <p className="text-lg font-semibold text-green-600">
-                            GHS {(stats?.earnings?.completed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                          </p>
-                          <p className="text-xs text-muted-foreground">Ready to Withdraw</p>
-                        </div>
+                        <p className="text-lg font-bold text-green-700">
+                          GHS {(stats?.earnings?.completed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-xs text-green-600">From completed orders</p>
                       </div>
-                      <p className="text-xs text-center text-muted-foreground">
-                        {((stats?.earnings?.commissionRate ?? 0.08) * 100).toFixed(0)}% platform fee deducted from sales
-                      </p>
                     </div>
                   </div>
                 )}

@@ -69,6 +69,9 @@ interface OrderItem {
   appliedDiscount?: number | null;
   image?: string;
   fulfillmentStatus: string;
+  commissionRate?: number;
+  commissionAmount?: number;
+  vendorEarnings?: number;
 }
 
 interface Order {
@@ -1045,17 +1048,44 @@ export default function VendorOrdersPage() {
                         </div>
                       ))}
                     </div>
-                    <div className="mt-4 pt-4 border-t space-y-1">
+                    <div className="mt-4 pt-4 border-t space-y-2">
                       {selectedOrder.discountTotal > 0 && (
                         <div className="flex justify-between text-sm text-green-600">
                           <span>Coupon Applied{selectedOrder.couponCode ? ` (${selectedOrder.couponCode})` : ''}</span>
                           <span>-GHS {selectedOrder.discountTotal.toFixed(2)}</span>
                         </div>
                       )}
-                      <div className="flex justify-between font-bold">
-                        <span>Your Total</span>
-                        <span>GHS {getVendorItemsTotal(selectedOrder).toFixed(2)}</span>
-                      </div>
+                      {/* Commission breakdown for vendor */}
+                      {(() => {
+                        const vendorItems = getVendorItems(selectedOrder);
+                        const grossTotal = getVendorItemsTotal(selectedOrder);
+                        const vendorCommission = vendorItems.reduce((sum, item) => sum + (item.commissionAmount || 0), 0);
+                        const vendorEarnings = vendorItems.reduce((sum, item) => sum + (item.vendorEarnings || 0), 0);
+                        const commissionRate = vendorItems[0]?.commissionRate || 0.08;
+                        const hasCommissionData = vendorCommission > 0 || vendorEarnings > 0;
+
+                        return hasCommissionData ? (
+                          <>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-muted-foreground">Gross Sale</span>
+                              <span>GHS {grossTotal.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between text-sm text-red-600">
+                              <span>Platform Fee ({(commissionRate * 100).toFixed(0)}%)</span>
+                              <span>-GHS {vendorCommission.toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between font-bold text-green-700 bg-green-50 -mx-4 px-4 py-2 rounded">
+                              <span>Your Earnings</span>
+                              <span>GHS {vendorEarnings.toFixed(2)}</span>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="flex justify-between font-bold">
+                            <span>Your Total</span>
+                            <span>GHS {grossTotal.toFixed(2)}</span>
+                          </div>
+                        );
+                      })()}
                     </div>
                   </CardContent>
                 </Card>

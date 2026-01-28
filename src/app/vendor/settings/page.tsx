@@ -56,8 +56,12 @@ import {
   Twitter,
   MessageCircle,
   ExternalLink,
-  AlertTriangle
+  AlertTriangle,
+  Percent,
+  Info,
+  DollarSign
 } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuthStore } from "@/lib/auth-store";
 import { useUsersStore } from "@/lib/users-store";
 import { ImageUpload } from "@/components/ui/image-upload";
@@ -74,6 +78,16 @@ export default function VendorSettingsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [commissionData, setCommissionData] = useState<{
+    grossSales: number;
+    total: number;
+    commission: number;
+    commissionRate: number;
+    commissionSource: 'vendor' | 'category' | 'default';
+    pending: number;
+    completed: number;
+  } | null>(null);
+  const [isLoadingCommission, setIsLoadingCommission] = useState(false);
 
   const [storeData, setStoreData] = useState({
     storeName: "",
@@ -115,6 +129,30 @@ export default function VendorSettingsPage() {
   useEffect(() => {
     setIsHydrated(true);
   }, []);
+
+  // Fetch commission data
+  useEffect(() => {
+    if (isHydrated && user && user.role === 'vendor') {
+      setIsLoadingCommission(true);
+      fetch('/api/vendor/stats', { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => {
+          if (data.earnings) {
+            setCommissionData({
+              grossSales: data.earnings.grossSales || 0,
+              total: data.earnings.total || 0,
+              commission: data.earnings.commission || 0,
+              commissionRate: data.earnings.commissionRate || 0.08,
+              commissionSource: data.earnings.commissionSource || 'default',
+              pending: data.earnings.pending || 0,
+              completed: data.earnings.completed || 0
+            });
+          }
+        })
+        .catch(err => console.error('Failed to fetch commission data:', err))
+        .finally(() => setIsLoadingCommission(false));
+    }
+  }, [isHydrated, user]);
 
   // Load vendor data from both stores
   useEffect(() => {
@@ -307,6 +345,7 @@ export default function VendorSettingsPage() {
             <Tabs defaultValue="store" className="space-y-6">
               <TabsList className="flex w-full overflow-x-auto">
                 <TabsTrigger value="store" className="flex-shrink-0">Store Info</TabsTrigger>
+                <TabsTrigger value="commission" className="flex-shrink-0">Commission</TabsTrigger>
                 <TabsTrigger value="status" className="flex-shrink-0">Status</TabsTrigger>
                 <TabsTrigger value="business" className="flex-shrink-0">Business</TabsTrigger>
                 <TabsTrigger value="notifications" className="flex-shrink-0">Notifications</TabsTrigger>
@@ -480,6 +519,170 @@ export default function VendorSettingsPage() {
                         aspectRatio="banner"
                       />
                     </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Commission Details Tab */}
+              <TabsContent value="commission" className="space-y-6">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                      <Percent className="w-5 h-5" />
+                      Platform Commission Details
+                    </CardTitle>
+                    <CardDescription>
+                      Understand your commission rate and how earnings are calculated
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {isLoadingCommission ? (
+                      <div className="flex items-center justify-center py-8">
+                        <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : commissionData ? (
+                      <>
+                        {/* Current Rate Card */}
+                        <div className="p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold">Your Commission Rate</h3>
+                            <Badge 
+                              variant="outline" 
+                              className={
+                                commissionData.commissionSource === 'vendor' 
+                                  ? 'text-green-600 border-green-600 bg-green-50' 
+                                  : commissionData.commissionSource === 'category'
+                                  ? 'text-blue-600 border-blue-600 bg-blue-50'
+                                  : 'text-gray-600 border-gray-600 bg-gray-50'
+                              }
+                            >
+                              {commissionData.commissionSource === 'vendor' 
+                                ? 'Partner Rate'
+                                : commissionData.commissionSource === 'category'
+                                ? 'Category Rate'
+                                : 'Standard Rate'
+                              }
+                            </Badge>
+                          </div>
+                          <div className="text-4xl font-bold text-blue-700 mb-2">
+                            {(commissionData.commissionRate * 100).toFixed(0)}%
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            {commissionData.commissionSource === 'vendor' 
+                              ? 'You have a special partner rate negotiated for your account.'
+                              : commissionData.commissionSource === 'category'
+                              ? 'Your rate is based on the category of products you sell.'
+                              : 'This is the standard marketplace commission rate.'
+                            }
+                          </p>
+                        </div>
+
+                        {/* What the fee covers */}
+                        <Card className="border-l-4 border-l-amber-500">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <Info className="w-4 h-4" />
+                              What Does the Platform Fee Cover?
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <ul className="space-y-2 text-sm">
+                              <li className="flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                <span><strong>Payment Processing</strong> - Secure payment handling via Mobile Money and cards</span>
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                <span><strong>Buyer Protection</strong> - Dispute resolution and refund management</span>
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                <span><strong>Marketplace Services</strong> - Product listing, search, and discovery</span>
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                <span><strong>Customer Support</strong> - 24/7 buyer and seller support</span>
+                              </li>
+                              <li className="flex items-center gap-2">
+                                <CheckCircle className="w-4 h-4 text-green-500 flex-shrink-0" />
+                                <span><strong>Platform Infrastructure</strong> - Hosting, security, and maintenance</span>
+                              </li>
+                            </ul>
+                          </CardContent>
+                        </Card>
+
+                        {/* Earnings Summary */}
+                        <Card>
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base flex items-center gap-2">
+                              <DollarSign className="w-4 h-4" />
+                              Your Earnings Summary
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-3">
+                              <div className="flex justify-between items-center py-2 border-b">
+                                <span className="text-sm text-muted-foreground">Gross Sales</span>
+                                <span className="font-semibold">
+                                  GHS {commissionData.grossSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center py-2 border-b">
+                                <span className="text-sm text-muted-foreground">
+                                  Platform Fee ({(commissionData.commissionRate * 100).toFixed(0)}%)
+                                </span>
+                                <span className="font-semibold text-red-600">
+                                  - GHS {commissionData.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center py-2 bg-green-50 -mx-4 px-4 rounded">
+                                <span className="font-medium text-green-800">Your Total Earnings</span>
+                                <span className="text-xl font-bold text-green-600">
+                                  GHS {commissionData.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* Commission Rate Tiers Explanation */}
+                        <Card className="border-l-4 border-l-purple-500">
+                          <CardHeader className="pb-2">
+                            <CardTitle className="text-base">Commission Rate Tiers</CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4 text-sm">
+                              <div className="flex items-start gap-3">
+                                <Badge variant="outline" className="text-green-600 border-green-600 mt-0.5">Partner</Badge>
+                                <div>
+                                  <p className="font-medium">Partner Rate</p>
+                                  <p className="text-muted-foreground">Special rates negotiated for high-volume sellers or strategic partners. Contact us to learn more.</p>
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-3">
+                                <Badge variant="outline" className="text-blue-600 border-blue-600 mt-0.5">Category</Badge>
+                                <div>
+                                  <p className="font-medium">Category Rate</p>
+                                  <p className="text-muted-foreground">Some categories have different commission rates based on industry standards and margins.</p>
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-3">
+                                <Badge variant="outline" className="text-gray-600 border-gray-600 mt-0.5">Standard</Badge>
+                                <div>
+                                  <p className="font-medium">Standard Rate</p>
+                                  <p className="text-muted-foreground">The default marketplace rate applied to all vendors.</p>
+                                </div>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </>
+                    ) : (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <p>No commission data available yet.</p>
+                        <p className="text-sm">Complete your first sale to see your earnings breakdown.</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

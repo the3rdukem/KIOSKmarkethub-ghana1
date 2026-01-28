@@ -171,6 +171,12 @@ export async function GET(request: NextRequest) {
     // Get vendor's current configured commission rate (not historical average)
     const commissionRates = await getCommissionRates(vendorId);
     const currentCommissionRate = commissionRates.effectiveRate;
+    const commissionSource = commissionRates.source; // 'vendor', 'category', or 'default'
+
+    // Calculate gross sales from earnings + commission
+    const totalEarnings = parseFloat(earningsData.total_earnings) || 0;
+    const totalCommission = parseFloat(earningsData.total_commission) || 0;
+    const grossSales = totalEarnings + totalCommission;
 
     const response = NextResponse.json({
       products: {
@@ -189,9 +195,11 @@ export async function GET(request: NextRequest) {
       revenue: totalRevenue,
       recentOrders: recentVendorOrders,
       earnings: {
-        total: parseFloat(earningsData.total_earnings) || 0,
-        commission: parseFloat(earningsData.total_commission) || 0,
-        commissionRate: currentCommissionRate, // Use current configured rate, not historical average
+        grossSales: grossSales,
+        total: totalEarnings,
+        commission: totalCommission,
+        commissionRate: currentCommissionRate,
+        commissionSource: commissionSource, // 'vendor' = partner rate, 'category' = category rate, 'default' = standard rate
         pending: parseFloat(earningsData.pending_earnings) || 0,
         completed: parseFloat(earningsData.completed_earnings) || 0,
       },

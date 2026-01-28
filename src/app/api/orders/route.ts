@@ -91,6 +91,9 @@ export async function GET(request: NextRequest) {
         vendorCourierReference: item.vendor_courier_reference,
         vendorReadyForPickupAt: item.vendor_ready_for_pickup_at,
         vendorDeliveredAt: item.vendor_delivered_at,
+        commissionRate: item.commission_rate,
+        commissionAmount: item.commission_amount,
+        vendorEarnings: item.vendor_earnings,
       }));
 
       // Also normalize legacy items to have same fields for backwards compatibility

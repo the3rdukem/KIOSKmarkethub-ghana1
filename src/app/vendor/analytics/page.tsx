@@ -22,7 +22,10 @@ import {
   Loader2,
   Calendar,
   MessageSquare,
-  Send
+  Send,
+  FileText,
+  Download,
+  Percent
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { Product } from "@/lib/products-store";
@@ -82,6 +85,15 @@ function VendorAnalyticsContent() {
     orders: { total: number; pending: number; completed: number; cancelled: number };
     revenue: number;
     recentOrders: Array<{ id: string; status: string; total: number; createdAt: string; buyerName: string }>;
+    earnings?: {
+      grossSales: number;
+      total: number;
+      commission: number;
+      commissionRate: number;
+      commissionSource: 'vendor' | 'category' | 'default';
+      pending: number;
+      completed: number;
+    };
   } | null>(null);
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
@@ -338,6 +350,7 @@ function VendorAnalyticsContent() {
             <TabsTrigger value="products">Recent Orders</TabsTrigger>
             <TabsTrigger value="orders">Order Status</TabsTrigger>
             <TabsTrigger value="reviews">Recent Reviews</TabsTrigger>
+            <TabsTrigger value="earnings">Earnings Statement</TabsTrigger>
           </TabsList>
 
           <TabsContent value="products">
@@ -525,6 +538,182 @@ function VendorAnalyticsContent() {
                         )}
                       </div>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Earnings Statement Tab */}
+          <TabsContent value="earnings">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <FileText className="w-5 h-5" />
+                      Earnings Statement
+                    </CardTitle>
+                    <CardDescription>Lifetime breakdown of your earnings and platform fees</CardDescription>
+                  </div>
+                  {vendorStats?.earnings && (
+                    <Badge 
+                      variant="outline" 
+                      className={
+                        vendorStats.earnings.commissionSource === 'vendor' 
+                          ? 'text-green-600 border-green-600' 
+                          : vendorStats.earnings.commissionSource === 'category'
+                          ? 'text-blue-600 border-blue-600'
+                          : 'text-gray-600 border-gray-600'
+                      }
+                    >
+                      {vendorStats.earnings.commissionSource === 'vendor' 
+                        ? `Partner Rate: ${(vendorStats.earnings.commissionRate * 100).toFixed(0)}%`
+                        : vendorStats.earnings.commissionSource === 'category'
+                        ? `Category Rate: ${(vendorStats.earnings.commissionRate * 100).toFixed(0)}%`
+                        : `Standard Rate: ${(vendorStats.earnings.commissionRate * 100).toFixed(0)}%`
+                      }
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                {vendorStats?.earnings ? (
+                  <>
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <Card className="bg-gray-50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <TrendingUp className="w-4 h-4 text-gray-600" />
+                            <span className="text-sm font-medium text-muted-foreground">Gross Sales</span>
+                          </div>
+                          <p className="text-2xl font-bold">
+                            GHS {vendorStats.earnings.grossSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                        </CardContent>
+                      </Card>
+                      <Card className="bg-red-50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Percent className="w-4 h-4 text-red-600" />
+                            <span className="text-sm font-medium text-red-700">Platform Fees</span>
+                          </div>
+                          <p className="text-2xl font-bold text-red-600">
+                            - GHS {vendorStats.earnings.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                        </CardContent>
+                      </Card>
+                      <Card className="bg-green-50">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <DollarSign className="w-4 h-4 text-green-600" />
+                            <span className="text-sm font-medium text-green-700">Net Earnings</span>
+                          </div>
+                          <p className="text-2xl font-bold text-green-600">
+                            GHS {vendorStats.earnings.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Detailed Statement */}
+                    <Card className="border-2">
+                      <CardHeader className="bg-gray-50 border-b">
+                        <CardTitle className="text-lg">Earnings Statement</CardTitle>
+                        <CardDescription>Summary of all earnings to date</CardDescription>
+                      </CardHeader>
+                      <CardContent className="p-0">
+                        <table className="w-full">
+                          <thead className="bg-gray-50 border-b">
+                            <tr>
+                              <th className="text-left px-4 py-3 text-sm font-medium text-muted-foreground">Description</th>
+                              <th className="text-right px-4 py-3 text-sm font-medium text-muted-foreground">Amount (GHS)</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y">
+                            <tr>
+                              <td className="px-4 py-3">
+                                <div className="font-medium">Gross Sales</div>
+                                <div className="text-xs text-muted-foreground">Total value of all orders</div>
+                              </td>
+                              <td className="px-4 py-3 text-right font-medium">
+                                {vendorStats.earnings.grossSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                            <tr className="bg-red-50">
+                              <td className="px-4 py-3">
+                                <div className="font-medium text-red-700">Platform Fee ({(vendorStats.earnings.commissionRate * 100).toFixed(0)}%)</div>
+                                <div className="text-xs text-red-600">Payment processing, buyer protection, marketplace services</div>
+                              </td>
+                              <td className="px-4 py-3 text-right font-medium text-red-600">
+                                - {vendorStats.earnings.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                            <tr className="bg-green-50">
+                              <td className="px-4 py-3">
+                                <div className="font-bold text-green-800">Net Earnings</div>
+                                <div className="text-xs text-green-600">Your total earnings after fees</div>
+                              </td>
+                              <td className="px-4 py-3 text-right text-xl font-bold text-green-600">
+                                {vendorStats.earnings.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              </td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </CardContent>
+                    </Card>
+
+                    {/* Earnings Status Breakdown */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card className="border-l-4 border-l-amber-500">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Calendar className="w-4 h-4 text-amber-600" />
+                            <span className="text-sm font-medium">Pending Earnings</span>
+                          </div>
+                          <p className="text-xl font-bold text-amber-700">
+                            GHS {vendorStats.earnings.pending.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">From orders still in progress</p>
+                        </CardContent>
+                      </Card>
+                      <Card className="border-l-4 border-l-green-500">
+                        <CardContent className="p-4">
+                          <div className="flex items-center gap-2 mb-2">
+                            <Download className="w-4 h-4 text-green-600" />
+                            <span className="text-sm font-medium">Available for Withdrawal</span>
+                          </div>
+                          <p className="text-xl font-bold text-green-700">
+                            GHS {vendorStats.earnings.completed.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">From completed orders</p>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                    {/* Fee Explanation */}
+                    <Card className="bg-blue-50 border-blue-200">
+                      <CardContent className="p-4">
+                        <h4 className="font-medium text-blue-800 mb-2">Understanding Your Rate</h4>
+                        <p className="text-sm text-blue-700">
+                          {vendorStats.earnings.commissionSource === 'vendor' 
+                            ? `You have a special partner rate of ${(vendorStats.earnings.commissionRate * 100).toFixed(0)}%. This rate was negotiated for your account and is lower than the standard marketplace rate.`
+                            : vendorStats.earnings.commissionSource === 'category'
+                            ? `Your rate of ${(vendorStats.earnings.commissionRate * 100).toFixed(0)}% is based on the category of products you sell. Different categories have different rates based on industry standards.`
+                            : `You're on the standard marketplace rate of ${(vendorStats.earnings.commissionRate * 100).toFixed(0)}%. This covers payment processing, buyer protection, customer support, and platform infrastructure.`
+                          }
+                        </p>
+                      </CardContent>
+                    </Card>
+                  </>
+                ) : (
+                  <div className="text-center py-12">
+                    <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No Earnings Yet</h3>
+                    <p className="text-muted-foreground">
+                      Complete your first sale to see your earnings statement.
+                    </p>
                   </div>
                 )}
               </CardContent>
