@@ -17,7 +17,7 @@ I prefer clear and concise communication.
 |---------|-----------|--------|
 | Commission System | 3-4 | COMPLETE |
 | Vendor Payouts (Paystack Transfers) | 5-6 | PENDING |
-| SMS Notifications (Arkesel) | 2-3 | PENDING |
+| SMS Notifications (Arkesel) | 2-3 | COMPLETE |
 | Dispute Resolution + Refunds | 6-8 | PENDING |
 
 **Subtotal: ~16-21 days**
@@ -101,3 +101,10 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Google OAuth**: OAuth 2.0 integration for buyer and vendor sign-in.
 - **Google Maps Places API**: Location services for address autocompletion, with client-side API key access and HTTP referrer restrictions.
 - **Smile Identity KYC Integration**: Uses the `smile-identity-core` npm SDK for secure biometric and ID verification, with webhook integration for status updates.
+- **Arkesel SMS Notifications (Phase 13)**: Transactional SMS for order events using Arkesel API v2.
+  - **Database Schema**: `sms_templates` (9 event types) and `sms_logs` tables for template management and delivery tracking.
+  - **Sandbox Mode**: Uses Arkesel's native `sandbox: true` parameter - no SMS delivery, no charges during testing.
+  - **SMS Triggers**: Order confirmed (Paystack webhook), status changes (preparing, ready_for_pickup, delivered, cancelled), vendor new order notifications.
+  - **Fire-and-Forget Pattern**: SMS sending doesn't block order processing; errors are logged but don't affect transactions.
+  - **Admin UI**: `/admin/sms` page for managing settings, editing templates (with variable placeholders), and viewing message history.
+  - **Phone Format**: Ghana E.164 format (233XXXXXXXXX) with automatic conversion from local formats.

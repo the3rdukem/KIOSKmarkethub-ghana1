@@ -195,21 +195,13 @@ export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse>
     orderId: request.orderId,
   });
 
-  if (config.isDemoMode) {
-    console.log(`[SMS DEMO] To: ${formattedPhone}`);
-    console.log(`[SMS DEMO] Message: ${messageContent}`);
-
-    await smsDal.updateSMSLogStatus(log.id, 'sent', {
-      providerResponse: 'Demo mode - message logged',
-      sentAt: new Date().toISOString(),
-    });
-
-    return {
-      success: true,
-      message: 'SMS sent successfully (Demo Mode)',
-      logId: log.id,
-      isDemoMode: true,
-    };
+  // Use Arkesel's built-in sandbox mode for testing (no SMS delivery, no charges)
+  const useSandbox = config.isDemoMode;
+  
+  if (useSandbox) {
+    console.log(`[SMS SANDBOX] To: ${formattedPhone}`);
+    console.log(`[SMS SANDBOX] Message: ${messageContent}`);
+    console.log(`[SMS SANDBOX] Using Arkesel sandbox=true (no delivery, no charges)`);
   }
 
   try {
@@ -231,6 +223,7 @@ export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse>
             sender: config.senderId,
             message: messageContent,
             recipients: [formattedPhone],
+            sandbox: useSandbox, // Arkesel's native sandbox mode - no delivery, no charges
           }),
         });
 
@@ -263,9 +256,9 @@ export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse>
 
     return {
       success: true,
-      message: 'SMS sent successfully',
+      message: useSandbox ? 'SMS sent successfully (Sandbox Mode - not delivered)' : 'SMS sent successfully',
       logId: log.id,
-      isDemoMode: false,
+      isDemoMode: useSandbox,
     };
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
