@@ -30,6 +30,7 @@ interface CategoryRate {
 
 interface VendorRate {
   id: string;
+  user_id: string;
   business_name: string;
   email: string;
   commission_rate: number | null;
@@ -50,6 +51,7 @@ export default function CommissionPage() {
   const [editingVendor, setEditingVendor] = useState<string | null>(null);
   const [categoryRates, setCategoryRates] = useState<Record<string, string>>({});
   const [vendorRates, setVendorRates] = useState<Record<string, string>>({});
+  const [vendorSearch, setVendorSearch] = useState('');
 
   useEffect(() => {
     setIsHydrated(true);
@@ -157,30 +159,40 @@ export default function CommissionPage() {
     }
   };
 
-  const saveVendorRate = async (vendorId: string) => {
+  const saveVendorRate = async (vendor: VendorRate) => {
     setSaving(true);
     try {
-      const rateValue = vendorRates[vendorId];
+      const rateValue = vendorRates[vendor.id];
       const rate = rateValue === '' ? null : parseFloat(rateValue) / 100;
       const response = await fetch('/api/admin/commission', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'vendor',
-          vendorId,
+          vendorId: vendor.user_id,
           rate
         })
       });
       if (response.ok) {
         setEditingVendor(null);
+        toast.success(rate === null ? 'Vendor rate cleared - now using platform default' : `Vendor rate updated to ${(rate * 100).toFixed(0)}%`);
         await fetchCommissionData();
+      } else {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to update vendor rate');
       }
     } catch (error) {
       console.error('Error saving vendor rate:', error);
+      toast.error('Failed to update vendor rate');
     } finally {
       setSaving(false);
     }
   };
+
+  const filteredVendors = vendors.filter(vendor => 
+    vendor.business_name?.toLowerCase().includes(vendorSearch.toLowerCase()) ||
+    vendor.email?.toLowerCase().includes(vendorSearch.toLowerCase())
+  );
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-GH', {
@@ -398,10 +410,33 @@ export default function CommissionPage() {
         <TabsContent value="vendors">
           <Card>
             <CardHeader>
-              <CardTitle>Vendor Commission Rates</CardTitle>
-              <CardDescription>
-                Set custom commission rates for specific vendors. These override category and default rates.
-              </CardDescription>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <CardTitle>Vendor Commission Rates</CardTitle>
+                  <CardDescription>
+                    Set custom commission rates for specific vendors. These override category and default rates.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="text"
+                    placeholder="Search vendors..."
+                    value={vendorSearch}
+                    onChange={(e) => setVendorSearch(e.target.value)}
+                    className="w-64"
+                  />
+                  {vendorSearch && (
+                    <Button variant="ghost" size="sm" onClick={() => setVendorSearch('')}>
+                      Clear
+                    </Button>
+                  )}
+                </div>
+              </div>
+              {vendorSearch && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Showing {filteredVendors.length} of {vendors.length} vendors
+                </p>
+              )}
             </CardHeader>
             <CardContent>
               <Table>
@@ -414,7 +449,7 @@ export default function CommissionPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {vendors.map((vendor) => (
+                  {filteredVendors.map((vendor) => (
                     <TableRow key={vendor.id}>
                       <TableCell className="font-medium">{vendor.business_name}</TableCell>
                       <TableCell className="text-muted-foreground">{vendor.email}</TableCell>
@@ -449,7 +484,7 @@ export default function CommissionPage() {
                           <div className="flex items-center gap-2">
                             <Button
                               size="sm"
-                              onClick={() => saveVendorRate(vendor.id)}
+                              onClick={() => saveVendorRate(vendor)}
                               disabled={saving}
                             >
                               Save
@@ -474,10 +509,10 @@ export default function CommissionPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {vendors.length === 0 && (
+                  {filteredVendors.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
-                        No vendors found
+                        {vendorSearch ? `No vendors matching "${vendorSearch}"` : 'No vendors found'}
                       </TableCell>
                     </TableRow>
                   )}
