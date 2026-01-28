@@ -55,11 +55,14 @@ export async function setDefaultCommissionRate(rate: number, updatedBy?: string)
       throw new Error('Commission rate must be between 0 and 1 (0% to 100%)');
     }
     
+    // Round to 4 decimal places to avoid floating point precision issues
+    const roundedRate = Math.round(rate * 10000) / 10000;
+    
     await query(
       `INSERT INTO site_settings (key, value, updated_at, updated_by) 
        VALUES ('default_commission_rate', $1, $2, $3)
        ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = $2, updated_by = $3`,
-      [rate.toString(), new Date().toISOString(), updatedBy || null]
+      [roundedRate.toString(), new Date().toISOString(), updatedBy || null]
     );
     return true;
   } catch (error) {
@@ -99,9 +102,12 @@ export async function setCategoryCommissionRate(
       throw new Error('Commission rate must be between 0 and 1 (0% to 100%)');
     }
     
+    // Round to 4 decimal places to avoid floating point precision issues
+    const roundedRate = rate !== null ? Math.round(rate * 10000) / 10000 : null;
+    
     await query(
       `UPDATE categories SET commission_rate = $1, updated_at = $2 WHERE id = $3`,
-      [rate, new Date().toISOString(), categoryId]
+      [roundedRate, new Date().toISOString(), categoryId]
     );
     return true;
   } catch (error) {
@@ -141,9 +147,12 @@ export async function setVendorCommissionRate(
       throw new Error('Commission rate must be between 0 and 1 (0% to 100%)');
     }
     
+    // Round to 4 decimal places to avoid floating point precision issues
+    const roundedRate = rate !== null ? Math.round(rate * 10000) / 10000 : null;
+    
     await query(
       `UPDATE vendors SET commission_rate = $1, updated_at = $2 WHERE user_id = $3`,
-      [rate, new Date().toISOString(), vendorId]
+      [roundedRate, new Date().toISOString(), vendorId]
     );
     return true;
   } catch (error) {
