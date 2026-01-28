@@ -209,7 +209,7 @@ function VendorDashboardContent() {
                   </div>
                   <p className="text-xs text-muted-foreground flex items-center gap-1">
                     {stats?.earnings?.commissionSource === 'vendor' ? (
-                      <Badge variant="outline" className="text-[10px] px-1 py-0 text-green-600 border-green-600">Partner Rate</Badge>
+                      <Badge variant="outline" className="text-[10px] px-1 py-0 text-purple-600 border-purple-600">Custom Rate</Badge>
                     ) : stats?.earnings?.commissionSource === 'category' ? (
                       <Badge variant="outline" className="text-[10px] px-1 py-0 text-blue-600 border-blue-600">Category Rate</Badge>
                     ) : null}
@@ -268,17 +268,17 @@ function VendorDashboardContent() {
                       variant="outline" 
                       className={
                         stats.earnings.commissionSource === 'vendor' 
-                          ? 'text-green-600 border-green-600' 
+                          ? 'text-purple-600 border-purple-600' 
                           : stats.earnings.commissionSource === 'category'
                           ? 'text-blue-600 border-blue-600'
                           : 'text-gray-600 border-gray-600'
                       }
                     >
                       {stats.earnings.commissionSource === 'vendor' 
-                        ? `Partner Rate: ${((stats.earnings.commissionRate) * 100).toFixed(0)}%`
+                        ? `Custom Rate: ${((stats.earnings.commissionRate) * 100).toFixed(0)}%`
                         : stats.earnings.commissionSource === 'category'
                         ? `Category Rate: ${((stats.earnings.commissionRate) * 100).toFixed(0)}%`
-                        : `Standard Rate: ${((stats.earnings.commissionRate) * 100).toFixed(0)}%`
+                        : `Platform Rate: ${((stats.earnings.commissionRate) * 100).toFixed(0)}%`
                       }
                     </Badge>
                   )}

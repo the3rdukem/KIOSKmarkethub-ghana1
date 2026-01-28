@@ -276,19 +276,24 @@ export async function getAllCategoryCommissionRates(): Promise<Array<{
  */
 export async function getAllVendorCommissionRates(): Promise<Array<{
   id: string;
-  userId: string;
-  businessName: string;
-  commissionRate: number | null;
+  user_id: string;
+  business_name: string;
+  email: string;
+  commission_rate: number | null;
 }>> {
   try {
     const result = await query(
-      `SELECT id, user_id, business_name, commission_rate FROM vendors ORDER BY business_name`
+      `SELECT v.id, v.user_id, v.business_name, u.email, v.commission_rate 
+       FROM vendors v
+       LEFT JOIN users u ON v.user_id = u.id
+       ORDER BY v.business_name`
     );
     return result.rows.map(row => ({
       id: String(row.id || ''),
-      userId: String(row.user_id || ''),
-      businessName: String(row.business_name || ''),
-      commissionRate: row.commission_rate !== null ? parseFloat(String(row.commission_rate)) : null
+      user_id: String(row.user_id || ''),
+      business_name: String(row.business_name || ''),
+      email: String(row.email || ''),
+      commission_rate: row.commission_rate !== null ? parseFloat(String(row.commission_rate)) : null
     }));
   } catch (error) {
     console.error('[Commission] Error getting all vendor rates:', error);

@@ -550,17 +550,17 @@ export default function VendorSettingsPage() {
                               variant="outline" 
                               className={
                                 commissionData.commissionSource === 'vendor' 
-                                  ? 'text-green-600 border-green-600 bg-green-50' 
+                                  ? 'text-purple-600 border-purple-600 bg-purple-50' 
                                   : commissionData.commissionSource === 'category'
                                   ? 'text-blue-600 border-blue-600 bg-blue-50'
                                   : 'text-gray-600 border-gray-600 bg-gray-50'
                               }
                             >
                               {commissionData.commissionSource === 'vendor' 
-                                ? 'Partner Rate'
+                                ? 'Custom Rate'
                                 : commissionData.commissionSource === 'category'
                                 ? 'Category Rate'
-                                : 'Standard Rate'
+                                : 'Platform Rate'
                               }
                             </Badge>
                           </div>
@@ -569,10 +569,10 @@ export default function VendorSettingsPage() {
                           </div>
                           <p className="text-sm text-muted-foreground">
                             {commissionData.commissionSource === 'vendor' 
-                              ? 'You have a special partner rate negotiated for your account.'
+                              ? 'You have a custom rate set specifically for your account by the platform admin.'
                               : commissionData.commissionSource === 'category'
                               ? 'Your rate is based on the category of products you sell.'
-                              : 'This is the standard marketplace commission rate.'
+                              : 'This is the default platform commission rate applied to all vendors.'
                             }
                           </p>
                         </div>
@@ -653,10 +653,10 @@ export default function VendorSettingsPage() {
                           <CardContent>
                             <div className="space-y-4 text-sm">
                               <div className="flex items-start gap-3">
-                                <Badge variant="outline" className="text-green-600 border-green-600 mt-0.5">Partner</Badge>
+                                <Badge variant="outline" className="text-purple-600 border-purple-600 mt-0.5">Custom</Badge>
                                 <div>
-                                  <p className="font-medium">Partner Rate</p>
-                                  <p className="text-muted-foreground">Special rates negotiated for high-volume sellers or strategic partners. Contact us to learn more.</p>
+                                  <p className="font-medium">Custom Rate</p>
+                                  <p className="text-muted-foreground">A vendor-specific rate set by the platform admin. This overrides category and platform rates.</p>
                                 </div>
                               </div>
                               <div className="flex items-start gap-3">
@@ -667,10 +667,10 @@ export default function VendorSettingsPage() {
                                 </div>
                               </div>
                               <div className="flex items-start gap-3">
-                                <Badge variant="outline" className="text-gray-600 border-gray-600 mt-0.5">Standard</Badge>
+                                <Badge variant="outline" className="text-gray-600 border-gray-600 mt-0.5">Platform</Badge>
                                 <div>
-                                  <p className="font-medium">Standard Rate</p>
-                                  <p className="text-muted-foreground">The default marketplace rate applied to all vendors.</p>
+                                  <p className="font-medium">Platform Rate</p>
+                                  <p className="text-muted-foreground">The default marketplace rate applied to all vendors when no custom or category rate is set.</p>
                                 </div>
                               </div>
                             </div>

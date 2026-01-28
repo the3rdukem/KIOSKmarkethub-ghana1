@@ -561,17 +561,17 @@ function VendorAnalyticsContent() {
                       variant="outline" 
                       className={
                         vendorStats.earnings.commissionSource === 'vendor' 
-                          ? 'text-green-600 border-green-600' 
+                          ? 'text-purple-600 border-purple-600' 
                           : vendorStats.earnings.commissionSource === 'category'
                           ? 'text-blue-600 border-blue-600'
                           : 'text-gray-600 border-gray-600'
                       }
                     >
                       {vendorStats.earnings.commissionSource === 'vendor' 
-                        ? `Partner Rate: ${(vendorStats.earnings.commissionRate * 100).toFixed(0)}%`
+                        ? `Custom Rate: ${(vendorStats.earnings.commissionRate * 100).toFixed(0)}%`
                         : vendorStats.earnings.commissionSource === 'category'
                         ? `Category Rate: ${(vendorStats.earnings.commissionRate * 100).toFixed(0)}%`
-                        : `Standard Rate: ${(vendorStats.earnings.commissionRate * 100).toFixed(0)}%`
+                        : `Platform Rate: ${(vendorStats.earnings.commissionRate * 100).toFixed(0)}%`
                       }
                     </Badge>
                   )}

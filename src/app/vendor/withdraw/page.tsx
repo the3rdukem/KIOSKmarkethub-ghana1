@@ -314,17 +314,17 @@ export default function VendorWithdrawPage() {
                   variant="outline" 
                   className={
                     commissionData.commissionSource === 'vendor' 
-                      ? 'text-green-600 border-green-600' 
+                      ? 'text-purple-600 border-purple-600' 
                       : commissionData.commissionSource === 'category'
                       ? 'text-blue-600 border-blue-600'
                       : 'text-gray-600 border-gray-600'
                   }
                 >
                   {commissionData.commissionSource === 'vendor' 
-                    ? `Partner Rate: ${(commissionData.commissionRate * 100).toFixed(0)}%`
+                    ? `Custom Rate: ${(commissionData.commissionRate * 100).toFixed(0)}%`
                     : commissionData.commissionSource === 'category'
                     ? `Category Rate: ${(commissionData.commissionRate * 100).toFixed(0)}%`
-                    : `Standard Rate: ${(commissionData.commissionRate * 100).toFixed(0)}%`
+                    : `Platform Rate: ${(commissionData.commissionRate * 100).toFixed(0)}%`
                   }
                 </Badge>
               </div>
