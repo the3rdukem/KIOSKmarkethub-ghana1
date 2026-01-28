@@ -1572,7 +1572,7 @@ async function runMigrations(client: PoolClient): Promise<void> {
           id: 'sms_order_confirmed',
           name: 'Order Confirmed',
           event_type: 'order_confirmed',
-          message_template: 'Hi {{buyer_name}}, your order #{{order_id}} has been confirmed! Total: GHS {{total}}. Track your order on KIOSK.',
+          message_template: 'Hi {{buyer_name}}, your order #{{order_id}} has been confirmed! Total: GHS {{total}}. Thank you for shopping on KIOSK!',
           variables: 'buyer_name,order_id,total'
         },
         {

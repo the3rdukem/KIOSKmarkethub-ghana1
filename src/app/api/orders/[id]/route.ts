@@ -839,6 +839,17 @@ async function handleVendorDeliveryAction(
       payload: { orderId, vendorId, vendorName },
     }).catch(err => console.error('[NOTIFICATION] Failed:', err));
 
+    // Send SMS notification (fire-and-forget)
+    if (order.buyer_phone) {
+      sendOrderStatusSMS(
+        order.buyer_phone,
+        order.buyer_name || 'Customer',
+        order.buyer_id,
+        orderId,
+        'delivered'
+      ).catch(err => console.error('[SMS] Failed to send delivered SMS:', err));
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Your items are marked as delivered. 48-hour dispute window started.',

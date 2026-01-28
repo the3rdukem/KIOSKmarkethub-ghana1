@@ -156,6 +156,24 @@ export default function BuyerProfilePage() {
   const handleSaveProfile = async () => {
     setIsSaving(true);
     try {
+      // Save to database via API
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: profileForm.name,
+          phone: profileForm.phone,
+          location: profileForm.location,
+        }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Failed to update profile');
+      }
+
+      // Update local store after successful DB save
       updateUser({
         name: profileForm.name,
         phone: profileForm.phone,
@@ -163,8 +181,8 @@ export default function BuyerProfilePage() {
       });
       toast.success("Profile updated successfully");
       setIsEditing(false);
-    } catch {
-      toast.error("Failed to update profile");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update profile");
     } finally {
       setIsSaving(false);
     }

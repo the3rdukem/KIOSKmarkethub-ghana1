@@ -1090,8 +1090,8 @@ export default function VendorOrdersPage() {
                         </Button>
                       )}
 
-                      {/* Step 2: Book Courier (when vendor has marked ready for pickup) */}
-                      {hasReadyForPickup && !allWithCourier && (
+                      {/* Step 2: Book Courier (when vendor has marked ready for pickup, but not yet with courier or delivered) */}
+                      {hasReadyForPickup && !allWithCourier && !allDelivered && (
                         <Button
                           onClick={openCourierModal}
                           disabled={orderActionLoading !== null}

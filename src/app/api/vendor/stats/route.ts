@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 import { validateSessionToken } from '@/lib/db/dal/auth-service';
 import { cookies } from 'next/headers';
+import { getCommissionRates } from '@/lib/db/dal/commission';
 
 // Force dynamic rendering - no caching
 export const dynamic = 'force-dynamic';
@@ -167,6 +168,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Get vendor's current configured commission rate (not historical average)
+    const commissionRates = await getCommissionRates(vendorId);
+    const currentCommissionRate = commissionRates.effectiveRate;
+
     const response = NextResponse.json({
       products: {
         total: totalProducts,
@@ -186,7 +191,7 @@ export async function GET(request: NextRequest) {
       earnings: {
         total: parseFloat(earningsData.total_earnings) || 0,
         commission: parseFloat(earningsData.total_commission) || 0,
-        commissionRate: parseFloat(earningsData.commission_rate) || 0.08,
+        commissionRate: currentCommissionRate, // Use current configured rate, not historical average
         pending: parseFloat(earningsData.pending_earnings) || 0,
         completed: parseFloat(earningsData.completed_earnings) || 0,
       },
