@@ -120,7 +120,7 @@ export default function CommissionPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'default',
-          rate: editingDefaultRate / 100
+          rate: Math.round(editingDefaultRate * 100) / 10000
         })
       });
       if (response.ok) {
@@ -138,7 +138,7 @@ export default function CommissionPage() {
     setSaving(true);
     try {
       const rateValue = categoryRates[categoryId];
-      const rate = rateValue === '' ? null : parseFloat(rateValue) / 100;
+      const rate = rateValue === '' ? null : Math.round(parseFloat(rateValue) * 100) / 10000;
       const response = await fetch('/api/admin/commission', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -163,7 +163,7 @@ export default function CommissionPage() {
     setSaving(true);
     try {
       const rateValue = vendorRates[vendor.id];
-      const rate = rateValue === '' ? null : parseFloat(rateValue) / 100;
+      const rate = rateValue === '' ? null : Math.round(parseFloat(rateValue) * 100) / 10000;
       const response = await fetch('/api/admin/commission', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
