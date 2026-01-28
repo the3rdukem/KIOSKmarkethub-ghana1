@@ -45,6 +45,16 @@ function buildConnectionString(): string {
 
 const connectionString = buildConnectionString();
 
+// Determine if SSL should be used (required for external databases like Supabase)
+function shouldUseSSL(): boolean {
+  const dbUrl = process.env.DATABASE_URL || '';
+  // Enable SSL for Supabase, Neon, or any external PostgreSQL provider
+  return dbUrl.includes('supabase.co') || 
+         dbUrl.includes('neon.tech') || 
+         dbUrl.includes('pooler.supabase.com') ||
+         process.env.DB_SSL === 'true';
+}
+
 // Global connection pool
 let pool: Pool | null = null;
 let isInitialized = false;
@@ -54,11 +64,15 @@ let isInitialized = false;
  */
 export function getPool(): Pool {
   if (!pool) {
+    const useSSL = shouldUseSSL();
+    console.log('[DB] SSL enabled:', useSSL);
+    
     pool = new Pool({
       connectionString,
       max: 20,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 10000,
+      ssl: useSSL ? { rejectUnauthorized: false } : undefined,
     });
 
     pool.on('error', (err) => {
