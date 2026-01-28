@@ -72,6 +72,11 @@ export default function SMSManagementPage() {
   const [editForm, setEditForm] = useState({ name: '', messageTemplate: '' });
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  
+  // Arkesel configuration state
+  const [arkeselConfig, setArkeselConfig] = useState({ apiKey: '', senderId: '', isDemoMode: true });
+  const [configPreview, setConfigPreview] = useState<{ hasApiKey: boolean; apiKeyPreview: string | null; senderId: string; isDemoMode: boolean } | null>(null);
+  const [savingConfig, setSavingConfig] = useState(false);
 
   const fetchOverview = useCallback(async () => {
     try {
@@ -82,6 +87,16 @@ export default function SMSManagementPage() {
       setStatus(data.status);
       setStats(data.stats);
       setTemplates(data.templates);
+      
+      // Load existing config preview
+      if (data.config) {
+        setConfigPreview(data.config);
+        setArkeselConfig(prev => ({
+          ...prev,
+          senderId: data.config.senderId || '',
+          isDemoMode: data.config.isDemoMode ?? true,
+        }));
+      }
     } catch (error) {
       toast.error('Failed to load SMS settings');
       console.error(error);
@@ -111,6 +126,46 @@ export default function SMSManagementPage() {
       fetchLogs(0);
     }
   }, [authLoading, user, fetchOverview, fetchLogs]);
+
+  const handleSaveConfig = async () => {
+    if (!arkeselConfig.apiKey && !configPreview?.hasApiKey) {
+      toast.error('API Key is required');
+      return;
+    }
+    if (!arkeselConfig.senderId) {
+      toast.error('Sender ID is required');
+      return;
+    }
+    
+    setSavingConfig(true);
+    try {
+      const response = await fetch('/api/admin/sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_config',
+          apiKey: arkeselConfig.apiKey || undefined,
+          senderId: arkeselConfig.senderId,
+          isDemoMode: arkeselConfig.isDemoMode,
+        }),
+      });
+      
+      if (!response.ok) throw new Error('Failed to save configuration');
+      
+      const data = await response.json();
+      setStatus(data.status);
+      toast.success(data.message);
+      
+      // Clear the API key field and refresh
+      setArkeselConfig(prev => ({ ...prev, apiKey: '' }));
+      fetchOverview();
+    } catch (error) {
+      toast.error('Failed to save Arkesel configuration');
+      console.error(error);
+    } finally {
+      setSavingConfig(false);
+    }
+  };
 
   const handleToggleSMS = async (enabled: boolean) => {
     try {
@@ -338,47 +393,120 @@ export default function SMSManagementPage() {
           </TabsList>
 
           <TabsContent value="settings">
-            <Card>
-              <CardHeader>
-                <CardTitle>SMS Settings</CardTitle>
-                <CardDescription>Enable or disable SMS notifications globally</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label className="text-base">Enable SMS Notifications</Label>
-                    <p className="text-sm text-muted-foreground">
-                      When enabled, the system will send SMS for order events, welcome messages, etc.
-                    </p>
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Arkesel API Configuration</CardTitle>
+                  <CardDescription>Configure your Arkesel API credentials for sending SMS</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid gap-4">
+                    <div className="grid gap-2">
+                      <Label htmlFor="apiKey">API Key</Label>
+                      <Input
+                        id="apiKey"
+                        type="password"
+                        placeholder="Enter your Arkesel API key"
+                        value={arkeselConfig.apiKey}
+                        onChange={(e) => setArkeselConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                      />
+                      {configPreview?.hasApiKey && (
+                        <p className="text-xs text-muted-foreground">
+                          Current: {configPreview.apiKeyPreview}
+                        </p>
+                      )}
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="senderId">Sender ID</Label>
+                      <Input
+                        id="senderId"
+                        placeholder="KIOSK (max 11 characters)"
+                        maxLength={11}
+                        value={arkeselConfig.senderId}
+                        onChange={(e) => setArkeselConfig(prev => ({ ...prev, senderId: e.target.value }))}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        This appears as the sender name on recipients phones
+                      </p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <Label className="text-base">Demo Mode (Sandbox)</Label>
+                        <p className="text-sm text-muted-foreground">
+                          When enabled, uses Arkesel sandbox - no SMS delivery, no charges
+                        </p>
+                      </div>
+                      <Switch
+                        checked={arkeselConfig.isDemoMode}
+                        onCheckedChange={(checked) => setArkeselConfig(prev => ({ ...prev, isDemoMode: checked }))}
+                      />
+                    </div>
                   </div>
-                  <Switch
-                    checked={status?.featureEnabled || false}
-                    onCheckedChange={handleToggleSMS}
-                    disabled={!status?.integrationConfigured}
-                  />
-                </div>
+                  <div className="flex justify-end">
+                    <Button onClick={handleSaveConfig} disabled={savingConfig}>
+                      {savingConfig ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        'Save Configuration'
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
 
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-2">Integration Status</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
+              <Card>
+                <CardHeader>
+                  <CardTitle>SMS Settings</CardTitle>
+                  <CardDescription>Enable or disable SMS notifications globally</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex items-center justify-between">
                     <div>
-                      <span className="text-muted-foreground">Arkesel API:</span>
-                      <span className="ml-2">
-                        {status?.integrationConfigured ? (
-                          <Badge className="bg-green-100 text-green-800">Configured</Badge>
-                        ) : (
-                          <Badge variant="secondary">Not Configured</Badge>
-                        )}
-                      </span>
+                      <Label className="text-base">Enable SMS Notifications</Label>
+                      <p className="text-sm text-muted-foreground">
+                        When enabled, the system will send SMS for order events, welcome messages, etc.
+                      </p>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Mode:</span>
-                      <span className="ml-2 capitalize">{status?.mode || 'disabled'}</span>
+                    <Switch
+                      checked={status?.featureEnabled || false}
+                      onCheckedChange={handleToggleSMS}
+                      disabled={!status?.integrationConfigured}
+                    />
+                  </div>
+
+                  {!status?.integrationConfigured && (
+                    <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                      <p className="text-sm text-yellow-800">
+                        Please configure Arkesel API credentials above before enabling SMS notifications.
+                      </p>
+                    </div>
+                  )}
+
+                  <div className="border-t pt-4">
+                    <h4 className="font-medium mb-2">Integration Status</h4>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Arkesel API:</span>
+                        <span className="ml-2">
+                          {status?.integrationConfigured ? (
+                            <Badge className="bg-green-100 text-green-800">Configured</Badge>
+                          ) : (
+                            <Badge variant="secondary">Not Configured</Badge>
+                          )}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Mode:</span>
+                        <span className="ml-2 capitalize">{status?.mode || 'disabled'}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           <TabsContent value="templates">

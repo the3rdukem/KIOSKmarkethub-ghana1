@@ -381,6 +381,64 @@ export async function setSMSNotificationsEnabled(enabled: boolean): Promise<void
   );
 }
 
+export interface ArkeselConfig {
+  apiKey: string;
+  senderId: string;
+  isDemoMode: boolean;
+}
+
+export async function getArkeselConfig(): Promise<ArkeselConfig | null> {
+  const result = await query<{ key: string; value: string }>(
+    "SELECT key, value FROM site_settings WHERE key IN ('arkesel_api_key', 'arkesel_sender_id', 'arkesel_demo_mode')"
+  );
+  
+  const settings: Record<string, string> = {};
+  for (const row of result.rows) {
+    settings[row.key] = row.value;
+  }
+  
+  const apiKey = settings['arkesel_api_key'];
+  const senderId = settings['arkesel_sender_id'];
+  
+  if (!apiKey || !senderId) {
+    return null;
+  }
+  
+  return {
+    apiKey,
+    senderId,
+    isDemoMode: settings['arkesel_demo_mode'] === 'true',
+  };
+}
+
+export async function setArkeselConfig(config: Partial<ArkeselConfig>): Promise<void> {
+  const now = new Date().toISOString();
+  
+  if (config.apiKey !== undefined) {
+    await query(
+      `INSERT INTO site_settings (key, value, updated_at) VALUES ('arkesel_api_key', $1, $2)
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = $2`,
+      [config.apiKey, now]
+    );
+  }
+  
+  if (config.senderId !== undefined) {
+    await query(
+      `INSERT INTO site_settings (key, value, updated_at) VALUES ('arkesel_sender_id', $1, $2)
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = $2`,
+      [config.senderId, now]
+    );
+  }
+  
+  if (config.isDemoMode !== undefined) {
+    await query(
+      `INSERT INTO site_settings (key, value, updated_at) VALUES ('arkesel_demo_mode', $1, $2)
+       ON CONFLICT (key) DO UPDATE SET value = $1, updated_at = $2`,
+      [config.isDemoMode ? 'true' : 'false', now]
+    );
+  }
+}
+
 // ============ Template Compilation ============
 
 export function compileTemplate(template: string, variables: Record<string, string>): string {

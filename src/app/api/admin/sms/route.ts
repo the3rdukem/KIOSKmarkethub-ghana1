@@ -43,16 +43,23 @@ export async function GET(request: NextRequest) {
 
     switch (action) {
       case 'overview': {
-        const [status, stats, templates] = await Promise.all([
+        const [status, stats, templates, arkeselConfig] = await Promise.all([
           getSMSServiceStatus(),
           smsDal.getSMSStats(),
           smsDal.getAllTemplates(),
+          smsDal.getArkeselConfig(),
         ]);
 
         return NextResponse.json({
           status,
           stats,
           templates,
+          config: arkeselConfig ? {
+            hasApiKey: !!arkeselConfig.apiKey,
+            apiKeyPreview: arkeselConfig.apiKey ? `${arkeselConfig.apiKey.substring(0, 8)}...` : null,
+            senderId: arkeselConfig.senderId,
+            isDemoMode: arkeselConfig.isDemoMode,
+          } : null,
         });
       }
 
@@ -174,6 +181,32 @@ export async function POST(request: NextRequest) {
           success: true,
           message: isActive ? 'Template enabled' : 'Template disabled',
           template,
+        });
+      }
+
+      case 'save_config': {
+        const { apiKey, senderId, isDemoMode } = body;
+        
+        // Validate required fields
+        if (!apiKey && !senderId && isDemoMode === undefined) {
+          return NextResponse.json({ 
+            error: 'At least one of apiKey, senderId, or isDemoMode is required' 
+          }, { status: 400 });
+        }
+
+        // Save config to database
+        await smsDal.setArkeselConfig({
+          apiKey: apiKey || undefined,
+          senderId: senderId || undefined,
+          isDemoMode: isDemoMode !== undefined ? isDemoMode : undefined,
+        });
+
+        const status = await getSMSServiceStatus();
+
+        return NextResponse.json({
+          success: true,
+          message: 'Arkesel configuration saved successfully',
+          status,
         });
       }
 

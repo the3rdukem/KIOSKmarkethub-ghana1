@@ -2,18 +2,15 @@
  * Arkesel SMS Notifications Service
  *
  * Sends transactional SMS notifications for order events, welcome messages, etc.
- * Reuses the Arkesel OTP integration credentials.
+ * Uses database-backed configuration for server-side compatibility.
  *
- * PRODUCTION-READY: Uses the same credential management as OTP service.
- * Demo mode logs to console instead of sending real SMS.
+ * PRODUCTION-READY: Credentials stored in database, accessible from webhooks and API routes.
+ * Demo mode uses Arkesel's native sandbox=true parameter (no delivery, no charges).
  */
 
-import { useIntegrationsStore } from '../integrations-store';
-import { executeAPI, isIntegrationReady } from '../api-execution-layer';
 import * as smsDal from '../db/dal/sms';
-import type { SMSEventType, SMSStatus } from '../db/dal/sms';
+import type { SMSEventType, SMSStatus, ArkeselConfig } from '../db/dal/sms';
 
-const INTEGRATION_ID = 'arkesel_otp';
 const ARKESEL_API_BASE = 'https://sms.arkesel.com/api/v2';
 
 export interface SMSSendRequest {
@@ -35,32 +32,10 @@ export interface SMSSendResponse {
 }
 
 /**
- * Get Arkesel configuration from integrations store
+ * Get Arkesel configuration from database (server-side compatible)
  */
-function getArkeselConfig(): {
-  apiKey: string;
-  senderId: string;
-  isDemoMode: boolean;
-} | null {
-  const store = useIntegrationsStore.getState();
-  const integration = store.getIntegration(INTEGRATION_ID);
-
-  if (!integration?.isEnabled || !integration?.isConfigured || integration?.status !== 'connected') {
-    return null;
-  }
-
-  const apiKey = store.getCredentialValue(INTEGRATION_ID, 'ARKESEL_API_KEY');
-  const senderId = store.getCredentialValue(INTEGRATION_ID, 'ARKESEL_SENDER_ID');
-
-  if (!apiKey || !senderId) {
-    return null;
-  }
-
-  return {
-    apiKey,
-    senderId,
-    isDemoMode: integration.environment === 'demo',
-  };
+async function getArkeselConfigFromDB(): Promise<ArkeselConfig | null> {
+  return smsDal.getArkeselConfig();
 }
 
 /**
@@ -101,18 +76,18 @@ function validatePhoneNumber(phone: string): { valid: boolean; error?: string } 
 }
 
 /**
- * Check if SMS notifications are enabled
+ * Check if SMS notifications are enabled (database-backed, server-side compatible)
  */
 export async function isSMSEnabled(): Promise<boolean> {
-  const isIntegrationConfigured = isIntegrationReady(INTEGRATION_ID);
-  if (!isIntegrationConfigured) return false;
+  const config = await getArkeselConfigFromDB();
+  if (!config) return false;
 
   const isFeatureEnabled = await smsDal.isSMSNotificationsEnabled();
   return isFeatureEnabled;
 }
 
 /**
- * Get SMS service status
+ * Get SMS service status (database-backed, server-side compatible)
  */
 export async function getSMSServiceStatus(): Promise<{
   enabled: boolean;
@@ -120,9 +95,9 @@ export async function getSMSServiceStatus(): Promise<{
   featureEnabled: boolean;
   mode: 'live' | 'demo' | 'disabled';
 }> {
-  const integrationConfigured = isIntegrationReady(INTEGRATION_ID);
+  const config = await getArkeselConfigFromDB();
+  const integrationConfigured = config !== null;
   const featureEnabled = await smsDal.isSMSNotificationsEnabled();
-  const config = getArkeselConfig();
 
   let mode: 'live' | 'demo' | 'disabled' = 'disabled';
   if (integrationConfigured && featureEnabled) {
@@ -138,13 +113,13 @@ export async function getSMSServiceStatus(): Promise<{
 }
 
 /**
- * Send SMS notification
+ * Send SMS notification (database-backed, server-side compatible)
  */
 export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse> {
-  const isEnabled = await isSMSEnabled();
-  
-  if (!isEnabled) {
-    console.log('[SMS] Notifications disabled, skipping:', request.eventType);
+  // Check feature enabled first
+  const featureEnabled = await smsDal.isSMSNotificationsEnabled();
+  if (!featureEnabled) {
+    console.log('[SMS] Notifications disabled in settings, skipping:', request.eventType);
     return {
       success: false,
       message: 'SMS notifications are disabled',
@@ -152,12 +127,13 @@ export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse>
     };
   }
 
-  const config = getArkeselConfig();
+  // Get Arkesel config from database
+  const config = await getArkeselConfigFromDB();
   if (!config) {
-    console.log('[SMS] Arkesel not configured');
+    console.log('[SMS] Arkesel not configured in database');
     return {
       success: false,
-      message: 'SMS service not configured',
+      message: 'SMS service not configured. Please configure Arkesel API key and Sender ID in Admin > SMS.',
       disabled: true,
     };
   }
@@ -205,52 +181,61 @@ export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse>
   }
 
   try {
-    const result = await executeAPI<{
-      code: string;
-      message: string;
-      balance?: number;
-    }>(
-      INTEGRATION_ID,
-      'send_sms',
-      async () => {
-        const response = await fetch(`${ARKESEL_API_BASE}/sms/send`, {
-          method: 'POST',
-          headers: {
-            'api-key': config.apiKey,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            sender: config.senderId,
-            message: messageContent,
-            recipients: [formattedPhone],
-            sandbox: useSandbox, // Arkesel's native sandbox mode - no delivery, no charges
-          }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.message || `SMS sending failed: ${response.status}`);
-        }
-
-        return response.json();
+    console.log(`[SMS] Sending to ${formattedPhone} via Arkesel API${useSandbox ? ' (sandbox)' : ''}`);
+    
+    const response = await fetch(`${ARKESEL_API_BASE}/sms/send`, {
+      method: 'POST',
+      headers: {
+        'api-key': config.apiKey,
+        'Content-Type': 'application/json',
       },
-      { timeout: 30000, maxRetries: 2 }
-    );
+      body: JSON.stringify({
+        sender: config.senderId,
+        message: messageContent,
+        recipients: [formattedPhone],
+        sandbox: useSandbox, // Arkesel's native sandbox mode - no delivery, no charges
+      }),
+    });
 
-    if (!result.success) {
+    const responseData = await response.json().catch(() => ({}));
+    
+    if (!response.ok) {
+      const errorMessage = responseData.message || `SMS sending failed: ${response.status}`;
+      console.error('[SMS] API error:', errorMessage);
+      
       await smsDal.updateSMSLogStatus(log.id, 'failed', {
-        errorMessage: result.error?.message || 'Unknown error',
+        errorMessage,
+        providerResponse: JSON.stringify(responseData),
       });
 
       return {
         success: false,
-        message: result.error?.message || 'Failed to send SMS',
+        message: errorMessage,
         logId: log.id,
       };
     }
 
+    // Arkesel returns code: "ok" on success
+    if (responseData.code !== 'ok') {
+      const errorMessage = responseData.message || 'Unknown Arkesel error';
+      console.error('[SMS] Arkesel error:', errorMessage);
+      
+      await smsDal.updateSMSLogStatus(log.id, 'failed', {
+        errorMessage,
+        providerResponse: JSON.stringify(responseData),
+      });
+
+      return {
+        success: false,
+        message: errorMessage,
+        logId: log.id,
+      };
+    }
+
+    console.log(`[SMS] Successfully sent to ${formattedPhone}${useSandbox ? ' (sandbox - not delivered)' : ''}`);
+    
     await smsDal.updateSMSLogStatus(log.id, 'sent', {
-      providerResponse: JSON.stringify(result.data),
+      providerResponse: JSON.stringify(responseData),
       sentAt: new Date().toISOString(),
     });
 
