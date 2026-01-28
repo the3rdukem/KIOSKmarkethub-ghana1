@@ -4,11 +4,12 @@
  * Sends transactional SMS notifications for order events, welcome messages, etc.
  * Uses database-backed configuration for server-side compatibility.
  *
- * PRODUCTION-READY: Credentials stored in database, accessible from webhooks and API routes.
+ * PRODUCTION-READY: Credentials stored in integrations table (encrypted), accessible from webhooks and API routes.
  * Demo mode uses Arkesel's native sandbox=true parameter (no delivery, no charges).
  */
 
 import * as smsDal from '../db/dal/sms';
+import { getIntegrationById } from '../db/dal/integrations';
 import type { SMSEventType, SMSStatus, ArkeselConfig } from '../db/dal/sms';
 
 const ARKESEL_API_BASE = 'https://sms.arkesel.com/api/v2';
@@ -32,10 +33,52 @@ export interface SMSSendResponse {
 }
 
 /**
- * Get Arkesel configuration from database (server-side compatible)
+ * Get Arkesel configuration from integrations table (server-side compatible)
+ * This reads from the encrypted credentials stored via Admin > API Management
  */
 async function getArkeselConfigFromDB(): Promise<ArkeselConfig | null> {
-  return smsDal.getArkeselConfig();
+  try {
+    const integration = await getIntegrationById('arkesel_otp');
+    
+    if (!integration) {
+      console.log('[SMS] Arkesel integration not found in database');
+      return null;
+    }
+    
+    if (!integration.isConfigured || !integration.isEnabled) {
+      console.log('[SMS] Arkesel integration not configured or not enabled', {
+        isConfigured: integration.isConfigured,
+        isEnabled: integration.isEnabled,
+      });
+      return null;
+    }
+    
+    const apiKey = integration.credentials['apiKey'];
+    const senderId = integration.credentials['senderId'];
+    
+    if (!apiKey || !senderId) {
+      console.log('[SMS] Arkesel credentials incomplete - missing apiKey or senderId');
+      return null;
+    }
+    
+    // Check if demo mode - 'demo' environment means sandbox mode
+    const isDemoMode = integration.environment === 'demo';
+    
+    console.log('[SMS] Arkesel config loaded from integrations table', {
+      hasSenderId: !!senderId,
+      environment: integration.environment,
+      isDemoMode,
+    });
+    
+    return {
+      apiKey,
+      senderId,
+      isDemoMode,
+    };
+  } catch (error) {
+    console.error('[SMS] Error loading Arkesel config:', error);
+    return null;
+  }
 }
 
 /**
@@ -127,13 +170,13 @@ export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse>
     };
   }
 
-  // Get Arkesel config from database
+  // Get Arkesel config from integrations table
   const config = await getArkeselConfigFromDB();
   if (!config) {
-    console.log('[SMS] Arkesel not configured in database');
+    console.log('[SMS] Arkesel not configured or not enabled in integrations');
     return {
       success: false,
-      message: 'SMS service not configured. Please configure Arkesel API key and Sender ID in Admin > SMS.',
+      message: 'SMS service not configured. Please configure Arkesel OTP in Admin > API Management and ensure it is enabled.',
       disabled: true,
     };
   }
