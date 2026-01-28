@@ -1662,6 +1662,94 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Setting may already exist
   }
+
+  // PHASE 14: Vendor Payouts System
+  // Create vendor_bank_accounts table for payout destinations
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS vendor_bank_accounts (
+        id TEXT PRIMARY KEY,
+        vendor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        account_type TEXT NOT NULL CHECK (account_type IN ('bank', 'mobile_money')),
+        bank_code TEXT,
+        bank_name TEXT,
+        account_number TEXT NOT NULL,
+        account_name TEXT NOT NULL,
+        mobile_money_provider TEXT CHECK (mobile_money_provider IN ('mtn', 'vodafone', 'airteltigo')),
+        paystack_recipient_code TEXT,
+        is_primary INTEGER DEFAULT 0,
+        is_verified INTEGER DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
+      );
+      CREATE INDEX IF NOT EXISTS idx_vendor_bank_accounts_vendor_id ON vendor_bank_accounts(vendor_id);
+      CREATE INDEX IF NOT EXISTS idx_vendor_bank_accounts_is_primary ON vendor_bank_accounts(is_primary);
+    `);
+    console.log('[DB] PHASE 14: Created vendor_bank_accounts table');
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // Create vendor_payouts table for tracking payout transactions
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS vendor_payouts (
+        id TEXT PRIMARY KEY,
+        vendor_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        bank_account_id TEXT REFERENCES vendor_bank_accounts(id) ON DELETE SET NULL,
+        amount REAL NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'GHS',
+        status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'success', 'failed', 'reversed')),
+        paystack_transfer_code TEXT,
+        paystack_reference TEXT UNIQUE,
+        failure_reason TEXT,
+        initiated_by TEXT CHECK (initiated_by IN ('vendor', 'admin', 'system')),
+        initiated_by_id TEXT,
+        processed_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
+      );
+      CREATE INDEX IF NOT EXISTS idx_vendor_payouts_vendor_id ON vendor_payouts(vendor_id);
+      CREATE INDEX IF NOT EXISTS idx_vendor_payouts_status ON vendor_payouts(status);
+      CREATE INDEX IF NOT EXISTS idx_vendor_payouts_created_at ON vendor_payouts(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_vendor_payouts_paystack_reference ON vendor_payouts(paystack_reference);
+    `);
+    console.log('[DB] PHASE 14: Created vendor_payouts table');
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // Create vendor_payout_items table to link payouts with order earnings
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS vendor_payout_items (
+        id TEXT PRIMARY KEY,
+        payout_id TEXT NOT NULL REFERENCES vendor_payouts(id) ON DELETE CASCADE,
+        order_id TEXT NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+        order_item_id TEXT,
+        amount REAL NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
+      );
+      CREATE INDEX IF NOT EXISTS idx_vendor_payout_items_payout_id ON vendor_payout_items(payout_id);
+      CREATE INDEX IF NOT EXISTS idx_vendor_payout_items_order_id ON vendor_payout_items(order_id);
+    `);
+    console.log('[DB] PHASE 14: Created vendor_payout_items table');
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // Add payout_status column to order_items for tracking which items have been paid out
+  try {
+    await client.query(`
+      ALTER TABLE order_items ADD COLUMN IF NOT EXISTS payout_status TEXT DEFAULT 'pending' CHECK (payout_status IN ('pending', 'processing', 'paid'));
+    `);
+    await client.query(`
+      ALTER TABLE order_items ADD COLUMN IF NOT EXISTS payout_id TEXT REFERENCES vendor_payouts(id) ON DELETE SET NULL;
+    `);
+    console.log('[DB] PHASE 14: Added payout columns to order_items table');
+  } catch (e) {
+    // Columns may already exist
+  }
 }
 
 /**

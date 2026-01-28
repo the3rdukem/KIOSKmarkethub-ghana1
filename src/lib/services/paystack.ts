@@ -729,3 +729,488 @@ export const getBankList = async (): Promise<{
     banks: result.data?.data,
   };
 };
+
+// ============================================
+// PAYSTACK TRANSFERS API (Vendor Payouts)
+// ============================================
+
+export interface TransferRecipientRequest {
+  type: 'nuban' | 'mobile_money' | 'ghipss';
+  name: string;
+  account_number: string;
+  bank_code: string;
+  currency?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface TransferRecipientResponse {
+  success: boolean;
+  data?: {
+    recipient_code: string;
+    name: string;
+    type: string;
+    currency: string;
+    bank_code: string;
+    account_number: string;
+  };
+  error?: string;
+}
+
+export interface InitiateTransferRequest {
+  source?: string;
+  amount: number; // In pesewas (GHS × 100)
+  recipient: string; // recipient_code
+  reference: string;
+  reason?: string;
+  currency?: string;
+}
+
+export interface TransferResponse {
+  success: boolean;
+  data?: {
+    transfer_code: string;
+    reference: string;
+    status: 'pending' | 'success' | 'failed' | 'otp' | 'reversed';
+    amount: number;
+    currency: string;
+    recipient: {
+      name: string;
+      account_number: string;
+      bank_name: string;
+    };
+  };
+  error?: string;
+}
+
+export interface TransferVerifyResponse {
+  success: boolean;
+  data?: {
+    transfer_code: string;
+    reference: string;
+    status: 'pending' | 'success' | 'failed' | 'reversed';
+    amount: number;
+    currency: string;
+    reason: string;
+    transferred_at?: string;
+    recipient: {
+      name: string;
+      account_number: string;
+      bank_name: string;
+    };
+  };
+  error?: string;
+}
+
+export interface ResolveBankAccountResponse {
+  success: boolean;
+  data?: {
+    account_number: string;
+    account_name: string;
+    bank_id: number;
+  };
+  error?: string;
+}
+
+/**
+ * Resolve bank account to get account name
+ * This validates that the account number is valid for the given bank
+ */
+export const resolveBankAccount = async (
+  accountNumber: string,
+  bankCode: string
+): Promise<ResolveBankAccountResponse> => {
+  const config = await getPaystackConfig();
+  if (!config) {
+    return { success: false, error: 'Paystack not configured' };
+  }
+
+  const result = await executeAPI<{
+    status: boolean;
+    data: {
+      account_number: string;
+      account_name: string;
+      bank_id: number;
+    };
+  }>(
+    INTEGRATION_ID,
+    'resolve_bank_account',
+    async () => {
+      const response = await fetch(
+        `${PAYSTACK_API_BASE}/bank/resolve?account_number=${accountNumber}&bank_code=${bankCode}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${config.secretKey}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to resolve bank account');
+      }
+      return data;
+    },
+    { timeout: 30000 }
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error?.message };
+  }
+
+  return {
+    success: true,
+    data: result.data?.data,
+  };
+};
+
+/**
+ * Create a transfer recipient (vendor's bank account or mobile money)
+ * This must be done once before any transfers can be made
+ */
+export const createTransferRecipient = async (
+  request: TransferRecipientRequest
+): Promise<TransferRecipientResponse> => {
+  const config = await getPaystackConfig();
+  if (!config) {
+    return { success: false, error: 'Paystack not configured' };
+  }
+
+  const result = await executeAPI<{
+    status: boolean;
+    data: {
+      recipient_code: string;
+      name: string;
+      type: string;
+      currency: string;
+      details: {
+        bank_code: string;
+        account_number: string;
+        bank_name: string;
+      };
+    };
+  }>(
+    INTEGRATION_ID,
+    'create_transfer_recipient',
+    async () => {
+      const response = await fetch(`${PAYSTACK_API_BASE}/transferrecipient`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: request.type,
+          name: request.name,
+          account_number: request.account_number,
+          bank_code: request.bank_code,
+          currency: request.currency || 'GHS',
+          metadata: request.metadata,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to create transfer recipient');
+      }
+      return data;
+    },
+    { timeout: 30000 }
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error?.message };
+  }
+
+  return {
+    success: true,
+    data: {
+      recipient_code: result.data?.data.recipient_code || '',
+      name: result.data?.data.name || '',
+      type: result.data?.data.type || '',
+      currency: result.data?.data.currency || 'GHS',
+      bank_code: result.data?.data.details?.bank_code || '',
+      account_number: result.data?.data.details?.account_number || '',
+    },
+  };
+};
+
+/**
+ * Initiate a transfer to a recipient
+ * Amount is in pesewas (GHS × 100)
+ */
+export const initiateTransfer = async (
+  request: InitiateTransferRequest
+): Promise<TransferResponse> => {
+  const config = await getPaystackConfig();
+  if (!config) {
+    return { success: false, error: 'Paystack not configured' };
+  }
+
+  const result = await executeAPI<{
+    status: boolean;
+    data: {
+      transfer_code: string;
+      reference: string;
+      status: 'pending' | 'success' | 'failed' | 'otp' | 'reversed';
+      amount: number;
+      currency: string;
+      recipient: {
+        name: string;
+        details: {
+          account_number: string;
+          bank_name: string;
+        };
+      };
+    };
+  }>(
+    INTEGRATION_ID,
+    'initiate_transfer',
+    async () => {
+      const response = await fetch(`${PAYSTACK_API_BASE}/transfer`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          source: request.source || 'balance',
+          amount: request.amount,
+          recipient: request.recipient,
+          reference: request.reference,
+          reason: request.reason || 'Vendor payout',
+          currency: request.currency || 'GHS',
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to initiate transfer');
+      }
+      return data;
+    },
+    { timeout: 30000 }
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error?.message };
+  }
+
+  return {
+    success: true,
+    data: {
+      transfer_code: result.data?.data.transfer_code || '',
+      reference: result.data?.data.reference || '',
+      status: result.data?.data.status || 'pending',
+      amount: result.data?.data.amount || 0,
+      currency: result.data?.data.currency || 'GHS',
+      recipient: {
+        name: result.data?.data.recipient?.name || '',
+        account_number: result.data?.data.recipient?.details?.account_number || '',
+        bank_name: result.data?.data.recipient?.details?.bank_name || '',
+      },
+    },
+  };
+};
+
+/**
+ * Verify a transfer status by reference
+ */
+export const verifyTransfer = async (reference: string): Promise<TransferVerifyResponse> => {
+  const config = await getPaystackConfig();
+  if (!config) {
+    return { success: false, error: 'Paystack not configured' };
+  }
+
+  const result = await executeAPI<{
+    status: boolean;
+    data: {
+      transfer_code: string;
+      reference: string;
+      status: 'pending' | 'success' | 'failed' | 'reversed';
+      amount: number;
+      currency: string;
+      reason: string;
+      transferred_at?: string;
+      recipient: {
+        name: string;
+        details: {
+          account_number: string;
+          bank_name: string;
+        };
+      };
+    };
+  }>(
+    INTEGRATION_ID,
+    'verify_transfer',
+    async () => {
+      const response = await fetch(`${PAYSTACK_API_BASE}/transfer/verify/${reference}`, {
+        headers: {
+          'Authorization': `Bearer ${config.secretKey}`,
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to verify transfer');
+      }
+      return data;
+    },
+    { timeout: 15000 }
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error?.message };
+  }
+
+  return {
+    success: true,
+    data: {
+      transfer_code: result.data?.data.transfer_code || '',
+      reference: result.data?.data.reference || '',
+      status: result.data?.data.status || 'pending',
+      amount: result.data?.data.amount || 0,
+      currency: result.data?.data.currency || 'GHS',
+      reason: result.data?.data.reason || '',
+      transferred_at: result.data?.data.transferred_at,
+      recipient: {
+        name: result.data?.data.recipient?.name || '',
+        account_number: result.data?.data.recipient?.details?.account_number || '',
+        bank_name: result.data?.data.recipient?.details?.bank_name || '',
+      },
+    },
+  };
+};
+
+/**
+ * Get list of mobile money providers in Ghana
+ */
+export const getMobileMoneyProviders = (): Array<{ code: string; name: string }> => {
+  return [
+    { code: 'mtn', name: 'MTN Mobile Money' },
+    { code: 'vodafone', name: 'Vodafone Cash' },
+    { code: 'airteltigo', name: 'AirtelTigo Money' },
+  ];
+};
+
+/**
+ * List all banks in Ghana
+ * Used for vendor bank account registration
+ */
+export interface Bank {
+  name: string;
+  code: string;
+  type: string;
+}
+
+export interface ListBanksResponse {
+  success: boolean;
+  banks?: Bank[];
+  error?: string;
+}
+
+export const listGhanaBanks = async (): Promise<ListBanksResponse> => {
+  const config = await getPaystackConfig();
+  if (!config) {
+    return { success: false, error: 'Paystack not configured' };
+  }
+
+  const result = await executeAPI<{
+    status: boolean;
+    data: Array<{
+      name: string;
+      code: string;
+      type: string;
+    }>;
+  }>(
+    INTEGRATION_ID,
+    'list_banks',
+    async () => {
+      const response = await fetch(`${PAYSTACK_API_BASE}/bank?country=ghana`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.secretKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to list banks');
+      }
+      return data;
+    },
+    { timeout: 15000 }
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error?.message };
+  }
+
+  return {
+    success: true,
+    banks: result.data?.data || [],
+  };
+};
+
+/**
+ * Resolve bank account to verify account details
+ * Returns account name for verification
+ */
+export interface ResolveBankAccountResponse {
+  success: boolean;
+  data?: {
+    account_name: string;
+    account_number: string;
+  };
+  error?: string;
+}
+
+export const resolveBankAccount = async (
+  account_number: string,
+  bank_code: string
+): Promise<ResolveBankAccountResponse> => {
+  const config = await getPaystackConfig();
+  if (!config) {
+    return { success: false, error: 'Paystack not configured' };
+  }
+
+  const result = await executeAPI<{
+    status: boolean;
+    data: {
+      account_name: string;
+      account_number: string;
+    };
+  }>(
+    INTEGRATION_ID,
+    'resolve_account',
+    async () => {
+      const params = new URLSearchParams({
+        account_number,
+        bank_code,
+      });
+      const response = await fetch(`${PAYSTACK_API_BASE}/bank/resolve?${params}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.secretKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to resolve bank account');
+      }
+      return data;
+    },
+    { timeout: 15000 }
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error?.message };
+  }
+
+  return {
+    success: true,
+    data: result.data?.data,
+  };
+};

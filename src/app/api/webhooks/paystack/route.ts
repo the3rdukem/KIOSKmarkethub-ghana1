@@ -12,6 +12,7 @@ import { createAuditLog } from '@/lib/db/dal/audit';
 import { createHash } from 'crypto';
 import { sendOrderConfirmationSMS, sendVendorNewOrderSMS } from '@/lib/services/arkesel-sms';
 import { getUserById } from '@/lib/db/dal/users';
+import { updatePayoutStatus, getPayoutById } from '@/lib/db/dal/payouts';
 
 interface PaystackEvent {
   event: string;
@@ -93,11 +94,17 @@ export async function POST(request: NextRequest) {
         await handleChargeFailed(event.data);
         break;
 
-      // Phase 3A: Only handle charge events. Transfer events (vendor payouts) are out of scope.
-      // These handlers are left as no-ops for forward compatibility but do not process data.
+      // Phase 14: Handle transfer events for vendor payouts
       case 'transfer.success':
+        await handleTransferSuccess(event.data);
+        break;
+
       case 'transfer.failed':
-        console.log(`[PAYSTACK_WEBHOOK] Transfer event ignored in Phase 3A: ${event.event}`);
+        await handleTransferFailed(event.data);
+        break;
+
+      case 'transfer.reversed':
+        await handleTransferReversed(event.data);
         break;
 
       default:
@@ -350,4 +357,146 @@ async function handleChargeFailed(data: PaystackEvent['data']): Promise<void> {
   }
 }
 
-// Phase 3A: Transfer handlers removed. Vendor payouts are out of scope for this phase.
+// ============================================
+// Phase 14: Transfer Handlers (Vendor Payouts)
+// ============================================
+
+interface TransferData {
+  reference: string;
+  transfer_code?: string;
+  status: string;
+  amount: number;
+  currency: string;
+  reason?: string;
+  recipient?: {
+    name?: string;
+    details?: {
+      account_number?: string;
+      bank_name?: string;
+    };
+  };
+}
+
+/**
+ * Handle successful transfer (vendor payout)
+ */
+async function handleTransferSuccess(data: TransferData): Promise<void> {
+  console.log(`[PAYSTACK_WEBHOOK] Transfer successful: ${data.reference}`);
+
+  try {
+    // Update payout status
+    const updated = await updatePayoutStatus(data.reference, 'success');
+    
+    if (!updated) {
+      console.warn(`[PAYSTACK_WEBHOOK] Could not find payout with reference: ${data.reference}`);
+      return;
+    }
+
+    // Log audit
+    await createAuditLog({
+      action: 'payout.success',
+      adminId: 'system',
+      adminRole: 'system',
+      category: 'vendor',
+      targetId: data.reference,
+      targetType: 'payout',
+      targetName: `Payout ${data.reference}`,
+      details: JSON.stringify({
+        reference: data.reference,
+        transfer_code: data.transfer_code,
+        amount: data.amount / 100,
+        currency: data.currency,
+        recipient: data.recipient?.name,
+      }),
+      severity: 'info',
+    });
+
+    console.log(`[PAYSTACK_WEBHOOK] Payout ${data.reference} marked as successful`);
+    
+    // TODO: Send SMS notification to vendor about successful payout
+  } catch (error) {
+    console.error(`[PAYSTACK_WEBHOOK] Failed to process transfer success:`, error);
+  }
+}
+
+/**
+ * Handle failed transfer (vendor payout)
+ */
+async function handleTransferFailed(data: TransferData): Promise<void> {
+  console.log(`[PAYSTACK_WEBHOOK] Transfer failed: ${data.reference}`);
+
+  try {
+    // Update payout status with failure reason
+    const failureReason = data.reason || 'Transfer failed';
+    const updated = await updatePayoutStatus(data.reference, 'failed', failureReason);
+    
+    if (!updated) {
+      console.warn(`[PAYSTACK_WEBHOOK] Could not find payout with reference: ${data.reference}`);
+      return;
+    }
+
+    // Log audit
+    await createAuditLog({
+      action: 'payout.failed',
+      adminId: 'system',
+      adminRole: 'system',
+      category: 'vendor',
+      targetId: data.reference,
+      targetType: 'payout',
+      targetName: `Payout ${data.reference}`,
+      details: JSON.stringify({
+        reference: data.reference,
+        amount: data.amount / 100,
+        currency: data.currency,
+        reason: failureReason,
+      }),
+      severity: 'warning',
+    });
+
+    console.log(`[PAYSTACK_WEBHOOK] Payout ${data.reference} marked as failed: ${failureReason}`);
+    
+    // TODO: Send SMS notification to vendor about failed payout
+  } catch (error) {
+    console.error(`[PAYSTACK_WEBHOOK] Failed to process transfer failure:`, error);
+  }
+}
+
+/**
+ * Handle reversed transfer (vendor payout)
+ */
+async function handleTransferReversed(data: TransferData): Promise<void> {
+  console.log(`[PAYSTACK_WEBHOOK] Transfer reversed: ${data.reference}`);
+
+  try {
+    // Update payout status
+    const updated = await updatePayoutStatus(data.reference, 'reversed', 'Transfer was reversed');
+    
+    if (!updated) {
+      console.warn(`[PAYSTACK_WEBHOOK] Could not find payout with reference: ${data.reference}`);
+      return;
+    }
+
+    // Log audit
+    await createAuditLog({
+      action: 'payout.reversed',
+      adminId: 'system',
+      adminRole: 'system',
+      category: 'vendor',
+      targetId: data.reference,
+      targetType: 'payout',
+      targetName: `Payout ${data.reference}`,
+      details: JSON.stringify({
+        reference: data.reference,
+        amount: data.amount / 100,
+        currency: data.currency,
+      }),
+      severity: 'warning',
+    });
+
+    console.log(`[PAYSTACK_WEBHOOK] Payout ${data.reference} marked as reversed`);
+    
+    // TODO: Send SMS notification to vendor about reversed payout
+  } catch (error) {
+    console.error(`[PAYSTACK_WEBHOOK] Failed to process transfer reversal:`, error);
+  }
+}
