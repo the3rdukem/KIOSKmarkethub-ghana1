@@ -10,6 +10,18 @@ I prefer detailed explanations for complex solutions.
 Do not make changes to files in the `src/lib/` directory unless explicitly instructed.
 I prefer clear and concise communication.
 
+## Launch Roadmap
+
+### Tier 1 - LAUNCH BLOCKERS (Must have before launch)
+| Feature | Est. Days | Status |
+|---------|-----------|--------|
+| Commission System | 3-4 | COMPLETE |
+| Vendor Payouts (Paystack Transfers) | 5-6 | PENDING |
+| SMS Notifications (Arkesel) | 2-3 | PENDING |
+| Dispute Resolution + Refunds | 6-8 | PENDING |
+
+**Subtotal: ~16-21 days**
+
 ## System Architecture
 The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui` for UI components, ensuring a modern and responsive user experience. PostgreSQL serves as the primary database, managed with a focus on connection pooling and asynchronous data access. An API-first approach governs all major data interactions.
 
