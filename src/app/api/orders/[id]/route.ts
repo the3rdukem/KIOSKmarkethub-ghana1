@@ -31,6 +31,7 @@ import {
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { getUserById } from '@/lib/db/dal/users';
 import { createNotification } from '@/lib/db/dal/notifications';
+import { sendOrderStatusSMS, sendVendorNewOrderSMS } from '@/lib/services/arkesel-sms';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -566,6 +567,17 @@ async function handleOrderLevelAction(
       payload: { orderId },
     }).catch(err => console.error('[NOTIFICATION] Failed:', err));
 
+    // Send SMS notification (fire-and-forget)
+    if (order.buyer_phone) {
+      sendOrderStatusSMS(
+        order.buyer_phone,
+        order.buyer_name || 'Customer',
+        order.buyer_id,
+        orderId,
+        'ready_for_pickup'
+      ).catch(err => console.error('[SMS] Failed to send ready_for_pickup SMS:', err));
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Order marked as ready for pickup',
@@ -682,6 +694,17 @@ async function handleOrderLevelAction(
       message: `Your order from ${vendorName} has been delivered! You have 48 hours to raise any issues.`,
       payload: { orderId },
     }).catch(err => console.error('[NOTIFICATION] Failed:', err));
+
+    // Send SMS notification (fire-and-forget)
+    if (order.buyer_phone) {
+      sendOrderStatusSMS(
+        order.buyer_phone,
+        order.buyer_name || 'Customer',
+        order.buyer_id,
+        orderId,
+        'delivered'
+      ).catch(err => console.error('[SMS] Failed to send delivered SMS:', err));
+    }
 
     return NextResponse.json({
       success: true,

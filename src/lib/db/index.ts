@@ -1509,6 +1509,159 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Setting may already exist
   }
+
+  // PHASE 13: SMS Notifications System - Templates and Logs
+  // Create sms_templates table
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sms_templates (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        event_type TEXT NOT NULL,
+        message_template TEXT NOT NULL,
+        variables TEXT,
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
+      );
+      CREATE INDEX IF NOT EXISTS idx_sms_templates_event_type ON sms_templates(event_type);
+      CREATE INDEX IF NOT EXISTS idx_sms_templates_is_active ON sms_templates(is_active);
+    `);
+    console.log('[DB] PHASE 13: Created sms_templates table');
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // Create sms_logs table for tracking sent messages
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sms_logs (
+        id TEXT PRIMARY KEY,
+        recipient_phone TEXT NOT NULL,
+        recipient_name TEXT,
+        recipient_id TEXT,
+        recipient_role TEXT,
+        event_type TEXT NOT NULL,
+        template_id TEXT,
+        message_content TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        provider_response TEXT,
+        error_message TEXT,
+        order_id TEXT,
+        sent_at TEXT,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
+      );
+      CREATE INDEX IF NOT EXISTS idx_sms_logs_recipient ON sms_logs(recipient_phone);
+      CREATE INDEX IF NOT EXISTS idx_sms_logs_status ON sms_logs(status);
+      CREATE INDEX IF NOT EXISTS idx_sms_logs_event_type ON sms_logs(event_type);
+      CREATE INDEX IF NOT EXISTS idx_sms_logs_created_at ON sms_logs(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_sms_logs_order_id ON sms_logs(order_id);
+    `);
+    console.log('[DB] PHASE 13: Created sms_logs table');
+  } catch (e) {
+    // Table may already exist
+  }
+
+  // Seed default SMS templates
+  try {
+    const existingTemplates = await client.query('SELECT COUNT(*) as count FROM sms_templates');
+    if (parseInt(existingTemplates.rows[0].count) === 0) {
+      const now = new Date().toISOString();
+      const templates = [
+        {
+          id: 'sms_order_confirmed',
+          name: 'Order Confirmed',
+          event_type: 'order_confirmed',
+          message_template: 'Hi {{buyer_name}}, your order #{{order_id}} has been confirmed! Total: GHS {{total}}. Track your order on KIOSK.',
+          variables: 'buyer_name,order_id,total'
+        },
+        {
+          id: 'sms_order_preparing',
+          name: 'Order Preparing',
+          event_type: 'order_preparing',
+          message_template: "Good news! Your order #{{order_id}} is being prepared by the vendor. We'll notify you when it's ready.",
+          variables: 'order_id'
+        },
+        {
+          id: 'sms_order_ready',
+          name: 'Order Ready for Pickup',
+          event_type: 'order_ready_for_pickup',
+          message_template: 'Your order #{{order_id}} is ready for pickup/delivery! The vendor will arrange delivery soon.',
+          variables: 'order_id'
+        },
+        {
+          id: 'sms_order_delivered',
+          name: 'Order Delivered',
+          event_type: 'order_delivered',
+          message_template: 'Your order #{{order_id}} has been delivered! If you have any issues, you can raise a dispute within 48 hours.',
+          variables: 'order_id'
+        },
+        {
+          id: 'sms_order_cancelled',
+          name: 'Order Cancelled',
+          event_type: 'order_cancelled',
+          message_template: 'Your order #{{order_id}} has been cancelled. If you paid, a refund will be processed within 3-5 business days.',
+          variables: 'order_id'
+        },
+        {
+          id: 'sms_vendor_new_order',
+          name: 'Vendor: New Order',
+          event_type: 'vendor_new_order',
+          message_template: 'New order #{{order_id}}! Amount: GHS {{amount}}. Log in to KIOSK to view and process.',
+          variables: 'order_id,amount'
+        },
+        {
+          id: 'sms_dispute_opened',
+          name: 'Dispute Opened',
+          event_type: 'dispute_opened',
+          message_template: 'A dispute has been opened for order #{{order_id}}. Our team will review and respond within 24-48 hours.',
+          variables: 'order_id'
+        },
+        {
+          id: 'sms_welcome_buyer',
+          name: 'Welcome Buyer',
+          event_type: 'welcome_buyer',
+          message_template: "Welcome to KIOSK, {{name}}! Ghana's trusted marketplace. Start shopping now at kiosk.gh",
+          variables: 'name'
+        },
+        {
+          id: 'sms_welcome_vendor',
+          name: 'Welcome Vendor',
+          event_type: 'welcome_vendor',
+          message_template: 'Welcome to KIOSK, {{business_name}}! Complete your verification to start selling. Log in to your dashboard.',
+          variables: 'business_name'
+        }
+      ];
+
+      for (const t of templates) {
+        await client.query(
+          `INSERT INTO sms_templates (id, name, event_type, message_template, variables, is_active, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, 1, $6, $7)`,
+          [t.id, t.name, t.event_type, t.message_template, t.variables, now, now]
+        );
+      }
+      console.log('[DB] PHASE 13: Seeded default SMS templates');
+    }
+  } catch (e) {
+    // Templates may already exist
+  }
+
+  // Add SMS settings to site_settings if not exist
+  try {
+    const smsEnabled = await client.query(
+      `SELECT key FROM site_settings WHERE key = 'sms_notifications_enabled' LIMIT 1`
+    );
+    if (smsEnabled.rows.length === 0) {
+      const now = new Date().toISOString();
+      await client.query(
+        `INSERT INTO site_settings (key, value, updated_at) VALUES ($1, $2, $3)`,
+        ['sms_notifications_enabled', 'false', now]
+      );
+      console.log('[DB] PHASE 13: Added SMS notifications setting (disabled by default)');
+    }
+  } catch (e) {
+    // Setting may already exist
+  }
 }
 
 /**

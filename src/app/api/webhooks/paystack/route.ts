@@ -7,9 +7,11 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getPaystackCredentials } from '@/lib/db/dal/integrations';
-import { updateOrderPaymentStatus } from '@/lib/db/dal/orders';
+import { updateOrderPaymentStatus, parseOrderItems, getOrderItemsByOrderId } from '@/lib/db/dal/orders';
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { createHash } from 'crypto';
+import { sendOrderConfirmationSMS, sendVendorNewOrderSMS } from '@/lib/services/arkesel-sms';
+import { getUserById } from '@/lib/db/dal/users';
 
 interface PaystackEvent {
   event: string;
@@ -204,6 +206,45 @@ async function handleChargeSuccess(data: PaystackEvent['data']): Promise<void> {
       }),
       severity: 'info',
     });
+
+    // Send SMS notifications (fire-and-forget)
+    try {
+      // Get buyer info for SMS
+      const buyer = await getUserById(order.buyer_id);
+      const buyerPhone = buyer?.phone || data.customer.phone;
+      
+      if (buyerPhone) {
+        sendOrderConfirmationSMS(
+          buyerPhone,
+          order.buyer_name || buyer?.name || 'Customer',
+          order.buyer_id,
+          orderId,
+          paidAmountGHS
+        ).catch(err => console.error('[SMS] Failed to send order confirmation SMS:', err));
+      }
+
+      // Send SMS to vendors about new order
+      const orderItems = await getOrderItemsByOrderId(orderId);
+      const vendorIds = [...new Set(orderItems.map(item => item.vendor_id))];
+      
+      for (const vendorId of vendorIds) {
+        const vendor = await getUserById(vendorId);
+        if (vendor?.phone) {
+          const vendorItems = orderItems.filter(item => item.vendor_id === vendorId);
+          const vendorAmount = vendorItems.reduce((sum, item) => sum + (item.final_price || item.unit_price * item.quantity), 0);
+          
+          sendVendorNewOrderSMS(
+            vendor.phone,
+            vendor.business_name || vendor.name || 'Vendor',
+            vendorId,
+            orderId,
+            vendorAmount
+          ).catch(err => console.error('[SMS] Failed to send vendor new order SMS:', err));
+        }
+      }
+    } catch (smsError) {
+      console.error('[PAYSTACK_WEBHOOK] SMS notification error (non-blocking):', smsError);
+    }
   } catch (error) {
     console.error(`[PAYSTACK_WEBHOOK] Failed to update order ${orderId}:`, error);
   }
