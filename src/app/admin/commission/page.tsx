@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, Percent, Save, TrendingUp, DollarSign, Store, FolderTree, Loader2 } from 'lucide-react';
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from 'sonner';
+import { SiteLayout } from '@/components/layout/site-layout';
 
 interface CommissionSummary {
   totalOrders: number;
@@ -203,11 +204,12 @@ export default function CommissionPage() {
   }
 
   return (
-    <div className="container mx-auto py-8 px-4 space-y-6">
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => router.push('/admin/dashboard')}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
+    <SiteLayout>
+      <div className="container mx-auto py-8 px-4 space-y-6">
+        <div className="flex items-center gap-4">
+          <Button variant="ghost" size="icon" onClick={() => router.push('/admin')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
         <div>
           <h1 className="text-3xl font-bold">Commission Management</h1>
           <p className="text-muted-foreground">Configure platform commission rates and view earnings</p>
@@ -484,7 +486,8 @@ export default function CommissionPage() {
             </CardContent>
           </Card>
         </TabsContent>
-      </Tabs>
-    </div>
+        </Tabs>
+      </div>
+    </SiteLayout>
   );
 }
