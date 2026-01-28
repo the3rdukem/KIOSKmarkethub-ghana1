@@ -15,6 +15,7 @@
 import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 import { createAuditLog } from './audit';
+import { calculateCommission, getDefaultCommissionRate } from './commission';
 
 // Phase 7B: New order status model with full lifecycle
 // Legacy statuses mapped: pending_payment→created, processing→confirmed, shipped→out_for_delivery, fulfilled→delivered
@@ -207,6 +208,10 @@ export interface DbOrder {
   dispute_reason: string | null;    // Phase 7B: Reason for dispute
   notes: string | null;
   coupon_code: string | null;
+  // Phase 12: Commission System
+  commission_rate: number | null;
+  platform_commission: number;
+  vendor_earnings: number;
   created_at: string;
   updated_at: string;
 }
@@ -232,6 +237,10 @@ export interface DbOrderItem {
   vendor_courier_reference: string | null;
   vendor_ready_for_pickup_at: string | null;
   vendor_delivered_at: string | null;
+  // Phase 12: Commission System
+  commission_rate: number | null;
+  commission_amount: number;
+  vendor_earnings: number;
 }
 
 export interface CreateOrderInput {
@@ -285,6 +294,62 @@ export async function createOrder(
   const orderId = `order_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();
 
+  // Phase 12: Calculate commission for each item and aggregate totals
+  let totalPlatformCommission = 0;
+  let totalVendorEarnings = 0;
+  const itemCommissions: Map<string, { rate: number; amount: number; earnings: number }> = new Map();
+  
+  // Get default commission rate as fallback
+  const defaultRate = await getDefaultCommissionRate();
+
+  // Lookup product categories for commission calculation
+  const productIds = input.items.map(item => item.productId);
+  const productCategories = new Map<string, string>();
+  
+  if (productIds.length > 0) {
+    try {
+      const categoryResult = await query<{ id: string; category: string }>(
+        `SELECT id, category FROM products WHERE id = ANY($1)`,
+        [productIds]
+      );
+      for (const row of categoryResult.rows) {
+        if (row.category) {
+          productCategories.set(row.id, row.category);
+        }
+      }
+    } catch (error) {
+      console.error('[Orders] Error fetching product categories:', error);
+    }
+  }
+
+  for (const item of input.items) {
+    const itemSubtotal = item.finalPrice || (item.price * item.quantity - (item.appliedDiscount || 0));
+    
+    // Get category for this product to apply category-specific commission rates
+    const categoryId = productCategories.get(item.productId);
+    
+    // Calculate commission for this item's vendor with category context
+    const commission = await calculateCommission(itemSubtotal, item.vendorId, categoryId);
+    
+    itemCommissions.set(item.productId, {
+      rate: commission.commissionRate,
+      amount: commission.commissionAmount,
+      earnings: commission.vendorEarnings
+    });
+    
+    totalPlatformCommission += commission.commissionAmount;
+    totalVendorEarnings += commission.vendorEarnings;
+  }
+
+  // Round totals to 2 decimal places
+  totalPlatformCommission = Math.round(totalPlatformCommission * 100) / 100;
+  totalVendorEarnings = Math.round(totalVendorEarnings * 100) / 100;
+
+  // Calculate average commission rate for the order
+  const avgCommissionRate = input.subtotal > 0 
+    ? totalPlatformCommission / input.subtotal 
+    : defaultRate;
+
   const orderParams = [
     orderId,
     input.buyerId,
@@ -303,6 +368,9 @@ export async function createOrder(
     JSON.stringify(input.shippingAddress),
     input.couponCode || null,
     input.notes || null,
+    avgCommissionRate,        // Phase 12: Commission rate
+    totalPlatformCommission,  // Phase 12: Platform commission
+    totalVendorEarnings,      // Phase 12: Vendor earnings
     now,
     now
   ];
@@ -311,8 +379,10 @@ export async function createOrder(
     INSERT INTO orders (
       id, buyer_id, buyer_name, buyer_email, items, subtotal,
       discount_total, shipping_fee, tax, total, currency, status, payment_status, 
-      payment_method, shipping_address, coupon_code, notes, created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+      payment_method, shipping_address, coupon_code, notes, 
+      commission_rate, platform_commission, vendor_earnings,
+      created_at, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
   `;
 
   if (txClient) {
@@ -326,6 +396,13 @@ export async function createOrder(
     const unitPrice = item.price;
     const appliedDiscount = item.appliedDiscount || 0;
     const finalPrice = item.finalPrice || (unitPrice * item.quantity - appliedDiscount);
+
+    // Get commission data for this item
+    const itemCommission = itemCommissions.get(item.productId) || {
+      rate: defaultRate,
+      amount: finalPrice * defaultRate,
+      earnings: finalPrice * (1 - defaultRate)
+    };
 
     const itemParams = [
       itemId,
@@ -341,6 +418,9 @@ export async function createOrder(
       'pending',
       item.image || null,
       item.variations ? JSON.stringify(item.variations) : null,
+      itemCommission.rate,     // Phase 12: Commission rate
+      itemCommission.amount,   // Phase 12: Commission amount
+      itemCommission.earnings, // Phase 12: Vendor earnings
       now,
       now
     ];
@@ -349,8 +429,9 @@ export async function createOrder(
       INSERT INTO order_items (
         id, order_id, product_id, product_name, vendor_id, vendor_name,
         quantity, unit_price, applied_discount, final_price, fulfillment_status,
-        image, variations, created_at, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        image, variations, commission_rate, commission_amount, vendor_earnings,
+        created_at, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     `;
 
     if (txClient) {
@@ -388,6 +469,10 @@ export async function createOrder(
     dispute_reason: null,       // Phase 7B
     notes: input.notes || null,
     coupon_code: input.couponCode || null,
+    // Phase 12: Commission System
+    commission_rate: avgCommissionRate,
+    platform_commission: totalPlatformCommission,
+    vendor_earnings: totalVendorEarnings,
     created_at: now,
     updated_at: now,
   };

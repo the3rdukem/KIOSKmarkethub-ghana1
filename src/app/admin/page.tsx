@@ -1502,6 +1502,11 @@ function AdminDashboardContent() {
                           <ImageIcon className="w-4 h-4 mr-2" />Hero Slideshow
                         </a>
                       </Button>
+                      <Button className="w-full justify-start" variant="outline" asChild>
+                        <a href="/admin/commission">
+                          <DollarSign className="w-4 h-4 mr-2" />Commission Management
+                        </a>
+                      </Button>
                     </>
                   )}
                 </CardContent>

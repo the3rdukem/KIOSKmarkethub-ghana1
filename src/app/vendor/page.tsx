@@ -52,6 +52,13 @@ interface VendorStats {
     createdAt: string;
     buyerName: string;
   }>;
+  earnings?: {
+    total: number;
+    commission: number;
+    commissionRate: number;
+    pending: number;
+    completed: number;
+  };
 }
 
 function VendorDashboardContent() {
@@ -172,13 +179,15 @@ function VendorDashboardContent() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
               <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 p-3 sm:p-6 pb-2">
-                  <CardTitle className="text-xs sm:text-sm font-medium">Total Revenue</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  <CardTitle className="text-xs sm:text-sm font-medium">Your Earnings</CardTitle>
+                  <DollarSign className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-                  <div className="text-lg sm:text-2xl font-bold truncate">GHS {totalRevenue.toLocaleString()}</div>
+                  <div className="text-lg sm:text-2xl font-bold text-green-600 truncate">
+                    GHS {(stats?.earnings?.total ?? totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
                   <p className="text-xs text-muted-foreground">
-                    From {totalOrders} orders
+                    After {((stats?.earnings?.commissionRate ?? 0.08) * 100).toFixed(0)}% platform fee
                   </p>
                 </CardContent>
               </Card>
@@ -236,11 +245,32 @@ function VendorDashboardContent() {
                     </div>
                   </div>
                 ) : (
-                  <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
-                    <div className="text-center">
-                      <TrendingUp className="w-12 h-12 text-green-500 mx-auto mb-3" />
-                      <p className="text-2xl font-bold">GHS {totalRevenue.toLocaleString()}</p>
-                      <p className="text-muted-foreground">Total Revenue from {totalOrders} orders</p>
+                  <div className="h-64 bg-gray-50 rounded-lg p-4">
+                    <div className="flex flex-col h-full justify-center space-y-4">
+                      <div className="text-center">
+                        <TrendingUp className="w-10 h-10 text-green-500 mx-auto mb-2" />
+                        <p className="text-2xl font-bold text-green-600">
+                          GHS {(stats?.earnings?.total ?? totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-sm text-muted-foreground">Total Earnings</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4 text-center">
+                        <div className="p-2 bg-white rounded-lg shadow-sm">
+                          <p className="text-lg font-semibold text-amber-600">
+                            GHS {(stats?.earnings?.pending ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Pending</p>
+                        </div>
+                        <div className="p-2 bg-white rounded-lg shadow-sm">
+                          <p className="text-lg font-semibold text-green-600">
+                            GHS {(stats?.earnings?.completed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                          <p className="text-xs text-muted-foreground">Ready to Withdraw</p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-center text-muted-foreground">
+                        {((stats?.earnings?.commissionRate ?? 0.08) * 100).toFixed(0)}% platform fee deducted from sales
+                      </p>
                     </div>
                   </div>
                 )}

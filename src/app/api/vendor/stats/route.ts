@@ -99,6 +99,34 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Phase 12: Get vendor earnings from order_items table (commission system)
+    const earningsQuery = await query<{
+      total_earnings: string;
+      total_commission: string;
+      commission_rate: string;
+      pending_earnings: string;
+      completed_earnings: string;
+    }>(
+      `SELECT 
+        COALESCE(SUM(oi.vendor_earnings), 0) as total_earnings,
+        COALESCE(SUM(oi.commission_amount), 0) as total_commission,
+        COALESCE(AVG(oi.commission_rate), 0.08) as commission_rate,
+        COALESCE(SUM(CASE WHEN o.status IN ('created', 'confirmed', 'preparing', 'ready_for_pickup', 'out_for_delivery') THEN oi.vendor_earnings ELSE 0 END), 0) as pending_earnings,
+        COALESCE(SUM(CASE WHEN o.status IN ('delivered', 'completed') THEN oi.vendor_earnings ELSE 0 END), 0) as completed_earnings
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      WHERE oi.vendor_id = $1`,
+      [vendorId]
+    );
+
+    const earningsData = earningsQuery.rows[0] || {
+      total_earnings: '0',
+      total_commission: '0',
+      commission_rate: '0.08',
+      pending_earnings: '0',
+      completed_earnings: '0'
+    };
+
     // Get recent orders (last 5) - filter by vendor items in JSON
     const recentOrdersQuery = await query<{
       id: string;
@@ -155,6 +183,13 @@ export async function GET(request: NextRequest) {
       },
       revenue: totalRevenue,
       recentOrders: recentVendorOrders,
+      earnings: {
+        total: parseFloat(earningsData.total_earnings) || 0,
+        commission: parseFloat(earningsData.total_commission) || 0,
+        commissionRate: parseFloat(earningsData.commission_rate) || 0.08,
+        pending: parseFloat(earningsData.pending_earnings) || 0,
+        completed: parseFloat(earningsData.completed_earnings) || 0,
+      },
     });
     
     // Prevent any caching - always read fresh from DB

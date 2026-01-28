@@ -1462,6 +1462,53 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Table may already exist
   }
+
+  // PHASE 12: Commission System - Add commission columns for revenue tracking
+  // Add commission_rate to categories table
+  try {
+    await client.query(`ALTER TABLE categories ADD COLUMN IF NOT EXISTS commission_rate REAL`);
+    console.log('[DB] PHASE 12: Added commission_rate to categories table');
+  } catch (e) { /* Column may already exist */ }
+
+  // Add commission columns to orders table
+  try {
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS platform_commission REAL DEFAULT 0`);
+  } catch (e) { /* Column may already exist */ }
+  try {
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS vendor_earnings REAL DEFAULT 0`);
+  } catch (e) { /* Column may already exist */ }
+  try {
+    await client.query(`ALTER TABLE orders ADD COLUMN IF NOT EXISTS commission_rate REAL`);
+    console.log('[DB] PHASE 12: Added commission columns to orders table');
+  } catch (e) { /* Column may already exist */ }
+
+  // Add commission columns to order_items table for multi-vendor orders
+  try {
+    await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS commission_rate REAL`);
+  } catch (e) { /* Column may already exist */ }
+  try {
+    await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS commission_amount REAL DEFAULT 0`);
+  } catch (e) { /* Column may already exist */ }
+  try {
+    await client.query(`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS vendor_earnings REAL DEFAULT 0`);
+    console.log('[DB] PHASE 12: Added commission columns to order_items table');
+  } catch (e) { /* Column may already exist */ }
+
+  // Seed default commission rate in site_settings if not exists
+  try {
+    const existing = await client.query(
+      `SELECT key FROM site_settings WHERE key = 'default_commission_rate' LIMIT 1`
+    );
+    if (existing.rows.length === 0) {
+      await client.query(
+        `INSERT INTO site_settings (key, value, updated_at) VALUES ($1, $2, $3)`,
+        ['default_commission_rate', '0.08', new Date().toISOString()]
+      );
+      console.log('[DB] PHASE 12: Seeded default commission rate (8%)');
+    }
+  } catch (e) {
+    // Setting may already exist
+  }
 }
 
 /**
