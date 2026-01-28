@@ -1,0 +1,115 @@
+ ✓ Ready in 8.7s
+[DB] Using DATABASE_URL
+[DB] Using DATABASE_URL
+[DB] SSL enabled: true
+Database initialization error: Error: connect ENETUNREACH 2a05:d018:135e:1654:6a7:3b25:21e6:4a7f:5432 - Local (:::0)
+    at async h (.next/server/chunks/9479.js:1:1412)
+    at async h (.next/server/app/api/db/init/route.js:48:10049)
+    at async k (.next/server/app/api/db/init/route.js:48:7272)
+    at async g (.next/server/app/api/db/init/route.js:48:8275)
+    at async x (.next/server/app/api/db/init/route.js:48:9397) {
+  errno: -101,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '2a05:d018:135e:1654:6a7:3b25:21e6:4a7f',
+  port: 5432
+}
+[SESSION_API] Validating session { hasToken: false }
+[SESSION_API] No session token found
+Failed to get public site settings: Error: connect ENETUNREACH 2a05:d018:135e:1654:6a7:3b25:21e6:4a7f:5432 - Local (:::0)
+    at async n (.next/server/chunks/9479.js:794:197)
+    at async g (.next/server/app/api/admin/site-settings/route.js:1:601)
+    at async h (.next/server/app/api/site-settings/public/route.js:6:6805)
+    at async k (.next/server/app/api/site-settings/public/route.js:6:3437)
+    at async g (.next/server/app/api/site-settings/public/route.js:6:4440) {
+  errno: -101,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '2a05:d018:135e:1654:6a7:3b25:21e6:4a7f',
+  port: 5432
+}
+Failed to get public footer links: Error: connect ENETUNREACH 2a05:d018:135e:1654:6a7:3b25:21e6:4a7f:5432 - Local (:::0)
+    at async n (.next/server/chunks/9479.js:794:197)
+    at async h (.next/server/app/api/admin/footer-links/route.js:1:10204)
+    at async h (.next/server/app/api/footer-links/public/route.js:1:6543)
+    at async k (.next/server/app/api/footer-links/public/route.js:1:3555)
+    at async g (.next/server/app/api/footer-links/public/route.js:1:4558) {
+  errno: -101,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '2a05:d018:135e:1654:6a7:3b25:21e6:4a7f',
+  port: 5432
+}
+[HERO_SLIDES] GET error: Error: connect ENETUNREACH 2a05:d018:135e:1654:6a7:3b25:21e6:4a7f:5432 - Local (:::0)
+    at async n (.next/server/chunks/9479.js:794:197)
+    at async Object.h (.next/server/app/api/hero-slides/route.js:1:6294)
+    at async j (.next/server/app/api/hero-slides/route.js:3:1374)
+    at async k (.next/server/app/api/hero-slides/route.js:1:3242)
+    at async g (.next/server/app/api/hero-slides/route.js:1:4245) {
+  errno: -101,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '2a05:d018:135e:1654:6a7:3b25:21e6:4a7f',
+  port: 5432
+}
+Get products error: Error: connect ENETUNREACH 2a05:d018:135e:1654:6a7:3b25:21e6:4a7f:5432 - Local (:::0)
+    at async n (.next/server/chunks/9479.js:794:197)
+    at async j (.next/server/app/api/db/init/route.js:48:1182)
+    at async q (.next/server/app/api/products/route.js:1:1150)
+    at async k (.next/server/app/api/products/route.js:1:10868)
+    at async g (.next/server/app/api/products/route.js:1:11871) {
+  errno: -101,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '2a05:d018:135e:1654:6a7:3b25:21e6:4a7f',
+  port: 5432
+}
+Failed to get public site settings: Error: connect ENETUNREACH 2a05:d018:135e:1654:6a7:3b25:21e6:4a7f:5432 - Local (:::0)
+    at async n (.next/server/chunks/9479.js:794:197)
+    at async g (.next/server/app/api/admin/site-settings/route.js:1:601)
+    at async h (.next/server/app/api/site-settings/public/route.js:6:6805)
+    at async k (.next/server/app/api/site-settings/public/route.js:6:3437)
+    at async g (.next/server/app/api/site-settings/public/route.js:6:4440) {
+  errno: -101,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '2a05:d018:135e:1654:6a7:3b25:21e6:4a7f',
+  port: 5432
+}
+[API] GET /stats/public error: Error: connect ENETUNREACH 2a05:d018:135e:1654:6a7:3b25:21e6:4a7f:5432 - Local (:::0)
+    at async n (.next/server/chunks/9479.js:794:197)
+    at async h (.next/server/app/api/stats/public/route.js:1:719)
+    at async k (.next/server/app/api/stats/public/route.js:4:3717)
+    at async g (.next/server/app/api/stats/public/route.js:4:4720)
+    at async x (.next/server/app/api/stats/public/route.js:4:5842) {
+  errno: -101,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '2a05:d018:135e:1654:6a7:3b25:21e6:4a7f',
+  port: 5432
+}
+[CART_API] GET error: Error: connect ENETUNREACH 2a05:d018:135e:1654:6a7:3b25:21e6:4a7f:5432 - Local (:::0)
+    at async n (.next/server/chunks/9479.js:794:197)
+    at async i (.next/server/app/api/orders/route.js:40:524)
+    at async j (.next/server/app/api/orders/route.js:40:682)
+    at async l (.next/server/app/api/cart/route.js:1:1091)
+    at async k (.next/server/app/api/cart/route.js:1:6274) {
+  errno: -101,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '2a05:d018:135e:1654:6a7:3b25:21e6:4a7f',
+  port: 5432
+}
+Failed to get public site settings: Error: connect ENETUNREACH 2a05:d018:135e:1654:6a7:3b25:21e6:4a7f:5432 - Local (:::0)
+    at async n (.next/server/chunks/9479.js:794:197)
+    at async g (.next/server/app/api/admin/site-settings/route.js:1:601)
+    at async h (.next/server/app/api/site-settings/public/route.js:6:6805)
+    at async k (.next/server/app/api/site-settings/public/route.js:6:3437)
+    at async g (.next/server/app/api/site-settings/public/route.js:6:4440) {
+  errno: -101,
+  code: 'ENETUNREACH',
+  syscall: 'connect',
+  address: '2a05:d018:135e:1654:6a7:3b25:21e6:4a7f',
+  port: 5432
+}
+Need better ways to work with logs? Try theRender CLI, Render MCP Server, or set up a log stream integration 
