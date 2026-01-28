@@ -14,6 +14,9 @@ import {
   type AuditSeverity,
 } from '@/lib/db/dal/audit';
 
+// Prevent static generation - this route requires database access
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/admin/audit-logs
  *

@@ -85,6 +85,23 @@ const nextConfig = {
     '*.repl.co',
     '*.janeway.replit.dev',
   ],
+  serverExternalPackages: ['pg', 'pg-pool', 'pg-connection-string'],
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      // Don't bundle Node.js modules for client-side
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+        dns: false,
+        child_process: false,
+        pg: false,
+        'pg-native': false,
+      };
+    }
+    return config;
+  },
 };
 
 module.exports = withPWA(nextConfig);
