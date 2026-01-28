@@ -1,0 +1,94 @@
+Things NOTED. 
+
+I think vendors should have a default rate by default. Rather than defaulting to 10%. 
+
+When I set commission in Admin, 7% changes to 7.000000000000001%
+
+Vendor Dashboard brings up console errors:
+## Error Type
+Console Error
+
+## Error Message
+In HTML, <div> cannot be a descendant of <p>.
+This will cause a hydration error.
+
+  ...
+    <VendorDashboard params={Promise} searchParams={Promise}>
+      <VendorAuthGuard data-react-source="[project]/...">
+        <AuthGuard requiredRoles={[...]} portalType="vendor" data-react-source="[project]/...">
+          <VendorDashboardContent data-react-source="[project]/...">
+            <SiteLayout data-react-source="[project]/...">
+              <div className="min-h-scre..." data-react-source="[project]/...">
+                <MainNav>
+                <main className="flex-1 pb-..." data-react-source="[project]/...">
+                  <div className="container ..." data-react-source="[project]/...">
+                    <VerificationBanner>
+                    <div>
+                    <div className="grid grid-..." data-react-source="[project]/...">
+                      <div className="lg:col-spa..." data-react-source="[project]/...">
+                        <div className="grid grid-..." data-react-source="[project]/...">
+                          <_c data-react-source="[project]/...">
+                            <div ref={null} className="rounded-xl..." data-react-source="[project]/...">
+                              <_c2>
+                              <_c8 className="p-3 sm:p-6..." data-react-source="[project]/...">
+                                <div ref={null} className="p-3 sm:p-6..." data-react-source="[project]/...">
+                                  <div>
+>                                 <p
+>                                   className="text-xs text-muted-foreground flex items-center gap-1"
+>                                   data-react-source="[project]/src/app/vendor/page.tsx:210:19"
+>                                 >
+                                    <Badge variant="outline" className="text-[10px..." data-react-source="[project]/...">
+>                                     <div
+>                                       className="inline-flex items-center rounded-md border font-semibold transition..."
+>                                       data-react-source="[project]/src/components/ui/badge.tsx:32:5"
+>                                     >
+                                    ...
+                          ...
+                        ...
+                      ...
+                ...
+
+
+
+    at div (<anonymous>:null:null)
+    at Badge (src/components/ui/badge.tsx:32:5)
+    at VendorDashboardContent (src/app/vendor/page.tsx:212:23)
+    at VendorDashboard (src/app/vendor/page.tsx:586:7)
+
+## Code Frame
+  30 | function Badge({ className, variant, ...props }: BadgeProps) {
+  31 |   return (
+> 32 |     <div className={cn(badgeVariants({ variant }), className)} {...props} />
+     |     ^
+  33 |   )
+  34 | }
+  35 |
+
+Next.js version: 15.5.9 (Turbopack)
+
+
+AND 
+
+## Error Type
+Console Error
+
+## Error Message
+<p> cannot contain a nested <div>.
+See this log for the ancestor stack trace.
+
+
+    at p (<anonymous>:null:null)
+    at VendorDashboardContent (src/app/vendor/page.tsx:210:19)
+    at VendorDashboard (src/app/vendor/page.tsx:586:7)
+
+## Code Frame
+  208 |                     GHS {(stats?.earnings?.total ?? totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+  209 |                   </div>
+> 210 |                   <p className="text-xs text-muted-foreground flex items-center gap-1">
+      |                   ^
+  211 |                     {stats?.earnings?.commissionSource === 'vendor' ? (
+  212 |                       <Badge variant="outline" className="text-[10px] px-1 py-0 text-purple-600 border-purple-600">Custom Rate</Badge>
+  213 |                     ) : stats?.earnings?.commissionSource === 'category' ? (
+
+Next.js version: 15.5.9 (Turbopack)
+

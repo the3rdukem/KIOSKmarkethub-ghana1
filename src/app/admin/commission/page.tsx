@@ -90,13 +90,13 @@ export default function CommissionPage() {
 
       const catRates: Record<string, string> = {};
       data.categories?.forEach((cat: CategoryRate) => {
-        catRates[cat.id] = cat.commission_rate !== null ? (cat.commission_rate * 100).toString() : '';
+        catRates[cat.id] = cat.commission_rate !== null ? Math.round(cat.commission_rate * 100).toString() : '';
       });
       setCategoryRates(catRates);
 
       const vendRates: Record<string, string> = {};
       data.vendors?.forEach((vendor: VendorRate) => {
-        vendRates[vendor.id] = vendor.commission_rate !== null ? (vendor.commission_rate * 100).toString() : '';
+        vendRates[vendor.id] = vendor.commission_rate !== null ? Math.round(vendor.commission_rate * 100).toString() : '';
       });
       setVendorRates(vendRates);
     } catch (error) {
@@ -359,7 +359,7 @@ export default function CommissionPage() {
                         ) : (
                           <Badge variant={category.commission_rate !== null ? 'default' : 'secondary'}>
                             {category.commission_rate !== null
-                              ? `${(category.commission_rate * 100).toFixed(1)}%`
+                              ? `${Math.round(category.commission_rate * 100)}%`
                               : `Default (${defaultRate}%)`}
                           </Badge>
                         )}
@@ -474,7 +474,7 @@ export default function CommissionPage() {
                         ) : (
                           <Badge variant={vendor.commission_rate !== null ? 'default' : 'secondary'}>
                             {vendor.commission_rate !== null
-                              ? `${(vendor.commission_rate * 100).toFixed(1)}%`
+                              ? `${Math.round(vendor.commission_rate * 100)}%`
                               : `Default (${defaultRate}%)`}
                           </Badge>
                         )}

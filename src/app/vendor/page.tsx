@@ -207,14 +207,14 @@ function VendorDashboardContent() {
                   <div className="text-lg sm:text-2xl font-bold text-green-600 truncate">
                     GHS {(stats?.earnings?.total ?? totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
-                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <span className="text-xs text-muted-foreground flex items-center gap-1">
                     {stats?.earnings?.commissionSource === 'vendor' ? (
                       <Badge variant="outline" className="text-[10px] px-1 py-0 text-purple-600 border-purple-600">Custom Rate</Badge>
                     ) : stats?.earnings?.commissionSource === 'category' ? (
                       <Badge variant="outline" className="text-[10px] px-1 py-0 text-blue-600 border-blue-600">Category Rate</Badge>
                     ) : null}
-                    {((stats?.earnings?.commissionRate ?? 0.08) * 100).toFixed(0)}% fee applied
-                  </p>
+                    {Math.round((stats?.earnings?.commissionRate ?? 0.08) * 100)}% fee applied
+                  </span>
                 </CardContent>
               </Card>
               <Card>
