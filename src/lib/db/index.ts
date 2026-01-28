@@ -12,10 +12,21 @@
 
 import { Pool, PoolClient, QueryResult } from 'pg';
 
-// Build database connection string from Replit PostgreSQL env vars if available
-// This takes precedence over DATABASE_URL to ensure we use the Replit-managed database
+// Build database connection string
+// Priority: DATABASE_URL first (for external deployments), then Replit PG* vars
 function buildConnectionString(): string {
-  // Prefer Replit's native PostgreSQL environment variables
+  // Check for DATABASE_URL first (used by external platforms like Render, Vercel, etc.)
+  const databaseUrl = process.env.DATABASE_URL;
+  if (databaseUrl && !databaseUrl.includes('sqlite')) {
+    console.log('[DB] Using DATABASE_URL');
+    // Handle postgres:// vs postgresql:// prefix mismatch
+    if (databaseUrl.startsWith('postgres://')) {
+      return databaseUrl.replace(/^postgres:\/\//, 'postgresql://');
+    }
+    return databaseUrl;
+  }
+
+  // Fallback to Replit's native PostgreSQL environment variables
   const pgHost = process.env.PGHOST;
   const pgDatabase = process.env.PGDATABASE;
   const pgUser = process.env.PGUSER;
@@ -27,25 +38,9 @@ function buildConnectionString(): string {
     return `postgresql://${pgUser}:${encodeURIComponent(pgPassword)}@${pgHost}:${pgPort}/${pgDatabase}`;
   }
 
-  // Fallback to DATABASE_URL
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error(
-      'PostgreSQL connection not configured. Either PGHOST/PGDATABASE/PGUSER/PGPASSWORD or DATABASE_URL must be set.'
-    );
-  }
-
-  if (databaseUrl.includes('sqlite')) {
-    throw new Error(
-      'SQLite is not supported. DATABASE_URL must be a PostgreSQL connection string.'
-    );
-  }
-
-  // Handle postgres:// vs postgresql:// prefix mismatch
-  if (databaseUrl.startsWith('postgres://')) {
-    return databaseUrl.replace(/^postgres:\/\//, 'postgresql://');
-  }
-  return databaseUrl;
+  throw new Error(
+    'PostgreSQL connection not configured. Either DATABASE_URL or PGHOST/PGDATABASE/PGUSER/PGPASSWORD must be set.'
+  );
 }
 
 const connectionString = buildConnectionString();
