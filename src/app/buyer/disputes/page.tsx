@@ -339,21 +339,29 @@ export default function BuyerDisputesPage() {
                   <div>
                     <Label className="text-muted-foreground">Evidence Photos ({selectedDispute.evidence.length})</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {selectedDispute.evidence.map((url, index) => (
+                      {selectedDispute.evidence.filter(url => url && typeof url === 'string' && url.startsWith('http')).map((url, index) => (
                         <a 
                           key={index} 
                           href={url} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="block w-20 h-20 border rounded overflow-hidden hover:ring-2 hover:ring-primary"
+                          className="block w-20 h-20 border rounded overflow-hidden hover:ring-2 hover:ring-primary bg-gray-100"
                         >
                           <img 
                             src={url} 
                             alt={`Evidence ${index + 1}`} 
                             className="w-full h-full object-cover"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              target.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-xs text-gray-400">Image unavailable</div>';
+                            }}
                           />
                         </a>
                       ))}
+                      {selectedDispute.evidence.filter(url => !url || typeof url !== 'string' || !url.startsWith('http')).length > 0 && (
+                        <p className="text-xs text-muted-foreground w-full">Some images could not be loaded</p>
+                      )}
                     </div>
                   </div>
                 )}
