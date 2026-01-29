@@ -1675,7 +1675,7 @@ async function runMigrations(client: PoolClient): Promise<void> {
         bank_name TEXT,
         account_number TEXT NOT NULL,
         account_name TEXT NOT NULL,
-        mobile_money_provider TEXT CHECK (mobile_money_provider IN ('mtn', 'vodafone', 'airteltigo')),
+        mobile_money_provider TEXT CHECK (mobile_money_provider IN ('MTN', 'VOD', 'ATL')),
         paystack_recipient_code TEXT,
         is_primary INTEGER DEFAULT 0,
         is_verified INTEGER DEFAULT 0,
@@ -1688,6 +1688,18 @@ async function runMigrations(client: PoolClient): Promise<void> {
     console.log('[DB] PHASE 14: Created vendor_bank_accounts table');
   } catch (e) {
     // Table may already exist
+  }
+
+  // PHASE 14B: Update mobile_money_provider constraint to use uppercase codes (Paystack requirement)
+  try {
+    await client.query(`
+      ALTER TABLE vendor_bank_accounts DROP CONSTRAINT IF EXISTS vendor_bank_accounts_mobile_money_provider_check;
+      ALTER TABLE vendor_bank_accounts ADD CONSTRAINT vendor_bank_accounts_mobile_money_provider_check 
+        CHECK (mobile_money_provider IN ('MTN', 'VOD', 'ATL'));
+    `);
+    console.log('[DB] PHASE 14B: Updated mobile_money_provider constraint to uppercase codes');
+  } catch (e) {
+    // Constraint may already be correct
   }
 
   // Create vendor_payouts table for tracking payout transactions

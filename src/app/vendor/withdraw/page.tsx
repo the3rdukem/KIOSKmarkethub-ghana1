@@ -918,11 +918,15 @@ export default function VendorWithdrawPage() {
                         <SelectValue placeholder="Select bank" />
                       </SelectTrigger>
                       <SelectContent>
-                        {banks.map((bank) => (
-                          <SelectItem key={bank.code} value={bank.code}>
-                            {bank.name}
-                          </SelectItem>
-                        ))}
+                        {banks
+                          .filter((bank, index, self) => 
+                            index === self.findIndex(b => b.code === bank.code)
+                          )
+                          .map((bank) => (
+                            <SelectItem key={bank.code} value={bank.code}>
+                              {bank.name}
+                            </SelectItem>
+                          ))}
                       </SelectContent>
                     </Select>
                   </div>

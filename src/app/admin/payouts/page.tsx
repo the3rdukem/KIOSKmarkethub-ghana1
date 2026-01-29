@@ -145,7 +145,7 @@ export default function AdminPayoutsPage() {
     );
   }
 
-  if (!isAuthenticated || !user || user.role !== "admin") {
+  if (!isAuthenticated || !user || (user.role !== "admin" && user.role !== "master_admin")) {
     return null;
   }
 
