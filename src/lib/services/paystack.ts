@@ -326,7 +326,7 @@ export const initializePayment = async (
 
       return response.json();
     },
-    { timeout: 30000, maxRetries: 2 }
+    { timeout: 30000, maxRetries: 2, skipStatusCheck: true }
   );
 
   if (!result.success || !result.data?.status) {
@@ -428,7 +428,7 @@ export const initializeMobileMoneyPayment = async (
 
       return response.json();
     },
-    { timeout: 60000, maxRetries: 1 }
+    { timeout: 60000, maxRetries: 1, skipStatusCheck: true }
   );
 
   if (!result.success || !result.data?.status) {
@@ -488,7 +488,7 @@ export const submitMobileMoneyOTP = async (
 
       return response.json();
     },
-    { timeout: 30000, maxRetries: 1 }
+    { timeout: 30000, maxRetries: 1, skipStatusCheck: true }
   );
 
   if (!result.success) {
@@ -551,7 +551,7 @@ export const verifyPayment = async (
 
       return response.json();
     },
-    { timeout: 30000, maxRetries: 2 }
+    { timeout: 30000, maxRetries: 2, skipStatusCheck: true }
   );
 
   if (!result.success || !result.data?.status) {
@@ -727,7 +727,7 @@ export const getBankList = async (): Promise<{
 
       return response.json();
     },
-    { timeout: 15000 }
+    { timeout: 15000, skipStatusCheck: true }
   );
 
   if (!result.success) {
@@ -860,7 +860,7 @@ export const resolveBankAccount = async (
       }
       return data;
     },
-    { timeout: 30000 }
+    { timeout: 30000, skipStatusCheck: true }
   );
 
   if (!result.success) {
@@ -924,7 +924,7 @@ export const createTransferRecipient = async (
       }
       return data;
     },
-    { timeout: 30000 }
+    { timeout: 30000, skipStatusCheck: true }
   );
 
   if (!result.success) {
@@ -998,7 +998,7 @@ export const initiateTransfer = async (
       }
       return data;
     },
-    { timeout: 30000 }
+    { timeout: 30000, skipStatusCheck: true }
   );
 
   if (!result.success) {
@@ -1065,7 +1065,7 @@ export const verifyTransfer = async (reference: string): Promise<TransferVerifyR
       }
       return data;
     },
-    { timeout: 15000 }
+    { timeout: 15000, skipStatusCheck: true }
   );
 
   if (!result.success) {
@@ -1149,7 +1149,7 @@ export const listGhanaBanks = async (): Promise<ListBanksResponse> => {
       }
       return data;
     },
-    { timeout: 15000 }
+    { timeout: 15000, skipStatusCheck: true }
   );
 
   if (!result.success) {
