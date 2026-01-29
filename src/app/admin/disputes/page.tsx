@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { SiteLayout } from "@/components/layout/site-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -307,6 +308,7 @@ export default function AdminDisputesPage() {
   };
 
   return (
+    <SiteLayout>
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center">
         <div>
@@ -686,5 +688,6 @@ export default function AdminDisputesPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </SiteLayout>
   );
 }
