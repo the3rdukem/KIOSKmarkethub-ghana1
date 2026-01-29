@@ -47,7 +47,8 @@ import {
   RefreshCw,
   Mail,
   Phone,
-  ShoppingBag
+  ShoppingBag,
+  Scale,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { formatDistance } from "date-fns";
@@ -99,6 +100,9 @@ interface Order {
   };
   createdAt: string;
   updatedAt: string;
+  hasDispute?: boolean;
+  disputeId?: string | null;
+  disputeStatus?: string | null;
 }
 
 const statusConfig: Record<string, { color: string; icon: typeof Clock; label: string }> = {
@@ -897,17 +901,25 @@ export default function VendorOrdersPage() {
                             <span className="font-medium">GHS {vendorTotal.toFixed(2)}</span>
                           </TableCell>
                           <TableCell>
-                            {(() => {
-                              const vendorItems = (order.orderItems || order.items || []).filter(
-                                (item: OrderItem) => item.vendorId === user?.id
-                              );
-                              const deliveryStage = getVendorDeliveryStage(vendorItems);
-                              return (
-                                <Badge className={deliveryStage.color}>
-                                  {deliveryStage.label}
+                            <div className="flex items-center gap-2">
+                              {(() => {
+                                const vendorItems = (order.orderItems || order.items || []).filter(
+                                  (item: OrderItem) => item.vendorId === user?.id
+                                );
+                                const deliveryStage = getVendorDeliveryStage(vendorItems);
+                                return (
+                                  <Badge className={deliveryStage.color}>
+                                    {deliveryStage.label}
+                                  </Badge>
+                                );
+                              })()}
+                              {order.hasDispute && (
+                                <Badge variant="destructive" className="bg-orange-500 text-xs">
+                                  <Scale className="w-3 h-3 mr-1" />
+                                  Dispute
                                 </Badge>
-                              );
-                            })()}
+                              )}
+                            </div>
                           </TableCell>
                           <TableCell>
                             <span className="text-sm text-muted-foreground">

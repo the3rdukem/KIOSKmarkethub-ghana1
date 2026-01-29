@@ -28,7 +28,8 @@ import {
   Truck,
   Loader2,
   ShoppingBag,
-  RefreshCw
+  RefreshCw,
+  Scale,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { formatDistance } from "date-fns";
@@ -71,6 +72,9 @@ interface Order {
   couponCode?: string;
   createdAt: string;
   updatedAt: string;
+  hasDispute?: boolean;
+  disputeId?: string | null;
+  disputeStatus?: string | null;
 }
 
 const statusConfig: Record<string, { color: string; icon: typeof Clock; label: string }> = {
@@ -297,7 +301,17 @@ export default function BuyerOrdersPage() {
                           <TableCell>
                             <span className="font-medium">GHS {order.total.toFixed(2)}</span>
                           </TableCell>
-                          <TableCell>{getStatusBadge(order.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getStatusBadge(order.status)}
+                              {order.hasDispute && (
+                                <Badge variant="destructive" className="bg-orange-500 text-xs">
+                                  <Scale className="w-3 h-3 mr-1" />
+                                  Dispute
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>
                             <span className="text-sm text-muted-foreground">
                               {formatDistance(new Date(order.createdAt), new Date(), { addSuffix: true })}

@@ -26,6 +26,7 @@ import { createAuditLog } from '@/lib/db/dal/audit';
 import { getPool } from '@/lib/db';
 import { createNotification } from '@/lib/db/dal/notifications';
 import { sendOrderConfirmationSMS, sendVendorNewOrderSMS } from '@/lib/services/arkesel-sms';
+import { getDisputeByOrderId } from '@/lib/db/dal/disputes';
 
 /**
  * GET /api/orders
@@ -71,7 +72,10 @@ export async function GET(request: NextRequest) {
 
     // Transform orders and include order_items for vendor-scoped data
     const transformedOrders = await Promise.all(orders.map(async (order) => {
-      const orderItems = await getOrderItemsByOrderId(order.id);
+      const [orderItems, dispute] = await Promise.all([
+        getOrderItemsByOrderId(order.id),
+        getDisputeByOrderId(order.id),
+      ]);
       
       // Normalize orderItems to consistent format with per-vendor delivery fields
       const normalizedOrderItems = orderItems.map(item => ({
@@ -128,6 +132,9 @@ export async function GET(request: NextRequest) {
         notes: order.notes,
         createdAt: order.created_at,
         updatedAt: order.updated_at,
+        hasDispute: !!dispute,
+        disputeId: dispute?.id || null,
+        disputeStatus: dispute?.status || null,
       };
     }));
 
