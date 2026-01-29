@@ -48,6 +48,20 @@ import {
 import { useAuthStore } from "@/lib/auth-store";
 import { format } from "date-fns";
 import { toast } from "sonner";
+
+function getUserFriendlyErrorMessage(error: string): string {
+  const errorMap: Record<string, string> = {
+    'Unauthorized': 'Please log in to submit a dispute.',
+    'Not a buyer': 'Only buyers can submit disputes.',
+    'Order not found or not owned by buyer': 'We couldn\'t find this order. Please refresh and try again.',
+    'Disputes can only be filed within 48 hours of delivery': 'The dispute window has closed. You can only file disputes within 48 hours of receiving your order.',
+    'Product ID is required for multi-vendor orders': 'Please select the specific product you want to dispute.',
+    'Order must be delivered before filing a dispute': 'You can only file a dispute after your order has been delivered.',
+    'Invalid dispute type': 'Please select a valid issue type.',
+    'Description is too short': 'Please provide more details about your issue (at least 20 characters).',
+  };
+  return errorMap[error] || 'Something went wrong. Please try again or contact support if the problem persists.';
+}
 import { fetchPaystackConfig, openPaystackPopup } from "@/lib/services/paystack";
 
 interface OrderItem {
@@ -372,10 +386,11 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
       const data = await response.json();
       if (!response.ok) {
-        throw new Error(data.error || 'Failed to create dispute');
+        const userMessage = getUserFriendlyErrorMessage(data.error);
+        throw new Error(userMessage);
       }
 
-      toast.success("Dispute submitted successfully. Our team will review it shortly.");
+      toast.success("Your dispute has been submitted! Our team will review it and get back to you within 24-48 hours.");
       setDisputeDialogOpen(false);
       setDisputeType("");
       setDisputeDescription("");
@@ -384,7 +399,8 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       router.push('/buyer/disputes');
     } catch (error) {
       console.error('Error submitting dispute:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to submit dispute');
+      const errorMessage = error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+      toast.error(errorMessage);
     } finally {
       setIsSubmittingDispute(false);
     }
@@ -791,7 +807,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                                       const file = e.target.files?.[0];
                                       if (!file) return;
                                       if (file.size > 5 * 1024 * 1024) {
-                                        toast.error("Image must be less than 5MB");
+                                        toast.error("This image is too large. Please choose an image under 5MB.");
                                         return;
                                       }
                                       setIsUploadingEvidence(true);
@@ -809,7 +825,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                                         setDisputeEvidence(prev => [...prev, data.url]);
                                       } catch (err) {
                                         console.error('Upload error:', err);
-                                        toast.error('Failed to upload image');
+                                        toast.error('Could not upload the image. Please try again with a smaller file or different format.');
                                       } finally {
                                         setIsUploadingEvidence(false);
                                         e.target.value = '';

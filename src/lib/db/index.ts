@@ -1765,6 +1765,16 @@ async function runMigrations(client: PoolClient): Promise<void> {
   
   // PHASE 15: Disputes Resolution System enhancements
   try {
+    // Add core dispute columns needed by DAL
+    await client.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS buyer_name TEXT`);
+    await client.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS buyer_email TEXT`);
+    await client.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS vendor_name TEXT`);
+    await client.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS product_id TEXT`);
+    await client.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS product_name TEXT`);
+    await client.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS priority TEXT DEFAULT 'medium'`);
+    await client.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS description TEXT`);
+    await client.query(`ALTER TABLE disputes ADD COLUMN IF NOT EXISTS messages TEXT DEFAULT '[]'`);
+    
     // Add resolution_type column for tracking type of resolution
     await client.query(`
       ALTER TABLE disputes ADD COLUMN IF NOT EXISTS resolution_type TEXT 
