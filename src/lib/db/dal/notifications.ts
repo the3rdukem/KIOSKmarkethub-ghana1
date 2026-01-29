@@ -15,7 +15,12 @@ export type NotificationType =
   | 'order_fulfilled'
   | 'review_reply'
   | 'moderation_action'
-  | 'system';
+  | 'system'
+  | 'dispute_opened'
+  | 'dispute_resolved'
+  | 'dispute_updated'
+  | 'refund_initiated'
+  | 'refund_processed';
 
 export type NotificationRole = 'buyer' | 'vendor' | 'admin';
 
