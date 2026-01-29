@@ -55,3 +55,41 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Google Maps Places API**: Location services for address autocompletion and geocoding.
 - **Smile Identity KYC Integration**: SDK and webhook for biometric and ID verification.
 - **Arkesel SMS Notifications**: Transactional SMS for order events, template management, and delivery tracking.
+
+## Development Roadmap
+
+### Tier 1: Launch-Blocking Features (COMPLETED ✅)
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Vendor Payouts - Database Schema | ✅ Complete | `vendor_bank_accounts` and `vendor_payouts` tables with full constraints |
+| Vendor Payouts - DAL | ✅ Complete | Data access layer with balance calculation, CRUD operations |
+| Vendor Payouts - Bank Account Management | ✅ Complete | Add/verify bank accounts and mobile money with Paystack |
+| Vendor Payouts - Mobile Money Support | ✅ Complete | MTN, Vodafone/Telecel, AirtelTigo with uppercase provider codes |
+| Vendor Payouts - Withdrawal Flow | ✅ Complete | Request payouts from available balance |
+| Vendor Payouts - Admin Management | ✅ Complete | Admin UI to approve/reject/process payouts |
+| Vendor Payouts - Paystack Integration | ✅ Complete | Transfer recipients and transfers via Paystack API (demo mode) |
+| Vendor Payouts - Webhook Handlers | ✅ Complete | Handle `transfer.success`, `transfer.failed`, `transfer.reversed` events |
+| Commission System | ✅ Complete | 3-tier priority (vendor, category, default), stored at order level |
+
+### Tier 2: Post-Launch Enhancements
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| OTP Security for Payout Accounts | ⏳ Pending | OTP verification when adding payout accounts (sent to verified profile phone) |
+| OTP Security for Phone Changes | ⏳ Pending | OTP required via current phone OR email before changing profile phone number |
+| Verified Phone Requirement | ⏳ Pending | Vendors must have verified phone before creating payout accounts |
+| Email Fallback for OTP | ⏳ Pending | Allow email OTP as fallback when SMS delivery fails |
+| Payout Analytics Dashboard | ⏳ Pending | Visual reports for payout trends, vendor earnings over time |
+| Bulk Payout Processing | ⏳ Pending | Admin ability to approve/process multiple payouts at once |
+| Scheduled Payouts | ⏳ Pending | Automatic weekly/monthly payout processing |
+| Payout Export (CSV/PDF) | ⏳ Pending | Export payout history for accounting purposes |
+
+### Tier 3: Future Considerations
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Multi-Currency Support | ⏳ Pending | Support for USD alongside GHS |
+| International Transfers | ⏳ Pending | Cross-border payout support |
+| Vendor Payout Preferences | ⏳ Pending | Minimum payout threshold, preferred schedule |
+| Advanced Fraud Detection | ⏳ Pending | ML-based detection of suspicious payout patterns |
