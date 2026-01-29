@@ -137,9 +137,9 @@ export default function VendorWithdrawPage() {
   } | null>(null);
 
   const mobileProviders = [
-    { code: 'mtn', name: 'MTN Mobile Money', prefix: '024/054/055/059' },
-    { code: 'vodafone', name: 'Vodafone Cash', prefix: '020/050' },
-    { code: 'airteltigo', name: 'AirtelTigo Money', prefix: '026/027/056/057' },
+    { code: 'MTN', name: 'MTN Mobile Money', prefix: '024/054/055/059' },
+    { code: 'VOD', name: 'Vodafone/Telecel Cash', prefix: '020/050' },
+    { code: 'ATL', name: 'AirtelTigo Money', prefix: '026/027/056/057' },
   ];
 
   // Fetch all data

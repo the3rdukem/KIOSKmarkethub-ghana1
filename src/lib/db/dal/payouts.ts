@@ -321,17 +321,37 @@ export async function verifyAndRegisterBankAccount(accountId: string): Promise<{
       return { success: true };
     }
 
+    // Determine recipient type and bank code
+    const isMobileMoney = account.account_type === 'mobile_money';
+    const recipientType = isMobileMoney ? 'mobile_money' : 'ghipss';
+    const bankCode = isMobileMoney ? account.mobile_money_provider : account.bank_code;
+
+    console.log('[Payouts] Creating transfer recipient:', {
+      accountId,
+      accountType: account.account_type,
+      recipientType,
+      bankCode,
+      accountNumber: account.account_number,
+      accountName: account.account_name,
+    });
+
     // Create transfer recipient in Paystack
     const recipientResult = await createTransferRecipient({
-      type: account.account_type === 'mobile_money' ? 'mobile_money' : 'ghipss',
+      type: recipientType,
       name: account.account_name,
       account_number: account.account_number,
-      bank_code: account.bank_code || account.mobile_money_provider || '',
+      bank_code: bankCode || '',
       currency: 'GHS',
       metadata: {
         vendor_id: account.vendor_id,
         account_id: account.id,
       },
+    });
+
+    console.log('[Payouts] Paystack createTransferRecipient result:', {
+      success: recipientResult.success,
+      error: recipientResult.error,
+      hasRecipientCode: !!recipientResult.data?.recipient_code,
     });
 
     if (!recipientResult.success || !recipientResult.data?.recipient_code) {
