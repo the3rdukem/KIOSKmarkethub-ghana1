@@ -1471,8 +1471,10 @@ function AdminDashboardContent() {
                   <Button className="w-full justify-start" variant={pendingVendors.length > 0 ? "default" : "outline"} onClick={() => setSelectedTab("vendors")}>
                     <CheckCircle className="w-4 h-4 mr-2" />Review Vendor Applications ({pendingVendors.length})
                   </Button>
-                  <Button className="w-full justify-start" variant={openDisputes.length > 0 ? "destructive" : "outline"} onClick={() => setSelectedTab("disputes")}>
-                    <Flag className="w-4 h-4 mr-2" />Handle Disputes ({openDisputes.length})
+                  <Button className="w-full justify-start" variant="outline" asChild>
+                    <a href="/admin/disputes">
+                      <Flag className="w-4 h-4 mr-2" />Handle Disputes
+                    </a>
                   </Button>
                   <Button className="w-full justify-start" variant="outline" asChild>
                     <a href="/admin/orders">

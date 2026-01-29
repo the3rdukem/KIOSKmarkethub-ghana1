@@ -86,6 +86,7 @@ export async function POST(request: NextRequest) {
 
             return NextResponse.json({
               success: true,
+              url: urlData.publicUrl,
               file: {
                 url: urlData.publicUrl,
                 path: filePath,
@@ -120,6 +121,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      url: uploadResult.url,
       file: {
         ...uploadResult,
         storage: 'local',

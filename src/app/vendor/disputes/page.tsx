@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertTriangle,
   Clock,
@@ -59,6 +60,14 @@ interface Dispute {
   resolved_at: string | null;
   created_at: string;
   updated_at: string;
+  messages: Array<{
+    id: string;
+    senderId: string;
+    senderName: string;
+    senderRole: string;
+    message: string;
+    timestamp: string;
+  }>;
 }
 
 export default function VendorDisputesPage() {
@@ -66,6 +75,8 @@ export default function VendorDisputesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [isSubmittingReply, setIsSubmittingReply] = useState(false);
 
   const fetchDisputes = async () => {
     try {
@@ -86,6 +97,37 @@ export default function VendorDisputesPage() {
   useEffect(() => {
     fetchDisputes();
   }, []);
+
+  const handleSubmitReply = async () => {
+    if (!selectedDispute || !replyMessage.trim()) return;
+    
+    setIsSubmittingReply(true);
+    try {
+      const response = await fetch(`/api/vendor/disputes/${selectedDispute.id}/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: replyMessage.trim() }),
+      });
+      
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to send response");
+      }
+      
+      toast.success("Your response has been sent to the support team.");
+      setReplyMessage("");
+      
+      if (data.dispute) {
+        setSelectedDispute(data.dispute);
+        setDisputes(prev => prev.map(d => d.id === data.dispute.id ? data.dispute : d));
+      }
+    } catch (error) {
+      console.error("Error submitting reply:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to send response. Please try again.");
+    } finally {
+      setIsSubmittingReply(false);
+    }
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -397,17 +439,85 @@ export default function VendorDisputesPage() {
                   </div>
                 )}
 
+                {selectedDispute.messages && selectedDispute.messages.length > 0 && (
+                  <div>
+                    <Label className="text-muted-foreground">Conversation History</Label>
+                    <div className="mt-2 space-y-3 max-h-60 overflow-y-auto p-3 bg-gray-50 rounded-lg border">
+                      {selectedDispute.messages.map((msg, index) => (
+                        <div 
+                          key={msg.id || index}
+                          className={`p-3 rounded-lg ${
+                            msg.senderRole === 'vendor' 
+                              ? 'bg-blue-50 border border-blue-200 ml-4' 
+                              : msg.senderRole === 'admin'
+                              ? 'bg-purple-50 border border-purple-200'
+                              : 'bg-white border mr-4'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <span className={`text-xs font-medium ${
+                              msg.senderRole === 'vendor' ? 'text-blue-700' : 
+                              msg.senderRole === 'admin' ? 'text-purple-700' : 'text-gray-700'
+                            }`}>
+                              {msg.senderName} ({msg.senderRole === 'vendor' ? 'You' : msg.senderRole === 'admin' ? 'Support' : 'Buyer'})
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {formatDate(msg.timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700">{msg.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 {(selectedDispute.status === "open" || selectedDispute.status === "investigating") && (
-                  <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                    <h4 className="font-medium text-yellow-800 flex items-center">
-                      <MessageSquare className="w-4 h-4 mr-2" />
-                      {selectedDispute.status === "open" ? "Pending Review" : "Under Investigation"}
-                    </h4>
-                    <p className="text-yellow-700 text-sm mt-1">
-                      This dispute is being reviewed by our support team. You will be notified 
-                      of the resolution. Please ensure you can provide any evidence or documentation 
-                      if requested.
-                    </p>
+                  <div className="space-y-3">
+                    <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                      <h4 className="font-medium text-yellow-800 flex items-center">
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        {selectedDispute.status === "open" ? "Pending Review" : "Under Investigation"}
+                      </h4>
+                      <p className="text-yellow-700 text-sm mt-1">
+                        This dispute is being reviewed by our support team. You can respond below with additional information.
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="reply">Your Response</Label>
+                      <Textarea
+                        id="reply"
+                        placeholder="Provide additional information, explain your position, or offer a resolution..."
+                        value={replyMessage}
+                        onChange={(e) => setReplyMessage(e.target.value)}
+                        rows={3}
+                        maxLength={2000}
+                        className="resize-none"
+                      />
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">
+                          {replyMessage.length}/2000 characters
+                        </span>
+                        <Button
+                          onClick={handleSubmitReply}
+                          disabled={isSubmittingReply || replyMessage.trim().length < 5}
+                          size="sm"
+                        >
+                          {isSubmittingReply ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              Sending...
+                            </>
+                          ) : (
+                            <>
+                              <MessageSquare className="w-4 h-4 mr-2" />
+                              Send Response
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 )}
 
