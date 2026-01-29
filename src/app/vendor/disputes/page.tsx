@@ -51,6 +51,7 @@ interface Dispute {
   status: string;
   priority: string;
   description: string | null;
+  evidence: string[];
   resolution: string | null;
   resolution_type?: string;
   refund_amount?: number;
@@ -340,6 +341,29 @@ export default function VendorDisputesPage() {
                     {selectedDispute.description || "No description provided"}
                   </p>
                 </div>
+
+                {selectedDispute.evidence && selectedDispute.evidence.length > 0 && (
+                  <div>
+                    <Label className="text-muted-foreground">Evidence Photos ({selectedDispute.evidence.length})</Label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {selectedDispute.evidence.map((url, index) => (
+                        <a 
+                          key={index} 
+                          href={url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="block w-20 h-20 border rounded overflow-hidden hover:ring-2 hover:ring-primary"
+                        >
+                          <img 
+                            src={url} 
+                            alt={`Evidence ${index + 1}`} 
+                            className="w-full h-full object-cover"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {selectedDispute.status === "resolved" && (
                   <div className="p-4 bg-green-50 rounded-lg border border-green-200">
