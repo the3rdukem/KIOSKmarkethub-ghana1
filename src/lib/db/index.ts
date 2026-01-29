@@ -1762,6 +1762,48 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Columns may already exist
   }
+  
+  // PHASE 15: Disputes Resolution System enhancements
+  try {
+    // Add resolution_type column for tracking type of resolution
+    await client.query(`
+      ALTER TABLE disputes ADD COLUMN IF NOT EXISTS resolution_type TEXT 
+      CHECK (resolution_type IN ('full_refund', 'partial_refund', 'replacement', 'no_action', 'other'))
+    `);
+    
+    // Add refund_amount column for tracking refund amounts
+    await client.query(`
+      ALTER TABLE disputes ADD COLUMN IF NOT EXISTS refund_amount REAL
+    `);
+    
+    // Add resolved_by column to track who resolved the dispute
+    await client.query(`
+      ALTER TABLE disputes ADD COLUMN IF NOT EXISTS resolved_by TEXT
+    `);
+    
+    // Add refund tracking columns
+    await client.query(`
+      ALTER TABLE disputes ADD COLUMN IF NOT EXISTS refund_status TEXT 
+      CHECK (refund_status IN ('pending', 'processing', 'completed', 'failed'))
+    `);
+    await client.query(`
+      ALTER TABLE disputes ADD COLUMN IF NOT EXISTS refund_reference TEXT
+    `);
+    await client.query(`
+      ALTER TABLE disputes ADD COLUMN IF NOT EXISTS refunded_at TEXT
+    `);
+    
+    // Add indexes for better query performance
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_disputes_order_id ON disputes(order_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_disputes_buyer_id ON disputes(buyer_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_disputes_vendor_id ON disputes(vendor_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_disputes_status ON disputes(status)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_disputes_created_at ON disputes(created_at DESC)`);
+    
+    console.log('[DB] PHASE 15: Added dispute resolution columns and indexes');
+  } catch (e) {
+    // Columns may already exist
+  }
 }
 
 /**

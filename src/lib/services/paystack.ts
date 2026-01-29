@@ -1162,3 +1162,192 @@ export const listGhanaBanks = async (): Promise<ListBanksResponse> => {
   };
 };
 
+/**
+ * Refund a transaction
+ * 
+ * Paystack refund API: POST /refund
+ * Amount should be in pesewas (GHS × 100)
+ */
+export interface RefundRequest {
+  transaction: string; // Transaction reference or ID
+  amount?: number; // Amount to refund in pesewas (optional - full refund if not specified)
+  currency?: string;
+  customer_note?: string;
+  merchant_note?: string;
+}
+
+export interface RefundResponse {
+  success: boolean;
+  data?: {
+    id: number;
+    integration: number;
+    domain: string;
+    transaction: number;
+    dispute: number;
+    amount: number;
+    deducted_amount: number;
+    currency: string;
+    channel: string;
+    fully_deducted: boolean;
+    refunded_by: string;
+    refund_reference: string;
+    status: 'pending' | 'processing' | 'processed' | 'failed';
+    customer_note?: string;
+    merchant_note?: string;
+    created_at: string;
+  };
+  error?: string;
+  integrationDisabled?: boolean;
+}
+
+export const refundTransaction = async (request: RefundRequest): Promise<RefundResponse> => {
+  const config = await getPaystackConfig();
+  if (!config) {
+    return { success: false, error: 'Paystack not configured' };
+  }
+
+  console.log('[PAYSTACK] Initiating refund:', {
+    transaction: request.transaction,
+    amount: request.amount,
+    hasConfig: !!config,
+  });
+
+  const result = await executeAPI<{
+    status: boolean;
+    message: string;
+    data: {
+      id: number;
+      integration: number;
+      domain: string;
+      transaction: number;
+      dispute: number;
+      amount: number;
+      deducted_amount: number;
+      currency: string;
+      channel: string;
+      fully_deducted: boolean;
+      refunded_by: string;
+      refund_reference: string;
+      status: 'pending' | 'processing' | 'processed' | 'failed';
+      customer_note?: string;
+      merchant_note?: string;
+      created_at: string;
+    };
+  }>(
+    INTEGRATION_ID,
+    'refund_transaction',
+    async () => {
+      const body: Record<string, unknown> = {
+        transaction: request.transaction,
+        currency: request.currency || 'GHS',
+      };
+      
+      if (request.amount) {
+        body.amount = request.amount;
+      }
+      if (request.customer_note) {
+        body.customer_note = request.customer_note;
+      }
+      if (request.merchant_note) {
+        body.merchant_note = request.merchant_note;
+      }
+
+      const response = await fetch(`${PAYSTACK_API_BASE}/refund`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${config.secretKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        console.error('[PAYSTACK] Refund failed:', data);
+        throw new Error(data.message || 'Failed to process refund');
+      }
+      
+      console.log('[PAYSTACK] Refund initiated:', {
+        refundId: data.data?.id,
+        reference: data.data?.refund_reference,
+        status: data.data?.status,
+      });
+      
+      return data;
+    },
+    { timeout: 30000, skipStatusCheck: true }
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error?.message };
+  }
+
+  return {
+    success: true,
+    data: result.data?.data,
+  };
+};
+
+/**
+ * Get refund details by ID
+ */
+export interface RefundDetailsResponse {
+  success: boolean;
+  data?: {
+    id: number;
+    amount: number;
+    currency: string;
+    status: 'pending' | 'processing' | 'processed' | 'failed';
+    refund_reference: string;
+    created_at: string;
+  };
+  error?: string;
+}
+
+export const getRefundDetails = async (refundId: string): Promise<RefundDetailsResponse> => {
+  const config = await getPaystackConfig();
+  if (!config) {
+    return { success: false, error: 'Paystack not configured' };
+  }
+
+  const result = await executeAPI<{
+    status: boolean;
+    data: {
+      id: number;
+      amount: number;
+      currency: string;
+      status: 'pending' | 'processing' | 'processed' | 'failed';
+      refund_reference: string;
+      created_at: string;
+    };
+  }>(
+    INTEGRATION_ID,
+    'get_refund',
+    async () => {
+      const response = await fetch(`${PAYSTACK_API_BASE}/refund/${refundId}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${config.secretKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to get refund details');
+      }
+      return data;
+    },
+    { timeout: 15000, skipStatusCheck: true }
+  );
+
+  if (!result.success) {
+    return { success: false, error: result.error?.message };
+  }
+
+  return {
+    success: true,
+    data: result.data?.data,
+  };
+};
+
