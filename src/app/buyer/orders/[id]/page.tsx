@@ -139,6 +139,8 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const [disputeType, setDisputeType] = useState<string>("");
   const [disputeDescription, setDisputeDescription] = useState("");
   const [disputeProductId, setDisputeProductId] = useState<string>("");
+  const [disputeEvidence, setDisputeEvidence] = useState<string[]>([]);
+  const [isUploadingEvidence, setIsUploadingEvidence] = useState(false);
   const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
 
   useEffect(() => {
@@ -364,6 +366,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
           type: disputeType,
           description: disputeDescription.trim(),
           productId: disputeProductId || undefined,
+          evidence: disputeEvidence,
         }),
       });
 
@@ -377,6 +380,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       setDisputeType("");
       setDisputeDescription("");
       setDisputeProductId("");
+      setDisputeEvidence([]);
       router.push('/buyer/disputes');
     } catch (error) {
       console.error('Error submitting dispute:', error);
@@ -745,6 +749,76 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                             <p className="text-xs text-muted-foreground">
                               {disputeDescription.length}/20 characters minimum
                             </p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Evidence Photos (Optional)</Label>
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Upload photos showing the issue (max 5 images, 5MB each)
+                            </p>
+                            <div className="flex flex-wrap gap-2">
+                              {disputeEvidence.map((url, index) => (
+                                <div key={index} className="relative w-20 h-20 border rounded overflow-hidden group">
+                                  <img 
+                                    src={url} 
+                                    alt={`Evidence ${index + 1}`} 
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => setDisputeEvidence(prev => prev.filter((_, i) => i !== index))}
+                                    className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-bl opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <XCircle className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ))}
+                              {disputeEvidence.length < 5 && (
+                                <label className="w-20 h-20 border-2 border-dashed rounded flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors">
+                                  {isUploadingEvidence ? (
+                                    <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+                                  ) : (
+                                    <>
+                                      <Package className="w-5 h-5 text-muted-foreground" />
+                                      <span className="text-xs text-muted-foreground mt-1">Add</span>
+                                    </>
+                                  )}
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    className="hidden"
+                                    disabled={isUploadingEvidence}
+                                    onChange={async (e) => {
+                                      const file = e.target.files?.[0];
+                                      if (!file) return;
+                                      if (file.size > 5 * 1024 * 1024) {
+                                        toast.error("Image must be less than 5MB");
+                                        return;
+                                      }
+                                      setIsUploadingEvidence(true);
+                                      try {
+                                        const formData = new FormData();
+                                        formData.append('file', file);
+                                        formData.append('directory', 'disputes');
+                                        const res = await fetch('/api/upload', {
+                                          method: 'POST',
+                                          credentials: 'include',
+                                          body: formData,
+                                        });
+                                        const data = await res.json();
+                                        if (!res.ok) throw new Error(data.error || 'Upload failed');
+                                        setDisputeEvidence(prev => [...prev, data.url]);
+                                      } catch (err) {
+                                        console.error('Upload error:', err);
+                                        toast.error('Failed to upload image');
+                                      } finally {
+                                        setIsUploadingEvidence(false);
+                                        e.target.value = '';
+                                      }
+                                    }}
+                                  />
+                                </label>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <DialogFooter>

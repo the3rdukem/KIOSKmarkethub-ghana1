@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { orderId, type, description, productId, productName, amount } = body;
+    const { orderId, type, description, productId, productName, amount, evidence } = body;
 
     if (!orderId) {
       return NextResponse.json({ error: 'Order ID is required' }, { status: 400 });
@@ -134,6 +134,7 @@ export async function POST(request: NextRequest) {
       amount: amount || targetItem.final_price || order.total,
       type,
       description: description.trim(),
+      evidence: Array.isArray(evidence) ? evidence : [],
       priority: type === 'fraud' ? 'urgent' : 'medium',
     });
 
