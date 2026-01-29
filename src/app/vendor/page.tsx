@@ -499,6 +499,14 @@ function VendorDashboardContent() {
                 <Button
                   variant="outline"
                   className="w-full justify-start"
+                  onClick={() => router.push("/vendor/disputes")}
+                >
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Customer Disputes
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
                   onClick={() => router.push("/vendor/analytics?tab=reviews")}
                 >
                   <MessageSquare className="w-4 h-4 mr-2" />

@@ -38,6 +38,7 @@ export interface Dispute {
   status: DisputeStatus;
   priority: DisputePriority;
   description: string | null;
+  evidence: string[];
   resolution: string | null;
   resolution_type?: ResolutionType;
   refund_amount?: number;
@@ -69,6 +70,7 @@ interface DbDispute {
   status: string;
   priority: string;
   description: string | null;
+  evidence: string | null;
   resolution: string | null;
   resolution_type: string | null;
   refund_amount: number | null;
@@ -92,6 +94,15 @@ function parseDispute(row: DbDispute): Dispute {
       messages = [];
     }
   }
+
+  let evidence: string[] = [];
+  if (row.evidence) {
+    try {
+      evidence = JSON.parse(row.evidence);
+    } catch {
+      evidence = [];
+    }
+  }
   
   return {
     id: row.id,
@@ -108,6 +119,7 @@ function parseDispute(row: DbDispute): Dispute {
     status: row.status as DisputeStatus,
     priority: row.priority as DisputePriority,
     description: row.description,
+    evidence,
     resolution: row.resolution,
     resolution_type: row.resolution_type as ResolutionType | undefined,
     refund_amount: row.refund_amount ?? undefined,
@@ -135,6 +147,7 @@ export interface CreateDisputeInput {
   amount?: number;
   type: DisputeType;
   description: string;
+  evidence?: string[];
   priority?: DisputePriority;
 }
 
@@ -146,8 +159,8 @@ export async function createDispute(input: CreateDisputeInput): Promise<Dispute>
     `INSERT INTO disputes (
       id, order_id, buyer_id, buyer_name, buyer_email, 
       vendor_id, vendor_name, product_id, product_name, amount,
-      type, status, priority, description, messages, created_at, updated_at
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+      type, status, priority, description, evidence, messages, created_at, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
     RETURNING *`,
     [
       id,
@@ -164,6 +177,7 @@ export async function createDispute(input: CreateDisputeInput): Promise<Dispute>
       'open',
       input.priority || 'medium',
       input.description,
+      JSON.stringify(input.evidence || []),
       '[]',
       now,
       now

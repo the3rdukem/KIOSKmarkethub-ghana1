@@ -285,6 +285,7 @@ CREATE TABLE IF NOT EXISTS disputes (
   status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'investigating', 'resolved', 'escalated', 'closed')),
   priority TEXT DEFAULT 'medium' CHECK(priority IN ('low', 'medium', 'high', 'urgent')),
   description TEXT,
+  evidence TEXT, -- JSON array of image URLs
   resolution TEXT,
   assigned_to TEXT,
   messages TEXT, -- JSON array
