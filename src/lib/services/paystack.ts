@@ -109,9 +109,8 @@ export const getPaystackConfigServer = async (): Promise<{
 
   try {
     // Dynamic import to avoid client-side bundling issues
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { getPaystackCredentials } = require('@/lib/db/dal/integrations');
-    const credentials = await getPaystackCredentials();
+    const integrations = await import('@/lib/db/dal/integrations');
+    const credentials = await integrations.getPaystackCredentials();
 
     if (!credentials || !credentials.isConfigured || !credentials.isEnabled) {
       return null;

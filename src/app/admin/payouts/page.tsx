@@ -124,13 +124,13 @@ export default function AdminPayoutsPage() {
     if (isHydrated && !isAuthenticated) {
       router.push("/auth/login");
     }
-    if (isHydrated && user && user.role !== "admin") {
+    if (isHydrated && user && user.role !== "admin" && user.role !== "master_admin") {
       router.push("/");
     }
   }, [isHydrated, isAuthenticated, user, router]);
 
   useEffect(() => {
-    if (isHydrated && user && user.role === "admin") {
+    if (isHydrated && user && (user.role === "admin" || user.role === "master_admin")) {
       fetchData();
     }
   }, [isHydrated, user, fetchData]);
