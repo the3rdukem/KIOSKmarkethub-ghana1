@@ -125,6 +125,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         notes: order.notes,
         createdAt: order.created_at,
         updatedAt: order.updated_at,
+        deliveredAt: order.delivered_at,
       },
     });
   } catch (error) {

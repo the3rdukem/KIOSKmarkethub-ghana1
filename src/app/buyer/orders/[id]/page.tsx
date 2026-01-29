@@ -25,7 +25,26 @@ import {
   XCircle,
   Phone,
   Copy,
+  Scale,
 } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuthStore } from "@/lib/auth-store";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -71,6 +90,7 @@ interface Order {
   couponCode?: string;
   createdAt: string;
   updatedAt: string;
+  deliveredAt?: string;
 }
 
 interface OrderDetailPageProps {
@@ -115,6 +135,11 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const [error, setError] = useState<string | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [disputeDialogOpen, setDisputeDialogOpen] = useState(false);
+  const [disputeType, setDisputeType] = useState<string>("");
+  const [disputeDescription, setDisputeDescription] = useState("");
+  const [disputeProductId, setDisputeProductId] = useState<string>("");
+  const [isSubmittingDispute, setIsSubmittingDispute] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -305,6 +330,61 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     (order.paymentStatus === 'pending' || order.paymentStatus === 'failed'));
 
   const statusConfigMap = statusConfig[order.status] || statusConfig.pending_payment;
+
+  const isDelivered = ['delivered', 'completed', 'fulfilled'].includes(order.status);
+  const deliveryTimestamp = order.deliveredAt || order.updatedAt;
+  const deliveredAt = new Date(deliveryTimestamp);
+  const now = new Date();
+  const hoursSinceDelivery = (now.getTime() - deliveredAt.getTime()) / (1000 * 60 * 60);
+  const canRaiseDispute = isDelivered && hoursSinceDelivery <= 48 && order.status !== 'disputed';
+  const isMultiVendor = new Set((order.orderItems || order.items || []).map((i: OrderItem) => i.vendorId)).size > 1;
+
+  const handleSubmitDispute = async () => {
+    if (!disputeType) {
+      toast.error("Please select a dispute type");
+      return;
+    }
+    if (isMultiVendor && !disputeProductId) {
+      toast.error("Please select the product you have an issue with");
+      return;
+    }
+    if (disputeDescription.trim().length < 20) {
+      toast.error("Please provide a detailed description (at least 20 characters)");
+      return;
+    }
+
+    setIsSubmittingDispute(true);
+    try {
+      const response = await fetch('/api/buyer/disputes/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          orderId: order.id,
+          type: disputeType,
+          description: disputeDescription.trim(),
+          productId: disputeProductId || undefined,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create dispute');
+      }
+
+      toast.success("Dispute submitted successfully. Our team will review it shortly.");
+      setDisputeDialogOpen(false);
+      setDisputeType("");
+      setDisputeDescription("");
+      setDisputeProductId("");
+      router.push('/buyer/disputes');
+    } catch (error) {
+      console.error('Error submitting dispute:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to submit dispute');
+    } finally {
+      setIsSubmittingDispute(false);
+    }
+  };
 
   const orderItems = order.orderItems || order.items || [];
   const fulfilledCount = orderItems.filter(i => i.fulfillmentStatus === 'fulfilled').length;
@@ -593,14 +673,118 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
               </CardContent>
             </Card>
 
+            {canRaiseDispute && (
+              <Card className="border-orange-200 bg-orange-50">
+                <CardContent className="p-4">
+                  <div className="text-center space-y-3">
+                    <Scale className="w-8 h-8 text-orange-500 mx-auto" />
+                    <div>
+                      <p className="font-medium text-orange-800">Having an issue?</p>
+                      <p className="text-xs text-orange-600">
+                        {Math.round(48 - hoursSinceDelivery)} hours left to raise a dispute
+                      </p>
+                    </div>
+                    <Dialog open={disputeDialogOpen} onOpenChange={setDisputeDialogOpen}>
+                      <DialogTrigger asChild>
+                        <Button variant="destructive" className="w-full">
+                          <Scale className="w-4 h-4 mr-2" />
+                          Raise Dispute
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Raise a Dispute</DialogTitle>
+                          <DialogDescription>
+                            Please describe the issue with your order. Our team will review and respond within 24-48 hours.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-4 py-4">
+                          {isMultiVendor && (
+                            <div className="space-y-2">
+                              <Label>Which product has an issue?</Label>
+                              <Select value={disputeProductId} onValueChange={setDisputeProductId}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select the product" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {orderItems.map((item) => (
+                                    <SelectItem key={item.productId} value={item.productId}>
+                                      {item.productName} ({item.vendorName})
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <p className="text-xs text-muted-foreground">
+                                This order has items from multiple vendors. Please select the specific product.
+                              </p>
+                            </div>
+                          )}
+                          <div className="space-y-2">
+                            <Label>Issue Type</Label>
+                            <Select value={disputeType} onValueChange={setDisputeType}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select issue type" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="quality">Product Quality Issue</SelectItem>
+                                <SelectItem value="delivery">Delivery Problem</SelectItem>
+                                <SelectItem value="refund">Request Refund</SelectItem>
+                                <SelectItem value="fraud">Fraudulent/Fake Product</SelectItem>
+                                <SelectItem value="other">Other Issue</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Description</Label>
+                            <Textarea
+                              placeholder="Please describe your issue in detail (at least 20 characters)..."
+                              value={disputeDescription}
+                              onChange={(e) => setDisputeDescription(e.target.value)}
+                              rows={4}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              {disputeDescription.length}/20 characters minimum
+                            </p>
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button variant="outline" onClick={() => setDisputeDialogOpen(false)}>
+                            Cancel
+                          </Button>
+                          <Button 
+                            onClick={handleSubmitDispute} 
+                            disabled={isSubmittingDispute}
+                          >
+                            {isSubmittingDispute ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Submitting...
+                              </>
+                            ) : (
+                              "Submit Dispute"
+                            )}
+                          </Button>
+                        </DialogFooter>
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <Card>
               <CardContent className="p-4">
                 <div className="text-center space-y-3">
                   <MessageSquare className="w-8 h-8 text-gray-400 mx-auto" />
                   <p className="text-sm text-muted-foreground">Need help with this order?</p>
-                  <Button variant="outline" className="w-full" asChild>
-                    <Link href="/help">Contact Support</Link>
-                  </Button>
+                  <div className="flex flex-col gap-2">
+                    <Button variant="outline" className="w-full" asChild>
+                      <Link href="/buyer/disputes">View My Disputes</Link>
+                    </Button>
+                    <Button variant="ghost" size="sm" className="w-full" asChild>
+                      <Link href="/help">Contact Support</Link>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>

@@ -68,7 +68,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const deliveredAt = new Date(order.updated_at);
+    const deliveryTimestamp = order.delivered_at || order.updated_at;
+    const deliveredAt = new Date(deliveryTimestamp);
     const now = new Date();
     const hoursSinceDelivery = (now.getTime() - deliveredAt.getTime()) / (1000 * 60 * 60);
 
@@ -83,8 +84,39 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No items found for this order' }, { status: 400 });
     }
 
-    const vendorId = orderItems[0].vendor_id;
-    const vendorName = orderItems[0].vendor_name || 'Unknown Vendor';
+    const uniqueVendors = new Set(orderItems.map(item => item.vendor_id));
+    const isMultiVendor = uniqueVendors.size > 1;
+
+    if (isMultiVendor && !productId) {
+      return NextResponse.json({ 
+        error: 'This order contains items from multiple vendors. Please select the specific product you have an issue with.' 
+      }, { status: 400 });
+    }
+
+    let targetItem = orderItems[0];
+    
+    if (productId) {
+      const matchedItem = orderItems.find(item => item.product_id === productId);
+      if (!matchedItem) {
+        return NextResponse.json({ 
+          error: 'The specified product is not part of this order' 
+        }, { status: 400 });
+      }
+      targetItem = matchedItem;
+    }
+
+    const vendorId = targetItem.vendor_id;
+    const vendorName = targetItem.vendor_name || 'Unknown Vendor';
+    const resolvedProductId = targetItem.product_id;
+    const resolvedProductName = productName || targetItem.product_name;
+
+    console.log('[DISPUTE] Creating dispute:', {
+      orderId,
+      isMultiVendor,
+      productId: resolvedProductId,
+      vendorId,
+      vendorName,
+    });
 
     if (!vendorId) {
       return NextResponse.json({ error: 'Could not determine vendor for this order' }, { status: 400 });
@@ -97,9 +129,9 @@ export async function POST(request: NextRequest) {
       buyerEmail: order.buyer_email,
       vendorId,
       vendorName,
-      productId: productId || null,
-      productName: productName || null,
-      amount: amount || order.total,
+      productId: resolvedProductId,
+      productName: resolvedProductName,
+      amount: amount || targetItem.final_price || order.total,
       type,
       description: description.trim(),
       priority: type === 'fraud' ? 'urgent' : 'medium',
