@@ -33,14 +33,14 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '100');
     const offset = parseInt(searchParams.get('offset') || '0');
 
-    const payouts = await getAllPayouts({
+    const result = await getAllPayouts({
       status,
       vendorId: vendor_id,
       limit,
       offset,
     });
 
-    return NextResponse.json({ payouts });
+    return NextResponse.json({ payouts: result.payouts, total: result.total });
   } catch (error) {
     console.error('[Admin Payouts API] GET error:', error);
     return NextResponse.json({ error: 'Failed to fetch payouts' }, { status: 500 });
