@@ -378,7 +378,7 @@ export async function getVendorBalance(vendorId: string): Promise<VendorBalance>
        AND o.payment_status = 'paid'
        AND (
          o.status NOT IN ('completed', 'delivered')
-         OR (o.status = 'delivered' AND o.delivered_at > NOW() - INTERVAL '48 hours')
+         OR (o.status = 'delivered' AND o.delivered_at::timestamptz > NOW() - INTERVAL '48 hours')
        )`,
       [vendorId]
     );
@@ -509,9 +509,9 @@ export async function getPayoutByReference(reference: string): Promise<(VendorPa
     const payout = mapRowToPayout(row);
     return {
       ...payout,
-      vendor_phone: row.vendor_phone,
-      vendor_name: row.vendor_name,
-      bank_account_name: row.account_name,
+      vendor_phone: row.vendor_phone as string | undefined,
+      vendor_name: row.vendor_name as string | undefined,
+      bank_account_name: row.account_name as string | undefined,
     };
   } catch (error) {
     console.error('[Payouts] Error getting payout by reference:', error);

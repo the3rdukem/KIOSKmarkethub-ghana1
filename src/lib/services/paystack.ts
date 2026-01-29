@@ -96,12 +96,12 @@ let configFetchPromise: Promise<PaystackConfig | null> | null = null;
 /**
  * Get Paystack configuration from database (server-side)
  */
-export const getPaystackConfigServer = (): {
+export const getPaystackConfigServer = async (): Promise<{
   publicKey: string;
   secretKey: string;
   webhookSecret: string;
   isLive: boolean;
-} | null => {
+} | null> => {
   // Only run on server
   if (typeof window !== 'undefined') {
     return null;
@@ -111,7 +111,7 @@ export const getPaystackConfigServer = (): {
     // Dynamic import to avoid client-side bundling issues
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { getPaystackCredentials } = require('@/lib/db/dal/integrations');
-    const credentials = getPaystackCredentials();
+    const credentials = await getPaystackCredentials();
 
     if (!credentials || !credentials.isConfigured || !credentials.isEnabled) {
       return null;
@@ -134,16 +134,16 @@ export const getPaystackConfigServer = (): {
 };
 
 /**
- * Get Paystack configuration (client-side, fetches from API)
+ * Get Paystack configuration (async, works on both client and server)
  */
-export const getPaystackConfig = (): {
+export const getPaystackConfig = async (): Promise<{
   publicKey: string;
   secretKey: string;
   isLive: boolean;
-} | null => {
+} | null> => {
   // On server, use database directly
   if (typeof window === 'undefined') {
-    return getPaystackConfigServer();
+    return await getPaystackConfigServer();
   }
 
   // Return cached config if available
@@ -267,7 +267,7 @@ export const toGHS = (amountInPesewas: number): number => {
 export const initializePayment = async (
   request: PaymentInitializeRequest
 ): Promise<PaymentInitializeResponse> => {
-  const config = getPaystackConfig();
+  const config = await getPaystackConfig();
 
   if (!config) {
     const status = getPaystackStatus();
@@ -342,7 +342,7 @@ export const initializePayment = async (
 export const initializeMobileMoneyPayment = async (
   request: MobileMoneyChargeRequest
 ): Promise<MobileMoneyChargeResponse> => {
-  const config = getPaystackConfig();
+  const config = await getPaystackConfig();
 
   if (!config) {
     const status = getPaystackStatus();
@@ -445,7 +445,7 @@ export const submitMobileMoneyOTP = async (
   reference: string,
   otp: string
 ): Promise<{ success: boolean; error?: string }> => {
-  const config = getPaystackConfig();
+  const config = await getPaystackConfig();
 
   if (!config) {
     return { success: false, error: 'Payment gateway not configured' };
@@ -497,7 +497,7 @@ export const submitMobileMoneyOTP = async (
 export const verifyPayment = async (
   reference: string
 ): Promise<PaymentVerifyResponse> => {
-  const config = getPaystackConfig();
+  const config = await getPaystackConfig();
 
   if (!config) {
     return {
@@ -607,7 +607,7 @@ export const openPaystackPopup = async (options: {
   onSuccess: (response: { reference: string; status: string }) => void;
   onClose: () => void;
 }): Promise<void> => {
-  const config = getPaystackConfig();
+  const config = await getPaystackConfig();
 
   if (!config) {
     throw new APIExecutionError(
@@ -651,11 +651,11 @@ export const openPaystackPopup = async (options: {
  * Webhook signature verification helper
  * Note: This should be used server-side only
  */
-export const verifyWebhookSignature = (
+export const verifyWebhookSignature = async (
   payload: string,
   signature: string
-): boolean => {
-  const config = getPaystackConfigServer();
+): Promise<boolean> => {
+  const config = await getPaystackConfigServer();
 
   if (!config?.webhookSecret) {
     console.error('Webhook secret not configured');
@@ -692,7 +692,7 @@ export const getBankList = async (): Promise<{
   banks?: Array<{ code: string; name: string }>;
   error?: string;
 }> => {
-  const config = getPaystackConfig();
+  const config = await getPaystackConfig();
 
   if (!config) {
     return { success: false, error: 'Paystack not configured' };
@@ -1152,65 +1152,3 @@ export const listGhanaBanks = async (): Promise<ListBanksResponse> => {
   };
 };
 
-/**
- * Resolve bank account to verify account details
- * Returns account name for verification
- */
-export interface ResolveBankAccountResponse {
-  success: boolean;
-  data?: {
-    account_name: string;
-    account_number: string;
-  };
-  error?: string;
-}
-
-export const resolveBankAccount = async (
-  account_number: string,
-  bank_code: string
-): Promise<ResolveBankAccountResponse> => {
-  const config = await getPaystackConfig();
-  if (!config) {
-    return { success: false, error: 'Paystack not configured' };
-  }
-
-  const result = await executeAPI<{
-    status: boolean;
-    data: {
-      account_name: string;
-      account_number: string;
-    };
-  }>(
-    INTEGRATION_ID,
-    'resolve_account',
-    async () => {
-      const params = new URLSearchParams({
-        account_number,
-        bank_code,
-      });
-      const response = await fetch(`${PAYSTACK_API_BASE}/bank/resolve?${params}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${config.secretKey}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to resolve bank account');
-      }
-      return data;
-    },
-    { timeout: 15000 }
-  );
-
-  if (!result.success) {
-    return { success: false, error: result.error?.message };
-  }
-
-  return {
-    success: true,
-    data: result.data?.data,
-  };
-};

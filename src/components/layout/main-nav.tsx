@@ -459,6 +459,7 @@ export function MainNav() {
           { href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
           { href: '/admin/verification', label: 'Verifications', icon: Shield },
           { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
+          { href: '/admin/payouts', label: 'Payouts', icon: Wallet },
           { href: '/admin?tab=vendors', label: 'Vendors', icon: Store },
           { href: '/admin?tab=buyers', label: 'Buyers', icon: Users },
           { href: '/admin?tab=products', label: 'Products', icon: Package },
