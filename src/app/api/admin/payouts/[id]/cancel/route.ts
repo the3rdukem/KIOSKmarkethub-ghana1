@@ -25,7 +25,7 @@ export async function POST(
     }
 
     const session = await validateSession(sessionToken);
-    if (!session || session.user_role !== 'admin') {
+    if (!session || (session.user_role !== 'admin' && session.user_role !== 'master_admin')) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 

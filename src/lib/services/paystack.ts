@@ -112,11 +112,22 @@ export const getPaystackConfigServer = async (): Promise<{
     const integrations = await import('@/lib/db/dal/integrations');
     const credentials = await integrations.getPaystackCredentials();
 
+    console.log('[PAYSTACK] Credentials check:', {
+      hasCredentials: !!credentials,
+      isConfigured: credentials?.isConfigured,
+      isEnabled: credentials?.isEnabled,
+      hasPublicKey: !!credentials?.publicKey,
+      hasSecretKey: !!credentials?.secretKey,
+      environment: credentials?.environment,
+    });
+
     if (!credentials || !credentials.isConfigured || !credentials.isEnabled) {
+      console.log('[PAYSTACK] Config rejected - not configured or not enabled');
       return null;
     }
 
     if (!credentials.publicKey || !credentials.secretKey) {
+      console.log('[PAYSTACK] Config rejected - missing keys');
       return null;
     }
 
