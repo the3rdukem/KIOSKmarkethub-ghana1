@@ -46,6 +46,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **PWA Support**: Progressive Web App features implemented using `next-pwa` for installability, including web app manifest and service worker for static asset caching.
 - **Commission System**: Automated commission calculation with 3-tier priority (vendor, category, default). Stored at order and order_item level. Admin UI for management and vendor dashboard for earnings.
 - **Vendor Payouts System**: Database-backed system using Paystack Transfers API. Manages vendor bank accounts, payout requests, and balance calculation. Vendor/Admin UIs for withdrawals and history. Webhook handlers for payout status.
+- **Dispute Resolution + Refunds System**: Full dispute lifecycle with DAL (disputes table with refund tracking), Admin/Buyer APIs, Paystack refund integration, commission reversal logic, and notification triggers. Supports dispute creation within 48-hour window, investigation workflow, resolution types (full/partial refund, replacement, no action), and async refund status tracking via webhooks.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions and vendor payouts.
@@ -71,6 +72,14 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 | Vendor Payouts - Paystack Integration | ✅ Complete | Transfer recipients and transfers via Paystack API (demo mode) |
 | Vendor Payouts - Webhook Handlers | ✅ Complete | Handle `transfer.success`, `transfer.failed`, `transfer.reversed` events |
 | Commission System | ✅ Complete | 3-tier priority (vendor, category, default), stored at order level |
+| Dispute Resolution - Database Schema | ✅ Complete | `disputes` table with refund tracking columns (refund_status, refund_amount, resolution_type) |
+| Dispute Resolution - DAL | ✅ Complete | Full CRUD operations, message threading, statistics aggregation |
+| Dispute Resolution - Admin API | ✅ Complete | List, view, update status, resolve disputes with resolution types |
+| Dispute Resolution - Buyer API | ✅ Complete | Create disputes (48h window), view own disputes and status |
+| Dispute Resolution - Refund Execution | ✅ Complete | Paystack refund integration with async status, commission reversal, validation guards |
+| Dispute Resolution - Admin UI | ✅ Complete | Dashboard with stats, list view, detail dialogs, status updates, refund processing |
+| Dispute Resolution - Buyer UI | ✅ Complete | View disputes, status tracking, resolution details, refund status |
+| Dispute Resolution - Notifications | ✅ Complete | Event notifications for resolution, refund initiation, refund completion |
 
 ### Tier 2: Post-Launch Enhancements
 
