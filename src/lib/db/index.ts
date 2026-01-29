@@ -1793,6 +1793,11 @@ async function runMigrations(client: PoolClient): Promise<void> {
       ALTER TABLE disputes ADD COLUMN IF NOT EXISTS refunded_at TEXT
     `);
     
+    // Add evidence column for storing photo evidence URLs
+    await client.query(`
+      ALTER TABLE disputes ADD COLUMN IF NOT EXISTS evidence TEXT
+    `);
+    
     // Add indexes for better query performance
     await client.query(`CREATE INDEX IF NOT EXISTS idx_disputes_order_id ON disputes(order_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_disputes_buyer_id ON disputes(buyer_id)`);
@@ -1800,7 +1805,7 @@ async function runMigrations(client: PoolClient): Promise<void> {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_disputes_status ON disputes(status)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_disputes_created_at ON disputes(created_at DESC)`);
     
-    console.log('[DB] PHASE 15: Added dispute resolution columns and indexes');
+    console.log('[DB] PHASE 15: Added dispute resolution columns and indexes (including evidence)');
   } catch (e) {
     // Columns may already exist
   }

@@ -79,6 +79,8 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 | Dispute Resolution - Refund Execution | ✅ Complete | Paystack refund integration with async status, commission reversal, validation guards |
 | Dispute Resolution - Admin UI | ✅ Complete | Dashboard with stats, list view, detail dialogs, status updates, refund processing |
 | Dispute Resolution - Buyer UI | ✅ Complete | View disputes, status tracking, resolution details, refund status |
+| Dispute Resolution - Vendor UI | ✅ Complete | View disputes against orders, evidence photos, status tracking |
+| Dispute Resolution - Evidence Upload | ✅ Complete | Photo evidence upload (up to 5 images) via Supabase Storage |
 | Dispute Resolution - Notifications | ✅ Complete | Event notifications for resolution, refund initiation, refund completion |
 
 ### Tier 2: Post-Launch Enhancements
