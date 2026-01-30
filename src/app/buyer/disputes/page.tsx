@@ -60,6 +60,14 @@ interface Dispute {
   resolved_at: string | null;
   created_at: string;
   updated_at: string;
+  messages?: Array<{
+    id: string;
+    senderId: string;
+    senderName: string;
+    senderRole: string;
+    message: string;
+    timestamp: string;
+  }>;
 }
 
 export default function BuyerDisputesPage() {
@@ -341,6 +349,42 @@ export default function BuyerDisputesPage() {
                     <Label className="text-muted-foreground">Evidence Photos ({selectedDispute.evidence.length})</Label>
                     <div className="mt-2">
                       <EvidenceGallery images={selectedDispute.evidence} />
+                    </div>
+                  </div>
+                )}
+
+                {selectedDispute.messages && selectedDispute.messages.length > 0 && (
+                  <div>
+                    <Label className="text-muted-foreground">Conversation History ({selectedDispute.messages.length})</Label>
+                    <div className="mt-2 space-y-3 max-h-60 overflow-y-auto p-3 bg-gray-50 rounded-lg border">
+                      {selectedDispute.messages.map((msg, index) => (
+                        <div 
+                          key={msg.id || index}
+                          className={`p-3 rounded-lg ${
+                            msg.senderRole === 'vendor' 
+                              ? 'bg-blue-50 border border-blue-200 ml-4' 
+                              : msg.senderRole === 'admin'
+                              ? 'bg-purple-50 border border-purple-200'
+                              : 'bg-white border mr-4'
+                          }`}
+                        >
+                          <div className="flex justify-between items-start mb-1">
+                            <span className={`text-xs font-medium ${
+                              msg.senderRole === 'vendor' 
+                                ? 'text-blue-700' 
+                                : msg.senderRole === 'admin'
+                                ? 'text-purple-700'
+                                : 'text-gray-700'
+                            }`}>
+                              {msg.senderName} ({msg.senderRole})
+                            </span>
+                            <span className="text-xs text-gray-400">
+                              {formatDate(msg.timestamp)}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700">{msg.message}</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 )}
