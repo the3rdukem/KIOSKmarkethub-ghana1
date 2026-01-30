@@ -212,6 +212,34 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     if (body.avatar !== undefined) updates.avatar = body.avatar;
     if (body.phone !== undefined) updates.phone = body.phone ? normalizePhone(body.phone) : body.phone;
     if (body.location !== undefined) updates.location = body.location;
+    
+    // Email update for own profile (foundation for verification flow)
+    // When verification is enabled, this will store in pending_email instead
+    if (isOwnProfile && body.email !== undefined) {
+      // Normalize email to lowercase for case-insensitive matching
+      const normalizedEmail = body.email.trim().toLowerCase();
+      
+      // Basic email validation
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(normalizedEmail)) {
+        return NextResponse.json(
+          { error: 'Invalid email format', code: 'INVALID_EMAIL' },
+          { status: 400 }
+        );
+      }
+      // Check if email is already taken by another user
+      const { getUserByEmail } = await import('@/lib/db/dal/users');
+      const existingUser = await getUserByEmail(normalizedEmail);
+      if (existingUser && existingUser.id !== id) {
+        return NextResponse.json(
+          { error: 'This email is already in use', code: 'EMAIL_TAKEN' },
+          { status: 400 }
+        );
+      }
+      // TODO: When verification is enabled, set pendingEmail instead of email
+      // and trigger verification email flow
+      updates.email = normalizedEmail;
+    }
 
     // Vendor-specific fields (vendors can update their own)
     if (user.role === 'vendor' && isOwnProfile) {

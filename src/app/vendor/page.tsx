@@ -26,7 +26,8 @@ import {
   Loader2,
   MessageSquare,
   Info,
-  Percent
+  Percent,
+  User
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { VendorAuthGuard } from "@/components/auth/auth-guard";
@@ -527,6 +528,14 @@ function VendorDashboardContent() {
                 >
                   <Settings className="w-4 h-4 mr-2" />
                   Store Settings
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start"
+                  onClick={() => router.push("/vendor/profile")}
+                >
+                  <User className="w-4 h-4 mr-2" />
+                  My Profile
                 </Button>
               </CardContent>
             </Card>

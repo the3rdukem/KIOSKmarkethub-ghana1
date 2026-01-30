@@ -55,6 +55,11 @@ export interface CreateUserInput {
 
 export interface UpdateUserInput {
   name?: string;
+  email?: string;
+  emailVerified?: boolean;
+  emailVerificationToken?: string;
+  emailVerificationExpires?: string;
+  pendingEmail?: string;
   status?: UserStatus;
   avatar?: string;
   phone?: string;
@@ -255,6 +260,26 @@ export async function updateUser(id: string, updates: UpdateUserInput): Promise<
   if (updates.name !== undefined) {
     fields.push(`name = $${paramIndex++}`);
     values.push(updates.name);
+  }
+  if (updates.email !== undefined) {
+    fields.push(`email = $${paramIndex++}`);
+    values.push(updates.email);
+  }
+  if (updates.emailVerified !== undefined) {
+    fields.push(`email_verified = $${paramIndex++}`);
+    values.push(updates.emailVerified);
+  }
+  if (updates.emailVerificationToken !== undefined) {
+    fields.push(`email_verification_token = $${paramIndex++}`);
+    values.push(updates.emailVerificationToken);
+  }
+  if (updates.emailVerificationExpires !== undefined) {
+    fields.push(`email_verification_expires = $${paramIndex++}`);
+    values.push(updates.emailVerificationExpires);
+  }
+  if (updates.pendingEmail !== undefined) {
+    fields.push(`pending_email = $${paramIndex++}`);
+    values.push(updates.pendingEmail);
   }
   if (updates.status !== undefined) {
     fields.push(`status = $${paramIndex++}`);
