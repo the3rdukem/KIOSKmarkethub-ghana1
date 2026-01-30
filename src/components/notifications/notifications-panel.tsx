@@ -300,7 +300,7 @@ export function NotificationsPanel() {
                 className="flex-1 text-xs"
                 asChild
               >
-                <Link href="/buyer/notifications">
+                <Link href={user?.role === 'vendor' ? "/vendor/notifications" : "/buyer/notifications"}>
                   View All
                 </Link>
               </Button>
@@ -310,7 +310,7 @@ export function NotificationsPanel() {
                 className="flex-1 text-xs"
                 asChild
               >
-                <Link href="/buyer/notifications">
+                <Link href={user?.role === 'vendor' ? "/vendor/notifications?tab=settings" : "/buyer/notifications?tab=settings"}>
                   <Settings className="w-3 h-3 mr-1" />
                   Settings
                 </Link>

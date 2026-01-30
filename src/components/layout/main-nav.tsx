@@ -211,12 +211,6 @@ export function MainNav() {
           Wishlist
         </Link>
       </DropdownMenuItem>
-      <DropdownMenuItem asChild>
-        <Link href="/buyer/notifications" className="cursor-pointer">
-          <MessageSquare className="mr-2 h-4 w-4" />
-          Notifications
-        </Link>
-      </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuItem asChild>
         <Link href="/buyer/profile" className="cursor-pointer">
@@ -458,6 +452,7 @@ export function MainNav() {
           { href: '/vendor/analytics', label: 'Analytics', icon: BarChart3 },
           { href: '/vendor/withdraw', label: 'Withdrawals', icon: Wallet },
           { href: '/messages', label: 'Messages', icon: MessageSquare },
+          { href: '/vendor/notifications', label: 'Notifications', icon: Bell },
           { href: '/vendor/settings', label: 'Store Settings', icon: Settings },
           { href: '/vendor/profile', label: 'My Profile', icon: User },
         ];

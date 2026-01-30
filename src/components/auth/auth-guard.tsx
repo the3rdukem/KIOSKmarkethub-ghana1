@@ -191,7 +191,7 @@ export function AdminAuthGuard({ children }: { children: ReactNode }) {
 
 export function BuyerAuthGuard({ children }: { children: ReactNode }) {
   return (
-    <AuthGuard portalType="buyer">
+    <AuthGuard requiredRoles={["buyer"]} portalType="buyer">
       {children}
     </AuthGuard>
   );
