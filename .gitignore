@@ -58,3 +58,4 @@ bun.lockb
 
 # Build artifacts
 output/
+supabase_import.sql

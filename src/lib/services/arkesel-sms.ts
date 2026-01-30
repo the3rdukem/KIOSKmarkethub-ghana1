@@ -224,7 +224,15 @@ export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse>
   }
 
   try {
+    const requestBody = {
+      sender: config.senderId,
+      message: messageContent,
+      recipients: [formattedPhone],
+      sandbox: useSandbox,
+    };
+    
     console.log(`[SMS] Sending to ${formattedPhone} via Arkesel API${useSandbox ? ' (sandbox)' : ''}`);
+    console.log('[SMS] Request body:', JSON.stringify(requestBody, null, 2));
     
     const response = await fetch(`${ARKESEL_API_BASE}/sms/send`, {
       method: 'POST',
@@ -232,19 +240,29 @@ export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse>
         'api-key': config.apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        sender: config.senderId,
-        message: messageContent,
-        recipients: [formattedPhone],
-        sandbox: useSandbox, // Arkesel's native sandbox mode - no delivery, no charges
-      }),
+      body: JSON.stringify(requestBody),
     });
 
-    const responseData = await response.json().catch(() => ({}));
+    // Log raw response details
+    console.log('[SMS] Response status:', response.status, response.statusText);
     
+    const responseText = await response.text();
+    console.log('[SMS] Raw response body:', responseText);
+    
+    // Try to parse as JSON
+    let responseData: Record<string, unknown> = {};
+    try {
+      responseData = JSON.parse(responseText);
+      console.log('[SMS] Parsed response:', JSON.stringify(responseData, null, 2));
+    } catch (parseError) {
+      console.error('[SMS] Failed to parse response as JSON:', parseError);
+      responseData = { rawResponse: responseText };
+    }
+    
+    // Check HTTP status first
     if (!response.ok) {
-      const errorMessage = responseData.message || `SMS sending failed: ${response.status}`;
-      console.error('[SMS] API error:', errorMessage);
+      const errorMessage = (responseData.message as string) || `SMS sending failed: ${response.status}`;
+      console.error('[SMS] HTTP error:', response.status, errorMessage);
       
       await smsDal.updateSMSLogStatus(log.id, 'failed', {
         errorMessage,
@@ -258,10 +276,25 @@ export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse>
       };
     }
 
-    // Arkesel returns code: "ok" on success
-    if (responseData.code !== 'ok') {
-      const errorMessage = responseData.message || 'Unknown Arkesel error';
-      console.error('[SMS] Arkesel error:', errorMessage);
+    // Check Arkesel response - they return code: "ok" on success
+    // Also check for alternative success indicators
+    const isSuccess = 
+      responseData.code === 'ok' || 
+      responseData.code === 'OK' ||
+      responseData.status === 'success' ||
+      responseData.status === 'Success' ||
+      (response.ok && responseData.balance !== undefined); // If we got balance back, it's likely success
+    
+    console.log('[SMS] Success check:', {
+      code: responseData.code,
+      status: responseData.status,
+      balance: responseData.balance,
+      isSuccess,
+    });
+    
+    if (!isSuccess) {
+      const errorMessage = (responseData.message as string) || `Arkesel error code: ${responseData.code}`;
+      console.error('[SMS] Arkesel API returned error:', errorMessage);
       
       await smsDal.updateSMSLogStatus(log.id, 'failed', {
         errorMessage,
@@ -276,6 +309,9 @@ export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse>
     }
 
     console.log(`[SMS] Successfully sent to ${formattedPhone}${useSandbox ? ' (sandbox - not delivered)' : ''}`);
+    if (responseData.balance !== undefined) {
+      console.log(`[SMS] Remaining balance: ${responseData.balance}`);
+    }
     
     await smsDal.updateSMSLogStatus(log.id, 'sent', {
       providerResponse: JSON.stringify(responseData),
@@ -291,11 +327,11 @@ export async function sendSMS(request: SMSSendRequest): Promise<SMSSendResponse>
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     
+    console.error('[SMS] Exception during send:', error);
+    
     await smsDal.updateSMSLogStatus(log.id, 'failed', {
       errorMessage,
     });
-
-    console.error('[SMS] Send error:', errorMessage);
 
     return {
       success: false,
