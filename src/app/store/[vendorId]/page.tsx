@@ -99,7 +99,23 @@ export default function VendorStorePage() {
     }
   };
 
-  const handleShare = async () => {
+  const [canNativeShare, setCanNativeShare] = useState(false);
+
+  useEffect(() => {
+    // Check if native share is available (typically mobile devices)
+    const checkNativeShare = () => {
+      try {
+        if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+          setCanNativeShare(true);
+        }
+      } catch {
+        setCanNativeShare(false);
+      }
+    };
+    checkNativeShare();
+  }, []);
+
+  const handleNativeShare = async () => {
     const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
     const shareText = store ? `Check out ${store.name} on KIOSK!` : 'Check out this store on KIOSK!';
     const shareData = {
@@ -108,18 +124,17 @@ export default function VendorStorePage() {
       url: shareUrl,
     };
     
-    if (navigator.share && navigator.canShare?.(shareData)) {
-      try {
-        await navigator.share(shareData);
-        return;
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          toast.error("Failed to share");
-        }
-        return;
+    try {
+      await navigator.share(shareData);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        toast.error("Failed to share");
       }
     }
-    
+  };
+
+  const handleCopyLink = async () => {
+    const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
     try {
       await navigator.clipboard.writeText(shareUrl);
       toast.success("Link copied to clipboard!");
@@ -201,67 +216,74 @@ export default function VendorStorePage() {
                     </div>
                   </div>
 
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Share2 className="w-4 h-4 mr-2" />
-                        Share
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={handleShare}>
-                        <Copy className="w-4 h-4 mr-2" />
-                        Copy Link
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-                          window.open(
-                            `https://wa.me/?text=${encodeURIComponent(`Check out ${store.name} on KIOSK! ${shareUrl}`)}`,
-                            '_blank'
-                          );
-                        }}
-                      >
-                        <MessageSquare className="w-4 h-4 mr-2" />
-                        Share on WhatsApp
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-                          window.open(
-                            `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
-                            '_blank',
-                            'width=600,height=400'
-                          );
-                        }}
-                      >
-                        <Facebook className="w-4 h-4 mr-2" />
-                        Share on Facebook
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-                          window.open(
-                            `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`Check out ${store.name} on KIOSK!`)}`,
-                            '_blank',
-                            'width=600,height=400'
-                          );
-                        }}
-                      >
-                        <Twitter className="w-4 h-4 mr-2" />
-                        Share on X
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => {
-                          const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
-                          window.location.href = `mailto:?subject=${encodeURIComponent(`Check out ${store.name} on KIOSK!`)}&body=${encodeURIComponent(`I found this great store on KIOSK: ${shareUrl}`)}`;
-                        }}
-                      >
-                        <Mail className="w-4 h-4 mr-2" />
-                        Share via Email
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  {canNativeShare ? (
+                    <Button variant="outline" size="sm" onClick={handleNativeShare}>
+                      <Share2 className="w-4 h-4 mr-2" />
+                      Share
+                    </Button>
+                  ) : (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="sm">
+                          <Share2 className="w-4 h-4 mr-2" />
+                          Share
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={handleCopyLink}>
+                          <Copy className="w-4 h-4 mr-2" />
+                          Copy Link
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+                            window.open(
+                              `https://wa.me/?text=${encodeURIComponent(`Check out ${store.name} on KIOSK! ${shareUrl}`)}`,
+                              '_blank'
+                            );
+                          }}
+                        >
+                          <MessageSquare className="w-4 h-4 mr-2" />
+                          Share on WhatsApp
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+                            window.open(
+                              `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+                              '_blank',
+                              'width=600,height=400'
+                            );
+                          }}
+                        >
+                          <Facebook className="w-4 h-4 mr-2" />
+                          Share on Facebook
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+                            window.open(
+                              `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`Check out ${store.name} on KIOSK!`)}`,
+                              '_blank',
+                              'width=600,height=400'
+                            );
+                          }}
+                        >
+                          <Twitter className="w-4 h-4 mr-2" />
+                          Share on X
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+                            window.location.href = `mailto:?subject=${encodeURIComponent(`Check out ${store.name} on KIOSK!`)}&body=${encodeURIComponent(`I found this great store on KIOSK: ${shareUrl}`)}`;
+                          }}
+                        >
+                          <Mail className="w-4 h-4 mr-2" />
+                          Share via Email
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">

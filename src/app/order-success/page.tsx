@@ -82,6 +82,21 @@ function OrderSuccessContent() {
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [canNativeShare, setCanNativeShare] = useState(false);
+
+  useEffect(() => {
+    // Check if native share is available (typically mobile devices)
+    const checkNativeShare = () => {
+      try {
+        if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+          setCanNativeShare(true);
+        }
+      } catch {
+        setCanNativeShare(false);
+      }
+    };
+    checkNativeShare();
+  }, []);
 
   useEffect(() => {
     if (orderId) {
@@ -91,6 +106,34 @@ function OrderSuccessContent() {
       setError("Order ID not found");
     }
   }, [orderId]);
+
+  const handleNativeShare = async () => {
+    const shareText = `Just made a purchase on KIOSK! Check out this amazing marketplace.`;
+    const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}` : '';
+    const shareData = {
+      title: 'KIOSK - Ghana\'s Trusted Marketplace',
+      text: shareText,
+      url: shareUrl,
+    };
+    
+    try {
+      await navigator.share(shareData);
+    } catch (err) {
+      if ((err as Error).name !== 'AbortError') {
+        toast.error("Failed to share");
+      }
+    }
+  };
+
+  const handleCopyLink = async () => {
+    const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copied to clipboard!");
+    } catch {
+      toast.error("Failed to copy link");
+    }
+  };
 
   const fetchOrder = async (id: string) => {
     try {
@@ -359,94 +402,74 @@ function OrderSuccessContent() {
                     </p>
                   </div>
                 </div>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-100">
-                      <Share2 className="w-4 h-4 mr-2" />
-                      Share
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem
-                      onClick={async () => {
-                        const shareText = `Just made a purchase on KIOSK! Check out this amazing marketplace.`;
-                        const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}` : '';
-                        const shareData = {
-                          title: 'KIOSK - Ghana\'s Trusted Marketplace',
-                          text: shareText,
-                          url: shareUrl,
-                        };
-                        if (navigator.share && navigator.canShare?.(shareData)) {
-                          try {
-                            await navigator.share(shareData);
-                            return;
-                          } catch (err) {
-                            if ((err as Error).name !== 'AbortError') {
-                              toast.error("Failed to share");
-                            }
-                            return;
-                          }
-                        }
-                        try {
-                          await navigator.clipboard.writeText(shareUrl);
-                          toast.success("Link copied to clipboard!");
-                        } catch {
-                          toast.error("Failed to copy link");
-                        }
-                      }}
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      Copy Link
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
-                        window.open(
-                          `https://wa.me/?text=${encodeURIComponent(`Just made a purchase on KIOSK! Check out this amazing marketplace: ${shareUrl}`)}`,
-                          '_blank'
-                        );
-                      }}
-                    >
-                      <MessageSquare className="w-4 h-4 mr-2" />
-                      Share on WhatsApp
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
-                        window.open(
-                          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
-                          '_blank',
-                          'width=600,height=400'
-                        );
-                      }}
-                    >
-                      <Facebook className="w-4 h-4 mr-2" />
-                      Share on Facebook
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
-                        window.open(
-                          `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent('Just made a purchase on KIOSK! Check out this amazing marketplace.')}`,
-                          '_blank',
-                          'width=600,height=400'
-                        );
-                      }}
-                    >
-                      <Twitter className="w-4 h-4 mr-2" />
-                      Share on X
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => {
-                        const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
-                        window.location.href = `mailto:?subject=${encodeURIComponent('Check out KIOSK!')}&body=${encodeURIComponent(`I just made a purchase on KIOSK, Ghana's trusted marketplace. Check it out: ${shareUrl}`)}`;
-                      }}
-                    >
-                      <Mail className="w-4 h-4 mr-2" />
-                      Share via Email
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                {canNativeShare ? (
+                  <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-100" onClick={handleNativeShare}>
+                    <Share2 className="w-4 h-4 mr-2" />
+                    Share
+                  </Button>
+                ) : (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-100">
+                        <Share2 className="w-4 h-4 mr-2" />
+                        Share
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem onClick={handleCopyLink}>
+                        <Copy className="w-4 h-4 mr-2" />
+                        Copy Link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                          window.open(
+                            `https://wa.me/?text=${encodeURIComponent(`Just made a purchase on KIOSK! Check out this amazing marketplace: ${shareUrl}`)}`,
+                            '_blank'
+                          );
+                        }}
+                      >
+                        <MessageSquare className="w-4 h-4 mr-2" />
+                        Share on WhatsApp
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                          window.open(
+                            `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+                            '_blank',
+                            'width=600,height=400'
+                          );
+                        }}
+                      >
+                        <Facebook className="w-4 h-4 mr-2" />
+                        Share on Facebook
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                          window.open(
+                            `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent('Just made a purchase on KIOSK! Check out this amazing marketplace.')}`,
+                            '_blank',
+                            'width=600,height=400'
+                          );
+                        }}
+                      >
+                        <Twitter className="w-4 h-4 mr-2" />
+                        Share on X
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => {
+                          const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                          window.location.href = `mailto:?subject=${encodeURIComponent('Check out KIOSK!')}&body=${encodeURIComponent(`I just made a purchase on KIOSK, Ghana's trusted marketplace. Check it out: ${shareUrl}`)}`;
+                        }}
+                      >
+                        <Mail className="w-4 h-4 mr-2" />
+                        Share via Email
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
               </div>
             </CardContent>
           </Card>
