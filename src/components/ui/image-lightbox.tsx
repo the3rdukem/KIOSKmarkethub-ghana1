@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut } from "lucide-react";
+import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut, ImageOff } from "lucide-react";
 
 interface ImageLightboxProps {
   images: string[];
@@ -15,8 +15,21 @@ interface ImageLightboxProps {
 export function ImageLightbox({ images, initialIndex = 0, open, onOpenChange }: ImageLightboxProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [zoom, setZoom] = useState(1);
+  const [imageError, setImageError] = useState(false);
 
   const validImages = images.filter(url => url && typeof url === 'string' && url.startsWith('http'));
+
+  useEffect(() => {
+    if (open) {
+      setCurrentIndex(initialIndex);
+      setZoom(1);
+      setImageError(false);
+    }
+  }, [open, initialIndex]);
+
+  useEffect(() => {
+    setImageError(false);
+  }, [currentIndex]);
 
   if (validImages.length === 0) return null;
 
@@ -41,7 +54,7 @@ export function ImageLightbox({ images, initialIndex = 0, open, onOpenChange }: 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
       setZoom(1);
-      setCurrentIndex(initialIndex);
+      setImageError(false);
     }
     onOpenChange(newOpen);
   };
@@ -56,7 +69,7 @@ export function ImageLightbox({ images, initialIndex = 0, open, onOpenChange }: 
               size="icon"
               onClick={handleZoomOut}
               className="text-white hover:bg-white/20"
-              disabled={zoom <= 0.5}
+              disabled={zoom <= 0.5 || imageError}
             >
               <ZoomOut className="w-5 h-5" />
             </Button>
@@ -65,7 +78,7 @@ export function ImageLightbox({ images, initialIndex = 0, open, onOpenChange }: 
               size="icon"
               onClick={handleZoomIn}
               className="text-white hover:bg-white/20"
-              disabled={zoom >= 3}
+              disabled={zoom >= 3 || imageError}
             >
               <ZoomIn className="w-5 h-5" />
             </Button>
@@ -91,17 +104,20 @@ export function ImageLightbox({ images, initialIndex = 0, open, onOpenChange }: 
           )}
 
           <div className="flex items-center justify-center p-8 overflow-auto max-h-[80vh]">
-            <img
-              src={validImages[currentIndex]}
-              alt={`Image ${currentIndex + 1} of ${validImages.length}`}
-              className="max-w-full max-h-[70vh] object-contain transition-transform duration-200"
-              style={{ transform: `scale(${zoom})` }}
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = '';
-                target.alt = 'Image failed to load';
-              }}
-            />
+            {imageError ? (
+              <div className="flex flex-col items-center justify-center text-white/60">
+                <ImageOff className="w-16 h-16 mb-4" />
+                <p>Image failed to load</p>
+              </div>
+            ) : (
+              <img
+                src={validImages[currentIndex]}
+                alt={`Image ${currentIndex + 1} of ${validImages.length}`}
+                className="max-w-full max-h-[70vh] object-contain transition-transform duration-200"
+                style={{ transform: `scale(${zoom})` }}
+                onError={() => setImageError(true)}
+              />
+            )}
           </div>
 
           {validImages.length > 1 && (
@@ -124,6 +140,10 @@ export function ImageLightbox({ images, initialIndex = 0, open, onOpenChange }: 
   );
 }
 
+interface ThumbnailState {
+  [key: number]: boolean;
+}
+
 interface EvidenceGalleryProps {
   images: string[];
 }
@@ -131,6 +151,7 @@ interface EvidenceGalleryProps {
 export function EvidenceGallery({ images }: EvidenceGalleryProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [failedImages, setFailedImages] = useState<ThumbnailState>({});
 
   const validImages = images.filter(url => url && typeof url === 'string' && url.startsWith('http'));
   const invalidCount = images.length - validImages.length;
@@ -148,6 +169,10 @@ export function EvidenceGallery({ images }: EvidenceGalleryProps) {
     setLightboxOpen(true);
   };
 
+  const handleImageError = (index: number) => {
+    setFailedImages(prev => ({ ...prev, [index]: true }));
+  };
+
   return (
     <>
       <div className="flex flex-wrap gap-2">
@@ -157,16 +182,18 @@ export function EvidenceGallery({ images }: EvidenceGalleryProps) {
             onClick={() => handleImageClick(index)}
             className="block w-20 h-20 border rounded overflow-hidden hover:ring-2 hover:ring-primary bg-gray-100 cursor-pointer transition-all"
           >
-            <img
-              src={url}
-              alt={`Evidence ${index + 1}`}
-              className="w-full h-full object-cover"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.style.display = 'none';
-                target.parentElement!.innerHTML = '<div class="w-full h-full flex items-center justify-center text-xs text-gray-400">Error</div>';
-              }}
-            />
+            {failedImages[index] ? (
+              <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                <ImageOff className="w-6 h-6" />
+              </div>
+            ) : (
+              <img
+                src={url}
+                alt={`Evidence ${index + 1}`}
+                className="w-full h-full object-cover"
+                onError={() => handleImageError(index)}
+              />
+            )}
           </button>
         ))}
       </div>

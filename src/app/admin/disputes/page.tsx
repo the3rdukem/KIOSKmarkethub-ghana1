@@ -38,8 +38,10 @@ import {
   RefreshCw,
   Eye,
   ArrowUpCircle,
-  XCircle
+  XCircle,
+  ArrowLeft,
 } from "lucide-react";
+import Link from "next/link";
 import { toast } from "sonner";
 import { EvidenceGallery } from "@/components/ui/image-lightbox";
 
@@ -310,17 +312,27 @@ export default function AdminDisputesPage() {
 
   return (
     <SiteLayout>
-    <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Dispute Resolution Center</h1>
-          <p className="text-muted-foreground">Manage and resolve marketplace disputes</p>
+      <div className="container py-8">
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" className="mb-2 -ml-2" asChild>
+            <Link href="/admin">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Link>
+          </Button>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">Dispute Resolution Center</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">Manage and resolve marketplace disputes</p>
+            </div>
+            <Button onClick={fetchDisputes} variant="outline" disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
+          </div>
         </div>
-        <Button onClick={fetchDisputes} variant="outline" disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-          Refresh
-        </Button>
-      </div>
+
+        <div className="space-y-6">
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
         <Card>
@@ -674,7 +686,8 @@ export default function AdminDisputesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+        </div>
+      </div>
     </SiteLayout>
   );
 }
