@@ -67,6 +67,14 @@ export default function BuyerNotificationsPage() {
   const [filter, setFilter] = useState<NotificationType | "all">("all");
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [dbNotifications, setDbNotifications] = useState<Notification[]>([]);
+  const [dbPreferences, setDbPreferences] = useState<{
+    inApp: boolean;
+    email: boolean;
+    sms: boolean;
+    orderUpdates: boolean;
+    paymentAlerts: boolean;
+    marketingMessages: boolean;
+  } | null>(null);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -78,20 +86,20 @@ export default function BuyerNotificationsPage() {
     }
   }, [isHydrated, isAuthenticated, router]);
 
-  // Fetch notifications from database API
+  // Fetch notifications and preferences from database API
   useEffect(() => {
-    const fetchNotifications = async () => {
+    const fetchData = async () => {
       if (!isHydrated || !isAuthenticated || !user) return;
       
       setIsLoadingNotifications(true);
       try {
-        const response = await fetch('/api/notifications', {
+        // Fetch notifications
+        const notifResponse = await fetch('/api/notifications', {
           credentials: 'include',
         });
         
-        if (response.ok) {
-          const data = await response.json();
-          // Map database notifications to match the store format
+        if (notifResponse.ok) {
+          const data = await notifResponse.json();
           const mappedNotifications: Notification[] = (data.notifications || []).map((n: { id: string; userId: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; payload?: { orderId?: string; productId?: string; disputeId?: string; link?: string } }) => ({
             id: n.id,
             userId: n.userId,
@@ -108,14 +116,32 @@ export default function BuyerNotificationsPage() {
           }));
           setDbNotifications(mappedNotifications);
         }
+
+        // Fetch user notification settings from API
+        const userResponse = await fetch(`/api/users/${user.id}`, {
+          credentials: 'include',
+        });
+        
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          const notifSettings = userData.user?.notificationSettings || {};
+          setDbPreferences({
+            inApp: notifSettings.inApp !== false,
+            email: notifSettings.email !== false,
+            sms: notifSettings.sms !== false,
+            orderUpdates: notifSettings.orderUpdates !== false,
+            paymentAlerts: notifSettings.paymentAlerts !== false,
+            marketingMessages: notifSettings.marketingMessages === true,
+          });
+        }
       } catch (error) {
-        console.error('Failed to fetch notifications:', error);
+        console.error('Failed to fetch data:', error);
       } finally {
         setIsLoadingNotifications(false);
       }
     };
     
-    fetchNotifications();
+    fetchData();
   }, [isHydrated, isAuthenticated, user]);
 
   if (!isHydrated) {
@@ -139,7 +165,8 @@ export default function BuyerNotificationsPage() {
   )].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const notifications = allNotifications;
   const unreadCount = notifications.filter(n => !n.read).length;
-  const preferences = getPreferences(user.id);
+  const storePreferences = getPreferences(user.id);
+  const preferences = dbPreferences || storePreferences;
 
   const filteredNotifications = filter === "all"
     ? notifications
@@ -164,9 +191,33 @@ export default function BuyerNotificationsPage() {
     toast.success("All notifications cleared");
   };
 
-  const handlePreferenceChange = (key: keyof typeof preferences, value: boolean) => {
+  const handlePreferenceChange = async (key: keyof typeof preferences, value: boolean) => {
+    // Update local store for immediate UI feedback
     updatePreferences(user.id, { [key]: value });
-    toast.success("Preferences updated");
+    
+    // Update local dbPreferences state
+    if (dbPreferences) {
+      setDbPreferences({ ...dbPreferences, [key]: value });
+    }
+    
+    // Save to database
+    try {
+      const newSettings = { ...preferences, [key]: value };
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ notificationSettings: newSettings }),
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to save preferences');
+      }
+      toast.success("Preferences saved");
+    } catch (error) {
+      console.error('Failed to save preferences:', error);
+      toast.error("Failed to save preferences");
+    }
   };
 
   const NotificationItem = ({ notification }: { notification: Notification }) => {

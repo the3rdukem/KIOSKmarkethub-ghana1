@@ -105,6 +105,15 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
     }
 
+    let notificationSettings = {};
+    if (user.notification_settings) {
+      try {
+        notificationSettings = typeof user.notification_settings === 'string' 
+          ? JSON.parse(user.notification_settings) 
+          : user.notification_settings;
+      } catch { notificationSettings = {}; }
+    }
+
     return NextResponse.json({
       user: {
         id: user.id,
@@ -127,6 +136,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         lastLoginAt: user.last_login_at,
         createdAt: user.created_at,
         updatedAt: user.updated_at,
+        notificationSettings,
       },
     });
   } catch (error) {
