@@ -136,8 +136,10 @@ export async function sendLowStockAlert(
 
   const settings = await getVendorSettings(vendorId);
   
+  console.log('[LOW_STOCK] Vendor settings for', vendorId, ':', JSON.stringify(settings));
+  
   if (!settings || !settings.lowStockAlerts) {
-    console.log('[LOW_STOCK] Alerts disabled for vendor:', vendorId);
+    console.log('[LOW_STOCK] Alerts disabled for vendor:', vendorId, '- settings:', settings);
     return result;
   }
 

@@ -274,6 +274,8 @@ export default function SMSManagementPage() {
       dispute_opened: 'bg-yellow-100 text-yellow-800',
       welcome_buyer: 'bg-teal-100 text-teal-800',
       welcome_vendor: 'bg-indigo-100 text-indigo-800',
+      low_stock_alert: 'bg-amber-100 text-amber-800',
+      out_of_stock_alert: 'bg-red-100 text-red-800',
     };
     return <Badge className={colors[eventType] || 'bg-gray-100 text-gray-800'}>{eventType.replace(/_/g, ' ')}</Badge>;
   };

@@ -1454,6 +1454,10 @@ function AdminDashboardContent() {
             {isMasterAdmin && (
               <TabsTrigger value="email"><Globe2 className="w-4 h-4 mr-1" />Email</TabsTrigger>
             )}
+            {/* SMS Management - Master Admin */}
+            {isMasterAdmin && (
+              <TabsTrigger value="sms"><Phone className="w-4 h-4 mr-1" />SMS</TabsTrigger>
+            )}
             {/* Approvals */}
             <TabsTrigger value="approvals">
               <CheckSquare className="w-4 h-4 mr-1" />Approvals
@@ -1502,6 +1506,11 @@ function AdminDashboardContent() {
                       <Button className="w-full justify-start" variant="outline" asChild>
                         <a href="/admin/hero-slides">
                           <ImageIcon className="w-4 h-4 mr-2" />Hero Slideshow
+                        </a>
+                      </Button>
+                      <Button className="w-full justify-start" variant="outline" asChild>
+                        <a href="/admin/sms">
+                          <Phone className="w-4 h-4 mr-2" />SMS Templates
                         </a>
                       </Button>
                       <Button className="w-full justify-start" variant="outline" asChild>
@@ -2228,6 +2237,31 @@ function AdminDashboardContent() {
           {/* Email Management Tab */}
           <TabsContent value="email">
             <EmailManagementSection />
+          </TabsContent>
+
+          <TabsContent value="sms">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Phone className="w-5 h-5" />
+                  SMS Management
+                </CardTitle>
+                <CardDescription>
+                  Manage SMS templates, view delivery logs, and configure SMS provider settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-muted-foreground">
+                  Configure SMS templates for order notifications, low stock alerts, and other automated messages.
+                </p>
+                <Button asChild>
+                  <a href="/admin/sms">
+                    <Phone className="w-4 h-4 mr-2" />
+                    Open SMS Management
+                  </a>
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="audit">
