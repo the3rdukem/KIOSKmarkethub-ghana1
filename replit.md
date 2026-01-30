@@ -88,11 +88,11 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 | Feature | Est. Days | Status | Notes |
 |---------|-----------|--------|-------|
 | Email Notifications (Order events) | 3-4 | ⏳ Pending | Bundle with SMS - leverages existing email infrastructure |
-| Low Stock Alerts (Email/SMS) | 1-2 | ⏳ Pending | Quick add to existing notification system |
+| Low Stock Alerts (Email/SMS) | 1-2 | ✅ Complete | Integrated into order processing, configurable threshold in vendor settings |
 | Admin Dashboard Analytics | 4-5 | ⏳ Pending | Platform oversight and business metrics |
-| Export Functionality (CSV) | 2-3 | ⏳ Pending | Quick win - orders, payouts, products export |
+| Export Functionality (CSV) | 2-3 | ✅ Complete | Vendor products/orders, admin orders/payouts with formatted exports |
 | Social Sharing (WhatsApp focus) | 1-2 | ✅ Complete | Product pages, order confirmation, vendor store pages |
-| Recently Viewed Products | 2-3 | ⏳ Pending | Quick win - buyer engagement feature |
+| Recently Viewed Products | 2-3 | ✅ Complete | localStorage-backed tracking, displayed on product pages |
 | Real Vendor Analytics | 3-4 | ⏳ Pending | Vendor satisfaction - sales, views, conversion |
 | **Subtotal** | **~16-23** | | |
 
