@@ -2067,7 +2067,23 @@ function AdminDashboardContent() {
                               });
                               const findData = await findRes.json();
                               if (!findData.products || findData.products.length === 0) {
-                                toast.error('No products with inventory tracking found');
+                                const debugRes = await fetch('/api/admin/test/low-stock-alert', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ mode: 'debug' }),
+                                });
+                                const debugData = await debugRes.json();
+                                console.log('Debug products:', debugData.products);
+                                const activeWithTracking = debugData.products?.filter((p: { track_quantity: number; status: string }) => 
+                                  p.track_quantity === 1 && p.status === 'active'
+                                );
+                                if (activeWithTracking?.length > 0) {
+                                  toast.error(`Found ${activeWithTracking.length} products but query failed. Check console.`);
+                                } else {
+                                  const trackingCount = debugData.products?.filter((p: { track_quantity: number }) => p.track_quantity === 1).length || 0;
+                                  const activeCount = debugData.products?.filter((p: { status: string }) => p.status === 'active').length || 0;
+                                  toast.error(`No products with inventory tracking + active status.\nWith tracking: ${trackingCount}, Active: ${activeCount}`);
+                                }
                                 return;
                               }
                               const product = findData.products[0];

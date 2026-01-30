@@ -67,16 +67,17 @@ export async function POST(request: NextRequest) {
         name: string;
         vendor_id: string;
         quantity: number;
-        track_quantity: boolean | number;
+        track_quantity: number;
+        status: string;
         vendor_name: string;
         vendor_phone: string;
         vendor_email: string;
       }>(
-        `SELECT p.id, p.name, p.vendor_id, p.quantity, p.track_quantity,
+        `SELECT p.id, p.name, p.vendor_id, p.quantity, p.track_quantity, p.status,
                 u.business_name as vendor_name, u.phone as vendor_phone, u.email as vendor_email
          FROM products p 
          JOIN users u ON p.vendor_id = u.id 
-         WHERE (p.track_quantity = true OR p.track_quantity = 1) AND p.status = 'active'
+         WHERE p.track_quantity = 1 AND p.status = 'active'
          ORDER BY p.quantity ASC
          LIMIT 10`
       );
@@ -85,6 +86,24 @@ export async function POST(request: NextRequest) {
         success: true,
         message: 'Found products with inventory tracking',
         products: productsResult.rows,
+      });
+    }
+
+    if (mode === 'debug') {
+      const allProducts = await query<{
+        id: string;
+        name: string;
+        track_quantity: number;
+        status: string;
+        quantity: number;
+      }>(
+        `SELECT id, name, track_quantity, status, quantity FROM products LIMIT 20`
+      );
+
+      return NextResponse.json({
+        success: true,
+        message: 'Debug: All products',
+        products: allProducts.rows,
       });
     }
 
