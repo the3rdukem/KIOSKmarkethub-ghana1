@@ -354,7 +354,8 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const hoursSinceDelivery = (now.getTime() - deliveredAt.getTime()) / (1000 * 60 * 60);
   const canRaiseDispute = isDelivered && hoursSinceDelivery <= 48 && order.status !== 'disputed';
   const hasActiveDispute = order.status === 'disputed';
-  const isMultiVendor = new Set((order.orderItems || order.items || []).map((i: OrderItem) => i.vendorId)).size > 1;
+  const itemsForVendorCheck = (order.orderItems && order.orderItems.length > 0) ? order.orderItems : (order.items || []);
+  const isMultiVendor = new Set(itemsForVendorCheck.map((i: OrderItem) => i.vendorId)).size > 1;
 
   const handleSubmitDispute = async () => {
     if (!disputeType) {
@@ -407,8 +408,8 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
     }
   };
 
-  const orderItems = order.orderItems || order.items || [];
-  const fulfilledCount = orderItems.filter(i => i.fulfillmentStatus === 'fulfilled').length;
+  const orderItems = (order.orderItems && order.orderItems.length > 0) ? order.orderItems : (order.items || []);
+  const fulfilledCount = orderItems.filter((i: any) => i.fulfillmentStatus === 'fulfilled').length;
   const totalItems = orderItems.length;
 
   return (

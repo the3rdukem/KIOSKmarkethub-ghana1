@@ -77,10 +77,20 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       : orderItems;
 
     // Normalize legacy items to have same fields for backwards compatibility
+    // If no order_items exist in DB, derive fulfillment status from order status
+    const deriveFulfillmentStatus = (orderStatus: string) => {
+      if (['delivered', 'completed', 'fulfilled'].includes(orderStatus)) return 'fulfilled';
+      if (['shipped', 'handed_to_courier', 'in_transit'].includes(orderStatus)) return 'shipped';
+      if (orderStatus === 'packed') return 'packed';
+      return 'pending';
+    };
+    
+    const hasOrderItemsInDb = vendorItems.length > 0;
     const normalizedLegacyItems = items.map((item: any) => ({
       ...item,
       unitPrice: item.unitPrice ?? item.price ?? 0,
       finalPrice: item.finalPrice ?? (item.price ? item.price * item.quantity : null),
+      fulfillmentStatus: item.fulfillmentStatus ?? (hasOrderItemsInDb ? 'pending' : deriveFulfillmentStatus(order.status)),
     }));
 
     return NextResponse.json({
