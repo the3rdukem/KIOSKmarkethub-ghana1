@@ -102,6 +102,11 @@ export default function BuyerProfilePage() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [passwordErrors, setPasswordErrors] = useState<{
+    currentPassword?: string;
+    newPassword?: string;
+    confirmPassword?: string;
+  }>({});
 
   // Address form state
   const [addressForm, setAddressForm] = useState({
@@ -205,23 +210,26 @@ export default function BuyerProfilePage() {
   };
 
   const handleChangePassword = async () => {
+    const errors: typeof passwordErrors = {};
+
     if (!passwordForm.currentPassword) {
-      toast.error("Current password is required");
-      return;
+      errors.currentPassword = "Current password is required";
     }
     if (!passwordForm.newPassword) {
-      toast.error("New password is required");
-      return;
-    }
-    if (passwordForm.newPassword.length < 8) {
-      toast.error("Password must be at least 8 characters");
-      return;
+      errors.newPassword = "New password is required";
+    } else if (passwordForm.newPassword.length < 8) {
+      errors.newPassword = "Password must be at least 8 characters";
     }
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error("New passwords do not match");
+      errors.confirmPassword = "Passwords do not match";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setPasswordErrors(errors);
       return;
     }
 
+    setPasswordErrors({});
     setIsSaving(true);
     try {
       const response = await fetch('/api/auth/change-password', {
@@ -236,12 +244,21 @@ export default function BuyerProfilePage() {
 
       if (!response.ok) {
         const error = await response.json();
-        throw new Error(error.error || 'Failed to change password');
+        const errorMsg = error.error || 'Failed to change password';
+        if (errorMsg.toLowerCase().includes('current password')) {
+          setPasswordErrors({ currentPassword: errorMsg });
+        } else if (errorMsg.toLowerCase().includes('new password') || errorMsg.toLowerCase().includes('must contain')) {
+          setPasswordErrors({ newPassword: errorMsg });
+        } else {
+          toast.error(errorMsg);
+        }
+        return;
       }
 
       toast.success("Password changed successfully");
       setShowPasswordDialog(false);
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+      setPasswordErrors({});
     } catch (error) {
       console.error("Failed to change password:", error);
       toast.error(error instanceof Error ? error.message : "Failed to change password");
@@ -722,17 +739,35 @@ export default function BuyerProfilePage() {
                             <Input
                               type={showPassword ? "text" : "password"}
                               value={passwordForm.currentPassword}
-                              onChange={(e) => setPasswordForm({ ...passwordForm, currentPassword: e.target.value })}
+                              onChange={(e) => {
+                                setPasswordForm({ ...passwordForm, currentPassword: e.target.value });
+                                if (passwordErrors.currentPassword) {
+                                  setPasswordErrors({ ...passwordErrors, currentPassword: undefined });
+                                }
+                              }}
+                              className={passwordErrors.currentPassword ? "border-red-500 focus-visible:ring-red-500" : ""}
                             />
                           </div>
+                          {passwordErrors.currentPassword && (
+                            <p className="text-sm text-red-500 mt-1">{passwordErrors.currentPassword}</p>
+                          )}
                         </div>
                         <div>
                           <Label>New Password</Label>
                           <Input
                             type={showPassword ? "text" : "password"}
                             value={passwordForm.newPassword}
-                            onChange={(e) => setPasswordForm({ ...passwordForm, newPassword: e.target.value })}
+                            onChange={(e) => {
+                              setPasswordForm({ ...passwordForm, newPassword: e.target.value });
+                              if (passwordErrors.newPassword) {
+                                setPasswordErrors({ ...passwordErrors, newPassword: undefined });
+                              }
+                            }}
+                            className={passwordErrors.newPassword ? "border-red-500 focus-visible:ring-red-500" : ""}
                           />
+                          {passwordErrors.newPassword && (
+                            <p className="text-sm text-red-500 mt-1">{passwordErrors.newPassword}</p>
+                          )}
                         </div>
                         <div>
                           <Label>Confirm New Password</Label>
@@ -740,7 +775,13 @@ export default function BuyerProfilePage() {
                             <Input
                               type={showPassword ? "text" : "password"}
                               value={passwordForm.confirmPassword}
-                              onChange={(e) => setPasswordForm({ ...passwordForm, confirmPassword: e.target.value })}
+                              onChange={(e) => {
+                                setPasswordForm({ ...passwordForm, confirmPassword: e.target.value });
+                                if (passwordErrors.confirmPassword) {
+                                  setPasswordErrors({ ...passwordErrors, confirmPassword: undefined });
+                                }
+                              }}
+                              className={passwordErrors.confirmPassword ? "border-red-500 focus-visible:ring-red-500" : ""}
                             />
                             <Button
                               type="button"
@@ -752,11 +793,19 @@ export default function BuyerProfilePage() {
                               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                             </Button>
                           </div>
+                          {passwordErrors.confirmPassword && (
+                            <p className="text-sm text-red-500 mt-1">{passwordErrors.confirmPassword}</p>
+                          )}
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button variant="outline" onClick={() => setShowPasswordDialog(false)}>Cancel</Button>
-                        <Button onClick={handleChangePassword}>Update Password</Button>
+                        <Button variant="outline" onClick={() => {
+                          setShowPasswordDialog(false);
+                          setPasswordErrors({});
+                        }}>Cancel</Button>
+                        <Button onClick={handleChangePassword} disabled={isSaving}>
+                          {isSaving ? "Updating..." : "Update Password"}
+                        </Button>
                       </DialogFooter>
                     </DialogContent>
                   </Dialog>

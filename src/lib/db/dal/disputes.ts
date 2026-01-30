@@ -202,23 +202,37 @@ export async function createDispute(input: CreateDisputeInput): Promise<Dispute>
 }
 
 export async function getDisputeById(id: string): Promise<Dispute | null> {
-  const result = await query<DbDispute>(
-    'SELECT * FROM disputes WHERE id = $1',
+  const result = await query<DbDispute & { current_business_name: string | null }>(
+    `SELECT d.*, u.business_name as current_business_name 
+     FROM disputes d
+     LEFT JOIN users u ON d.vendor_id = u.id
+     WHERE d.id = $1`,
     [id]
   );
   
   if (result.rows.length === 0) return null;
-  return parseDispute(result.rows[0]);
+  const dispute = parseDispute(result.rows[0]);
+  if (result.rows[0].current_business_name) {
+    dispute.vendor_name = result.rows[0].current_business_name;
+  }
+  return dispute;
 }
 
 export async function getDisputeByOrderId(orderId: string): Promise<Dispute | null> {
-  const result = await query<DbDispute>(
-    'SELECT * FROM disputes WHERE order_id = $1 ORDER BY created_at DESC LIMIT 1',
+  const result = await query<DbDispute & { current_business_name: string | null }>(
+    `SELECT d.*, u.business_name as current_business_name 
+     FROM disputes d
+     LEFT JOIN users u ON d.vendor_id = u.id
+     WHERE d.order_id = $1 ORDER BY d.created_at DESC LIMIT 1`,
     [orderId]
   );
   
   if (result.rows.length === 0) return null;
-  return parseDispute(result.rows[0]);
+  const dispute = parseDispute(result.rows[0]);
+  if (result.rows[0].current_business_name) {
+    dispute.vendor_name = result.rows[0].current_business_name;
+  }
+  return dispute;
 }
 
 export interface GetDisputesOptions {
@@ -238,50 +252,53 @@ export async function getDisputes(options?: GetDisputesOptions): Promise<{ dispu
   
   if (options?.status) {
     params.push(options.status);
-    whereClauses.push(`status = $${params.length}`);
+    whereClauses.push(`d.status = $${params.length}`);
   }
   
   if (options?.priority) {
     params.push(options.priority);
-    whereClauses.push(`priority = $${params.length}`);
+    whereClauses.push(`d.priority = $${params.length}`);
   }
   
   if (options?.type) {
     params.push(options.type);
-    whereClauses.push(`type = $${params.length}`);
+    whereClauses.push(`d.type = $${params.length}`);
   }
   
   if (options?.buyerId) {
     params.push(options.buyerId);
-    whereClauses.push(`buyer_id = $${params.length}`);
+    whereClauses.push(`d.buyer_id = $${params.length}`);
   }
   
   if (options?.vendorId) {
     params.push(options.vendorId);
-    whereClauses.push(`vendor_id = $${params.length}`);
+    whereClauses.push(`d.vendor_id = $${params.length}`);
   }
   
   if (options?.assignedTo) {
     params.push(options.assignedTo);
-    whereClauses.push(`assigned_to = $${params.length}`);
+    whereClauses.push(`d.assigned_to = $${params.length}`);
   }
   
   const whereClause = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
   
   const countResult = await query<{ total: string }>(
-    `SELECT COUNT(*) as total FROM disputes ${whereClause}`,
+    `SELECT COUNT(*) as total FROM disputes d ${whereClause}`,
     params
   );
   const total = parseInt(countResult.rows[0]?.total || '0');
   
-  let sql = `SELECT * FROM disputes ${whereClause} ORDER BY 
-    CASE priority 
+  let sql = `SELECT d.*, u.business_name as current_business_name 
+    FROM disputes d
+    LEFT JOIN users u ON d.vendor_id = u.id
+    ${whereClause} ORDER BY 
+    CASE d.priority 
       WHEN 'urgent' THEN 1 
       WHEN 'high' THEN 2 
       WHEN 'medium' THEN 3 
       WHEN 'low' THEN 4 
     END,
-    created_at DESC`;
+    d.created_at DESC`;
   
   const queryParams = [...params];
   
@@ -295,30 +312,56 @@ export async function getDisputes(options?: GetDisputesOptions): Promise<{ dispu
     sql += ` OFFSET $${queryParams.length}`;
   }
   
-  const result = await query<DbDispute>(sql, queryParams);
+  const result = await query<DbDispute & { current_business_name: string | null }>(sql, queryParams);
   
   return {
-    disputes: result.rows.map(parseDispute),
+    disputes: result.rows.map(row => {
+      const dispute = parseDispute(row);
+      if (row.current_business_name) {
+        dispute.vendor_name = row.current_business_name;
+      }
+      return dispute;
+    }),
     total,
   };
 }
 
 export async function getBuyerDisputes(buyerId: string): Promise<Dispute[]> {
-  const result = await query<DbDispute>(
-    'SELECT * FROM disputes WHERE buyer_id = $1 ORDER BY created_at DESC',
+  const result = await query<DbDispute & { current_business_name: string | null }>(
+    `SELECT d.*, u.business_name as current_business_name 
+     FROM disputes d
+     LEFT JOIN users u ON d.vendor_id = u.id
+     WHERE d.buyer_id = $1 
+     ORDER BY d.created_at DESC`,
     [buyerId]
   );
   
-  return result.rows.map(parseDispute);
+  return result.rows.map(row => {
+    const dispute = parseDispute(row);
+    if (row.current_business_name) {
+      dispute.vendor_name = row.current_business_name;
+    }
+    return dispute;
+  });
 }
 
 export async function getVendorDisputes(vendorId: string): Promise<Dispute[]> {
-  const result = await query<DbDispute>(
-    'SELECT * FROM disputes WHERE vendor_id = $1 ORDER BY created_at DESC',
+  const result = await query<DbDispute & { current_business_name: string | null }>(
+    `SELECT d.*, u.business_name as current_business_name 
+     FROM disputes d
+     LEFT JOIN users u ON d.vendor_id = u.id
+     WHERE d.vendor_id = $1 
+     ORDER BY d.created_at DESC`,
     [vendorId]
   );
   
-  return result.rows.map(parseDispute);
+  return result.rows.map(row => {
+    const dispute = parseDispute(row);
+    if (row.current_business_name) {
+      dispute.vendor_name = row.current_business_name;
+    }
+    return dispute;
+  });
 }
 
 export interface UpdateDisputeInput {
