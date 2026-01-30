@@ -45,8 +45,16 @@ import {
   Truck,
   RefreshCw,
   ShieldCheck,
-  Calendar
+  Calendar,
+  Share2,
+  Copy
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useProductsStore, Product } from "@/lib/products-store";
 import { useUsersStore, PlatformUser } from "@/lib/users-store";
 import { useReviewsStore } from "@/lib/reviews-store";
@@ -81,9 +89,18 @@ export default function VendorStorePage() {
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [vendorStats, setVendorStats] = useState<{ totalSales: number }>({ totalSales: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [canNativeShare, setCanNativeShare] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
+    // Check if native share is available (typically mobile devices)
+    try {
+      if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
+        setCanNativeShare(true);
+      }
+    } catch {
+      setCanNativeShare(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -333,6 +350,84 @@ export default function VendorStorePage() {
     const discountPercent = isOnSale ? Math.round((discount / product.price) * 100) : 0;
     const isStoreOpen = storeStatus === 'open';
 
+    // List view - matching search page format
+    if (viewMode === "list") {
+      return (
+        <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden">
+          <div className="flex">
+            <div className="relative w-32 sm:w-40 flex-shrink-0">
+              <Link href={`/product/${product.id}`}>
+                <div className="aspect-square bg-gray-100 overflow-hidden">
+                  {product.images.length > 0 ? (
+                    <img
+                      src={product.images[0]}
+                      alt={product.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <Package className="w-10 h-10 text-gray-400" />
+                    </div>
+                  )}
+                </div>
+              </Link>
+              {isOnSale && (
+                <Badge variant="destructive" className="absolute top-2 left-2 text-xs">
+                  -{discountPercent}%
+                </Badge>
+              )}
+              {!inStock && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <span className="text-white font-semibold text-xs">Out of Stock</span>
+                </div>
+              )}
+            </div>
+            <CardContent className="flex-1 p-3 sm:p-4 flex flex-col justify-between">
+              <div>
+                <Link href={`/product/${product.id}`}>
+                  <h3 className="font-semibold text-sm sm:text-base line-clamp-2 hover:text-emerald-600 transition-colors">
+                    {product.name}
+                  </h3>
+                </Link>
+                {product.isFeatured && (
+                  <Badge className="mt-1 bg-amber-100 text-amber-800 border-amber-200 text-xs">
+                    <Star className="w-3 h-3 mr-1 fill-current" /> Featured
+                  </Badge>
+                )}
+              </div>
+              <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-base sm:text-lg text-emerald-600">
+                    GHS {salePrice.toLocaleString()}
+                  </span>
+                  {isOnSale && (
+                    <span className="text-xs sm:text-sm text-muted-foreground line-through">
+                      GHS {product.price.toLocaleString()}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  className={`${isStoreOpen && inStock ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-gray-400'}`}
+                  disabled={!inStock || !isStoreOpen}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleAddToCart(product);
+                  }}
+                >
+                  <ShoppingCart className="w-4 h-4 sm:mr-2" />
+                  <span className="hidden sm:inline">
+                    {!isStoreOpen ? 'Closed' : !inStock ? 'Out of Stock' : 'Add to Cart'}
+                  </span>
+                </Button>
+              </div>
+            </CardContent>
+          </div>
+        </Card>
+      );
+    }
+
+    // Grid view (default)
     return (
       <Card className="group hover:shadow-xl transition-all duration-300 overflow-hidden border-0 bg-white">
         <Link href={`/product/${product.id}`}>
@@ -544,6 +639,101 @@ export default function VendorStorePage() {
                         Message
                       </Link>
                     </Button>
+                    {canNativeShare ? (
+                      <Button
+                        variant="outline"
+                        onClick={async () => {
+                          const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+                          const shareData = {
+                            title: storeName,
+                            text: `Check out ${storeName} on KIOSK!`,
+                            url: shareUrl,
+                          };
+                          try {
+                            await navigator.share(shareData);
+                          } catch (err) {
+                            if ((err as Error).name !== 'AbortError') {
+                              toast.error("Failed to share");
+                            }
+                          }
+                        }}
+                      >
+                        <Share2 className="w-4 h-4 mr-2" />
+                        Share
+                      </Button>
+                    ) : (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="outline">
+                            <Share2 className="w-4 h-4 mr-2" />
+                            Share
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem
+                            onClick={async () => {
+                              const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+                              try {
+                                await navigator.clipboard.writeText(shareUrl);
+                                toast.success("Link copied to clipboard!");
+                              } catch {
+                                toast.error("Failed to copy link");
+                              }
+                            }}
+                          >
+                            <Copy className="w-4 h-4 mr-2" />
+                            Copy Link
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+                              window.open(
+                                `https://wa.me/?text=${encodeURIComponent(`Check out ${storeName} on KIOSK! ${shareUrl}`)}`,
+                                '_blank'
+                              );
+                            }}
+                          >
+                            <MessageSquare className="w-4 h-4 mr-2" />
+                            Share on WhatsApp
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+                              window.open(
+                                `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+                                '_blank',
+                                'width=600,height=400'
+                              );
+                            }}
+                          >
+                            <Facebook className="w-4 h-4 mr-2" />
+                            Share on Facebook
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+                              window.open(
+                                `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(`Check out ${storeName} on KIOSK!`)}`,
+                                '_blank',
+                                'width=600,height=400'
+                              );
+                            }}
+                          >
+                            <Twitter className="w-4 h-4 mr-2" />
+                            Share on X
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+                              window.location.href = `mailto:?subject=${encodeURIComponent(`Check out ${storeName} on KIOSK!`)}&body=${encodeURIComponent(`I found this great store on KIOSK: ${shareUrl}`)}`;
+                            }}
+                          >
+                            <Mail className="w-4 h-4 mr-2" />
+                            Share via Email
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </div>
                 </div>
               </div>
