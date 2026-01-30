@@ -92,7 +92,7 @@ export default function BuyerNotificationsPage() {
         if (response.ok) {
           const data = await response.json();
           // Map database notifications to match the store format
-          const mappedNotifications: Notification[] = (data.notifications || []).map((n: { id: string; userId: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; payload?: { orderId?: string; productId?: string; disputeId?: string } }) => ({
+          const mappedNotifications: Notification[] = (data.notifications || []).map((n: { id: string; userId: string; type: string; title: string; message: string; isRead: boolean; createdAt: string; payload?: { orderId?: string; productId?: string; disputeId?: string; link?: string } }) => ({
             id: n.id,
             userId: n.userId,
             type: n.type as NotificationType,
@@ -101,6 +101,7 @@ export default function BuyerNotificationsPage() {
             orderId: n.payload?.orderId,
             productId: n.payload?.productId,
             disputeId: n.payload?.disputeId,
+            link: n.payload?.link,
             read: n.isRead,
             channels: ['in_app'] as NotificationChannel[],
             createdAt: n.createdAt,
@@ -216,7 +217,14 @@ export default function BuyerNotificationsPage() {
                 </Button>
               </div>
             </div>
-            {(notification as Notification & { disputeId?: string }).disputeId ? (
+            {(notification as Notification & { link?: string }).link ? (
+              <Link
+                href={(notification as Notification & { link?: string }).link!}
+                className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mt-2"
+              >
+                View Details
+              </Link>
+            ) : (notification as Notification & { disputeId?: string }).disputeId ? (
               <Link
                 href={`/buyer/disputes`}
                 className="inline-flex items-center gap-1 text-sm text-blue-600 hover:underline mt-2"

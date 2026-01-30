@@ -70,6 +70,10 @@ const getNotificationIcon = (type: NotificationType) => {
 const getNotificationLink = (notification: Notification, userRole: string) => {
   const payload = notification.payload as Record<string, string> | undefined;
   
+  // Check for explicit link first (takes priority)
+  if (payload?.link) {
+    return payload.link;
+  }
   if (payload?.orderId) {
     if (userRole === 'vendor') {
       return `/vendor/orders?orderId=${payload.orderId}`;
