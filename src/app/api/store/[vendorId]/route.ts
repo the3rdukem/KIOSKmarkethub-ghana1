@@ -5,7 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getVendorById } from '@/lib/db/dal/vendors';
+import { getVendorById, getVendorByUserId } from '@/lib/db/dal/vendors';
 import { query } from '@/lib/db';
 
 interface RouteParams {
@@ -16,15 +16,25 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { vendorId } = await params;
 
-    const vendor = await getVendorById(vendorId);
+    // Try to find vendor by vendor ID first, then by user ID
+    // Products store vendorId as user_id, not vendor table id
+    let vendor = await getVendorById(vendorId);
+    if (!vendor) {
+      vendor = await getVendorByUserId(vendorId);
+    }
     
     if (!vendor) {
+      console.error('[STORE_API] Vendor not found:', vendorId);
       return NextResponse.json({ error: 'Store not found' }, { status: 404 });
     }
 
     if (vendor.verification_status !== 'verified') {
+      console.log('[STORE_API] Vendor not verified:', vendorId, vendor.verification_status);
       return NextResponse.json({ error: 'Store not available' }, { status: 404 });
     }
+
+    // Use the vendor's user_id for product queries since products store user_id as vendor_id
+    const vendorUserId = vendor.user_id;
 
     const productsResult = await query<{
       id: string;
@@ -42,7 +52,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
        WHERE vendor_id = $1 AND status = 'approved' AND quantity > 0
        ORDER BY created_at DESC
        LIMIT 50`,
-      [vendorId]
+      [vendorUserId]
     );
 
     const reviewsResult = await query<{ avg_rating: string; review_count: string }>(
@@ -52,14 +62,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
        FROM reviews r
        JOIN products p ON r.product_id = p.id
        WHERE p.vendor_id = $1 AND r.status = 'approved'`,
-      [vendorId]
+      [vendorUserId]
     );
 
     const ordersResult = await query<{ total_sales: string }>(
       `SELECT COUNT(DISTINCT oi.order_id) as total_sales
        FROM order_items oi
        WHERE oi.vendor_id = $1`,
-      [vendorId]
+      [vendorUserId]
     );
 
     const products = productsResult.rows.map(product => ({
@@ -76,6 +86,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     return NextResponse.json({
       store: {
         id: vendor.id,
+        userId: vendor.user_id,
         name: vendor.business_name,
         description: vendor.description,
         logo: vendor.logo,
