@@ -157,9 +157,9 @@ export default function BuyerDisputesPage() {
       <div className="container py-8 space-y-6">
         <div className="mb-8">
           <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
-            <Link href="/buyer/dashboard">
+            <Link href="/buyer/orders">
               <ArrowLeft className="w-4 h-4 mr-1" />
-              Dashboard
+              Orders
             </Link>
           </Button>
           <div className="flex items-center justify-between">

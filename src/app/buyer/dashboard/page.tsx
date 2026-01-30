@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import {
   User, Package, Heart, ShoppingCart, Clock, CheckCircle, Truck, Eye, Loader2,
-  MapPin, Bell, Settings, Star, ArrowRight, AlertTriangle, CreditCard, Store
+  MapPin, Bell, Settings, Star, ArrowRight, AlertTriangle, CreditCard, Store, Scale
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { useCartStore } from "@/lib/cart-store";
@@ -450,9 +450,17 @@ function BuyerDashboardContent() {
           {/* Orders Tab */}
           <TabsContent value="orders">
             <Card>
-              <CardHeader>
-                <CardTitle>Order History</CardTitle>
-                <CardDescription>View and track all your orders</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Order History</CardTitle>
+                  <CardDescription>View and track all your orders</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href="/buyer/orders">
+                    View All Orders
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </Link>
+                </Button>
               </CardHeader>
               <CardContent>
                 {buyerOrders.length === 0 ? (
@@ -480,7 +488,19 @@ function BuyerDashboardContent() {
                           <TableCell className="font-mono text-sm">{order.id.slice(0, 15)}...</TableCell>
                           <TableCell>{order.items.length} item(s)</TableCell>
                           <TableCell>GHS {order.total.toLocaleString()}</TableCell>
-                          <TableCell>{getStatusBadge(order.status)}</TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              {getStatusBadge(order.status)}
+                              {order.status === 'disputed' && (
+                                <Link href="/buyer/disputes">
+                                  <Badge variant="destructive" className="bg-orange-500 text-xs cursor-pointer hover:bg-orange-600">
+                                    <Scale className="w-3 h-3 mr-1" />
+                                    Dispute
+                                  </Badge>
+                                </Link>
+                              )}
+                            </div>
+                          </TableCell>
                           <TableCell>{format(new Date(order.createdAt), "MMM d, yyyy")}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="sm" asChild>

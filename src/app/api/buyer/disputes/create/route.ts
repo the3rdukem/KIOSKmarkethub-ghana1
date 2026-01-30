@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { validateSession } from '@/lib/db/dal/sessions';
-import { getOrderById, getOrderItemsByOrderId } from '@/lib/db/dal/orders';
+import { getOrderById, getOrderItemsByOrderId, updateOrder } from '@/lib/db/dal/orders';
 import { createDispute, getDisputeByOrderId } from '@/lib/db/dal/disputes';
 import { createNotification } from '@/lib/db/dal/notifications';
 
@@ -137,6 +137,9 @@ export async function POST(request: NextRequest) {
       evidence: Array.isArray(evidence) ? evidence : [],
       priority: type === 'fraud' ? 'urgent' : 'medium',
     });
+
+    // Update order status to 'disputed'
+    await updateOrder(orderId, { status: 'disputed' });
 
     createNotification({
       userId: vendorId,
