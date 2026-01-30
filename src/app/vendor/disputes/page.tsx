@@ -337,7 +337,7 @@ export default function VendorDisputesPage() {
         </Card>
 
         <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Dispute Details</DialogTitle>
               <DialogDescription>

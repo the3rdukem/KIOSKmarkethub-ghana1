@@ -11,6 +11,7 @@ import { validateSession } from '@/lib/db/dal/sessions';
 import { getOrderById, getOrderItemsByOrderId, updateOrder } from '@/lib/db/dal/orders';
 import { createDispute, getDisputeByOrderId } from '@/lib/db/dal/disputes';
 import { createNotification } from '@/lib/db/dal/notifications';
+import { getUserById } from '@/lib/db/dal/users';
 
 const DISPUTE_WINDOW_HOURS = 48;
 
@@ -106,9 +107,12 @@ export async function POST(request: NextRequest) {
     }
 
     const vendorId = targetItem.vendor_id;
-    const vendorName = targetItem.vendor_name || 'Unknown Vendor';
     const resolvedProductId = targetItem.product_id;
     const resolvedProductName = productName || targetItem.product_name;
+
+    // Fetch current store name (business_name) from vendor for accurate display
+    const vendorUser = await getUserById(vendorId);
+    const vendorName = vendorUser?.business_name || targetItem.vendor_name || 'Unknown Vendor';
 
     console.log('[DISPUTE] Creating dispute:', {
       orderId,

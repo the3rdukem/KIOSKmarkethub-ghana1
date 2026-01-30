@@ -154,18 +154,39 @@ export default function BuyerProfilePage() {
   const userAddresses = getAddressesByUser(user.id);
 
   const handleSaveProfile = async () => {
+    if (!profileForm.name.trim()) {
+      toast.error("Name is required");
+      return;
+    }
+
+    if (!profileForm.email.trim()) {
+      toast.error("Email is required");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(profileForm.email)) {
+      toast.error("Please enter a valid email address");
+      return;
+    }
+
     setIsSaving(true);
     try {
-      // Save to database via API
+      const updatePayload: Record<string, string> = {
+        name: profileForm.name,
+        phone: profileForm.phone,
+        location: profileForm.location,
+      };
+
+      if (profileForm.email !== user.email) {
+        updatePayload.email = profileForm.email;
+      }
+
       const response = await fetch(`/api/users/${user.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          name: profileForm.name,
-          phone: profileForm.phone,
-          location: profileForm.location,
-        }),
+        body: JSON.stringify(updatePayload),
       });
 
       if (!response.ok) {
@@ -173,12 +194,7 @@ export default function BuyerProfilePage() {
         throw new Error(data.error || 'Failed to update profile');
       }
 
-      // Update local store after successful DB save
-      updateUser({
-        name: profileForm.name,
-        phone: profileForm.phone,
-        location: profileForm.location,
-      });
+      updateUser(updatePayload);
       toast.success("Profile updated successfully");
       setIsEditing(false);
     } catch (error) {
@@ -189,18 +205,49 @@ export default function BuyerProfilePage() {
   };
 
   const handleChangePassword = async () => {
-    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-      toast.error("Passwords do not match");
+    if (!passwordForm.currentPassword) {
+      toast.error("Current password is required");
+      return;
+    }
+    if (!passwordForm.newPassword) {
+      toast.error("New password is required");
       return;
     }
     if (passwordForm.newPassword.length < 8) {
       toast.error("Password must be at least 8 characters");
       return;
     }
-    // In production, this would call an API
-    toast.success("Password changed successfully");
-    setShowPasswordDialog(false);
-    setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      toast.error("New passwords do not match");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      const response = await fetch('/api/auth/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to change password');
+      }
+
+      toast.success("Password changed successfully");
+      setShowPasswordDialog(false);
+      setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    } catch (error) {
+      console.error("Failed to change password:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to change password");
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleOpenAddressDialog = (address?: Address) => {
@@ -350,15 +397,32 @@ export default function BuyerProfilePage() {
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="email">Email Address</Label>
+                    <Label htmlFor="email">Email Address (Login Email)</Label>
                     <div className="flex items-center gap-2 mt-1">
                       <Mail className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">{user.email}</span>
-                      <Badge variant="outline" className="text-xs">
-                        <CheckCircle className="w-3 h-3 mr-1 text-green-600" />
-                        Verified
-                      </Badge>
+                      {isEditing ? (
+                        <Input
+                          id="email"
+                          type="email"
+                          value={profileForm.email}
+                          onChange={(e) => setProfileForm({ ...profileForm, email: e.target.value })}
+                          placeholder="your@email.com"
+                        />
+                      ) : (
+                        <>
+                          <span>{user.email}</span>
+                          <Badge variant="outline" className="text-xs">
+                            <CheckCircle className="w-3 h-3 mr-1 text-green-600" />
+                            Verified
+                          </Badge>
+                        </>
+                      )}
                     </div>
+                    {isEditing && profileForm.email !== user.email && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        Changing your email will update your login credentials.
+                      </p>
+                    )}
                   </div>
                   <div>
                     <Label htmlFor="phone">Phone Number</Label>
