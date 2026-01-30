@@ -104,6 +104,8 @@ export default function AdminDisputesPage() {
   const [resolutionText, setResolutionText] = useState("");
   const [refundAmount, setRefundAmount] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
+  const [adminReply, setAdminReply] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
 
   const fetchDisputes = useCallback(async () => {
     try {
@@ -254,6 +256,37 @@ export default function AdminDisputesPage() {
       toast.error("Failed to close");
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedDispute || !adminReply.trim()) {
+      toast.error("Please enter a message");
+      return;
+    }
+
+    try {
+      setSendingReply(true);
+      const response = await fetch(`/api/admin/disputes/${selectedDispute.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "add_message", message: adminReply.trim() }),
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to send message");
+      }
+      
+      const data = await response.json();
+      setSelectedDispute(data.dispute);
+      setAdminReply("");
+      toast.success("Message sent to buyer and vendor");
+      fetchDisputes();
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setSendingReply(false);
     }
   };
 
@@ -641,6 +674,30 @@ export default function AdminDisputesPage() {
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+              {selectedDispute.status !== 'resolved' && selectedDispute.status !== 'closed' && (
+                <div>
+                  <Label className="text-muted-foreground">Reply to Buyer & Vendor</Label>
+                  <div className="mt-2 space-y-2">
+                    <Textarea
+                      placeholder="Type your message here... (visible to both buyer and vendor)"
+                      value={adminReply}
+                      onChange={(e) => setAdminReply(e.target.value)}
+                      rows={3}
+                      className="resize-none"
+                    />
+                    <Button 
+                      onClick={handleSendReply} 
+                      disabled={sendingReply || !adminReply.trim()}
+                      size="sm"
+                    >
+                      {sendingReply ? "Sending..." : "Send Message"}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This message will be visible to both the buyer and vendor, and they will be notified.
+                  </p>
                 </div>
               )}
               {selectedDispute.resolution && (

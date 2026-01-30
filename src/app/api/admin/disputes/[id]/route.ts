@@ -188,13 +188,39 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
           return NextResponse.json({ error: 'Message is required' }, { status: 400 });
         }
         
+        const currentDispute = await getDisputeById(id);
+        if (!currentDispute) {
+          return NextResponse.json({ error: 'Dispute not found' }, { status: 404 });
+        }
+        
         dispute = await addDisputeMessage(
           id,
           session.user_id,
-          'Admin',
+          'KIOSK Support',
           'admin',
           message.trim()
         );
+
+        // Notify both buyer and vendor about admin message
+        if (dispute) {
+          createNotification({
+            userId: currentDispute.buyer_id,
+            role: 'buyer',
+            type: 'dispute_message',
+            title: 'Support Response to Your Dispute',
+            message: `KIOSK Support has responded to your dispute for order #${currentDispute.order_id.slice(-8).toUpperCase()}`,
+            payload: { disputeId: id, orderId: currentDispute.order_id, link: '/buyer/disputes' },
+          }).catch(err => console.error('[NOTIFICATION] Failed to notify buyer:', err));
+
+          createNotification({
+            userId: currentDispute.vendor_id,
+            role: 'vendor',
+            type: 'dispute_message',
+            title: 'Support Response to Dispute',
+            message: `KIOSK Support has responded to a dispute for order #${currentDispute.order_id.slice(-8).toUpperCase()}`,
+            payload: { disputeId: id, orderId: currentDispute.order_id, link: '/vendor/disputes' },
+          }).catch(err => console.error('[NOTIFICATION] Failed to notify vendor:', err));
+        }
         break;
       }
 
