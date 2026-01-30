@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 import {
   User, Package, Heart, ShoppingCart, Clock, CheckCircle, Truck, Eye, Loader2,
-  MapPin, Bell, Settings, Star, ArrowRight, AlertTriangle, CreditCard, Store, Scale
+  MapPin, Bell, Settings, Star, ArrowRight, AlertTriangle, CreditCard, Store
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { useCartStore } from "@/lib/cart-store";
@@ -269,10 +269,6 @@ function BuyerDashboardContent() {
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList className="mb-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="orders">
-              Orders
-              {buyerOrders.length > 0 && <Badge variant="secondary" className="ml-2">{buyerOrders.length}</Badge>}
-            </TabsTrigger>
             <TabsTrigger value="cart">
               Cart
               {cartItems.length > 0 && <Badge variant="secondary" className="ml-2">{cartItems.length}</Badge>}
@@ -295,7 +291,7 @@ function BuyerDashboardContent() {
                       <CardDescription>Your latest orders</CardDescription>
                     </div>
                     <Button variant="ghost" size="sm" asChild>
-                      <Link href="?tab=orders">
+                      <Link href="/buyer/orders">
                         View All <ArrowRight className="w-4 h-4 ml-1" />
                       </Link>
                     </Button>
@@ -445,78 +441,6 @@ function BuyerDashboardContent() {
                 </Card>
               </div>
             </div>
-          </TabsContent>
-
-          {/* Orders Tab */}
-          <TabsContent value="orders">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                  <CardTitle>Order History</CardTitle>
-                  <CardDescription>View and track all your orders</CardDescription>
-                </div>
-                <Button variant="outline" size="sm" asChild>
-                  <Link href="/buyer/orders">
-                    View All Orders
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </Link>
-                </Button>
-              </CardHeader>
-              <CardContent>
-                {buyerOrders.length === 0 ? (
-                  <div className="text-center py-12">
-                    <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Orders Yet</h3>
-                    <p className="text-muted-foreground mb-4">You haven't placed any orders yet.</p>
-                    <Button onClick={() => router.push("/search")}>Start Shopping</Button>
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Order ID</TableHead>
-                        <TableHead>Items</TableHead>
-                        <TableHead>Total</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {buyerOrders.map((order) => (
-                        <TableRow key={order.id}>
-                          <TableCell className="font-mono text-sm">{order.id.slice(0, 15)}...</TableCell>
-                          <TableCell>{order.items.length} item(s)</TableCell>
-                          <TableCell>GHS {order.total.toLocaleString()}</TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              {getStatusBadge(order.status)}
-                              {order.status === 'disputed' && (
-                                <Link href="/buyer/disputes">
-                                  <Badge variant="destructive" className="bg-orange-500 text-xs cursor-pointer hover:bg-orange-600">
-                                    <Scale className="w-3 h-3 mr-1" />
-                                    Dispute
-                                  </Badge>
-                                </Link>
-                              )}
-                            </div>
-                          </TableCell>
-                          <TableCell>{format(new Date(order.createdAt), "MMM d, yyyy")}</TableCell>
-                          <TableCell>
-                            <Button variant="ghost" size="sm" asChild>
-                              <Link href={`/buyer/orders/${order.id}`}>
-                                <Eye className="w-4 h-4 mr-2" />
-                                View
-                              </Link>
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Cart Tab */}
