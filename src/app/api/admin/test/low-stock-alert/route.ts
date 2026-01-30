@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     const session = await validateSession(sessionToken);
-    if (!session || session.user_role !== 'admin') {
+    if (!session || !['admin', 'master_admin'].includes(session.user_role)) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
@@ -67,15 +67,16 @@ export async function POST(request: NextRequest) {
         name: string;
         vendor_id: string;
         quantity: number;
+        track_quantity: boolean | number;
         vendor_name: string;
         vendor_phone: string;
         vendor_email: string;
       }>(
-        `SELECT p.id, p.name, p.vendor_id, p.quantity, 
+        `SELECT p.id, p.name, p.vendor_id, p.quantity, p.track_quantity,
                 u.business_name as vendor_name, u.phone as vendor_phone, u.email as vendor_email
          FROM products p 
          JOIN users u ON p.vendor_id = u.id 
-         WHERE p.track_quantity = 1 AND p.status = 'active'
+         WHERE (p.track_quantity = true OR p.track_quantity = 1) AND p.status = 'active'
          ORDER BY p.quantity ASC
          LIMIT 10`
       );
