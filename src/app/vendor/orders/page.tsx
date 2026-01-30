@@ -49,10 +49,12 @@ import {
   Phone,
   ShoppingBag,
   Scale,
+  Download,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { formatDistance } from "date-fns";
 import { toast } from "sonner";
+import { exportToCSV, formatCurrency, formatDateTime } from "@/lib/utils/csv-export";
 
 interface OrderItem {
   id: string;
@@ -837,8 +839,36 @@ export default function VendorOrdersPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Orders ({filteredOrders.length})</CardTitle>
-            <CardDescription>View and fulfill your orders</CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Orders ({filteredOrders.length})</CardTitle>
+                <CardDescription>View and fulfill your orders</CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  if (filteredOrders.length === 0) {
+                    toast.error("No orders to export");
+                    return;
+                  }
+                  const orderColumns = [
+                    { header: 'Order ID', accessor: 'id' as const },
+                    { header: 'Date', accessor: (row: Order) => formatDateTime(row.createdAt) },
+                    { header: 'Customer', accessor: (row: Order) => row.buyerName },
+                    { header: 'Status', accessor: 'status' as const },
+                    { header: 'Payment', accessor: 'paymentStatus' as const },
+                    { header: 'Items', accessor: (row: Order) => row.items?.length || 0 },
+                    { header: 'Total', accessor: (row: Order) => formatCurrency(row.total) },
+                  ];
+                  exportToCSV(filteredOrders, orderColumns, `orders-export-${new Date().toISOString().split('T')[0]}.csv`);
+                  toast.success("Orders exported successfully");
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {loading ? (

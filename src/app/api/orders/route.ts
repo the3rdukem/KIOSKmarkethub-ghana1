@@ -27,6 +27,7 @@ import { getPool } from '@/lib/db';
 import { createNotification } from '@/lib/db/dal/notifications';
 import { sendOrderConfirmationSMS, sendVendorNewOrderSMS } from '@/lib/services/arkesel-sms';
 import { getDisputeByOrderId } from '@/lib/db/dal/disputes';
+import { checkProductStock } from '@/lib/services/low-stock-alerts';
 
 /**
  * GET /api/orders
@@ -367,6 +368,26 @@ export async function POST(request: NextRequest) {
     // Note: SMS is sent after payment confirmation via Paystack webhook
     // This is a placeholder - order confirmation SMS should be triggered by payment webhook
     // For now, we log the intent but don't send until payment is confirmed
+
+    // Check low stock alerts for purchased products (fire-and-forget)
+    Promise.allSettled(
+      inventoryItems.map(async (item) => {
+        const product = body.items.find((i: { productId: string }) => i.productId === item.productId);
+        if (product && product.trackQuantity !== false) {
+          try {
+            await checkProductStock(
+              item.productId,
+              item.productName,
+              product.vendorId,
+              product.quantity - item.quantity,
+              true
+            );
+          } catch (err) {
+            console.error('[LOW_STOCK] Error checking stock for product:', item.productId, err);
+          }
+        }
+      })
+    );
 
     return NextResponse.json({
       success: true,

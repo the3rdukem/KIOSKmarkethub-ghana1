@@ -40,11 +40,13 @@ import {
   RefreshCw,
   Search,
   Eye,
-  Ban
+  Ban,
+  Download,
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { formatDistance, format } from "date-fns";
 import { toast } from "sonner";
+import { exportToCSV, formatCurrency, formatDateTime } from "@/lib/utils/csv-export";
 
 interface PayoutStats {
   total_payouts: number;
@@ -328,10 +330,41 @@ export default function AdminPayoutsPage() {
         {/* Payouts Table */}
         <Card>
           <CardHeader>
-            <CardTitle>All Payouts</CardTitle>
-            <CardDescription>
-              {filteredPayouts.length} payout{filteredPayouts.length !== 1 ? 's' : ''} found
-            </CardDescription>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>All Payouts</CardTitle>
+                <CardDescription>
+                  {filteredPayouts.length} payout{filteredPayouts.length !== 1 ? 's' : ''} found
+                </CardDescription>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  if (filteredPayouts.length === 0) {
+                    toast.error("No payouts to export");
+                    return;
+                  }
+                  const payoutColumns = [
+                    { header: 'Reference', accessor: 'reference' as const },
+                    { header: 'Date', accessor: (row: Payout) => formatDateTime(row.created_at) },
+                    { header: 'Vendor', accessor: 'vendor_name' as const },
+                    { header: 'Amount', accessor: (row: Payout) => formatCurrency(row.amount) },
+                    { header: 'Fee', accessor: (row: Payout) => formatCurrency(row.fee) },
+                    { header: 'Net Amount', accessor: (row: Payout) => formatCurrency(row.net_amount) },
+                    { header: 'Status', accessor: 'status' as const },
+                    { header: 'Bank/Provider', accessor: (row: Payout) => row.bank_name || row.mobile_money_provider || '' },
+                    { header: 'Account', accessor: 'account_number' as const },
+                    { header: 'Processed At', accessor: (row: Payout) => formatDateTime(row.processed_at) },
+                  ];
+                  exportToCSV(filteredPayouts, payoutColumns, `admin-payouts-export-${new Date().toISOString().split('T')[0]}.csv`);
+                  toast.success("Payouts exported successfully");
+                }}
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {filteredPayouts.length === 0 ? (

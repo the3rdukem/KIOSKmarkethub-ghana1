@@ -20,7 +20,9 @@ export type NotificationType =
   | 'dispute_resolved'
   | 'dispute_updated'
   | 'refund_initiated'
-  | 'refund_processed';
+  | 'refund_processed'
+  | 'low_stock_alert'
+  | 'out_of_stock_alert';
 
 export type NotificationRole = 'buyer' | 'vendor' | 'admin';
 

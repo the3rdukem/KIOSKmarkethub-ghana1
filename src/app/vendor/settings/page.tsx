@@ -118,6 +118,7 @@ export default function VendorSettingsPage() {
     smsNotifications: true,
     orderAlerts: true,
     lowStockAlerts: true,
+    lowStockThreshold: 5,
 
     // Business settings
     autoAcceptOrders: false,
@@ -200,6 +201,7 @@ export default function VendorSettingsPage() {
       smsNotifications: true,
       orderAlerts: true,
       lowStockAlerts: true,
+      lowStockThreshold: 5,
       autoAcceptOrders: false,
       requireOrderConfirmation: true,
       enableInstantPayouts: false,
@@ -260,7 +262,7 @@ export default function VendorSettingsPage() {
     }
   };
 
-  const handleInputChange = (field: string, value: string | boolean) => {
+  const handleInputChange = (field: string, value: string | boolean | number) => {
     setStoreData(prev => ({ ...prev, [field]: value }));
     setHasUnsavedChanges(true);
   };
@@ -956,6 +958,28 @@ export default function VendorSettingsPage() {
                         onCheckedChange={(checked) => handleInputChange("lowStockAlerts", checked)}
                       />
                     </div>
+
+                    {storeData.lowStockAlerts && (
+                      <div className="flex items-center justify-between p-4 border rounded-lg bg-gray-50">
+                        <div>
+                          <Label>Low Stock Threshold</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Alert when product quantity falls to this level
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={100}
+                            value={storeData.lowStockThreshold}
+                            onChange={(e) => handleInputChange("lowStockThreshold", parseInt(e.target.value) || 5)}
+                            className="w-20 text-center"
+                          />
+                          <span className="text-sm text-muted-foreground">units</span>
+                        </div>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               </TabsContent>

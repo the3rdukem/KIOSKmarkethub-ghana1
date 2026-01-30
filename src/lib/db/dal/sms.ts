@@ -21,7 +21,9 @@ export type SMSEventType =
   | 'welcome_vendor'
   | 'payout_processing'
   | 'payout_completed'
-  | 'payout_failed';
+  | 'payout_failed'
+  | 'low_stock_alert'
+  | 'out_of_stock_alert';
 
 export type SMSStatus = 'pending' | 'sent' | 'failed' | 'delivered';
 

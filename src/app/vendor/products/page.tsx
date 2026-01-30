@@ -52,6 +52,7 @@ import { useAuthStore } from "@/lib/auth-store";
 import { useProductsStore, Product } from "@/lib/products-store";
 import { useOrdersStore } from "@/lib/orders-store";
 import { toast } from "sonner";
+import { exportToCSV, PRODUCT_EXPORT_COLUMNS } from "@/lib/utils/csv-export";
 
 export default function VendorProductsPage() {
   const router = useRouter();
@@ -489,7 +490,31 @@ export default function VendorProductsPage() {
                 <CardDescription>Manage your product catalog and inventory</CardDescription>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => {
+                    if (filteredProducts.length === 0) {
+                      toast.error("No products to export");
+                      return;
+                    }
+                    exportToCSV(
+                      filteredProducts.map(p => ({
+                        id: p.id,
+                        name: p.name,
+                        category: p.category,
+                        price: p.price,
+                        quantity: p.quantity,
+                        status: p.status,
+                        sku: p.sku || '',
+                        createdAt: p.createdAt,
+                      })),
+                      PRODUCT_EXPORT_COLUMNS,
+                      `products-export-${new Date().toISOString().split('T')[0]}.csv`
+                    );
+                    toast.success("Products exported successfully");
+                  }}
+                >
                   <Download className="w-4 h-4 mr-2" />
                   Export
                 </Button>

@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/cart-store";
 import { useWishlistStore } from "@/lib/wishlist-store";
 import { useAuthStore } from "@/lib/auth-store";
+import { useRecentlyViewedStore } from "@/lib/recently-viewed-store";
+import { RecentlyViewedSection } from "@/components/recently-viewed-section";
 import { toast } from "sonner";
 import Link from "next/link";
 import { SiteLayout } from "@/components/layout/site-layout";
@@ -138,6 +140,7 @@ export default function ProductPage() {
   const { addItem } = useCartStore();
   const { isInWishlist, toggleWishlist } = useWishlistStore();
   const { user, isAuthenticated } = useAuthStore();
+  const { addProduct: addToRecentlyViewed } = useRecentlyViewedStore();
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -192,6 +195,15 @@ export default function ProductPage() {
           const data = await response.json();
           const productData = data.product || data;
           setProduct(productData);
+          
+          addToRecentlyViewed({
+            id: productData.id,
+            name: productData.name,
+            price: productData.price,
+            image: productData.images?.[0] || productData.image,
+            category: productData.category,
+            vendorName: productData.vendorName,
+          });
           
           if (productData.vendorId) {
             try {
@@ -1263,6 +1275,8 @@ export default function ProductPage() {
             </div>
           </div>
         )}
+
+        <RecentlyViewedSection currentProductId={productId} limit={6} />
       </div>
 
       <Dialog open={!!editingReview} onOpenChange={(open) => { if (!open) setEditingReview(null); }}>
