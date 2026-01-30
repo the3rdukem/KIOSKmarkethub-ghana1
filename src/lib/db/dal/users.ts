@@ -33,6 +33,8 @@ export interface DbUser {
   store_description: string | null;
   store_banner: string | null;
   store_logo: string | null;
+  store_settings: string | null;
+  notification_settings: string | null;
   is_deleted: number;
   last_login_at: string | null;
   created_by: string | null;
@@ -83,6 +85,8 @@ export interface UpdateUserInput {
   storeShippingPolicy?: string;
   storeResponseTime?: string;
   storeSocialLinks?: string;
+  storeSettings?: Record<string, unknown>;
+  notificationSettings?: Record<string, unknown>;
   isDeleted?: boolean;
   lastLoginAt?: string;
   createdBy?: string;
@@ -372,6 +376,14 @@ export async function updateUser(id: string, updates: UpdateUserInput): Promise<
   if (updates.storeSocialLinks !== undefined) {
     fields.push(`store_social_links = $${paramIndex++}`);
     values.push(updates.storeSocialLinks);
+  }
+  if (updates.storeSettings !== undefined) {
+    fields.push(`store_settings = $${paramIndex++}`);
+    values.push(JSON.stringify(updates.storeSettings));
+  }
+  if (updates.notificationSettings !== undefined) {
+    fields.push(`notification_settings = $${paramIndex++}`);
+    values.push(JSON.stringify(updates.notificationSettings));
   }
   if (updates.isDeleted !== undefined) {
     fields.push(`is_deleted = $${paramIndex++}`);

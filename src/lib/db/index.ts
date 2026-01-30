@@ -1819,6 +1819,15 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Columns may already exist
   }
+
+  // PHASE 16: Notification Settings for Vendors and Buyers
+  try {
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS store_settings JSONB DEFAULT '{}'::jsonb`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS notification_settings JSONB DEFAULT '{}'::jsonb`);
+    console.log('[DB] PHASE 16: Added store_settings and notification_settings columns');
+  } catch (e) {
+    // Columns may already exist
+  }
 }
 
 /**

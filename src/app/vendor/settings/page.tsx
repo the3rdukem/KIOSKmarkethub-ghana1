@@ -155,7 +155,7 @@ export default function VendorSettingsPage() {
     }
   }, [isHydrated, user]);
 
-  // Load vendor data from both stores
+  // Load vendor data from API to get fresh storeSettings
   useEffect(() => {
     if (!isHydrated) return;
 
@@ -169,43 +169,84 @@ export default function VendorSettingsPage() {
       return;
     }
 
-    // Get fresh user data from users store
-    const freshUserData = getUserById(user.id);
-    const userData = freshUserData || user;
+    // Fetch fresh user data from API to get storeSettings
+    fetch(`/api/users/${user.id}`, { credentials: 'include' })
+      .then(res => res.json())
+      .then(data => {
+        const userData = data.user || user;
+        const storeSettings = userData.storeSettings || {};
 
-    // Load existing vendor data
-    setStoreData({
-      storeName: userData.businessName || userData.name || "",
-      storeDescription: userData.storeDescription || "",
-      storeLogo: userData.storeLogo || "",
-      storeBanner: userData.storeBanner || "",
-      address: userData.location || "",
-      phone: userData.phone || "",
-      email: userData.email || "",
-      website: userData.storeWebsite || "",
-      businessHours: userData.storeBusinessHours || "",
-      returnPolicy: userData.storeReturnPolicy || "",
-      shippingPolicy: userData.storeShippingPolicy || "",
-      responseTime: userData.storeResponseTime || "< 24 hours",
-      storeStatus: userData.storeStatus || "open",
-      vacationMessage: userData.storeVacationMessage || "",
-      contactEmail: userData.storeContactEmail || userData.email || "",
-      contactPhone: userData.storeContactPhone || userData.phone || "",
-      socialLinks: {
-        facebook: userData.storeSocialLinks?.facebook || "",
-        instagram: userData.storeSocialLinks?.instagram || "",
-        twitter: userData.storeSocialLinks?.twitter || "",
-        whatsapp: userData.storeSocialLinks?.whatsapp || "",
-      },
-      emailNotifications: true,
-      smsNotifications: true,
-      orderAlerts: true,
-      lowStockAlerts: true,
-      lowStockThreshold: 5,
-      autoAcceptOrders: false,
-      requireOrderConfirmation: true,
-      enableInstantPayouts: false,
-    });
+        setStoreData({
+          storeName: userData.businessName || userData.name || "",
+          storeDescription: userData.storeDescription || "",
+          storeLogo: userData.storeLogo || "",
+          storeBanner: userData.storeBanner || "",
+          address: userData.location || "",
+          phone: userData.phone || "",
+          email: userData.email || "",
+          website: userData.storeWebsite || "",
+          businessHours: userData.storeBusinessHours || "",
+          returnPolicy: userData.storeReturnPolicy || "",
+          shippingPolicy: userData.storeShippingPolicy || "",
+          responseTime: userData.storeResponseTime || "< 24 hours",
+          storeStatus: userData.storeStatus || "open",
+          vacationMessage: userData.storeVacationMessage || "",
+          contactEmail: userData.storeContactEmail || userData.email || "",
+          contactPhone: userData.storeContactPhone || userData.phone || "",
+          socialLinks: {
+            facebook: userData.storeSocialLinks?.facebook || "",
+            instagram: userData.storeSocialLinks?.instagram || "",
+            twitter: userData.storeSocialLinks?.twitter || "",
+            whatsapp: userData.storeSocialLinks?.whatsapp || "",
+          },
+          emailNotifications: storeSettings.emailNotifications !== false,
+          smsNotifications: storeSettings.smsNotifications !== false,
+          orderAlerts: storeSettings.orderAlerts !== false,
+          lowStockAlerts: storeSettings.lowStockAlerts !== false,
+          lowStockThreshold: storeSettings.lowStockThreshold ?? 5,
+          autoAcceptOrders: storeSettings.autoAcceptOrders === true,
+          requireOrderConfirmation: storeSettings.requireOrderConfirmation !== false,
+          enableInstantPayouts: storeSettings.enableInstantPayouts === true,
+        });
+      })
+      .catch(err => {
+        console.error('Failed to fetch user data:', err);
+        // Fallback to local user data
+        const freshUserData = getUserById(user.id);
+        const userData = freshUserData || user;
+        setStoreData({
+          storeName: userData.businessName || userData.name || "",
+          storeDescription: userData.storeDescription || "",
+          storeLogo: userData.storeLogo || "",
+          storeBanner: userData.storeBanner || "",
+          address: userData.location || "",
+          phone: userData.phone || "",
+          email: userData.email || "",
+          website: userData.storeWebsite || "",
+          businessHours: userData.storeBusinessHours || "",
+          returnPolicy: userData.storeReturnPolicy || "",
+          shippingPolicy: userData.storeShippingPolicy || "",
+          responseTime: userData.storeResponseTime || "< 24 hours",
+          storeStatus: userData.storeStatus || "open",
+          vacationMessage: userData.storeVacationMessage || "",
+          contactEmail: userData.storeContactEmail || userData.email || "",
+          contactPhone: userData.storeContactPhone || userData.phone || "",
+          socialLinks: {
+            facebook: userData.storeSocialLinks?.facebook || "",
+            instagram: userData.storeSocialLinks?.instagram || "",
+            twitter: userData.storeSocialLinks?.twitter || "",
+            whatsapp: userData.storeSocialLinks?.whatsapp || "",
+          },
+          emailNotifications: true,
+          smsNotifications: true,
+          orderAlerts: true,
+          lowStockAlerts: true,
+          lowStockThreshold: 5,
+          autoAcceptOrders: false,
+          requireOrderConfirmation: true,
+          enableInstantPayouts: false,
+        });
+      });
   }, [isHydrated, isAuthenticated, user, router, getUserById]);
 
   const handleSave = async () => {
@@ -231,6 +272,16 @@ export default function VendorSettingsPage() {
         storeContactEmail: storeData.contactEmail,
         storeContactPhone: storeData.contactPhone,
         storeSocialLinks: storeData.socialLinks,
+        storeSettings: {
+          emailNotifications: storeData.emailNotifications,
+          smsNotifications: storeData.smsNotifications,
+          orderAlerts: storeData.orderAlerts,
+          lowStockAlerts: storeData.lowStockAlerts,
+          lowStockThreshold: storeData.lowStockThreshold,
+          autoAcceptOrders: storeData.autoAcceptOrders,
+          requireOrderConfirmation: storeData.requireOrderConfirmation,
+          enableInstantPayouts: storeData.enableInstantPayouts,
+        },
       };
 
       // Persist to database via API

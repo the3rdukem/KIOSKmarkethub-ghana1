@@ -69,6 +69,14 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
       // Add full details if own profile or admin
       if (isOwnProfile || isAdmin) {
+        let storeSettings = {};
+        if (user.store_settings) {
+          try {
+            storeSettings = typeof user.store_settings === 'string' 
+              ? JSON.parse(user.store_settings) 
+              : user.store_settings;
+          } catch { storeSettings = {}; }
+        }
         return NextResponse.json({
           user: {
             ...publicInfo,
@@ -83,6 +91,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             lastLoginAt: user.last_login_at,
             createdAt: user.created_at,
             updatedAt: user.updated_at,
+            storeSettings,
           },
         });
       }
@@ -258,6 +267,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       if (body.storeShippingPolicy !== undefined) updates.storeShippingPolicy = body.storeShippingPolicy;
       if (body.storeResponseTime !== undefined) updates.storeResponseTime = body.storeResponseTime;
       if (body.storeSocialLinks !== undefined) updates.storeSocialLinks = body.storeSocialLinks;
+      if (body.storeSettings !== undefined) updates.storeSettings = body.storeSettings;
+    }
+
+    // Users can update their own notification settings (both buyers and vendors)
+    if (isOwnProfile && body.notificationSettings !== undefined) {
+      updates.notificationSettings = body.notificationSettings;
     }
 
     // Admin-only fields
