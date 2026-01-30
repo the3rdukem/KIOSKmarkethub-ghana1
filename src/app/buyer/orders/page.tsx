@@ -305,10 +305,12 @@ export default function BuyerOrdersPage() {
                             <div className="flex items-center gap-2">
                               {getStatusBadge(order.status)}
                               {order.hasDispute && (
-                                <Badge variant="destructive" className="bg-orange-500 text-xs">
-                                  <Scale className="w-3 h-3 mr-1" />
-                                  Dispute
-                                </Badge>
+                                <Link href="/buyer/disputes">
+                                  <Badge variant="destructive" className="bg-orange-500 text-xs cursor-pointer hover:bg-orange-600">
+                                    <Scale className="w-3 h-3 mr-1" />
+                                    Dispute
+                                  </Badge>
+                                </Link>
                               )}
                             </div>
                           </TableCell>

@@ -9,6 +9,7 @@ import { cookies } from 'next/headers';
 import { validateSession } from '@/lib/db/dal/sessions';
 import { getDisputeById, addDisputeMessage } from '@/lib/db/dal/disputes';
 import { getUserById } from '@/lib/db/dal/users';
+import { createNotification } from '@/lib/db/dal/notifications';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -71,6 +72,26 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
 
     if (!updatedDispute) {
       return NextResponse.json({ error: 'Failed to add message' }, { status: 500 });
+    }
+
+    // Notify buyer about the vendor's reply
+    try {
+      await createNotification({
+        userId: dispute.buyer_id,
+        role: 'buyer',
+        type: 'dispute_message',
+        title: 'Vendor Response to Your Dispute',
+        message: `${vendorName} has replied to your dispute for order #${dispute.order_id.slice(-8).toUpperCase()}`,
+        payload: {
+          disputeId: id,
+          orderId: dispute.order_id,
+          vendorName,
+          link: '/buyer/disputes'
+        }
+      });
+    } catch (notifError) {
+      console.error('[Vendor Dispute Message API] notification error:', notifError);
+      // Don't fail the request if notification fails
     }
 
     return NextResponse.json({ 
