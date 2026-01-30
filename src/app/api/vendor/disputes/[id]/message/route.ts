@@ -60,12 +60,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
     }
 
     const vendor = await getUserById(session.user_id);
-    const vendorName = vendor?.businessName || vendor?.name || 'Vendor';
+    const storeName = vendor?.business_name || vendor?.name || 'Vendor';
 
     const updatedDispute = await addDisputeMessage(
       id,
       session.user_id,
-      vendorName,
+      storeName,
       'vendor',
       message.trim()
     );
@@ -80,12 +80,12 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         userId: dispute.buyer_id,
         role: 'buyer',
         type: 'dispute_message',
-        title: 'Vendor Response to Your Dispute',
-        message: `${vendorName} has replied to your dispute for order #${dispute.order_id.slice(-8).toUpperCase()}`,
+        title: 'Store Response to Your Dispute',
+        message: `${storeName} has replied to your dispute for order #${dispute.order_id.slice(-8).toUpperCase()}`,
         payload: {
           disputeId: id,
           orderId: dispute.order_id,
-          vendorName,
+          storeName,
           link: '/buyer/disputes'
         }
       });
