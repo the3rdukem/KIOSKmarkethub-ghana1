@@ -97,6 +97,7 @@ export default function SMSManagementPage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [createForm, setCreateForm] = useState({ name: '', eventType: '', messageTemplate: '' });
   const [creating, setCreating] = useState(false);
+  const [seeding, setSeeding] = useState(false);
 
   const fetchOverview = useCallback(async () => {
     try {
@@ -172,6 +173,32 @@ export default function SMSManagementPage() {
       console.error(error);
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleSeedDefaults = async () => {
+    setSeeding(true);
+    try {
+      const response = await fetch('/api/admin/sms', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'seed_default_templates' }),
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to populate templates');
+        return;
+      }
+      
+      setTemplates(data.templates);
+      toast.success(`Created ${data.created} templates${data.skipped > 0 ? `, skipped ${data.skipped} existing` : ''}`);
+    } catch (error) {
+      toast.error('Failed to populate default templates');
+      console.error(error);
+    } finally {
+      setSeeding(false);
     }
   };
 
@@ -491,10 +518,16 @@ export default function SMSManagementPage() {
                     <CardTitle>SMS Templates</CardTitle>
                     <CardDescription>Manage message templates for different events</CardDescription>
                   </div>
-                  <Button onClick={() => setShowCreateDialog(true)}>
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Create Template
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button variant="outline" onClick={handleSeedDefaults} disabled={seeding}>
+                      {seeding ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                      Populate Defaults
+                    </Button>
+                    <Button onClick={() => setShowCreateDialog(true)}>
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Create Template
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>

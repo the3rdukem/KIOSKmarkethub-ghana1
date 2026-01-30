@@ -10,6 +10,19 @@ import { cookies } from 'next/headers';
 import * as smsDal from '@/lib/db/dal/sms';
 import { getSMSServiceStatus } from '@/lib/services/arkesel-sms';
 
+// Valid event types for validation
+const VALID_EVENT_TYPES: smsDal.SMSEventType[] = [
+  'order_confirmed', 'order_preparing', 'order_ready_for_pickup',
+  'order_out_for_delivery', 'order_delivered', 'order_cancelled',
+  'vendor_new_order', 'dispute_opened', 'dispute_resolved',
+  'welcome_buyer', 'welcome_vendor', 'payout_processing',
+  'payout_completed', 'payout_failed', 'low_stock_alert', 'out_of_stock_alert'
+];
+
+function isValidEventType(eventType: string): eventType is smsDal.SMSEventType {
+  return VALID_EVENT_TYPES.includes(eventType as smsDal.SMSEventType);
+}
+
 async function getAdminSession() {
   const cookieStore = await cookies();
   const token = cookieStore.get('session_token')?.value;
@@ -193,6 +206,13 @@ export async function POST(request: NextRequest) {
           }, { status: 400 });
         }
 
+        // Validate event type
+        if (!isValidEventType(eventType)) {
+          return NextResponse.json({ 
+            error: `Invalid event type: ${eventType}. Must be one of: ${VALID_EVENT_TYPES.join(', ')}` 
+          }, { status: 400 });
+        }
+
         // Check if template already exists for this event type
         const exists = await smsDal.templateExistsForEventType(eventType);
         if (exists) {
@@ -234,6 +254,59 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({
           success: true,
           message: 'Template deleted successfully',
+        });
+      }
+
+      case 'seed_default_templates': {
+        // Default templates with sample messages
+        const defaultTemplates = [
+          { eventType: 'order_confirmed', name: 'Order Confirmed', messageTemplate: 'Hi {{buyerName}}, your order #{{orderNumber}} for GHS {{totalAmount}} has been confirmed! Track your order on KIOSK.' },
+          { eventType: 'order_preparing', name: 'Order Preparing', messageTemplate: 'Hi {{buyerName}}, your order #{{orderNumber}} is now being prepared by the vendor.' },
+          { eventType: 'order_ready_for_pickup', name: 'Order Ready for Pickup', messageTemplate: 'Hi {{buyerName}}, your order #{{orderNumber}} is ready for pickup at {{pickupAddress}}.' },
+          { eventType: 'order_out_for_delivery', name: 'Order Out for Delivery', messageTemplate: 'Hi {{buyerName}}, your order #{{orderNumber}} is on its way! Courier: {{courierName}} ({{courierPhone}}).' },
+          { eventType: 'order_delivered', name: 'Order Delivered', messageTemplate: 'Hi {{buyerName}}, your order #{{orderNumber}} has been delivered. Enjoy your purchase from KIOSK!' },
+          { eventType: 'order_cancelled', name: 'Order Cancelled', messageTemplate: 'Hi {{buyerName}}, your order #{{orderNumber}} has been cancelled. Reason: {{reason}}. Contact support if needed.' },
+          { eventType: 'vendor_new_order', name: 'Vendor: New Order', messageTemplate: 'Hi {{vendorName}}, you have a new order #{{orderNumber}}! {{itemCount}} item(s) worth GHS {{totalAmount}}. Check your dashboard.' },
+          { eventType: 'dispute_opened', name: 'Dispute Opened', messageTemplate: 'A dispute has been opened for order #{{orderNumber}} (Dispute ID: {{disputeId}}). We will review it shortly.' },
+          { eventType: 'dispute_resolved', name: 'Dispute Resolved', messageTemplate: 'Your dispute (ID: {{disputeId}}) for order #{{orderNumber}} has been resolved. Resolution: {{resolution}}.' },
+          { eventType: 'welcome_buyer', name: 'Welcome Buyer', messageTemplate: 'Welcome to KIOSK, {{buyerName}}! Start shopping from trusted vendors across Ghana.' },
+          { eventType: 'welcome_vendor', name: 'Welcome Vendor', messageTemplate: 'Welcome to KIOSK, {{vendorName}}! Your store "{{storeName}}" is now ready. Start listing your products!' },
+          { eventType: 'payout_processing', name: 'Payout Processing', messageTemplate: 'Hi {{vendorName}}, your payout of GHS {{amount}} is now being processed.' },
+          { eventType: 'payout_completed', name: 'Payout Completed', messageTemplate: 'Hi {{vendorName}}, your payout of GHS {{amount}} is complete! Ref: {{reference}}.' },
+          { eventType: 'payout_failed', name: 'Payout Failed', messageTemplate: 'Hi {{vendorName}}, your payout of GHS {{amount}} failed. Reason: {{reason}}. Please contact support.' },
+          { eventType: 'low_stock_alert', name: 'Low Stock Alert', messageTemplate: 'Hi {{vendorName}}, your product "{{productName}}" is running low ({{quantity}} left, threshold: {{threshold}}). Restock soon!' },
+          { eventType: 'out_of_stock_alert', name: 'Out of Stock Alert', messageTemplate: 'Hi {{vendorName}}, your product "{{productName}}" is now OUT OF STOCK. Restock to continue selling.' },
+        ];
+
+        let created = 0;
+        let skipped = 0;
+
+        for (const tmpl of defaultTemplates) {
+          const exists = await smsDal.templateExistsForEventType(tmpl.eventType as smsDal.SMSEventType);
+          if (exists) {
+            skipped++;
+            continue;
+          }
+
+          const variables = smsDal.extractTemplateVariables(tmpl.messageTemplate);
+          await smsDal.createTemplate({
+            name: tmpl.name,
+            eventType: tmpl.eventType as smsDal.SMSEventType,
+            messageTemplate: tmpl.messageTemplate,
+            variables,
+            isActive: true,
+          });
+          created++;
+        }
+
+        const templates = await smsDal.getAllTemplates();
+
+        return NextResponse.json({
+          success: true,
+          message: `Created ${created} templates, skipped ${skipped} (already exist)`,
+          created,
+          skipped,
+          templates,
         });
       }
 
