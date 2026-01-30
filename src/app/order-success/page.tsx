@@ -24,8 +24,18 @@ import {
   Smartphone,
   Loader2,
   Clock,
-  AlertCircle
+  AlertCircle,
+  Facebook,
+  Twitter,
+  Copy
 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
 
 interface OrderItem {
   productId: string;
@@ -333,6 +343,110 @@ function OrderSuccessContent() {
                     </p>
                   </div>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="mb-6 border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-start gap-3">
+                  <Share2 className="w-6 h-6 text-purple-600 mt-0.5" />
+                  <div>
+                    <h4 className="font-semibold text-purple-800">Love your purchase?</h4>
+                    <p className="text-sm text-purple-700">
+                      Share with friends and family!
+                    </p>
+                  </div>
+                </div>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="border-purple-300 text-purple-700 hover:bg-purple-100">
+                      <Share2 className="w-4 h-4 mr-2" />
+                      Share
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem
+                      onClick={async () => {
+                        const shareText = `Just made a purchase on KIOSK! Check out this amazing marketplace.`;
+                        const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}` : '';
+                        const shareData = {
+                          title: 'KIOSK - Ghana\'s Trusted Marketplace',
+                          text: shareText,
+                          url: shareUrl,
+                        };
+                        if (navigator.share && navigator.canShare?.(shareData)) {
+                          try {
+                            await navigator.share(shareData);
+                            return;
+                          } catch (err) {
+                            if ((err as Error).name !== 'AbortError') {
+                              toast.error("Failed to share");
+                            }
+                            return;
+                          }
+                        }
+                        try {
+                          await navigator.clipboard.writeText(shareUrl);
+                          toast.success("Link copied to clipboard!");
+                        } catch {
+                          toast.error("Failed to copy link");
+                        }
+                      }}
+                    >
+                      <Copy className="w-4 h-4 mr-2" />
+                      Copy Link
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                        window.open(
+                          `https://wa.me/?text=${encodeURIComponent(`Just made a purchase on KIOSK! Check out this amazing marketplace: ${shareUrl}`)}`,
+                          '_blank'
+                        );
+                      }}
+                    >
+                      <MessageSquare className="w-4 h-4 mr-2" />
+                      Share on WhatsApp
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                        window.open(
+                          `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+                          '_blank',
+                          'width=600,height=400'
+                        );
+                      }}
+                    >
+                      <Facebook className="w-4 h-4 mr-2" />
+                      Share on Facebook
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                        window.open(
+                          `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent('Just made a purchase on KIOSK! Check out this amazing marketplace.')}`,
+                          '_blank',
+                          'width=600,height=400'
+                        );
+                      }}
+                    >
+                      <Twitter className="w-4 h-4 mr-2" />
+                      Share on X
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        const shareUrl = typeof window !== 'undefined' ? window.location.origin : '';
+                        window.location.href = `mailto:?subject=${encodeURIComponent('Check out KIOSK!')}&body=${encodeURIComponent(`I just made a purchase on KIOSK, Ghana's trusted marketplace. Check it out: ${shareUrl}`)}`;
+                      }}
+                    >
+                      <Mail className="w-4 h-4 mr-2" />
+                      Share via Email
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </CardContent>
           </Card>
