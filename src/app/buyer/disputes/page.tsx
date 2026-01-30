@@ -23,6 +23,7 @@ import {
 import { Label } from "@/components/ui/label";
 import {
   AlertTriangle,
+  ArrowLeft,
   Clock,
   CheckCircle,
   Eye,
@@ -154,15 +155,23 @@ export default function BuyerDisputesPage() {
   return (
     <SiteLayout>
       <div className="container py-8 space-y-6">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold">My Disputes</h1>
-            <p className="text-muted-foreground">Track the status of your dispute cases</p>
-          </div>
-          <Button onClick={fetchDisputes} variant="outline" disabled={loading}>
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-            Refresh
+        <div className="mb-8">
+          <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
+            <Link href="/buyer/dashboard">
+              <ArrowLeft className="w-4 h-4 mr-1" />
+              Dashboard
+            </Link>
           </Button>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold">My Disputes</h1>
+              <p className="text-muted-foreground text-sm sm:text-base">Track the status of your dispute cases</p>
+            </div>
+            <Button onClick={fetchDisputes} variant="outline" size="sm" disabled={loading}>
+              <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+              <span className="hidden sm:inline ml-2">Refresh</span>
+            </Button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">

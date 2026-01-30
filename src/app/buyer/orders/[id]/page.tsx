@@ -353,6 +353,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
   const now = new Date();
   const hoursSinceDelivery = (now.getTime() - deliveredAt.getTime()) / (1000 * 60 * 60);
   const canRaiseDispute = isDelivered && hoursSinceDelivery <= 48 && order.status !== 'disputed';
+  const hasActiveDispute = order.status === 'disputed';
   const isMultiVendor = new Set((order.orderItems || order.items || []).map((i: OrderItem) => i.vendorId)).size > 1;
 
   const handleSubmitDispute = async () => {
@@ -857,6 +858,28 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                         </DialogFooter>
                       </DialogContent>
                     </Dialog>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {hasActiveDispute && (
+              <Card className="border-amber-200 bg-amber-50">
+                <CardContent className="p-4">
+                  <div className="text-center space-y-3">
+                    <Scale className="w-8 h-8 text-amber-500 mx-auto" />
+                    <div>
+                      <p className="font-medium text-amber-800">Dispute in Progress</p>
+                      <p className="text-xs text-amber-600">
+                        Your dispute is being reviewed by our team
+                      </p>
+                    </div>
+                    <Button variant="outline" className="w-full border-amber-300 hover:bg-amber-100" asChild>
+                      <Link href="/buyer/disputes">
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Dispute Status
+                      </Link>
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
