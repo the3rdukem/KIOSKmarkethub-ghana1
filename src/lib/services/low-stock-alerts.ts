@@ -55,12 +55,28 @@ async function getVendorSettings(vendorId: string): Promise<VendorSettings | nul
       }
     }
 
+    // Settings can be at top level OR inside a 'notifications' object
+    const notificationSettings = (settings.notifications as Record<string, unknown>) || {};
+    
+    // Check both locations for backwards compatibility
+    const lowStockAlerts = notificationSettings.lowStockAlerts !== undefined 
+      ? notificationSettings.lowStockAlerts !== false
+      : settings.lowStockAlerts !== false;
+      
+    const lowStockThreshold = typeof notificationSettings.lowStockThreshold === 'number'
+      ? notificationSettings.lowStockThreshold
+      : typeof settings.lowStockThreshold === 'number'
+        ? settings.lowStockThreshold
+        : DEFAULT_LOW_STOCK_THRESHOLD;
+        
+    const smsNotifications = notificationSettings.smsNotifications !== undefined
+      ? notificationSettings.smsNotifications === true
+      : settings.smsNotifications !== false;
+
     return {
-      lowStockAlerts: settings.lowStockAlerts !== false,
-      lowStockThreshold: typeof settings.lowStockThreshold === 'number' 
-        ? settings.lowStockThreshold 
-        : DEFAULT_LOW_STOCK_THRESHOLD,
-      smsNotifications: settings.smsNotifications !== false,
+      lowStockAlerts,
+      lowStockThreshold,
+      smsNotifications,
       phone: row.phone,
     };
   } catch (error) {
