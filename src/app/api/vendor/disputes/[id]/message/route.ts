@@ -80,7 +80,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
         userId: dispute.buyer_id,
         role: 'buyer',
         type: 'dispute_message',
-        title: 'Store Response to Your Dispute',
+        title: 'Vendor Response to Your Dispute',
         message: `${storeName} has replied to your dispute for order #${dispute.order_id.slice(-8).toUpperCase()}`,
         payload: {
           disputeId: id,
