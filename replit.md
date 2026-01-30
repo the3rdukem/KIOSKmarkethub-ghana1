@@ -83,7 +83,20 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 | Dispute Resolution - Evidence Upload | ✅ Complete | Photo evidence upload (up to 5 images) via Supabase Storage |
 | Dispute Resolution - Notifications | ✅ Complete | Event notifications for resolution, refund initiation, refund completion |
 
-### Tier 2: Post-Launch Enhancements
+### Tier 2: First Month Post-Launch
+
+| Feature | Est. Days | Status | Notes |
+|---------|-----------|--------|-------|
+| Email Notifications (Order events) | 3-4 | ⏳ Pending | Bundle with SMS - leverages existing email infrastructure |
+| Low Stock Alerts (Email/SMS) | 1-2 | ⏳ Pending | Quick add to existing notification system |
+| Admin Dashboard Analytics | 4-5 | ⏳ Pending | Platform oversight and business metrics |
+| Export Functionality (CSV) | 2-3 | ⏳ Pending | Quick win - orders, payouts, products export |
+| Social Sharing (WhatsApp focus) | 1-2 | ⏳ Pending | Quick win - product sharing for Ghana market |
+| Recently Viewed Products | 2-3 | ⏳ Pending | Quick win - buyer engagement feature |
+| Real Vendor Analytics | 3-4 | ⏳ Pending | Vendor satisfaction - sales, views, conversion |
+| **Subtotal** | **~16-23** | | |
+
+### Tier 2: Security Enhancements (Deferred)
 
 | Feature | Status | Description |
 |---------|--------|-------------|
