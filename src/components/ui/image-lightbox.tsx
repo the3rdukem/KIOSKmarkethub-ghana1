@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, X, ZoomIn, ZoomOut, ImageOff } from "lucide-react";
 
@@ -62,6 +62,9 @@ export function ImageLightbox({ images, initialIndex = 0, open, onOpenChange }: 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="max-w-4xl w-full p-0 bg-black/95 border-none">
+        <DialogTitle className="sr-only">
+          Image {currentIndex + 1} of {validImages.length}
+        </DialogTitle>
         <div className="relative flex flex-col items-center justify-center min-h-[60vh]">
           <div className="absolute top-4 right-4 z-10 flex gap-2">
             <Button
