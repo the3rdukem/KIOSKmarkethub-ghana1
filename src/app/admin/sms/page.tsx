@@ -12,7 +12,27 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { ArrowLeft, MessageSquare, Send, FileText, History, Settings, Loader2, CheckCircle, XCircle, Clock, AlertCircle } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, MessageSquare, Send, FileText, History, Settings, Loader2, CheckCircle, XCircle, Clock, AlertCircle, Plus } from 'lucide-react';
+
+const SMS_EVENT_TYPES = [
+  { value: 'order_confirmed', label: 'Order Confirmed', variables: ['orderNumber', 'buyerName', 'totalAmount'] },
+  { value: 'order_preparing', label: 'Order Preparing', variables: ['orderNumber', 'buyerName'] },
+  { value: 'order_ready_for_pickup', label: 'Order Ready for Pickup', variables: ['orderNumber', 'buyerName', 'pickupAddress'] },
+  { value: 'order_out_for_delivery', label: 'Order Out for Delivery', variables: ['orderNumber', 'buyerName', 'courierName', 'courierPhone'] },
+  { value: 'order_delivered', label: 'Order Delivered', variables: ['orderNumber', 'buyerName'] },
+  { value: 'order_cancelled', label: 'Order Cancelled', variables: ['orderNumber', 'buyerName', 'reason'] },
+  { value: 'vendor_new_order', label: 'Vendor: New Order', variables: ['orderNumber', 'vendorName', 'itemCount', 'totalAmount'] },
+  { value: 'dispute_opened', label: 'Dispute Opened', variables: ['orderNumber', 'disputeId'] },
+  { value: 'dispute_resolved', label: 'Dispute Resolved', variables: ['orderNumber', 'disputeId', 'resolution'] },
+  { value: 'welcome_buyer', label: 'Welcome Buyer', variables: ['buyerName'] },
+  { value: 'welcome_vendor', label: 'Welcome Vendor', variables: ['vendorName', 'storeName'] },
+  { value: 'payout_processing', label: 'Payout Processing', variables: ['vendorName', 'amount'] },
+  { value: 'payout_completed', label: 'Payout Completed', variables: ['vendorName', 'amount', 'reference'] },
+  { value: 'payout_failed', label: 'Payout Failed', variables: ['vendorName', 'amount', 'reason'] },
+  { value: 'low_stock_alert', label: 'Low Stock Alert', variables: ['vendorName', 'productName', 'quantity', 'threshold'] },
+  { value: 'out_of_stock_alert', label: 'Out of Stock Alert', variables: ['vendorName', 'productName'] },
+];
 import { useAuthStore } from '@/lib/auth-store';
 import { toast } from 'sonner';
 import { SiteLayout } from '@/components/layout/site-layout';
@@ -73,10 +93,10 @@ export default function SMSManagementPage() {
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   
-  // Arkesel configuration state
-  const [arkeselConfig, setArkeselConfig] = useState({ apiKey: '', senderId: '', isDemoMode: true });
-  const [configPreview, setConfigPreview] = useState<{ hasApiKey: boolean; apiKeyPreview: string | null; senderId: string; isDemoMode: boolean } | null>(null);
-  const [savingConfig, setSavingConfig] = useState(false);
+  // Create template state
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [createForm, setCreateForm] = useState({ name: '', eventType: '', messageTemplate: '' });
+  const [creating, setCreating] = useState(false);
 
   const fetchOverview = useCallback(async () => {
     try {
@@ -87,16 +107,6 @@ export default function SMSManagementPage() {
       setStatus(data.status);
       setStats(data.stats);
       setTemplates(data.templates);
-      
-      // Load existing config preview
-      if (data.config) {
-        setConfigPreview(data.config);
-        setArkeselConfig(prev => ({
-          ...prev,
-          senderId: data.config.senderId || '',
-          isDemoMode: data.config.isDemoMode ?? true,
-        }));
-      }
     } catch (error) {
       toast.error('Failed to load SMS settings');
       console.error(error);
@@ -127,43 +137,41 @@ export default function SMSManagementPage() {
     }
   }, [authLoading, user, fetchOverview, fetchLogs]);
 
-  const handleSaveConfig = async () => {
-    if (!arkeselConfig.apiKey && !configPreview?.hasApiKey) {
-      toast.error('API Key is required');
-      return;
-    }
-    if (!arkeselConfig.senderId) {
-      toast.error('Sender ID is required');
+  const handleCreateTemplate = async () => {
+    if (!createForm.name || !createForm.eventType || !createForm.messageTemplate) {
+      toast.error('Please fill in all fields');
       return;
     }
     
-    setSavingConfig(true);
+    setCreating(true);
     try {
       const response = await fetch('/api/admin/sms', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'save_config',
-          apiKey: arkeselConfig.apiKey || undefined,
-          senderId: arkeselConfig.senderId,
-          isDemoMode: arkeselConfig.isDemoMode,
+          action: 'create_template',
+          name: createForm.name,
+          eventType: createForm.eventType,
+          messageTemplate: createForm.messageTemplate,
         }),
       });
       
-      if (!response.ok) throw new Error('Failed to save configuration');
-      
       const data = await response.json();
-      setStatus(data.status);
-      toast.success(data.message);
       
-      // Clear the API key field and refresh
-      setArkeselConfig(prev => ({ ...prev, apiKey: '' }));
-      fetchOverview();
+      if (!response.ok) {
+        toast.error(data.error || 'Failed to create template');
+        return;
+      }
+      
+      setTemplates(prev => [...prev, data.template]);
+      setShowCreateDialog(false);
+      setCreateForm({ name: '', eventType: '', messageTemplate: '' });
+      toast.success('Template created successfully');
     } catch (error) {
-      toast.error('Failed to save Arkesel configuration');
+      toast.error('Failed to create template');
       console.error(error);
     } finally {
-      setSavingConfig(false);
+      setCreating(false);
     }
   };
 
@@ -399,62 +407,26 @@ export default function SMSManagementPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Arkesel API Configuration</CardTitle>
-                  <CardDescription>Configure your Arkesel API credentials for sending SMS</CardDescription>
+                  <CardDescription>SMS requires Arkesel OTP integration to be configured</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid gap-4">
-                    <div className="grid gap-2">
-                      <Label htmlFor="apiKey">API Key</Label>
-                      <Input
-                        id="apiKey"
-                        type="password"
-                        placeholder="Enter your Arkesel API key"
-                        value={arkeselConfig.apiKey}
-                        onChange={(e) => setArkeselConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-                      />
-                      {configPreview?.hasApiKey && (
-                        <p className="text-xs text-muted-foreground">
-                          Current: {configPreview.apiKeyPreview}
-                        </p>
-                      )}
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="senderId">Sender ID</Label>
-                      <Input
-                        id="senderId"
-                        placeholder="KIOSK (max 11 characters)"
-                        maxLength={11}
-                        value={arkeselConfig.senderId}
-                        onChange={(e) => setArkeselConfig(prev => ({ ...prev, senderId: e.target.value }))}
-                      />
-                      <p className="text-xs text-muted-foreground">
-                        This appears as the sender name on recipients phones
+                  <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                    <div>
+                      <p className="font-medium">Arkesel OTP Integration</p>
+                      <p className="text-sm text-muted-foreground">
+                        Configure your Arkesel API key and Sender ID in the API Management section
                       </p>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <Label className="text-base">Demo Mode (Sandbox)</Label>
-                        <p className="text-sm text-muted-foreground">
-                          When enabled, uses Arkesel sandbox - no SMS delivery, no charges
-                        </p>
-                      </div>
-                      <Switch
-                        checked={arkeselConfig.isDemoMode}
-                        onCheckedChange={(checked) => setArkeselConfig(prev => ({ ...prev, isDemoMode: checked }))}
-                      />
-                    </div>
-                  </div>
-                  <div className="flex justify-end">
-                    <Button onClick={handleSaveConfig} disabled={savingConfig}>
-                      {savingConfig ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Saving...
-                        </>
+                    <div className="flex items-center gap-3">
+                      {status?.integrationConfigured ? (
+                        <Badge className="bg-green-100 text-green-800">Configured</Badge>
                       ) : (
-                        'Save Configuration'
+                        <Badge variant="secondary">Not Configured</Badge>
                       )}
-                    </Button>
+                      <Button variant="outline" onClick={() => router.push('/admin?tab=api')}>
+                        Go to API Management
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -482,7 +454,7 @@ export default function SMSManagementPage() {
                   {!status?.integrationConfigured && (
                     <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                       <p className="text-sm text-yellow-800">
-                        Please configure Arkesel API credentials above before enabling SMS notifications.
+                        Please configure Arkesel OTP in API Management before enabling SMS notifications.
                       </p>
                     </div>
                   )}
@@ -514,10 +486,28 @@ export default function SMSManagementPage() {
           <TabsContent value="templates">
             <Card>
               <CardHeader>
-                <CardTitle>SMS Templates</CardTitle>
-                <CardDescription>Manage message templates for different events</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>SMS Templates</CardTitle>
+                    <CardDescription>Manage message templates for different events</CardDescription>
+                  </div>
+                  <Button onClick={() => setShowCreateDialog(true)}>
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Create Template
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
+                {templates.length === 0 ? (
+                  <div className="text-center py-12">
+                    <MessageSquare className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold mb-2">No SMS Templates</h3>
+                    <p className="text-muted-foreground mb-4">Create templates to enable SMS notifications</p>
+                    <Button onClick={() => setShowCreateDialog(true)}>
+                      Create Your First Template
+                    </Button>
+                  </div>
+                ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -562,6 +552,7 @@ export default function SMSManagementPage() {
                     ))}
                   </TableBody>
                 </Table>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -682,6 +673,72 @@ export default function SMSManagementPage() {
               <Button onClick={handleSaveTemplate} disabled={saving}>
                 {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
                 Save Changes
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Create Template Dialog */}
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Create SMS Template</DialogTitle>
+              <DialogDescription>
+                Create a new SMS template for a specific event type.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label>Template Name</Label>
+                <Input
+                  value={createForm.name}
+                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  placeholder="e.g., Order Confirmation SMS"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Event Type</Label>
+                <Select
+                  value={createForm.eventType}
+                  onValueChange={(value) => setCreateForm({ ...createForm, eventType: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an event type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {SMS_EVENT_TYPES.filter(et => !templates.some(t => t.eventType === et.value)).map((eventType) => (
+                      <SelectItem key={eventType.value} value={eventType.value}>
+                        {eventType.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {createForm.eventType && (
+                  <p className="text-xs text-muted-foreground">
+                    Available variables: {SMS_EVENT_TYPES.find(et => et.value === createForm.eventType)?.variables.map(v => `{{${v}}}`).join(', ')}
+                  </p>
+                )}
+              </div>
+              <div className="space-y-2">
+                <Label>Message Template</Label>
+                <Textarea
+                  value={createForm.messageTemplate}
+                  onChange={(e) => setCreateForm({ ...createForm, messageTemplate: e.target.value })}
+                  rows={4}
+                  placeholder="Enter your message template using {{variable}} for dynamic content..."
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => {
+                setShowCreateDialog(false);
+                setCreateForm({ name: '', eventType: '', messageTemplate: '' });
+              }}>
+                Cancel
+              </Button>
+              <Button onClick={handleCreateTemplate} disabled={creating}>
+                {creating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                Create Template
               </Button>
             </DialogFooter>
           </DialogContent>

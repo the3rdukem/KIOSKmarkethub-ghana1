@@ -184,29 +184,56 @@ export async function POST(request: NextRequest) {
         });
       }
 
-      case 'save_config': {
-        const { apiKey, senderId, isDemoMode } = body;
+      case 'create_template': {
+        const { name, eventType, messageTemplate } = body;
         
-        // Validate required fields
-        if (!apiKey && !senderId && isDemoMode === undefined) {
+        if (!name || !eventType || !messageTemplate) {
           return NextResponse.json({ 
-            error: 'At least one of apiKey, senderId, or isDemoMode is required' 
+            error: 'name, eventType, and messageTemplate are required' 
           }, { status: 400 });
         }
 
-        // Save config to database
-        await smsDal.setArkeselConfig({
-          apiKey: apiKey || undefined,
-          senderId: senderId || undefined,
-          isDemoMode: isDemoMode !== undefined ? isDemoMode : undefined,
-        });
+        // Check if template already exists for this event type
+        const exists = await smsDal.templateExistsForEventType(eventType);
+        if (exists) {
+          return NextResponse.json({ 
+            error: `A template for event type "${eventType}" already exists` 
+          }, { status: 400 });
+        }
 
-        const status = await getSMSServiceStatus();
+        const variables = smsDal.extractTemplateVariables(messageTemplate);
+        
+        const template = await smsDal.createTemplate({
+          name,
+          eventType,
+          messageTemplate,
+          variables,
+          isActive: true,
+        });
 
         return NextResponse.json({
           success: true,
-          message: 'Arkesel configuration saved successfully',
-          status,
+          message: 'Template created successfully',
+          template,
+        });
+      }
+
+      case 'delete_template': {
+        const { templateId } = body;
+        
+        if (!templateId) {
+          return NextResponse.json({ error: 'templateId is required' }, { status: 400 });
+        }
+
+        const deleted = await smsDal.deleteTemplate(templateId);
+
+        if (!deleted) {
+          return NextResponse.json({ error: 'Template not found' }, { status: 404 });
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: 'Template deleted successfully',
         });
       }
 
