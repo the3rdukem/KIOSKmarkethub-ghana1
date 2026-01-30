@@ -47,6 +47,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Commission System**: Automated commission calculation with 3-tier priority (vendor, category, default). Stored at order and order_item level. Admin UI for management and vendor dashboard for earnings.
 - **Vendor Payouts System**: Database-backed system using Paystack Transfers API. Manages vendor bank accounts, payout requests, and balance calculation. Vendor/Admin UIs for withdrawals and history. Webhook handlers for payout status.
 - **Dispute Resolution + Refunds System**: Full dispute lifecycle with DAL (disputes table with refund tracking), Admin/Buyer APIs, Paystack refund integration, commission reversal logic, and notification triggers. Supports dispute creation within 48-hour window, investigation workflow, resolution types (full/partial refund, replacement, no action), and async refund status tracking via webhooks.
+- **Vendor Profile Management**: Separate "My Profile" page (`/vendor/profile`) for account-level settings distinct from Store Settings. Supports login email change (with validation, uniqueness check, lowercase normalization) and password change. Foundation laid for email verification flow (pendingEmail, emailVerificationToken fields in DAL).
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions and vendor payouts.
