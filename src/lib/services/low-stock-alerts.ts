@@ -118,7 +118,8 @@ export async function sendLowStockAlert(
   productName: string,
   vendorId: string,
   currentQuantity: number,
-  threshold: number
+  threshold: number,
+  options?: { skipCooldown?: boolean }
 ): Promise<LowStockCheckResult> {
   const alertType = currentQuantity === 0 ? 'out_of_stock' : 'low_stock';
   const notificationType = currentQuantity === 0 ? 'out_of_stock_alert' : 'low_stock_alert';
@@ -143,10 +144,14 @@ export async function sendLowStockAlert(
     return result;
   }
 
-  const alreadySent = await wasAlertSentRecently(vendorId, productId, notificationType);
-  if (alreadySent) {
-    console.log('[LOW_STOCK] Alert already sent recently for product:', productId);
-    return result;
+  if (!options?.skipCooldown) {
+    const alreadySent = await wasAlertSentRecently(vendorId, productId, notificationType);
+    if (alreadySent) {
+      console.log('[LOW_STOCK] Alert already sent recently for product:', productId);
+      return result;
+    }
+  } else {
+    console.log('[LOW_STOCK] Skipping cooldown check (test mode) for product:', productId);
   }
 
   try {

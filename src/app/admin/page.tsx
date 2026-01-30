@@ -2062,10 +2062,53 @@ function AdminDashboardContent() {
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="font-medium">Low Stock Alert Test</p>
-                          <p className="text-xs text-muted-foreground">Trigger a test low stock alert to verify email and SMS notifications</p>
+                          <p className="text-xs text-muted-foreground">Scan ALL products with low stock and send alerts</p>
                         </div>
                         <Button 
                           variant="outline" 
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              const alertRes = await fetch('/api/admin/test/low-stock-alert', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ mode: 'scan' }),
+                              });
+                              const alertData = await alertRes.json();
+                              if (alertData.success) {
+                                const results = alertData.results || [];
+                                if (results.length === 0) {
+                                  toast.info('No products with low stock found');
+                                  return;
+                                }
+                                const notifSent = results.filter((r: { notificationSent: boolean }) => r.notificationSent).length;
+                                const smsSent = results.filter((r: { smsSent: boolean }) => r.smsSent).length;
+                                const skipped = results.filter((r: { notificationSent: boolean; smsSent: boolean }) => !r.notificationSent && !r.smsSent).length;
+                                toast.success(
+                                  `Scanned ${results.length} low stock products:\n` +
+                                  `Notifications sent: ${notifSent}\n` +
+                                  `SMS sent: ${smsSent}\n` +
+                                  `Skipped (cooldown/settings): ${skipped}`
+                                );
+                              } else {
+                                toast.error(alertData.error || 'Failed to scan');
+                              }
+                            } catch (error) {
+                              toast.error('Failed to scan low stock products');
+                            }
+                          }}
+                        >
+                          <AlertTriangle className="w-4 h-4 mr-2" />
+                          Scan All Low Stock
+                        </Button>
+                      </div>
+                      <div className="flex items-center justify-between mt-3">
+                        <div>
+                          <p className="font-medium text-sm">Test Single Product (Skip Cooldown)</p>
+                          <p className="text-xs text-muted-foreground">Bypass 24h cooldown for testing</p>
+                        </div>
+                        <Button 
+                          variant="ghost" 
                           size="sm"
                           onClick={async () => {
                             try {
@@ -2076,23 +2119,7 @@ function AdminDashboardContent() {
                               });
                               const findData = await findRes.json();
                               if (!findData.products || findData.products.length === 0) {
-                                const debugRes = await fetch('/api/admin/test/low-stock-alert', {
-                                  method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ mode: 'debug' }),
-                                });
-                                const debugData = await debugRes.json();
-                                console.log('Debug products:', debugData.products);
-                                const activeWithTracking = debugData.products?.filter((p: { track_quantity: number; status: string }) => 
-                                  p.track_quantity === 1 && p.status === 'active'
-                                );
-                                if (activeWithTracking?.length > 0) {
-                                  toast.error(`Found ${activeWithTracking.length} products but query failed. Check console.`);
-                                } else {
-                                  const trackingCount = debugData.products?.filter((p: { track_quantity: number }) => p.track_quantity === 1).length || 0;
-                                  const activeCount = debugData.products?.filter((p: { status: string }) => p.status === 'active').length || 0;
-                                  toast.error(`No products with inventory tracking + active status.\nWith tracking: ${trackingCount}, Active: ${activeCount}`);
-                                }
+                                toast.error('No products with inventory tracking found');
                                 return;
                               }
                               const product = findData.products[0];
@@ -2104,8 +2131,9 @@ function AdminDashboardContent() {
                                   vendorId: product.vendor_id,
                                   productId: product.id,
                                   productName: product.name,
-                                  quantity: 2,
-                                  threshold: 5
+                                  quantity: product.quantity,
+                                  threshold: 5,
+                                  skipCooldown: true
                                 }),
                               });
                               const alertData = await alertRes.json();
@@ -2114,7 +2142,7 @@ function AdminDashboardContent() {
                                 toast.success(
                                   `Alert triggered for "${result.productName}"\n` +
                                   `Notification: ${result.notificationSent ? 'Sent' : 'Not sent'}\n` +
-                                  `SMS: ${result.smsSent ? 'Sent' : 'Not sent (check vendor settings/phone)'}`
+                                  `SMS: ${result.smsSent ? 'Sent' : 'Not sent (check SMS templates/config)'}`
                                 );
                               } else {
                                 toast.error(alertData.error || 'Failed to trigger alert');
@@ -2124,14 +2152,13 @@ function AdminDashboardContent() {
                             }
                           }}
                         >
-                          <AlertTriangle className="w-4 h-4 mr-2" />
-                          Trigger Test Alert
+                          Test Single (Skip Cooldown)
                         </Button>
                       </div>
-                      <p className="text-xs text-muted-foreground bg-yellow-50 p-2 rounded">
-                        This will find a product with inventory tracking and trigger a low stock alert to its vendor. 
-                        The vendor will receive an in-app notification, and if they have SMS enabled with a phone number, they will also receive an SMS.
-                      </p>
+                      <p className="text-xs text-muted-foreground bg-yellow-50 p-2 rounded mt-2">
+                        <strong>Scan All:</strong> Checks ALL products with inventory tracking and sends alerts to vendors for those below threshold. 
+                        Products alerted in the last 24h are skipped (cooldown).<br/>
+                        <strong>Test Single:</strong> Tests one product while bypassing the cooldown.</p>
                     </div>
                   </CardContent>
                 </Card>

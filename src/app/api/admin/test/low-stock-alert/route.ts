@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { mode, vendorId, productId, productName, quantity, threshold } = body;
+    const { mode, vendorId, productId, productName, quantity, threshold, skipCooldown } = body;
 
     if (mode === 'manual') {
       if (!vendorId || !productId || !productName) {
@@ -41,7 +41,8 @@ export async function POST(request: NextRequest) {
         productName,
         vendorId,
         quantity ?? 2,
-        threshold ?? 5
+        threshold ?? 5,
+        { skipCooldown: skipCooldown === true }
       );
 
       return NextResponse.json({
