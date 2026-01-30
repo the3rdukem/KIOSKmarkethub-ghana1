@@ -188,6 +188,53 @@ export async function toggleTemplate(id: string, isActive: boolean): Promise<SMS
   return getTemplateById(id);
 }
 
+function generateTemplateId(): string {
+  return `smst_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
+}
+
+export async function createTemplate(template: {
+  name: string;
+  eventType: SMSEventType;
+  messageTemplate: string;
+  variables: string[];
+  isActive?: boolean;
+}): Promise<SMSTemplate> {
+  const id = generateTemplateId();
+  const now = new Date().toISOString();
+
+  await query(
+    `INSERT INTO sms_templates (id, name, event_type, message_template, variables, is_active, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    [
+      id,
+      template.name,
+      template.eventType,
+      template.messageTemplate,
+      template.variables.join(','),
+      template.isActive !== false ? 1 : 0,
+      now,
+      now,
+    ]
+  );
+
+  const result = await getTemplateById(id);
+  if (!result) throw new Error('Failed to create template');
+  return result;
+}
+
+export async function deleteTemplate(id: string): Promise<boolean> {
+  const result = await query('DELETE FROM sms_templates WHERE id = $1', [id]);
+  return (result.rowCount ?? 0) > 0;
+}
+
+export async function templateExistsForEventType(eventType: SMSEventType): Promise<boolean> {
+  const result = await query<{ count: string }>(
+    'SELECT COUNT(*) as count FROM sms_templates WHERE event_type = $1',
+    [eventType]
+  );
+  return parseInt(result.rows[0]?.count || '0', 10) > 0;
+}
+
 // ============ Log Functions ============
 
 function generateLogId(): string {
