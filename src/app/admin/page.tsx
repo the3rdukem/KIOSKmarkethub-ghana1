@@ -2041,6 +2041,75 @@ function AdminDashboardContent() {
 
                 {/* Static Pages Management */}
                 <StaticPagesManagement />
+
+                {/* Developer Tools - Testing (REMOVE AFTER TESTING) */}
+                <Card className="border-dashed border-yellow-500">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-yellow-600"><TestTube className="w-5 h-5" />Developer Tools (Testing)</CardTitle>
+                    <CardDescription>These tools are for testing purposes only - remove after testing</CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="p-4 border rounded-lg space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Low Stock Alert Test</p>
+                          <p className="text-xs text-muted-foreground">Trigger a test low stock alert to verify email and SMS notifications</p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              const findRes = await fetch('/api/admin/test/low-stock-alert', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ mode: 'find_product' }),
+                              });
+                              const findData = await findRes.json();
+                              if (!findData.products || findData.products.length === 0) {
+                                toast.error('No products with inventory tracking found');
+                                return;
+                              }
+                              const product = findData.products[0];
+                              const alertRes = await fetch('/api/admin/test/low-stock-alert', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ 
+                                  mode: 'manual',
+                                  vendorId: product.vendor_id,
+                                  productId: product.id,
+                                  productName: product.name,
+                                  quantity: 2,
+                                  threshold: 5
+                                }),
+                              });
+                              const alertData = await alertRes.json();
+                              if (alertData.success) {
+                                const result = alertData.result;
+                                toast.success(
+                                  `Alert triggered for "${result.productName}"\n` +
+                                  `Notification: ${result.notificationSent ? 'Sent' : 'Not sent'}\n` +
+                                  `SMS: ${result.smsSent ? 'Sent' : 'Not sent (check vendor settings/phone)'}`
+                                );
+                              } else {
+                                toast.error(alertData.error || 'Failed to trigger alert');
+                              }
+                            } catch (error) {
+                              toast.error('Failed to trigger test alert');
+                            }
+                          }}
+                        >
+                          <AlertTriangle className="w-4 h-4 mr-2" />
+                          Trigger Test Alert
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground bg-yellow-50 p-2 rounded">
+                        This will find a product with inventory tracking and trigger a low stock alert to its vendor. 
+                        The vendor will receive an in-app notification, and if they have SMS enabled with a phone number, they will also receive an SMS.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
           )}
