@@ -180,25 +180,38 @@ export async function sendLowStockAlert(
 
   if (settings.smsNotifications && settings.phone) {
     try {
+      // Get vendor name for SMS template
+      const vendorResult = await query<{ name: string; business_name: string | null }>(
+        `SELECT name, business_name FROM users WHERE id = $1`,
+        [vendorId]
+      );
+      const vendorName = vendorResult.rows[0]?.business_name || vendorResult.rows[0]?.name || 'Vendor';
+      
       const smsResult = await sendSMS({
         phone: settings.phone,
         eventType: notificationType,
         variables: {
-          product_name: productName,
+          vendorName,
+          productName,
           quantity: String(currentQuantity),
           threshold: String(threshold),
         },
         recipientId: vendorId,
         recipientRole: 'vendor',
+        recipientName: vendorName,
       });
       
       result.smsSent = smsResult.success;
       if (smsResult.success) {
         console.log('[LOW_STOCK] SMS sent for product:', productId);
+      } else {
+        console.log('[LOW_STOCK] SMS not sent:', smsResult.message);
       }
     } catch (error) {
       console.error('[LOW_STOCK] Failed to send SMS:', error);
     }
+  } else {
+    console.log('[LOW_STOCK] SMS skipped - smsNotifications:', settings.smsNotifications, 'phone:', settings.phone);
   }
 
   return result;
