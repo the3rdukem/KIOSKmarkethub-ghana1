@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft,
@@ -18,8 +17,6 @@ import {
   Shield,
   Eye,
   EyeOff,
-  CheckCircle,
-  AlertTriangle,
   Info
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
@@ -28,7 +25,7 @@ import { toast } from "sonner";
 
 export default function VendorProfilePage() {
   const router = useRouter();
-  const { user, isAuthenticated, updateUser: updateAuthUser, isHydrated } = useAuthStore();
+  const { user, isAuthenticated, updateUser: updateAuthUser } = useAuthStore();
 
   const [isLoading, setIsLoading] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -36,6 +33,7 @@ export default function VendorProfilePage() {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const [profileData, setProfileData] = useState({
     name: "",
@@ -50,6 +48,10 @@ export default function VendorProfilePage() {
   });
 
   const [originalEmail, setOriginalEmail] = useState("");
+
+  useEffect(() => {
+    setIsHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (!isHydrated) return;

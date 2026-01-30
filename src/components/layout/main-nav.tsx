@@ -293,6 +293,12 @@ export function MainNav() {
           Store Settings
         </Link>
       </DropdownMenuItem>
+      <DropdownMenuItem asChild>
+        <Link href="/vendor/profile" className="cursor-pointer">
+          <User className="mr-2 h-4 w-4" />
+          My Profile
+        </Link>
+      </DropdownMenuItem>
     </>
   );
 
@@ -453,6 +459,7 @@ export function MainNav() {
           { href: '/vendor/withdraw', label: 'Withdrawals', icon: Wallet },
           { href: '/messages', label: 'Messages', icon: MessageSquare },
           { href: '/vendor/settings', label: 'Store Settings', icon: Settings },
+          { href: '/vendor/profile', label: 'My Profile', icon: User },
         ];
       } else if (effectiveRole === 'admin' || effectiveRole === 'master_admin') {
         return [
