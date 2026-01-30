@@ -21,6 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -76,6 +77,8 @@ export default function BuyerDisputesPage() {
   const [loading, setLoading] = useState(true);
   const [selectedDispute, setSelectedDispute] = useState<Dispute | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [replyMessage, setReplyMessage] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
 
   const fetchDisputes = async () => {
     try {
@@ -143,6 +146,42 @@ export default function BuyerDisputesPage() {
       month: "short",
       year: "numeric",
     });
+  };
+
+  const handleSendReply = async () => {
+    if (!selectedDispute || !replyMessage.trim()) {
+      toast.error("Please enter a message");
+      return;
+    }
+
+    if (replyMessage.trim().length < 5) {
+      toast.error("Message must be at least 5 characters");
+      return;
+    }
+
+    try {
+      setSendingReply(true);
+      const response = await fetch(`/api/buyer/disputes/${selectedDispute.id}/message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: replyMessage.trim() }),
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to send message");
+      }
+      
+      const data = await response.json();
+      setSelectedDispute(data.dispute);
+      setReplyMessage("");
+      toast.success("Message sent");
+      fetchDisputes();
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setSendingReply(false);
+    }
   };
 
   const stats = {
@@ -385,7 +424,7 @@ export default function BuyerDisputesPage() {
                                 ? 'text-purple-700'
                                 : 'text-gray-700'
                             }`}>
-                              {msg.senderName} ({msg.senderRole})
+                              {msg.senderRole === 'admin' ? 'KIOSK Support' : msg.senderName} ({msg.senderRole === 'admin' ? 'Support' : msg.senderRole})
                             </span>
                             <span className="text-xs text-gray-400">
                               {formatDate(msg.timestamp)}
@@ -394,6 +433,28 @@ export default function BuyerDisputesPage() {
                           <p className="text-sm text-gray-700">{msg.message}</p>
                         </div>
                       ))}
+                    </div>
+                  </div>
+                )}
+
+                {selectedDispute.status !== 'resolved' && selectedDispute.status !== 'closed' && (
+                  <div>
+                    <Label className="text-muted-foreground">Reply</Label>
+                    <div className="mt-2 space-y-2">
+                      <Textarea
+                        placeholder="Add more details or respond to the vendor/support..."
+                        value={replyMessage}
+                        onChange={(e) => setReplyMessage(e.target.value)}
+                        rows={3}
+                        className="resize-none"
+                      />
+                      <Button 
+                        onClick={handleSendReply} 
+                        disabled={sendingReply || !replyMessage.trim()}
+                        size="sm"
+                      >
+                        {sendingReply ? "Sending..." : "Send Message"}
+                      </Button>
                     </div>
                   </div>
                 )}
