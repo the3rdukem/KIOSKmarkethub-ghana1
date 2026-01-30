@@ -788,7 +788,7 @@ export default function ProductPage() {
                   </div>
                   <div className="flex gap-2">
                     <Button variant="outline" size="sm" className="flex-1 sm:flex-none text-xs sm:text-sm" asChild>
-                      <Link href={`/store/${product.vendorId}`}>
+                      <Link href={`/vendor/${product.vendorId}`}>
                         <Store className="w-4 h-4 sm:mr-2" />
                         <span className="hidden sm:inline">Visit Store</span>
                       </Link>
