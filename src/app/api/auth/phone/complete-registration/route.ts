@@ -4,6 +4,7 @@ import { query } from '@/lib/db';
 import { normalizePhoneNumber, isValidGhanaPhone, getPhoneVariants } from '@/lib/db/dal/phone-auth';
 import { createSession } from '@/lib/db/dal/sessions';
 import { hashPassword } from '@/lib/utils/crypto';
+import { setCsrfCookie } from '@/lib/utils/csrf';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -132,6 +133,8 @@ export async function POST(request: NextRequest) {
     
     const cookieStore = await cookies();
     cookieStore.set('session_token', token, COOKIE_OPTIONS);
+
+    await setCsrfCookie();
 
     return NextResponse.json({
       success: true,

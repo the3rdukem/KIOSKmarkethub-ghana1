@@ -105,6 +105,11 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 | Verified Phone Requirement | ✅ Complete | Backend check requiring phone_verified=true before adding payout accounts, frontend warning banner |
 | OTP Security for Payout Accounts | ✅ Complete | OTP verification via SMS before adding payout accounts, 15-minute token expiry, single-use tokens |
 | OTP Security for Phone Changes | ✅ Complete | OTP required via current phone before changing profile phone number, 10-minute token expiry, single-use tokens, phone_verified reset after change |
+| bcrypt Password Hashing | ✅ Complete | Migrated from SHA-256 to bcrypt (10 rounds), backward-compatible verification |
+| Database-Backed Rate Limiting | ✅ Complete | Atomic UPSERT operations, fail-closed error handling, configurable limits per action |
+| CSRF Protection | ✅ Complete | Double Submit Cookie pattern, middleware validation, protected: payouts, admin, password change |
+| XSS Prevention | ✅ Complete | DOMPurify sanitization for HTML content |
+| Paystack Webhook Security | ✅ Complete | Secret enforcement in production |
 | Email Fallback for OTP | ⏳ Pending | Allow email OTP as fallback when SMS delivery fails |
 | Payout Analytics Dashboard | ⏳ Pending | Visual reports for payout trends, vendor earnings over time |
 | Bulk Payout Processing | ⏳ Pending | Admin ability to approve/process multiple payouts at once |

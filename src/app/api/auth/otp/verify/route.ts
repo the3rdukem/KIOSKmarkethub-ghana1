@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { verifyPhoneOTP, normalizePhoneNumber, isValidGhanaPhone } from '@/lib/db/dal/phone-auth';
 import { createSession } from '@/lib/db/dal/sessions';
 import { withRateLimit, getClientIdentifier } from '@/lib/utils/rate-limiter';
+import { setCsrfCookie } from '@/lib/utils/csrf';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -66,6 +67,8 @@ export async function POST(request: NextRequest) {
         
         const cookieStore = await cookies();
         cookieStore.set('session_token', token, COOKIE_OPTIONS);
+        
+        await setCsrfCookie();
       }
 
       return NextResponse.json({

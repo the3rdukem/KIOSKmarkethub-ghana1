@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { validateSessionToken } from '@/lib/db/dal/auth-service';
+import { ensureCsrfToken } from '@/lib/utils/csrf';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -61,6 +62,8 @@ export async function GET(request: NextRequest) {
       console.error('[SESSION_API] Session valid but no user data');
       return NextResponse.json({ authenticated: false, user: null });
     }
+
+    await ensureCsrfToken();
 
     return NextResponse.json({
       authenticated: true,

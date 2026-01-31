@@ -23,6 +23,7 @@ import {
   validateAddress,
   validateContentSafety 
 } from '@/lib/validation';
+import { setCsrfCookie } from '@/lib/utils/csrf';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -234,7 +235,9 @@ export async function POST(request: NextRequest) {
 
     cookieStore.set('session_token', session.token, COOKIE_OPTIONS);
 
-    console.log('[REGISTER_API] Session cookie set, returning success');
+    await setCsrfCookie();
+
+    console.log('[REGISTER_API] Session and CSRF cookies set, returning success');
 
     return NextResponse.json({
       success: true,

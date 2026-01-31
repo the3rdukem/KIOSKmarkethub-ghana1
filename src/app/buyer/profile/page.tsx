@@ -33,6 +33,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { getCsrfHeaders } from "@/lib/utils/csrf-client";
 import {
   User,
   Mail,
@@ -234,7 +235,7 @@ export default function BuyerProfilePage() {
     try {
       const response = await fetch('/api/auth/change-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify({
           currentPassword: passwordForm.currentPassword,

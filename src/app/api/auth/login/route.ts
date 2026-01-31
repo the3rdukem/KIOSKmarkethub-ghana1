@@ -14,6 +14,7 @@ import { cookies } from 'next/headers';
 import { loginUser, getRouteForRole, type AuthErrorCode } from '@/lib/db/dal/auth-service';
 import { logAuthEvent } from '@/lib/db/dal/audit';
 import { withRateLimit, addRateLimitHeaders, getClientIdentifier } from '@/lib/utils/rate-limiter';
+import { setCsrfCookie } from '@/lib/utils/csrf';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -103,7 +104,9 @@ export async function POST(request: NextRequest) {
 
     cookieStore.set('session_token', session.token, COOKIE_OPTIONS);
 
-    console.log('[LOGIN_API] Session cookie set, returning success');
+    await setCsrfCookie();
+
+    console.log('[LOGIN_API] Session and CSRF cookies set, returning success');
 
     return NextResponse.json({
       success: true,

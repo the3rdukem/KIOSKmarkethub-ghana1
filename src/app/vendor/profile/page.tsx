@@ -28,6 +28,7 @@ import {
   Info,
   AlertTriangle
 } from "lucide-react";
+import { getCsrfHeaders } from "@/lib/utils/csrf-client";
 import { useAuthStore } from "@/lib/auth-store";
 import { toast } from "sonner";
 
@@ -187,7 +188,7 @@ export default function VendorProfilePage() {
     try {
       const response = await fetch('/api/auth/change-password', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify({
           currentPassword: passwordData.currentPassword,

@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { logoutByToken, validateSessionToken } from '@/lib/db/dal/auth-service';
 import { logAuthEvent } from '@/lib/db/dal/audit';
+import { CSRF_COOKIE_NAME } from '@/lib/utils/csrf';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -93,7 +94,16 @@ export async function POST(request: NextRequest) {
       maxAge: 0,
     });
 
-    console.log('[LOGOUT_API] Logout successful, session cleared (user cart preserved)');
+    // Clear CSRF token cookie
+    cookieStore.set(CSRF_COOKIE_NAME, '', {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict' as const,
+      path: '/',
+      maxAge: 0,
+    });
+
+    console.log('[LOGOUT_API] Logout successful, session and CSRF cleared (user cart preserved)');
 
     return NextResponse.json({ success: true });
   } catch (error) {

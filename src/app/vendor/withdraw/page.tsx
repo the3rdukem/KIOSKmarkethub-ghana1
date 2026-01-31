@@ -31,6 +31,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { getCsrfHeaders } from "@/lib/utils/csrf-client";
 import {
   ArrowLeft,
   Smartphone,
@@ -288,7 +289,7 @@ export default function VendorWithdrawPage() {
       const amount = parseFloat(withdrawAmount);
       const response = await fetch('/api/vendor/payouts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify({
           amount,
@@ -322,7 +323,7 @@ export default function VendorWithdrawPage() {
     try {
       const response = await fetch('/api/vendor/payouts/otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify({ purpose: 'payout_account' }),
       });
@@ -357,7 +358,7 @@ export default function VendorWithdrawPage() {
     try {
       const response = await fetch('/api/vendor/payouts/otp/verify', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify({ otp: otpCode }),
       });
@@ -417,7 +418,7 @@ export default function VendorWithdrawPage() {
 
       const response = await fetch('/api/vendor/bank-accounts', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify(body),
       });
@@ -461,6 +462,7 @@ export default function VendorWithdrawPage() {
     try {
       const response = await fetch(`/api/vendor/bank-accounts?id=${accountId}`, {
         method: 'DELETE',
+        headers: getCsrfHeaders(),
         credentials: 'include',
       });
 

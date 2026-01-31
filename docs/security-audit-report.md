@@ -244,7 +244,23 @@ From `replit.md`:
 
 ### Short-term (First Month)
 6. ✅ Implement database-backed rate limiting (DONE - 2026-01-31)
-7. ⏳ Add CSRF protection
+7. ✅ Add CSRF protection (DONE - 2026-01-31)
+   - Double Submit Cookie pattern implemented
+   - Middleware-based validation for state-changing requests (POST/PUT/DELETE/PATCH)
+   - CSRF token generated on login/registration and stored in non-httpOnly cookie
+   - Frontend utilities: `getCsrfHeaders()` from `@/lib/utils/csrf-client`
+   - **Currently Protected Endpoints**:
+     - `/api/auth/change-password`
+     - `/api/vendor/payouts/*` (payout requests, OTP)
+     - `/api/vendor/bank-accounts/*` (add/delete accounts)
+     - `/api/vendor/profile/*`
+     - `/api/admin/*` (all admin operations)
+     - `/api/buyer/disputes/*`
+   - **Exempt Endpoints** (public, authentication, or lower-risk):
+     - All authentication flows (login, register, OTP, password reset)
+     - Webhooks (Paystack)
+     - Cart, wishlist, reviews, messaging, notifications, orders
+   - **Note**: Full rollout requires updating additional frontend components
 8. ⏳ Complete email verification flow
 9. ✅ Consolidate duplicate crypto functions (DONE - 2026-01-31)
 10. ⏳ Refactor large files

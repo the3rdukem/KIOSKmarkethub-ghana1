@@ -17,6 +17,7 @@ import { cookies } from 'next/headers';
 import { handleGoogleCallbackServer } from '@/lib/db/dal/google-oauth-server';
 import { createOrLinkOAuthUser, createSessionForUser } from '@/lib/db/dal/auth-service';
 import { createAuditLog } from '@/lib/db/dal/audit';
+import { setCsrfCookie } from '@/lib/utils/csrf';
 
 function getBaseUrl(request: NextRequest): string {
   // Priority: NEXT_PUBLIC_APP_URL (production) > Replit domains (dev) > request origin (fallback)
@@ -116,6 +117,8 @@ export async function GET(request: NextRequest) {
       maxAge: 7 * 24 * 60 * 60, // 7 days
       path: '/',
     });
+
+    await setCsrfCookie();
 
     // Log OAuth login
     await createAuditLog({
