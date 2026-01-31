@@ -98,13 +98,13 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 | Real Vendor Analytics | 3-4 | ✅ Complete | Sales trends, product performance, order metrics, rating distribution with charts |
 | **Subtotal** | **~16-23** | | |
 
-### Tier 2: Security Enhancements (Deferred)
+### Tier 2: Security Enhancements
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| OTP Security for Payout Accounts | ⏳ Pending | OTP verification when adding payout accounts (sent to verified profile phone) |
+| Verified Phone Requirement | ✅ Complete | Backend check requiring phone_verified=true before adding payout accounts, frontend warning banner |
+| OTP Security for Payout Accounts | ✅ Complete | OTP verification via SMS before adding payout accounts, 15-minute token expiry, single-use tokens |
 | OTP Security for Phone Changes | ⏳ Pending | OTP required via current phone OR email before changing profile phone number |
-| Verified Phone Requirement | ⏳ Pending | Vendors must have verified phone before creating payout accounts |
 | Email Fallback for OTP | ⏳ Pending | Allow email OTP as fallback when SMS delivery fails |
 | Payout Analytics Dashboard | ⏳ Pending | Visual reports for payout trends, vendor earnings over time |
 | Bulk Payout Processing | ⏳ Pending | Admin ability to approve/process multiple payouts at once |
