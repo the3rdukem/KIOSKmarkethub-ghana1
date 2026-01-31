@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, Suspense, useRef, useEffect } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -25,7 +25,8 @@ import {
   AlertTriangle,
   Eye,
   EyeOff,
-  Loader2
+  Loader2,
+  ArrowLeft
 } from "lucide-react";
 import { toast } from "sonner";
 import { registerViaAPI, getRouteForRole, type UserRole } from "@/lib/auth-store";
@@ -34,7 +35,6 @@ import { AddressAutocomplete } from "@/components/integrations/address-autocompl
 import { Separator } from "@/components/ui/separator";
 import { getSafeRedirectUrl } from "@/lib/utils/safe-redirect";
 import { GHANA_REGIONS } from "@/lib/constants/ghana-locations";
-import { PhoneRegisterForm } from "@/components/auth/phone-register-form";
 
 function RegisterPageContent() {
   const searchParams = useSearchParams();
@@ -60,6 +60,20 @@ function RegisterPageContent() {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  
+  const [showOtpVerification, setShowOtpVerification] = useState(false);
+  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [maskedPhone, setMaskedPhone] = useState("");
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [otpAttemptsRemaining, setOtpAttemptsRemaining] = useState(5);
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
+  
+  useEffect(() => {
+    if (otpCooldown > 0) {
+      const timer = setTimeout(() => setOtpCooldown(otpCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [otpCooldown]);
 
   const businessTypes = [
     "Individual Seller", "Small Business", "Medium Enterprise", "Corporation",
@@ -78,10 +92,22 @@ function RegisterPageContent() {
 
     if (!formData.firstName.trim()) newErrors.firstName = "First name is required";
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required";
-    if (!formData.email.trim()) newErrors.email = "Email is required";
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Email is invalid";
+    
+    if (authMethod === "email") {
+      if (!formData.email.trim()) newErrors.email = "Email is required";
+      else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = "Email is invalid";
+    }
+    
+    if (authMethod === "phone") {
+      const cleanedPhone = formData.phone.replace(/\D/g, "");
+      if (!cleanedPhone) newErrors.phone = "Phone number is required";
+      else if (cleanedPhone.length !== 10 || !cleanedPhone.startsWith("0")) {
+        newErrors.phone = "Please enter a valid 10-digit Ghana phone number starting with 0";
+      }
+    } else {
+      if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
+    }
 
-    if (!formData.phone.trim()) newErrors.phone = "Phone number is required";
     if (!formData.password) newErrors.password = "Password is required";
     else {
       const passwordChecks = [];
@@ -117,10 +143,36 @@ function RegisterPageContent() {
     setErrors({});
 
     try {
+      if (authMethod === "phone") {
+        const response = await fetch("/api/auth/otp/send", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: formData.phone }),
+        });
+        
+        const data = await response.json();
+        
+        if (!data.success) {
+          if (data.cooldownRemaining) {
+            setOtpCooldown(data.cooldownRemaining);
+          }
+          setErrors({ submit: data.error || "Failed to send verification code" });
+          setIsLoading(false);
+          return;
+        }
+        
+        setMaskedPhone(data.message?.match(/\+\d+\*+\d+/)?.[0] || formData.phone);
+        setShowOtpVerification(true);
+        setOtp(["", "", "", "", "", ""]);
+        setOtpAttemptsRemaining(5);
+        setTimeout(() => otpRefs.current[0]?.focus(), 100);
+        setIsLoading(false);
+        return;
+      }
+      
       const fullName = `${formData.firstName} ${formData.lastName}`;
       const location = `${formData.city}, ${formData.region}`;
 
-      // Use atomic API registration - goes to database
       const result = await registerViaAPI({
         email: formData.email,
         password: formData.password,
@@ -192,11 +244,233 @@ function RegisterPageContent() {
       console.error('[REGISTER] Error:', error);
       const errorMessage = error instanceof Error ? error.message : "Registration failed";
       setErrors({ submit: errorMessage });
-      // NO toast here - error is shown inline
     } finally {
       setIsLoading(false);
     }
   };
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    
+    const newOtp = [...otp];
+    newOtp[index] = value.slice(-1);
+    setOtp(newOtp);
+    setErrors({});
+
+    if (value && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+
+    if (newOtp.every(d => d) && newOtp.join("").length === 6) {
+      handleVerifyOTP(newOtp.join(""));
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === "Backspace" && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleOtpPaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
+    if (pastedData.length === 6) {
+      const newOtp = pastedData.split("");
+      setOtp(newOtp);
+      handleVerifyOTP(pastedData);
+    }
+  };
+
+  const handleVerifyOTP = async (otpCode: string) => {
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      const response = await fetch("/api/auth/otp/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: formData.phone, otp: otpCode }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        if (data.attemptsRemaining !== undefined) {
+          setOtpAttemptsRemaining(data.attemptsRemaining);
+        }
+        setErrors({ submit: data.error });
+        setOtp(["", "", "", "", "", ""]);
+        setTimeout(() => otpRefs.current[0]?.focus(), 100);
+        setIsLoading(false);
+        return;
+      }
+
+      const fullName = `${formData.firstName} ${formData.lastName}`;
+      const location = `${formData.city}, ${formData.region}`;
+
+      const regResponse = await fetch("/api/auth/phone/complete-registration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: formData.phone,
+          password: formData.password,
+          name: fullName,
+          role: userType,
+          location: location,
+          businessName: userType === "vendor" ? formData.businessName : undefined,
+          businessType: userType === "vendor" ? formData.businessType : undefined,
+          address: userType === "vendor" ? formData.address : undefined,
+        }),
+      });
+
+      const regData = await regResponse.json();
+
+      if (!regData.success) {
+        setErrors({ submit: regData.error || "Registration failed" });
+        setIsLoading(false);
+        return;
+      }
+
+      toast.success(`Welcome to KIOSK, ${formData.firstName}!`);
+
+      if (userType === "vendor") {
+        setTimeout(() => {
+          window.location.href = "/vendor/verify";
+        }, 500);
+      } else {
+        setTimeout(() => {
+          window.location.href = redirectUrl || getRouteForRole("buyer");
+        }, 500);
+      }
+    } catch (error) {
+      console.error('[REGISTER] OTP verification error:', error);
+      setErrors({ submit: "Verification failed. Please try again." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResendOTP = async () => {
+    if (otpCooldown > 0) return;
+    
+    setIsLoading(true);
+    setErrors({});
+
+    try {
+      const response = await fetch("/api/auth/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: formData.phone }),
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        if (data.cooldownRemaining) {
+          setOtpCooldown(data.cooldownRemaining);
+        }
+        setErrors({ submit: data.error });
+      } else {
+        setOtp(["", "", "", "", "", ""]);
+        setOtpAttemptsRemaining(5);
+        setOtpCooldown(60);
+        toast.success("Verification code sent!");
+        setTimeout(() => otpRefs.current[0]?.focus(), 100);
+      }
+    } catch (error) {
+      setErrors({ submit: "Failed to resend code. Please try again." });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  if (showOtpVerification) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full space-y-8">
+          <div className="text-center">
+            <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
+              <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold">
+                K
+              </div>
+              <span className="font-bold text-xl">KIOSK</span>
+            </Link>
+            <h2 className="text-3xl font-bold text-gray-900">Verify Your Phone</h2>
+          </div>
+
+          <Card>
+            <CardContent className="pt-6 space-y-6">
+              <button
+                type="button"
+                onClick={() => setShowOtpVerification(false)}
+                className="flex items-center text-sm text-gray-600 hover:text-gray-900"
+              >
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                Back to registration
+              </button>
+
+              <div className="text-center">
+                <p className="text-sm text-gray-600">
+                  Enter the 6-digit code sent to
+                </p>
+                <p className="font-medium">{maskedPhone}</p>
+              </div>
+
+              <div className="flex justify-center gap-2">
+                {otp.map((digit, index) => (
+                  <Input
+                    key={index}
+                    ref={(el) => { otpRefs.current[index] = el; }}
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={1}
+                    value={digit}
+                    onChange={(e) => handleOtpChange(index, e.target.value)}
+                    onKeyDown={(e) => handleOtpKeyDown(index, e)}
+                    onPaste={handleOtpPaste}
+                    className={`w-12 h-12 text-center text-xl font-semibold ${errors.submit ? "border-red-500" : ""}`}
+                    disabled={isLoading}
+                  />
+                ))}
+              </div>
+
+              {errors.submit && (
+                <Alert className="border-red-200 bg-red-50">
+                  <AlertTriangle className="h-4 w-4 text-red-600" />
+                  <AlertDescription className="text-red-800">
+                    {errors.submit}
+                    {otpAttemptsRemaining > 0 && otpAttemptsRemaining < 5 && (
+                      <span className="block mt-1 text-xs">
+                        {otpAttemptsRemaining} attempt{otpAttemptsRemaining !== 1 ? "s" : ""} remaining
+                      </span>
+                    )}
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {isLoading && (
+                <div className="flex justify-center">
+                  <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+                </div>
+              )}
+
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={handleResendOTP}
+                  disabled={otpCooldown > 0 || isLoading}
+                  className={`text-sm ${otpCooldown > 0 ? "text-gray-400" : "text-blue-600 hover:underline"}`}
+                >
+                  {otpCooldown > 0 ? `Resend code in ${otpCooldown}s` : "Resend code"}
+                </button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -288,23 +562,13 @@ function RegisterPageContent() {
               </TabsList>
               
               <TabsContent value="phone">
-                <PhoneRegisterForm
-                  userType={userType}
-                  onSuccess={(user) => {
-                    toast.success(`Welcome to KIOSK!`);
-                    if (user.role === "vendor") {
-                      window.location.href = "/vendor/verify";
-                    } else {
-                      window.location.href = redirectUrl || getRouteForRole("buyer");
-                    }
-                  }}
-                  onError={(error) => {
-                    toast.error(error);
-                  }}
-                />
               </TabsContent>
               
               <TabsContent value="email">
+              </TabsContent>
+            </Tabs>
+            
+            <div className="mt-4">
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Personal Information */}
               <div className="grid grid-cols-2 gap-4">
@@ -334,37 +598,58 @@ function RegisterPageContent() {
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="email">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className={`pl-10 ${errors.email ? "border-red-500" : ""}`}
-                    placeholder="john@example.com"
-                  />
+              {authMethod === "phone" ? (
+                <div>
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
+                      className={`pl-10 ${errors.phone ? "border-red-500" : ""}`}
+                      placeholder="024 XXX XXXX"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Enter your 10-digit Ghana phone number</p>
+                  {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                 </div>
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-              </div>
+              ) : (
+                <>
+                  <div>
+                    <Label htmlFor="email">Email Address</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange("email", e.target.value)}
+                        className={`pl-10 ${errors.email ? "border-red-500" : ""}`}
+                        placeholder="john@example.com"
+                      />
+                    </div>
+                    {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                  </div>
 
-              <div>
-                <Label htmlFor="phone">Phone Number</Label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone}
-                    onChange={(e) => handleInputChange("phone", e.target.value)}
-                    className={`pl-10 ${errors.phone ? "border-red-500" : ""}`}
-                    placeholder="+233 24 123 4567"
-                  />
-                </div>
-                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
-              </div>
+                  <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        id="phone"
+                        type="tel"
+                        value={formData.phone}
+                        onChange={(e) => handleInputChange("phone", e.target.value)}
+                        className={`pl-10 ${errors.phone ? "border-red-500" : ""}`}
+                        placeholder="+233 24 123 4567"
+                      />
+                    </div>
+                    {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
+                  </div>
+                </>
+              )}
 
               {/* Location - City autocomplete with Google Places */}
               <div>
@@ -601,6 +886,8 @@ function RegisterPageContent() {
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   "Creating Account..."
+                ) : authMethod === "phone" ? (
+                  "Continue to Verification"
                 ) : userType === "vendor" ? (
                   "Create Account & Verify"
                 ) : (
@@ -608,8 +895,7 @@ function RegisterPageContent() {
                 )}
               </Button>
             </form>
-              </TabsContent>
-            </Tabs>
+            </div>
 
             <div className="mt-4">
               <div className="relative">
