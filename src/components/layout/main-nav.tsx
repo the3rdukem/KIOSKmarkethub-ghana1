@@ -480,20 +480,26 @@ export function MainNav() {
         {/* Logo and Portal Title */}
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-2">
-            <div className={`w-8 h-8 rounded-lg ${getPortalColor()} flex items-center justify-center text-white font-bold overflow-hidden`}>
-              {branding.logo_url ? (
-                <img src={branding.logo_url} alt={siteName} className="w-full h-full object-cover" />
-              ) : effectiveRole === "vendor" ? (
-                <Store className="w-4 h-4" />
-              ) : effectiveRole === "master_admin" ? (
-                <Crown className="w-4 h-4" />
-              ) : effectiveRole === "admin" ? (
-                <Shield className="w-4 h-4" />
-              ) : (
-                siteName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-              )}
-            </div>
-            <span className="font-bold text-xl">{getPortalTitle()}</span>
+            {!safeUser || effectiveRole === "buyer" ? (
+              <img src="/images/kiosk-logo-horizontal.png" alt={siteName} className="h-8 w-auto" />
+            ) : (
+              <>
+                <div className={`w-8 h-8 rounded-lg ${getPortalColor()} flex items-center justify-center text-white font-bold overflow-hidden`}>
+                  {branding.logo_url ? (
+                    <img src={branding.logo_url} alt={siteName} className="w-full h-full object-cover" />
+                  ) : effectiveRole === "vendor" ? (
+                    <Store className="w-4 h-4" />
+                  ) : effectiveRole === "master_admin" ? (
+                    <Crown className="w-4 h-4" />
+                  ) : effectiveRole === "admin" ? (
+                    <Shield className="w-4 h-4" />
+                  ) : (
+                    siteName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+                  )}
+                </div>
+                <span className="font-bold text-xl">{getPortalTitle()}</span>
+              </>
+            )}
           </Link>
         </div>
 
@@ -633,10 +639,7 @@ export function MainNav() {
                 <SheetContent side="right" className="w-80">
                   <SheetHeader>
                     <SheetTitle className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-lg ${getPortalColor()} flex items-center justify-center text-white font-bold`}>
-                        K
-                      </div>
-                      <span>KIOSK</span>
+                      <img src="/images/kiosk-logo-horizontal.png" alt="KIOSK" className="h-8 w-auto" />
                     </SheetTitle>
                   </SheetHeader>
                   <nav className="mt-8 flex flex-col space-y-1">
