@@ -5,6 +5,7 @@ import { useParams, notFound } from "next/navigation";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { sanitizeHTML } from "@/lib/utils/sanitize";
 
 interface StaticPage {
   id: string;
@@ -80,7 +81,7 @@ export default function StaticPageView() {
           <CardContent>
             <div 
               className="prose prose-lg max-w-none"
-              dangerouslySetInnerHTML={{ __html: page.content }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHTML(page.content) }}
             />
           </CardContent>
         </Card>

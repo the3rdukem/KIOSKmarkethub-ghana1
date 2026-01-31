@@ -76,7 +76,8 @@ export async function POST(request: NextRequest) {
 
     const storedPasswordHash = result.rows[0].password_hash;
 
-    if (!verifyPassword(currentPassword, storedPasswordHash)) {
+    const passwordValid = await verifyPassword(currentPassword, storedPasswordHash);
+    if (!passwordValid) {
       await logAuthEvent(
         'PASSWORD_CHANGE_FAILED',
         session.user_id,
@@ -87,7 +88,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Current password is incorrect' }, { status: 400 });
     }
 
-    const newPasswordHash = hashPassword(newPassword);
+    const newPasswordHash = await hashPassword(newPassword);
 
     await query(
       'UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3',

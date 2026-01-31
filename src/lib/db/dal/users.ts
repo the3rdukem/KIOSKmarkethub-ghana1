@@ -7,7 +7,13 @@
 
 import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
-import { createHash } from 'crypto';
+import {
+  hashPassword,
+  hashPasswordSync,
+  verifyPassword,
+  verifyPasswordSync,
+  needsHashMigration,
+} from '@/lib/utils/crypto';
 
 export type UserRole = 'buyer' | 'vendor' | 'admin' | 'master_admin';
 export type UserStatus = 'active' | 'suspended' | 'pending' | 'banned' | 'deleted';
@@ -101,27 +107,14 @@ export interface UpdateUserInput {
   createdBy?: string;
 }
 
-export function hashPassword(password: string): string {
-  const salt = uuidv4().substring(0, 16);
-  const hash = createHash('sha256')
-    .update(password + salt)
-    .digest('hex');
-  return `${salt}:${hash}`;
-}
-
-export function verifyPassword(password: string, storedHash: string): boolean {
-  const [salt, hash] = storedHash.split(':');
-  if (!salt || !hash) return false;
-  const computedHash = createHash('sha256')
-    .update(password + salt)
-    .digest('hex');
-  return computedHash === hash;
-}
+// Password hashing is now centralized in @/lib/utils/crypto
+// Re-export for backward compatibility
+export { hashPassword, hashPasswordSync, verifyPassword, verifyPasswordSync } from '@/lib/utils/crypto';
 
 export async function createUser(input: CreateUserInput): Promise<DbUser> {
   const id = `user_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();
-  const passwordHash = input.password ? hashPassword(input.password) : null;
+  const passwordHash = input.password ? await hashPassword(input.password) : null;
 
   await query(
     `INSERT INTO users (
@@ -444,7 +437,8 @@ export async function deleteUser(id: string): Promise<boolean> {
 export async function verifyUserCredentials(email: string, password: string): Promise<DbUser | null> {
   const user = await getUserByEmail(email);
   if (!user || !user.password_hash) return null;
-  if (!verifyPassword(password, user.password_hash)) return null;
+  const passwordValid = await verifyPassword(password, user.password_hash);
+  if (!passwordValid) return null;
   const allowedStatuses: UserStatus[] = ['active', 'pending'];
   if (!allowedStatuses.includes(user.status)) return null;
   return user;
@@ -535,7 +529,7 @@ export async function getUserStats(): Promise<{
 }
 
 export async function updateUserPassword(id: string, newPassword: string): Promise<boolean> {
-  const passwordHash = hashPassword(newPassword);
+  const passwordHash = await hashPassword(newPassword);
   const now = new Date().toISOString();
 
   const result = await query(

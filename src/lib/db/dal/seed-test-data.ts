@@ -7,7 +7,7 @@
 
 import { getDatabase } from '../index';
 import { v4 as uuidv4 } from 'uuid';
-import { hashPassword } from './users';
+import { hashPasswordSync } from '@/lib/utils/crypto';
 
 /**
  * Seed test vendor and products
@@ -36,7 +36,7 @@ export function seedTestData(): void {
   `).run(
     vendorUserId,
     'testvendor@markethub.gh',
-    hashPassword('TestVendor123!'),
+    hashPasswordSync('TestVendor123!'),
     'Ghana Electronics Store',
     '+233 24 555 1234',
     'Accra, Greater Accra',
@@ -181,7 +181,7 @@ export function seedTestBuyer(): void {
   `).run(
     buyerId,
     'testbuyer@markethub.gh',
-    hashPassword('TestBuyer123!'),
+    hashPasswordSync('TestBuyer123!'),
     'Test Buyer',
     '+233 24 555 5678',
     'Kumasi, Ashanti Region',

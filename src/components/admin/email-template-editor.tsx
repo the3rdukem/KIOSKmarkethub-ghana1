@@ -27,6 +27,7 @@ import {
 import { Loader2, Plus, Monitor, Smartphone, Variable, Save, X } from "lucide-react";
 import { toast } from "sonner";
 import "react-quill-new/dist/quill.snow.css";
+import { sanitizeEmailHTML } from "@/lib/utils/sanitize";
 
 const ReactQuill = dynamic(() => import("react-quill-new"), {
   ssr: false,
@@ -337,7 +338,7 @@ export function EmailTemplateEditor({
                     </div>
                     <div
                       className="p-4 prose prose-sm max-w-none"
-                      dangerouslySetInnerHTML={{ __html: previewHtml || "<p>Start writing...</p>" }}
+                      dangerouslySetInnerHTML={{ __html: sanitizeEmailHTML(previewHtml || "<p>Start writing...</p>") }}
                     />
                   </div>
                 </CardContent>

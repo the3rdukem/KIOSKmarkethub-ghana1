@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { query } from '@/lib/db';
 import { normalizePhoneNumber, isValidGhanaPhone, getPhoneVariants } from '@/lib/db/dal/phone-auth';
 import { createSession } from '@/lib/db/dal/sessions';
-import { hashPassword } from '@/lib/db/dal/auth-service';
+import { hashPassword } from '@/lib/utils/crypto';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
-    const passwordHash = hashPassword(password);
+    const passwordHash = await hashPassword(password);
     
     const updateFields: string[] = [
       'name = $1',

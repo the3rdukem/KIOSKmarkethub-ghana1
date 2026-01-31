@@ -6,16 +6,26 @@
  * ALL login attempts check ALL user sources.
  *
  * RULES:
- * 1. ONE password hashing strategy (SHA-256 with salt)
+ * 1. ONE password hashing strategy (bcrypt with cost factor 12)
  * 2. ONE session creation mechanism
  * 3. ONE user creation pipeline
  * 4. Login is ROLE-AGNOSTIC - role determines redirect, not auth method
+ * 5. Automatic migration of legacy SHA-256 passwords to bcrypt on login
  */
 
 import { query, runTransaction } from '../index';
 import { v4 as uuidv4 } from 'uuid';
-import { createHash, randomBytes } from 'crypto';
+import { randomBytes } from 'crypto';
 import { getPhoneVariants } from './users';
+import {
+  hashPassword,
+  hashPasswordSync,
+  verifyPassword,
+  verifyPasswordSync,
+  needsHashMigration,
+  generateSecureToken,
+  hashToken,
+} from '@/lib/utils/crypto';
 
 // ============================================
 // TYPES
@@ -116,28 +126,14 @@ export function validatePassword(password: string): PasswordValidationResult {
 }
 
 // ============================================
-// SINGLE PASSWORD HASHING STRATEGY
+// PASSWORD HASHING - NOW USES BCRYPT (via crypto utility)
 // ============================================
-
-export function hashPassword(password: string): string {
-  const salt = uuidv4().substring(0, 16);
-  const hash = createHash('sha256').update(password + salt).digest('hex');
-  return `${salt}:${hash}`;
-}
-
-export function verifyPassword(password: string, storedHash: string): boolean {
-  const [salt, hash] = storedHash.split(':');
-  if (!salt || !hash) return false;
-  const computedHash = createHash('sha256').update(password + salt).digest('hex');
-  return computedHash === hash;
-}
+// hashPassword, verifyPassword, hashToken imported from @/lib/utils/crypto
+// Re-export for backward compatibility with existing code
+export { hashPassword, hashPasswordSync, verifyPassword, verifyPasswordSync } from '@/lib/utils/crypto';
 
 function generateSessionToken(): string {
-  return randomBytes(32).toString('hex');
-}
-
-function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
+  return generateSecureToken(32);
 }
 
 // ============================================
@@ -287,8 +283,8 @@ export async function createUser(
         }
       }
 
-      // Hash password using SINGLE strategy
-      const passwordHash = hashPassword(input.password);
+      // Hash password using bcrypt (industry standard)
+      const passwordHash = await hashPassword(input.password);
 
       // Create user with role
       const userId = `user_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
@@ -625,8 +621,19 @@ export async function loginUser(
             if (admin.is_active !== 1) {
               throw { code: 'ADMIN_DISABLED' as AuthErrorCode, message: 'Admin account is disabled' };
             }
-            if (!verifyPassword(input.password, admin.password_hash as string)) {
+            const adminPasswordValid = await verifyPassword(input.password, admin.password_hash as string);
+            if (!adminPasswordValid) {
               throw { code: 'INVALID_CREDENTIALS' as AuthErrorCode, message: 'Invalid email or password' };
+            }
+
+            // Migrate legacy SHA-256 password to bcrypt if needed
+            if (needsHashMigration(admin.password_hash as string)) {
+              const newHash = await hashPassword(input.password);
+              await client.query(
+                'UPDATE admin_users SET password_hash = $1, updated_at = $2 WHERE id = $3',
+                [newHash, new Date().toISOString(), admin.id]
+              );
+              console.log('[AUTH_SERVICE] Migrated admin password to bcrypt:', admin.id);
             }
 
             isLegacyAdmin = true;
@@ -665,8 +672,22 @@ export async function loginUser(
 
       // Step 4: Verify password (only if not already verified for legacy admin)
       if (!isLegacyAdmin) {
-        if (!user.password_hash || !verifyPassword(input.password, user.password_hash as string)) {
+        if (!user.password_hash) {
           throw { code: 'INVALID_CREDENTIALS' as AuthErrorCode, message: 'Invalid email or password' };
+        }
+        const passwordValid = await verifyPassword(input.password, user.password_hash as string);
+        if (!passwordValid) {
+          throw { code: 'INVALID_CREDENTIALS' as AuthErrorCode, message: 'Invalid email or password' };
+        }
+
+        // Migrate legacy SHA-256 password to bcrypt if needed
+        if (needsHashMigration(user.password_hash as string)) {
+          const newHash = await hashPassword(input.password);
+          await client.query(
+            'UPDATE users SET password_hash = $1, updated_at = $2 WHERE id = $3',
+            [newHash, new Date().toISOString(), user.id]
+          );
+          console.log('[AUTH_SERVICE] Migrated user password to bcrypt:', user.id);
         }
       }
 

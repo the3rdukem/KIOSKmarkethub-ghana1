@@ -8,7 +8,8 @@
 import { query } from '../index';
 import { randomBytes, createHash } from 'crypto';
 import { v4 as uuidv4 } from 'uuid';
-import { hashPassword, validatePassword } from './auth-service';
+import { validatePassword } from './auth-service';
+import { hashPassword, hashToken } from '@/lib/utils/crypto';
 import { getUserByEmail } from './users';
 
 const TOKEN_EXPIRY_MINUTES = 30;
@@ -31,9 +32,7 @@ interface DbTokenRow {
   created_at: string;
 }
 
-function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
+// hashToken imported from @/lib/utils/crypto
 
 function generateSecureToken(): string {
   return randomBytes(32).toString('hex');
@@ -129,7 +128,7 @@ export async function resetPassword(token: string, newPassword: string): Promise
   }
 
   const tokenHash = hashToken(token);
-  const passwordHash = hashPassword(newPassword);
+  const passwordHash = await hashPassword(newPassword);
   const now = new Date().toISOString();
 
   await query(

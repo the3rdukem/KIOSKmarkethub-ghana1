@@ -151,15 +151,21 @@ async function seedMasterAdmin(client: PoolClient): Promise<void> {
 
   // Create master admin with environment variables or secure defaults
   const email = process.env.MASTER_ADMIN_EMAIL || 'the3rdukem@gmail.com';
-  const password = process.env.MASTER_ADMIN_PASSWORD || '123asdqweX$';
+  const password = process.env.MASTER_ADMIN_PASSWORD;
   const name = 'System Administrator';
   
-  // Hash password using the same format as users.ts hashPassword()
-  // Format: salt:hash where salt is 16 chars from UUID
-  const crypto = require('crypto');
-  const salt = crypto.randomUUID().substring(0, 16);
-  const hash = crypto.createHash('sha256').update(password + salt).digest('hex');
-  const passwordHash = `${salt}:${hash}`;
+  // SECURITY: Require MASTER_ADMIN_PASSWORD in production
+  if (!password) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL: MASTER_ADMIN_PASSWORD environment variable is required in production');
+    }
+    console.warn('[SECURITY WARNING] Using default master admin password - DO NOT USE IN PRODUCTION');
+  }
+  const adminPassword = password || '123asdqweX$';
+  
+  // Hash password using bcrypt via crypto utility
+  const { hashPasswordSync } = require('@/lib/utils/crypto');
+  const passwordHash = hashPasswordSync(adminPassword);
   
   const adminId = `admin_${crypto.randomUUID().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();

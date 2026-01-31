@@ -70,11 +70,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Payment gateway not configured' }, { status: 503 });
     }
 
-    if (credentials.webhookSecret) {
-      if (!verifySignature(rawBody, signature, credentials.webhookSecret)) {
-        console.error('[PAYSTACK_WEBHOOK] Invalid signature');
-        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-      }
+    // SECURITY: Webhook secret is REQUIRED - prevents attackers from forging webhooks
+    if (!credentials.webhookSecret) {
+      console.error('[PAYSTACK_WEBHOOK] CRITICAL: Webhook secret not configured - rejecting webhook for security');
+      return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 503 });
+    }
+
+    if (!verifySignature(rawBody, signature, credentials.webhookSecret)) {
+      console.error('[PAYSTACK_WEBHOOK] Invalid signature - possible attack attempt');
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
     let event: PaystackEvent;

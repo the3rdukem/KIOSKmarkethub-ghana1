@@ -7,12 +7,14 @@
 
 import { query } from '../index';
 import { v4 as uuidv4 } from 'uuid';
-import { hashPassword, verifyPassword } from './users';
-import { createHash } from 'crypto';
-
-function hashToken(token: string): string {
-  return createHash('sha256').update(token).digest('hex');
-}
+import {
+  hashPassword,
+  hashPasswordSync,
+  verifyPassword,
+  verifyPasswordSync,
+  needsHashMigration,
+  hashToken,
+} from '@/lib/utils/crypto';
 
 export type AdminRole = 'MASTER_ADMIN' | 'ADMIN';
 
@@ -117,7 +119,7 @@ export async function initializeAdminSystem(): Promise<void> {
 export async function createAdminUser(input: CreateAdminInput): Promise<DbAdminUser> {
   const id = `admin_${uuidv4().replace(/-/g, '').substring(0, 16)}`;
   const now = new Date().toISOString();
-  const passwordHash = hashPassword(input.password);
+  const passwordHash = await hashPassword(input.password);
   const permissions = input.permissions ||
     (input.role === 'MASTER_ADMIN' ? MASTER_ADMIN_PERMISSIONS : ADMIN_PERMISSIONS);
 
@@ -194,7 +196,8 @@ export async function authenticateAdmin(email: string, password: string): Promis
     return { success: false, error: 'Account is disabled' };
   }
 
-  if (!verifyPassword(password, admin.password_hash)) {
+  const passwordValid = await verifyPassword(password, admin.password_hash);
+  if (!passwordValid) {
     return { success: false, error: 'Invalid credentials' };
   }
 
@@ -253,7 +256,7 @@ export async function updateAdmin(id: string, updates: {
 export async function changeAdminPassword(id: string, newPassword: string): Promise<boolean> {
   if (newPassword.length < 8) return false;
 
-  const passwordHash = hashPassword(newPassword);
+  const passwordHash = await hashPassword(newPassword);
   const now = new Date().toISOString();
 
   const result = await query(`
