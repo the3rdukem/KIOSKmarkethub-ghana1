@@ -36,6 +36,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Buyer Orders Persistence**: Buyer orders are synced with Zustand store upon user identity changes.
 - **Database-Backed Wishlist**: `wishlist_items` table with CRUD operations, API endpoints, and store synchronization.
 - **Dynamic Filtering**: Price slider and category attribute filters dynamically appear based on product data.
+- **Currency Formatting**: Centralized `formatCurrency` utility in `src/lib/utils/currency.ts` for consistent GHS display across all frontend components.
 - **Payment System**: Updates include `payment_reference`, `payment_provider`, `paid_at`, and `currency` columns in orders table, with webhook integration.
 - **Messaging System**: Database schema for conversations and messages, DAL with role-based authorization, and REST API endpoints.
 - **In-App Notifications**: Database table `notifications` with append-only design, DAL, and API.
