@@ -481,7 +481,7 @@ export function MainNav() {
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-2">
             {!safeUser || effectiveRole === "buyer" ? (
-              <img src="/images/kiosk-logo-horizontal.png" alt={siteName} className="h-8 w-auto" />
+              <img src="/images/kiosk-logo-horizontal.png" alt={siteName} className="h-10 w-auto" />
             ) : (
               <>
                 <div className={`w-8 h-8 rounded-lg ${getPortalColor()} flex items-center justify-center text-white font-bold overflow-hidden`}>
@@ -639,7 +639,7 @@ export function MainNav() {
                 <SheetContent side="right" className="w-80">
                   <SheetHeader>
                     <SheetTitle className="flex items-center gap-2">
-                      <img src="/images/kiosk-logo-horizontal.png" alt="KIOSK" className="h-8 w-auto" />
+                      <img src="/images/kiosk-logo-horizontal.png" alt="KIOSK" className="h-10 w-auto" />
                     </SheetTitle>
                   </SheetHeader>
                   <nav className="mt-8 flex flex-col space-y-1">
