@@ -48,6 +48,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Vendor Payouts System**: Database-backed system using Paystack Transfers API. Manages vendor bank accounts, payout requests, and balance calculation. Vendor/Admin UIs for withdrawals and history. Webhook handlers for payout status.
 - **Dispute Resolution + Refunds System**: Full dispute lifecycle with DAL (disputes table with refund tracking), Admin/Buyer APIs, Paystack refund integration, commission reversal logic, and notification triggers. Supports dispute creation within 48-hour window, investigation workflow, resolution types (full/partial refund, replacement, no action), and async refund status tracking via webhooks.
 - **Vendor Profile Management**: Separate "My Profile" page (`/vendor/profile`) for account-level settings distinct from Store Settings. Supports login email change (with validation, uniqueness check, lowercase normalization) and password change. Foundation laid for email verification flow (pendingEmail, emailVerificationToken fields in DAL).
+- **Admin Dashboard Analytics**: Comprehensive platform metrics with date range filtering (7d/30d/90d/1y/all) and time bucketing (day/week/month). Tracks revenue, orders, users, products, vendors, fulfillment rates, commissions, and payouts. Includes trend charts (recharts), pie charts for status distributions, and top vendor leaderboard.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions and vendor payouts.
@@ -90,7 +91,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 |---------|-----------|--------|-------|
 | Email Notifications (Order events) | 3-4 | ✅ Complete | Order confirmation, payment received, shipped, delivered, cancelled emails to buyers; new order emails to vendors |
 | Low Stock Alerts (Email/SMS) | 1-2 | ✅ Complete | Integrated into order processing, configurable threshold in vendor settings |
-| Admin Dashboard Analytics | 4-5 | ⏳ Pending | Platform oversight and business metrics |
+| Admin Dashboard Analytics | 4-5 | ✅ Complete | Revenue, users, products, vendors, orders, financials with charts and date range filtering |
 | Export Functionality (CSV) | 2-3 | ✅ Complete | Vendor products/orders, admin orders/payouts with formatted exports |
 | Social Sharing (WhatsApp focus) | 1-2 | ✅ Complete | Product pages, order confirmation, vendor store pages |
 | Recently Viewed Products | 2-3 | ✅ Complete | localStorage-backed tracking, displayed on product pages |

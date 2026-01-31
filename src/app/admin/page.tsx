@@ -63,6 +63,7 @@ import {
 import { AdminAuthGuard } from "@/components/auth/auth-guard";
 import { EmailTemplateEditor } from "@/components/admin/email-template-editor";
 import { StaticPagesManagement } from "@/components/admin/static-pages-management";
+import { AdminAnalytics } from "@/components/admin/admin-analytics";
 
 interface DbAdmin {
   id: string;
@@ -1468,6 +1469,10 @@ function AdminDashboardContent() {
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-6">
+            {/* Platform Analytics */}
+            <AdminAnalytics />
+            
+            {/* Quick Actions and Recent Activity */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <Card>
                 <CardHeader><CardTitle>Quick Actions</CardTitle></CardHeader>
