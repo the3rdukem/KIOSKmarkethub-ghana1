@@ -15,6 +15,7 @@
 import { query, runTransaction } from '../index';
 import { v4 as uuidv4 } from 'uuid';
 import { createHash, randomBytes } from 'crypto';
+import { getPhoneVariants } from './users';
 
 // ============================================
 // TYPES
@@ -551,7 +552,8 @@ export async function registerUser(
 // ============================================
 
 export interface LoginInput {
-  email: string;
+  email?: string;
+  phone?: string;
   password: string;
 }
 
@@ -569,72 +571,96 @@ export async function loginUser(
   input: LoginInput,
   options?: { ipAddress?: string; userAgent?: string }
 ): Promise<AuthResult<{ user: AuthUser; session: AuthSession }>> {
-  console.log('[AUTH_SERVICE:LOGIN] Starting unified login', { email: input.email });
+  const identifier = input.email || input.phone;
+  const loginByPhone = !input.email && !!input.phone;
+  
+  console.log('[AUTH_SERVICE:LOGIN] Starting unified login', { 
+    email: input.email, 
+    phone: input.phone ? '***' : undefined,
+    loginByPhone 
+  });
 
-  if (!input.email || !input.password) {
-    return { success: false, error: { code: 'INVALID_INPUT', message: 'Email and password are required' } };
+  if (!identifier || !input.password) {
+    return { success: false, error: { code: 'INVALID_INPUT', message: 'Email or phone and password are required' } };
   }
 
   try {
     const result = await runTransaction(async (client) => {
       const now = new Date().toISOString();
-
-      // Step 1: Check users table first
-      const userResult = await client.query(
-        'SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND is_deleted = 0',
-        [input.email.toLowerCase()]
-      );
-      let user = userResult.rows[0] as Record<string, unknown> | undefined;
-
+      let user: Record<string, unknown> | undefined;
       let isLegacyAdmin = false;
 
-      // Step 2: If not found in users, check admin_users table
-      if (!user) {
-        const adminResult = await client.query(
-          'SELECT * FROM admin_users WHERE LOWER(email) = LOWER($1)',
-          [input.email.toLowerCase()]
+      // Step 1: Look up user by email or phone
+      if (loginByPhone) {
+        // Phone login - normalize and search with variants
+        const normalizedPhone = input.phone!.replace(/\D/g, '');
+        const phoneVariants = getPhoneVariants(normalizedPhone);
+        const placeholders = phoneVariants.map((_, i) => `$${i + 1}`).join(', ');
+        
+        const userResult = await client.query(
+          `SELECT * FROM users WHERE phone IN (${placeholders}) AND is_deleted = 0`,
+          phoneVariants
         );
-        const admin = adminResult.rows[0] as Record<string, unknown> | undefined;
+        user = userResult.rows[0] as Record<string, unknown> | undefined;
+        
+        // Phone login doesn't check admin_users (admins use email)
+      } else {
+        // Email login - check users table first
+        const userResult = await client.query(
+          'SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND is_deleted = 0',
+          [input.email!.toLowerCase()]
+        );
+        user = userResult.rows[0] as Record<string, unknown> | undefined;
 
-        if (admin) {
-          // Found in admin_users table
-          if (admin.is_active !== 1) {
-            throw { code: 'ADMIN_DISABLED' as AuthErrorCode, message: 'Admin account is disabled' };
+        // Step 2: If not found in users, check admin_users table
+        if (!user) {
+          const adminResult = await client.query(
+            'SELECT * FROM admin_users WHERE LOWER(email) = LOWER($1)',
+            [input.email!.toLowerCase()]
+          );
+          const admin = adminResult.rows[0] as Record<string, unknown> | undefined;
+
+          if (admin) {
+            // Found in admin_users table
+            if (admin.is_active !== 1) {
+              throw { code: 'ADMIN_DISABLED' as AuthErrorCode, message: 'Admin account is disabled' };
+            }
+            if (!verifyPassword(input.password, admin.password_hash as string)) {
+              throw { code: 'INVALID_CREDENTIALS' as AuthErrorCode, message: 'Invalid email or password' };
+            }
+
+            isLegacyAdmin = true;
+
+            // Create a unified user object from admin
+            user = {
+              id: admin.id,
+              email: admin.email,
+              name: admin.name,
+              role: admin.role === 'MASTER_ADMIN' ? 'master_admin' : 'admin',
+              status: 'active',
+              password_hash: admin.password_hash,
+              phone: null,
+              location: null,
+              business_name: null,
+              business_type: null,
+              verification_status: null,
+              avatar: null,
+              store_description: null,
+              store_banner: null,
+              store_logo: null,
+              created_at: admin.created_at,
+              // Admin-specific
+              admin_role: admin.role,
+              permissions: admin.permissions,
+            };
           }
-          if (!verifyPassword(input.password, admin.password_hash as string)) {
-            throw { code: 'INVALID_CREDENTIALS' as AuthErrorCode, message: 'Invalid email or password' };
-          }
-
-          isLegacyAdmin = true;
-
-          // Create a unified user object from admin
-          user = {
-            id: admin.id,
-            email: admin.email,
-            name: admin.name,
-            role: admin.role === 'MASTER_ADMIN' ? 'master_admin' : 'admin',
-            status: 'active',
-            password_hash: admin.password_hash,
-            phone: null,
-            location: null,
-            business_name: null,
-            business_type: null,
-            verification_status: null,
-            avatar: null,
-            store_description: null,
-            store_banner: null,
-            store_logo: null,
-            created_at: admin.created_at,
-            // Admin-specific
-            admin_role: admin.role,
-            permissions: admin.permissions,
-          };
         }
       }
 
       // Step 3: No user found anywhere
       if (!user) {
-        throw { code: 'USER_NOT_FOUND' as AuthErrorCode, message: 'No account found with this email' };
+        const notFoundMsg = loginByPhone ? 'No account found with this phone number' : 'No account found with this email';
+        throw { code: 'USER_NOT_FOUND' as AuthErrorCode, message: notFoundMsg };
       }
 
       // Step 4: Verify password (only if not already verified for legacy admin)

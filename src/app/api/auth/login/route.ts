@@ -43,12 +43,12 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { email, password } = body;
+    const { email, phone, password } = body;
 
-    console.log('[LOGIN_API] Starting atomic login', { email });
+    console.log('[LOGIN_API] Starting atomic login', { email, phone: phone ? '***' : undefined });
 
     const result = await loginUser(
-      { email, password },
+      { email, phone, password },
       { ipAddress, userAgent }
     );
 
