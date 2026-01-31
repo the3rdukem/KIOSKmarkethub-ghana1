@@ -20,6 +20,7 @@ import { useAuthStore } from "@/lib/auth-store";
 import { useWishlistStore } from "@/lib/wishlist-store";
 import { useCartStore } from "@/lib/cart-store";
 import { toast } from "sonner";
+import { formatCurrency } from '@/lib/utils/currency';
 
 interface WishlistProduct {
   id: string;
@@ -238,10 +239,10 @@ export default function WishlistPage() {
                     </Link>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-lg font-bold">GHS {product.price.toLocaleString()}</span>
+                      <span className="text-lg font-bold">{formatCurrency(product.price)}</span>
                       {product.comparePrice && (
                         <span className="text-sm text-muted-foreground line-through">
-                          GHS {product.comparePrice.toLocaleString()}
+                          {formatCurrency(product.comparePrice)}
                         </span>
                       )}
                     </div>

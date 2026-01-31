@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useCartStore } from "@/lib/cart-store";
+import { formatCurrency } from "@/lib/utils/currency";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -110,7 +111,7 @@ export function CartSheet() {
 
                             <div className="flex items-center justify-between">
                               <span className="font-semibold text-sm">
-                                GHS {(item.price * item.quantity).toFixed(2)}
+                                {formatCurrency(item.price * item.quantity)}
                               </span>
 
                               <div className="flex items-center gap-2">
@@ -162,7 +163,7 @@ export function CartSheet() {
             <div className="space-y-4 mt-6 pt-4 border-t">
               <div className="flex justify-between items-center">
                 <span className="font-semibold">Total</span>
-                <span className="font-bold text-lg">GHS {totalPrice.toFixed(2)}</span>
+                <span className="font-bold text-lg">{formatCurrency(totalPrice)}</span>
               </div>
 
               <div className="space-y-2">

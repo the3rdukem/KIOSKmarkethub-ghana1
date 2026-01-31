@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { formatCurrency } from "@/lib/utils/currency";
 import {
   Command,
   CommandEmpty,
@@ -348,7 +349,7 @@ export default function AdvancedSearch({
                             <span className="font-medium truncate">{suggestion.title}</span>
                             {suggestion.type === "product" && suggestion.price && (
                               <span className="text-sm font-semibold text-green-600">
-                                GHS {suggestion.price.toLocaleString()}
+                                {formatCurrency(suggestion.price)}
                               </span>
                             )}
                           </div>

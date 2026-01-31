@@ -54,6 +54,7 @@ import {
   TrendingUp,
   Shield
 } from "lucide-react";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface Dispute {
   id: string;
@@ -511,7 +512,7 @@ export function DisputeCenter({ userType }: DisputeCenterProps) {
                     <div>
                       <p className="font-medium">{dispute.orderId}</p>
                       <p className="text-sm text-muted-foreground">{dispute.productName}</p>
-                      <p className="text-sm font-medium">GHS {dispute.orderAmount}</p>
+                      <p className="text-sm font-medium">{formatCurrency(dispute.orderAmount)}</p>
                     </div>
                   </TableCell>
 

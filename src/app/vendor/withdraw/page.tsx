@@ -55,6 +55,7 @@ import {
 import { useAuthStore } from "@/lib/auth-store";
 import { formatDistance } from "date-fns";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils/currency";
 
 const PAYOUT_MINIMUM = 50;
 
@@ -260,7 +261,7 @@ export default function VendorWithdrawPage() {
     if (!withdrawAmount || isNaN(amount)) {
       newErrors.amount = "Please enter a valid amount";
     } else if (amount < PAYOUT_MINIMUM) {
-      newErrors.amount = `Minimum withdrawal is GHS ${PAYOUT_MINIMUM}`;
+      newErrors.amount = `Minimum withdrawal is ${formatCurrency(PAYOUT_MINIMUM)}`;
     } else if (amount > availableBalance) {
       newErrors.amount = "Insufficient balance";
     }
@@ -597,7 +598,7 @@ export default function VendorWithdrawPage() {
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div className="p-3 bg-gray-50 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">Gross Sales</p>
-                  <p className="text-lg font-bold">GHS {commissionData.grossSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                  <p className="text-lg font-bold">{formatCurrency(commissionData.grossSales)}</p>
                 </div>
                 <div className="p-3 bg-red-50 rounded-lg">
                   <div className="flex items-center justify-center gap-1 mb-1">
@@ -613,11 +614,11 @@ export default function VendorWithdrawPage() {
                       </Tooltip>
                     </TooltipProvider>
                   </div>
-                  <p className="text-lg font-bold text-red-600">- GHS {commissionData.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                  <p className="text-lg font-bold text-red-600">- {formatCurrency(commissionData.commission)}</p>
                 </div>
                 <div className="p-3 bg-green-50 rounded-lg">
                   <p className="text-xs text-muted-foreground mb-1">Your Earnings</p>
-                  <p className="text-lg font-bold text-green-600">GHS {(commissionData.grossSales - commissionData.commission).toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                  <p className="text-lg font-bold text-green-600">{formatCurrency(commissionData.grossSales - commissionData.commission)}</p>
                 </div>
               </div>
             </CardContent>
@@ -631,7 +632,7 @@ export default function VendorWithdrawPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Earnings</p>
-                  <p className="text-2xl font-bold">GHS {(balance?.total_earnings || 0).toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(balance?.total_earnings || 0)}</p>
                 </div>
                 <TrendingUp className="w-8 h-8 text-green-500" />
               </div>
@@ -643,7 +644,7 @@ export default function VendorWithdrawPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Available Balance</p>
-                  <p className="text-2xl font-bold text-green-600">GHS {availableBalance.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-green-600">{formatCurrency(availableBalance)}</p>
                 </div>
                 <Wallet className="w-8 h-8 text-green-500" />
               </div>
@@ -655,7 +656,7 @@ export default function VendorWithdrawPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Pending (48h Hold)</p>
-                  <p className="text-2xl font-bold text-orange-600">GHS {(balance?.pending_earnings || 0).toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-orange-600">{formatCurrency(balance?.pending_earnings || 0)}</p>
                 </div>
                 <Clock className="w-8 h-8 text-orange-500" />
               </div>
@@ -667,7 +668,7 @@ export default function VendorWithdrawPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Withdrawn</p>
-                  <p className="text-2xl font-bold">GHS {(balance?.total_withdrawn || 0).toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(balance?.total_withdrawn || 0)}</p>
                 </div>
                 <CheckCircle className="w-8 h-8 text-gray-500" />
               </div>
@@ -726,7 +727,7 @@ export default function VendorWithdrawPage() {
                           </div>
                           {errors.amount && <p className="text-red-500 text-xs mt-1">{errors.amount}</p>}
                           <p className="text-xs text-muted-foreground mt-1">
-                            Minimum: GHS {PAYOUT_MINIMUM} | Available: GHS {availableBalance.toLocaleString()}
+                            Minimum: {formatCurrency(PAYOUT_MINIMUM)} | Available: {formatCurrency(availableBalance)}
                           </p>
                         </div>
 
@@ -779,12 +780,12 @@ export default function VendorWithdrawPage() {
                   <CardContent className="space-y-4">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Amount</span>
-                      <span>GHS {withdrawAmount || "0.00"}</span>
+                      <span>{formatCurrency(parseFloat(withdrawAmount) || 0)}</span>
                     </div>
                     <Separator />
                     <div className="flex justify-between font-bold text-lg">
                       <span>You'll Receive</span>
-                      <span className="text-green-600">GHS {withdrawAmount || "0.00"}</span>
+                      <span className="text-green-600">{formatCurrency(parseFloat(withdrawAmount) || 0)}</span>
                     </div>
 
                     <Button
@@ -963,7 +964,7 @@ export default function VendorWithdrawPage() {
                           <TableCell className="font-mono text-sm">
                             {payout.reference?.slice(-10).toUpperCase() || 'N/A'}
                           </TableCell>
-                          <TableCell>GHS {payout.net_amount?.toLocaleString()}</TableCell>
+                          <TableCell>{formatCurrency(payout.net_amount || 0)}</TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">
                               {payout.mobile_money_provider ? (
@@ -1198,12 +1199,12 @@ export default function VendorWithdrawPage() {
             <div className="space-y-4 py-4">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Amount</span>
-                <span className="font-medium">GHS {withdrawAmount}</span>
+                <span className="font-medium">{formatCurrency(parseFloat(withdrawAmount) || 0)}</span>
               </div>
               <Separator />
               <div className="flex justify-between">
                 <span className="text-muted-foreground">You'll Receive</span>
-                <span className="font-bold text-green-600">GHS {withdrawAmount}</span>
+                <span className="font-bold text-green-600">{formatCurrency(parseFloat(withdrawAmount) || 0)}</span>
               </div>
               <Separator />
               <div className="flex justify-between">

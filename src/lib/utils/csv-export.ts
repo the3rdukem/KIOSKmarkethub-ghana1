@@ -4,6 +4,9 @@
  * Generates CSV files from data arrays and triggers download in browser.
  */
 
+import { formatCurrency } from './currency';
+export { formatCurrency };
+
 export interface CSVColumn<T> {
   header: string;
   accessor: keyof T | ((row: T) => string | number | null | undefined);
@@ -95,11 +98,6 @@ export function formatDateTime(dateString: string | null | undefined): string {
   } catch {
     return '';
   }
-}
-
-export function formatCurrency(amount: number | null | undefined, currency = 'GHS'): string {
-  if (amount === null || amount === undefined) return '';
-  return `${currency} ${amount.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export const PRODUCT_EXPORT_COLUMNS = [

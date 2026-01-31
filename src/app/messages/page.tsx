@@ -64,6 +64,7 @@ import { useAuthStore } from "@/lib/auth-store";
 import { useMessagingStore, Conversation, Message } from "@/lib/messaging-store";
 import { useUsersStore } from "@/lib/users-store";
 import { useProductsStore } from "@/lib/products-store";
+import { formatCurrency } from "@/lib/utils/currency";
 
 function MessagesPageContent() {
   const router = useRouter();
@@ -495,7 +496,7 @@ function MessagesPageContent() {
     setIsSending(true);
     try {
       const productLink = `/product/${product.id}`;
-      const messageContent = `🛍️ Check out this product:\n\n**${product.name}**\nPrice: GHS ${product.price.toLocaleString()}\n${productLink}`;
+      const messageContent = `🛍️ Check out this product:\n\n**${product.name}**\nPrice: ${formatCurrency(product.price)}\n${productLink}`;
       
       const result = await sendMessage(selectedConversation.id, messageContent, 'text');
       if (result) {
@@ -1206,7 +1207,7 @@ function MessagesPageContent() {
                         )}
                         <div className="flex-1 min-w-0">
                           <p className="font-medium truncate">{product.name}</p>
-                          <p className="text-sm text-green-600">GHS {product.price.toLocaleString()}</p>
+                          <p className="text-sm text-green-600">{formatCurrency(product.price)}</p>
                         </div>
                         <Send className="w-4 h-4 text-gray-400" />
                       </button>

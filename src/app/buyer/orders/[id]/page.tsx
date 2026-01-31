@@ -48,6 +48,7 @@ import {
 import { useAuthStore } from "@/lib/auth-store";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils/currency";
 
 function getUserFriendlyErrorMessage(error: string): string {
   const errorMap: Record<string, string> = {
@@ -540,7 +541,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                         </Link>
                         <div className="flex items-center gap-4 mt-2">
                           <span className="text-sm">Qty: {item.quantity}</span>
-                          <span className="font-medium">GHS {itemTotal.toFixed(2)}</span>
+                          <span className="font-medium">{formatCurrency(itemTotal)}</span>
                           <Badge variant="outline" className={
                             item.fulfillmentStatus === 'delivered' || item.fulfillmentStatus === 'fulfilled' ? 'bg-green-50 text-green-700' :
                             item.fulfillmentStatus === 'handed_to_courier' || item.fulfillmentStatus === 'shipped' ? 'bg-cyan-50 text-cyan-700' :
@@ -600,12 +601,12 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
               <CardContent className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>GHS {order.subtotal.toFixed(2)}</span>
+                  <span>{formatCurrency(order.subtotal)}</span>
                 </div>
                 {order.discountTotal > 0 && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>Discount</span>
-                    <span>-GHS {order.discountTotal.toFixed(2)}</span>
+                    <span>-{formatCurrency(order.discountTotal)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
@@ -614,12 +615,12 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tax</span>
-                  <span>GHS {order.tax.toFixed(2)}</span>
+                  <span>{formatCurrency(order.tax)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between font-semibold text-lg">
                   <span>Total</span>
-                  <span>GHS {order.total.toFixed(2)}</span>
+                  <span>{formatCurrency(order.total)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -667,7 +668,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
                       ) : (
                         <>
                           <CreditCard className="w-4 h-4 mr-2" />
-                          {order.paymentStatus === 'failed' ? 'Retry Payment' : 'Pay Now'} - GHS {order.total.toFixed(2)}
+                          {order.paymentStatus === 'failed' ? 'Retry Payment' : 'Pay Now'} - {formatCurrency(order.total)}
                         </>
                       )}
                     </Button>

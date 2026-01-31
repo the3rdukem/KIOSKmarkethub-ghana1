@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useCartStore } from "@/lib/cart-store";
 import { useAuthStore } from "@/lib/auth-store";
+import { formatCurrency } from "@/lib/utils/currency";
 
 export default function CartPage() {
   const router = useRouter();
@@ -136,7 +137,7 @@ export default function CartPage() {
                             </div>
                           )}
                           <div className="text-green-600 font-semibold mt-2">
-                            GHS {item.price.toFixed(2)}
+                            {formatCurrency(item.price)}
                           </div>
 
                           <div className="flex items-center justify-between mt-3">
@@ -174,7 +175,7 @@ export default function CartPage() {
 
                             <div className="flex items-center gap-4">
                               <span className="font-semibold">
-                                GHS {(item.price * item.quantity).toFixed(2)}
+                                {formatCurrency(item.price * item.quantity)}
                               </span>
                               <Button
                                 variant="ghost"
@@ -203,7 +204,7 @@ export default function CartPage() {
                   <div className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Subtotal ({totalItems} items)</span>
-                      <span>GHS {totalPrice.toFixed(2)}</span>
+                      <span>{formatCurrency(totalPrice)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-gray-600">Shipping</span>
@@ -215,7 +216,7 @@ export default function CartPage() {
 
                   <div className="flex justify-between font-semibold text-lg">
                     <span>Total</span>
-                    <span>GHS {totalPrice.toFixed(2)}</span>
+                    <span>{formatCurrency(totalPrice)}</span>
                   </div>
 
                   <Link href="/checkout" className="block">

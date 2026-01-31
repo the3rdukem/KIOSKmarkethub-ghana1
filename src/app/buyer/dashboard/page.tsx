@@ -27,6 +27,7 @@ import { useProductsStore } from "@/lib/products-store";
 import { useReviewsStore } from "@/lib/reviews-store";
 import { BuyerAuthGuard } from "@/components/auth/auth-guard";
 import { formatDistance, format } from "date-fns";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface Order {
   id: string;
@@ -258,7 +259,7 @@ function BuyerDashboardContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Spent</p>
-                  <p className="text-2xl font-bold">GHS {totalSpent.toLocaleString()}</p>
+                  <p className="text-2xl font-bold">{formatCurrency(totalSpent)}</p>
                 </div>
                 <CreditCard className="w-8 h-8 text-green-600" />
               </div>
@@ -322,7 +323,7 @@ function BuyerDashboardContent() {
                             </div>
                             <div className="flex items-center gap-4">
                               <div className="text-right">
-                                <p className="font-medium">GHS {order.total.toLocaleString()}</p>
+                                <p className="font-medium">{formatCurrency(order.total)}</p>
                                 {getStatusBadge(order.status)}
                               </div>
                               <Button variant="ghost" size="icon" asChild>
@@ -493,16 +494,16 @@ function BuyerDashboardContent() {
                                 {item.vendor}
                               </Link>
                             </TableCell>
-                            <TableCell>GHS {item.price.toLocaleString()}</TableCell>
+                            <TableCell>{formatCurrency(item.price)}</TableCell>
                             <TableCell>{item.quantity}</TableCell>
-                            <TableCell className="font-medium">GHS {(item.price * item.quantity).toLocaleString()}</TableCell>
+                            <TableCell className="font-medium">{formatCurrency(item.price * item.quantity)}</TableCell>
                           </TableRow>
                         ))}
                       </TableBody>
                     </Table>
                     <Separator className="my-4" />
                     <div className="flex justify-between items-center">
-                      <span className="text-lg font-semibold">Total: GHS {getTotalPrice().toLocaleString()}</span>
+                      <span className="text-lg font-semibold">Total: {formatCurrency(getTotalPrice())}</span>
                       <Button onClick={() => router.push("/checkout")}>Proceed to Checkout</Button>
                     </div>
                   </div>
@@ -551,7 +552,7 @@ function BuyerDashboardContent() {
                           )}
                         </div>
                         <p className="text-sm font-medium truncate group-hover:text-green-600">{item.productName}</p>
-                        <p className="text-sm text-muted-foreground">GHS {item.productPrice.toLocaleString()}</p>
+                        <p className="text-sm text-muted-foreground">{formatCurrency(item.productPrice)}</p>
                       </Link>
                     ))}
                   </div>

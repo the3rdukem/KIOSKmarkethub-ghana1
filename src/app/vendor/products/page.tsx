@@ -53,6 +53,7 @@ import { useProductsStore, Product } from "@/lib/products-store";
 import { useOrdersStore } from "@/lib/orders-store";
 import { toast } from "sonner";
 import { exportToCSV, PRODUCT_EXPORT_COLUMNS } from "@/lib/utils/csv-export";
+import { formatCurrency } from "@/lib/utils/currency";
 
 export default function VendorProductsPage() {
   const router = useRouter();
@@ -455,7 +456,7 @@ export default function VendorProductsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map((category) => (
+                  {categories.filter((c): c is string => c !== null).map((category) => (
                     <SelectItem key={category} value={category}>{category}</SelectItem>
                   ))}
                 </SelectContent>
@@ -582,9 +583,9 @@ export default function VendorProductsPage() {
                         <TableCell>{product.category}</TableCell>
                         <TableCell>
                           <div>
-                            <p className="font-medium">GHS {product.price.toLocaleString()}</p>
+                            <p className="font-medium">{formatCurrency(product.price)}</p>
                             {product.costPerItem && (
-                              <p className="text-sm text-muted-foreground">Cost: GHS {product.costPerItem}</p>
+                              <p className="text-sm text-muted-foreground">Cost: {formatCurrency(product.costPerItem)}</p>
                             )}
                           </div>
                         </TableCell>

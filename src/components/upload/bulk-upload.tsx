@@ -2,6 +2,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from '@/lib/utils/currency';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -570,7 +571,7 @@ MacBook Air,Powerful laptop,5200,Electronics,MBA001,25,"img3.jpg"`}
                       </TableCell>
                       <TableCell className="font-mono text-sm">{product.sku}</TableCell>
                       <TableCell>{product.category}</TableCell>
-                      <TableCell>GHS {product.price.toFixed(2)}</TableCell>
+                      <TableCell>{formatCurrency(product.price)}</TableCell>
                       <TableCell>{product.stock}</TableCell>
                       <TableCell>
                         <div className="flex items-center gap-2">

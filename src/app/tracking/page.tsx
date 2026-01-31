@@ -28,6 +28,7 @@ import { useOrdersStore, Order } from "@/lib/orders-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { getOrderStatusInfo } from "@/lib/order-helpers";
 import { formatDistance } from "date-fns";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface TrackingStep {
   status: string;
@@ -355,11 +356,11 @@ export default function TrackingPage() {
                       <div className="flex-1">
                         <p className="font-medium">{item.productName}</p>
                         <p className="text-sm text-muted-foreground">
-                          Qty: {item.quantity} x GHS {item.price.toLocaleString()}
+                          Qty: {item.quantity} x {formatCurrency(item.price)}
                         </p>
                       </div>
                       <p className="font-medium">
-                        GHS {(item.price * item.quantity).toLocaleString()}
+                        {formatCurrency(item.price * item.quantity)}
                       </p>
                     </div>
                   ))}
@@ -367,7 +368,7 @@ export default function TrackingPage() {
                 <Separator className="my-4" />
                 <div className="flex justify-between font-bold text-lg">
                   <span>Total</span>
-                  <span>GHS {trackedOrder.total.toLocaleString()}</span>
+                  <span>{formatCurrency(trackedOrder.total)}</span>
                 </div>
               </CardContent>
             </Card>

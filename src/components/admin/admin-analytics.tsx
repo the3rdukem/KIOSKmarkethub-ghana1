@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { formatCurrency, formatPriceCompact } from "@/lib/utils/currency";
 import {
   Select,
   SelectContent,
@@ -125,10 +126,6 @@ interface AdminAnalytics {
 }
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
-
-function formatCurrency(amount: number): string {
-  return `GHS ${amount.toLocaleString("en-GH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
 
 function formatNumber(num: number): string {
   if (num >= 1000000) {
@@ -413,7 +410,7 @@ export function AdminAnalytics() {
                     fontSize={12} 
                     tickLine={false}
                     axisLine={false}
-                    tickFormatter={(v) => `GHS ${formatNumber(v)}`}
+                    tickFormatter={(v) => formatPriceCompact(v)}
                   />
                   <Tooltip
                     contentStyle={{

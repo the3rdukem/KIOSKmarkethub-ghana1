@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { useProductForm } from "@/lib/forms/useProductForm";
 import { UNSET_VALUE, transformFormToApiPayload, transformApiToFormValues } from "@/lib/forms/product";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface CategoryFormField {
   key: string;
@@ -798,18 +799,18 @@ export default function EditProductPage() {
                         <div className="grid grid-cols-2 gap-4 text-sm">
                           <div>
                             <span className="text-gray-600">Original Price:</span>
-                            <span className="ml-2 line-through text-gray-500">GHS {currentPrice.toFixed(2)}</span>
+                            <span className="ml-2 line-through text-gray-500">{formatCurrency(currentPrice)}</span>
                           </div>
                           <div>
                             <span className="text-gray-600">Sale Price:</span>
-                            <span className="ml-2 font-bold text-red-600">GHS {salePrice.toFixed(2)}</span>
+                            <span className="ml-2 font-bold text-red-600">{formatCurrency(salePrice)}</span>
                           </div>
                           <div>
                             <span className="text-gray-600">Discount:</span>
                             <span className="ml-2 font-medium text-green-600">
                               {activeSale.discountType === 'percentage'
                                 ? `${activeSale.discountValue}% OFF`
-                                : `GHS ${activeSale.discountValue} OFF`
+                                : `${formatCurrency(activeSale.discountValue)} OFF`
                               }
                             </span>
                           </div>
@@ -835,11 +836,11 @@ export default function EditProductPage() {
                         <p className="text-sm text-gray-600 mb-1">Price customers will see:</p>
                         <div className="flex items-baseline gap-3">
                           <span className="text-2xl font-bold text-gray-900">
-                            GHS {salePrice.toFixed(2)}
+                            {formatCurrency(salePrice)}
                           </span>
                           {isOnSale && (
                             <span className="text-lg text-gray-400 line-through">
-                              GHS {currentPrice.toFixed(2)}
+                              {formatCurrency(currentPrice)}
                             </span>
                           )}
                         </div>
@@ -848,7 +849,7 @@ export default function EditProductPage() {
                         {isOnSale ? (
                           <div className="flex items-center gap-2 text-green-600">
                             <DollarSign className="w-5 h-5" />
-                            <span className="text-lg font-medium">Saving GHS {discount.toFixed(2)}</span>
+                            <span className="text-lg font-medium">Saving {formatCurrency(discount)}</span>
                           </div>
                         ) : (
                           <span className="text-sm text-gray-500">No active promotions</span>
@@ -914,7 +915,7 @@ export default function EditProductPage() {
                                 <p className="text-sm text-gray-500">
                                   {sale.discountType === 'percentage'
                                     ? `${sale.discountValue}% off`
-                                    : `GHS ${sale.discountValue} off`
+                                    : `${formatCurrency(sale.discountValue)} off`
                                   }
                                   {' · '}
                                   {format(new Date(sale.startDate), "MMM d")} - {format(new Date(sale.endDate), "MMM d, yyyy")}
@@ -926,10 +927,10 @@ export default function EditProductPage() {
                                 <div className="text-sm">
                                   <span className="text-gray-500">Sale price: </span>
                                   <span className="font-medium text-red-600">
-                                    GHS {(currentPrice - (sale.discountType === 'percentage'
+                                    {formatCurrency(currentPrice - (sale.discountType === 'percentage'
                                       ? (currentPrice * sale.discountValue / 100)
                                       : sale.discountValue
-                                    )).toFixed(2)}
+                                    ))}
                                   </span>
                                 </div>
                               )}
@@ -1075,16 +1076,16 @@ export default function EditProductPage() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Original:</span>
-                      <span className="line-through text-gray-400">GHS {currentPrice.toFixed(2)}</span>
+                      <span className="line-through text-gray-400">{formatCurrency(currentPrice)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Sale:</span>
-                      <span className="font-bold text-red-600">GHS {salePrice.toFixed(2)}</span>
+                      <span className="font-bold text-red-600">{formatCurrency(salePrice)}</span>
                     </div>
                     <Separator className="my-2" />
                     <div className="flex justify-between">
                       <span className="text-gray-600">Savings:</span>
-                      <span className="font-medium text-green-600">GHS {discount.toFixed(2)}</span>
+                      <span className="font-medium text-green-600">{formatCurrency(discount)}</span>
                     </div>
                   </div>
                 </CardContent>

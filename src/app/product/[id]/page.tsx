@@ -6,6 +6,7 @@ import { useCartStore } from "@/lib/cart-store";
 import { useWishlistStore } from "@/lib/wishlist-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { useRecentlyViewedStore } from "@/lib/recently-viewed-store";
+import { formatCurrency } from "@/lib/utils/currency";
 import { RecentlyViewedSection } from "@/components/recently-viewed-section";
 import { toast } from "sonner";
 import Link from "next/link";
@@ -741,15 +742,15 @@ export default function ProductPage() {
               {product.activeSale ? (
                 <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                   <span className="text-xl sm:text-2xl md:text-3xl font-bold text-green-600">
-                    GHS {(product.effectivePrice || product.price).toLocaleString()}
+                    {formatCurrency(product.effectivePrice || product.price)}
                   </span>
                   <span className="text-sm sm:text-lg text-muted-foreground line-through">
-                    GHS {product.price.toLocaleString()}
+                    {formatCurrency(product.price)}
                   </span>
                   <Badge variant="destructive" className="animate-pulse">
                     {product.activeSale.discountType === 'percentage' 
                       ? `-${product.activeSale.discountValue}%` 
-                      : `-GHS ${product.activeSale.discountValue}`}
+                      : `-${formatCurrency(product.activeSale.discountValue)}`}
                   </Badge>
                   <Badge variant="secondary" className="bg-red-100 text-red-800">
                     {product.activeSale.name}
@@ -758,12 +759,12 @@ export default function ProductPage() {
               ) : (
                 <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                   <span className="text-xl sm:text-2xl md:text-3xl font-bold text-green-600">
-                    GHS {product.price.toLocaleString()}
+                    {formatCurrency(product.price)}
                   </span>
                   {product.comparePrice && (
                     <>
                       <span className="text-sm sm:text-lg text-muted-foreground line-through">
-                        GHS {product.comparePrice.toLocaleString()}
+                        {formatCurrency(product.comparePrice)}
                       </span>
                       <Badge variant="destructive">-{discount}%</Badge>
                     </>
@@ -1281,7 +1282,7 @@ export default function ProductPage() {
                         )}
                       </div>
                       <h4 className="font-semibold text-sm mb-1 line-clamp-2">{item.name}</h4>
-                      <p className="font-bold text-green-600">GHS {item.price.toLocaleString()}</p>
+                      <p className="font-bold text-green-600">{formatCurrency(item.price)}</p>
                       {item.vendorName && (
                         <p className="text-xs text-muted-foreground mt-1 truncate">{item.vendorName}</p>
                       )}

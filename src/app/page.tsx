@@ -9,6 +9,7 @@ import { Shield, TrendingUp, Users, ShoppingBag, Search, Package, CheckCircle, X
 import AdvancedSearch from "@/components/search/advanced-search";
 import Link from "next/link";
 import { Product } from "@/lib/products-store";
+import { formatCurrency } from "@/lib/utils/currency";
 
 const categories = [
   { name: "Vehicles", icon: "🚗", href: "/search?category=Vehicles" },
@@ -423,7 +424,7 @@ export default function HomePage() {
                           <Badge className="absolute top-2 right-2 text-[10px] sm:text-xs animate-pulse" variant="destructive">
                             {product.activeSale.discountType === 'percentage' 
                               ? `-${product.activeSale.discountValue}%` 
-                              : `-GHS ${product.activeSale.discountValue}`}
+                              : `-${formatCurrency(product.activeSale.discountValue)}`}
                           </Badge>
                         ) : product.comparePrice && product.comparePrice > product.price && (
                           <Badge className="absolute top-2 right-2 text-[10px] sm:text-xs" variant="destructive">
@@ -439,17 +440,17 @@ export default function HomePage() {
                       <div className="flex items-center gap-2 flex-wrap mb-3">
                         {product.activeSale ? (
                           <>
-                            <span className="text-lg font-bold text-green-600">GHS {(product.effectivePrice || product.price).toLocaleString()}</span>
+                            <span className="text-lg font-bold text-green-600">{formatCurrency(product.effectivePrice || product.price)}</span>
                             <span className="text-sm text-muted-foreground line-through">
-                              GHS {product.price.toLocaleString()}
+                              {formatCurrency(product.price)}
                             </span>
                           </>
                         ) : (
                           <>
-                            <span className="text-lg font-bold">GHS {product.price.toLocaleString()}</span>
+                            <span className="text-lg font-bold">{formatCurrency(product.price)}</span>
                             {product.comparePrice && product.comparePrice > product.price && (
                               <span className="text-sm text-muted-foreground line-through">
-                                GHS {product.comparePrice.toLocaleString()}
+                                {formatCurrency(product.comparePrice)}
                               </span>
                             )}
                           </>

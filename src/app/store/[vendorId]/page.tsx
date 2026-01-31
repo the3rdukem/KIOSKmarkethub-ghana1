@@ -8,6 +8,7 @@ import { SiteLayout } from "@/components/layout/site-layout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { formatCurrency } from "@/lib/utils/currency";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -346,7 +347,7 @@ export default function VendorStorePage() {
                     </div>
                     <CardContent className="p-3">
                       <h3 className="font-medium text-sm line-clamp-2 mb-1">{product.name}</h3>
-                      <p className="text-primary font-semibold">GHS {product.price.toLocaleString()}</p>
+                      <p className="text-primary font-semibold">{formatCurrency(product.price)}</p>
                     </CardContent>
                   </Card>
                 </Link>

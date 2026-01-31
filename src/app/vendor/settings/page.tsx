@@ -67,6 +67,7 @@ import { useUsersStore } from "@/lib/users-store";
 import { ImageUpload } from "@/components/ui/image-upload";
 import { AddressAutocomplete } from "@/components/integrations/address-autocomplete";
 import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils/currency";
 
 type StoreStatus = 'open' | 'closed' | 'vacation';
 
@@ -677,7 +678,7 @@ export default function VendorSettingsPage() {
                               <div className="flex justify-between items-center py-2 border-b">
                                 <span className="text-sm text-muted-foreground">Gross Sales</span>
                                 <span className="font-semibold">
-                                  GHS {commissionData.grossSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  {formatCurrency(commissionData.grossSales)}
                                 </span>
                               </div>
                               <div className="flex justify-between items-center py-2 border-b">
@@ -685,13 +686,13 @@ export default function VendorSettingsPage() {
                                   Platform Fee ({(commissionData.commissionRate * 100).toFixed(0)}%)
                                 </span>
                                 <span className="font-semibold text-red-600">
-                                  - GHS {commissionData.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  - {formatCurrency(commissionData.commission)}
                                 </span>
                               </div>
                               <div className="flex justify-between items-center py-2 bg-green-50 -mx-4 px-4 rounded">
                                 <span className="font-medium text-green-800">Your Total Earnings</span>
                                 <span className="text-xl font-bold text-green-600">
-                                  GHS {commissionData.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                  {formatCurrency(commissionData.total)}
                                 </span>
                               </div>
                             </div>

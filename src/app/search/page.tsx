@@ -43,6 +43,7 @@ import { useWishlistStore } from "@/lib/wishlist-store";
 import { useAuthStore } from "@/lib/auth-store";
 import { useOpenAI } from "@/lib/integrations-store";
 import { isOpenAIEnabled, semanticSearch } from "@/lib/services/openai";
+import { formatCurrency } from "@/lib/utils/currency";
 import { toast } from "sonner";
 
 interface CategoryAttribute {
@@ -534,8 +535,8 @@ function SearchPageContent() {
             step={Math.max(1, Math.floor(maxPrice / 200))}
           />
           <div className="flex justify-between mt-2 text-sm text-muted-foreground">
-            <span>GHS {priceRange[0].toLocaleString()}</span>
-            <span>GHS {priceRange[1].toLocaleString()}</span>
+            <span>{formatCurrency(priceRange[0])}</span>
+            <span>{formatCurrency(priceRange[1])}</span>
           </div>
         </div>
       </div>
@@ -663,13 +664,13 @@ function SearchPageContent() {
                 <div className="flex items-center gap-2 flex-wrap">
                   {product.activeSale ? (
                     <>
-                      <span className="font-bold text-base sm:text-lg text-green-600">GHS {(product.effectivePrice || product.price).toLocaleString()}</span>
-                      <span className="text-xs sm:text-sm text-muted-foreground line-through">GHS {product.price.toLocaleString()}</span>
+                      <span className="font-bold text-base sm:text-lg text-green-600">{formatCurrency(product.effectivePrice || product.price)}</span>
+                      <span className="text-xs sm:text-sm text-muted-foreground line-through">{formatCurrency(product.price)}</span>
                     </>
                   ) : (
                     <>
-                      <span className="font-bold text-base sm:text-lg">GHS {product.price.toLocaleString()}</span>
-                      {product.comparePrice && <span className="text-xs sm:text-sm text-muted-foreground line-through">GHS {product.comparePrice.toLocaleString()}</span>}
+                      <span className="font-bold text-base sm:text-lg">{formatCurrency(product.price)}</span>
+                      {product.comparePrice && <span className="text-xs sm:text-sm text-muted-foreground line-through">{formatCurrency(product.comparePrice)}</span>}
                     </>
                   )}
                 </div>
@@ -766,22 +767,22 @@ function SearchPageContent() {
           <div className="flex items-center gap-2 flex-wrap mb-3">
             {product.activeSale ? (
               <>
-                <span className="font-bold text-lg text-green-600">GHS {(product.effectivePrice || product.price).toLocaleString()}</span>
+                <span className="font-bold text-lg text-green-600">{formatCurrency(product.effectivePrice || product.price)}</span>
                 <span className="text-sm text-muted-foreground line-through">
-                  GHS {product.price.toLocaleString()}
+                  {formatCurrency(product.price)}
                 </span>
                 <Badge variant="destructive" className="text-xs animate-pulse">
                   {product.activeSale.discountType === 'percentage' 
                     ? `-${product.activeSale.discountValue}%` 
-                    : `-GHS ${product.activeSale.discountValue}`}
+                    : `-${formatCurrency(product.activeSale.discountValue)}`}
                 </Badge>
               </>
             ) : (
               <>
-                <span className="font-bold text-lg">GHS {product.price.toLocaleString()}</span>
+                <span className="font-bold text-lg">{formatCurrency(product.price)}</span>
                 {product.comparePrice && (
                   <span className="text-sm text-muted-foreground line-through">
-                    GHS {product.comparePrice.toLocaleString()}
+                    {formatCurrency(product.comparePrice)}
                   </span>
                 )}
               </>

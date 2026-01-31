@@ -47,6 +47,7 @@ import {
   Store
 } from "lucide-react";
 import { isPaystackEnabled, openPaystackPopup, formatAmount, generatePaymentReference, fetchPaystackConfig } from "@/lib/services/paystack";
+import { formatCurrency } from "@/lib/utils/currency";
 import { AddressAutocomplete } from "@/components/integrations/address-autocomplete";
 import { PlaceDetails } from "@/lib/services/google-maps";
 import { useAddressesStore, Address } from "@/lib/addresses-store";
@@ -544,7 +545,7 @@ export default function CheckoutPage() {
         eligibleSubtotal: result.eligibleSubtotal || 0,
       });
       setCouponCode("");
-      toast.success(`Coupon applied! You save GHS ${result.discount.toFixed(2)}`);
+      toast.success(`Coupon applied! You save ${formatCurrency(result.discount)}`);
     } catch (error) {
       console.error('Coupon validation error:', error);
       setCouponError("Failed to validate coupon. Please try again.");
@@ -865,7 +866,7 @@ export default function CheckoutPage() {
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-medium">GHS {(item.price * item.quantity).toFixed(2)}</p>
+                          <p className="font-medium">{formatCurrency(item.price * item.quantity)}</p>
                           <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                         </div>
                       </div>
@@ -884,7 +885,7 @@ export default function CheckoutPage() {
                           <div className="flex items-center gap-2">
                             <CheckCircle className="w-4 h-4 text-green-600" />
                             <span className="font-medium text-green-800">{appliedCoupon.code}</span>
-                            <span className="text-green-600">-GHS {appliedCoupon.discount.toFixed(2)}</span>
+                            <span className="text-green-600">-{formatCurrency(appliedCoupon.discount)}</span>
                           </div>
                           <Button variant="ghost" size="sm" onClick={handleRemoveCoupon}>
                             <X className="w-4 h-4" />
@@ -909,12 +910,12 @@ export default function CheckoutPage() {
                     <div className="space-y-2">
                       <div className="flex justify-between">
                         <span>Subtotal:</span>
-                        <span>GHS {subtotal.toFixed(2)}</span>
+                        <span>{formatCurrency(subtotal)}</span>
                       </div>
                       {appliedCoupon && (
                         <div className="flex justify-between text-green-600">
                           <span>Coupon Discount:</span>
-                          <span>-GHS {couponDiscount.toFixed(2)}</span>
+                          <span>-{formatCurrency(couponDiscount)}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
@@ -925,12 +926,12 @@ export default function CheckoutPage() {
                       </div>
                       <div className="flex justify-between">
                         <span>Tax (2.5%):</span>
-                        <span>GHS {tax.toFixed(2)}</span>
+                        <span>{formatCurrency(tax)}</span>
                       </div>
                       <Separator />
                       <div className="flex justify-between font-semibold text-lg">
                         <span>Total:</span>
-                        <span>GHS {total.toFixed(2)}</span>
+                        <span>{formatCurrency(total)}</span>
                       </div>
                     </div>
 
@@ -971,7 +972,7 @@ export default function CheckoutPage() {
                       ) : (
                         <>
                           <ShoppingCart className="w-5 h-5 mr-2" />
-                          Place Order - GHS {total.toFixed(2)}
+                          Place Order - {formatCurrency(total)}
                         </>
                       )}
                     </Button>

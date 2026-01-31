@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Card, CardContent } from "@/components/ui/card";
 import { useRecentlyViewedStore } from "@/lib/recently-viewed-store";
 import { Clock, Store } from "lucide-react";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface RecentlyViewedSectionProps {
   currentProductId?: string;
@@ -36,10 +37,6 @@ export function RecentlyViewedSection({
     return null;
   }
 
-  const formatPrice = (price: number) => {
-    return `GHS ${price.toLocaleString('en-GB', { minimumFractionDigits: 2 })}`;
-  };
-
   return (
     <section className="mt-12">
       <div className="flex items-center gap-2 mb-6">
@@ -69,7 +66,7 @@ export function RecentlyViewedSection({
                   {product.name}
                 </h3>
                 <p className="text-primary font-semibold text-sm">
-                  {formatPrice(product.price)}
+                  {formatCurrency(product.price)}
                 </p>
                 {product.vendorName && (
                   <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">

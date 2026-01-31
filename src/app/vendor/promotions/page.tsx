@@ -26,6 +26,7 @@ import {
 import { useAuthStore } from "@/lib/auth-store";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface Coupon {
   id: string;
@@ -455,7 +456,7 @@ export default function VendorPromotionsPage() {
                             </div>
                             <p className="text-xs text-muted-foreground mt-1">{c.name}</p>
                           </TableCell>
-                          <TableCell>{c.discount_type === "percentage" ? `${c.discount_value}%` : `GHS ${c.discount_value}`}</TableCell>
+                          <TableCell>{c.discount_type === "percentage" ? `${c.discount_value}%` : formatCurrency(c.discount_value)}</TableCell>
                           <TableCell>{c.usage_count}{c.usage_limit ? `/${c.usage_limit}` : ""}</TableCell>
                           <TableCell className="text-xs">{format(new Date(c.starts_at), "MMM d")} - {format(new Date(c.ends_at), "MMM d, yyyy")}</TableCell>
                           <TableCell>{getStatusBadge(getPromotionStatus(c.starts_at, c.ends_at, c.is_active))}</TableCell>
@@ -516,7 +517,7 @@ export default function VendorPromotionsPage() {
                                 />
                                 <div className="flex-1">
                                   <p className="font-medium text-sm">{p.name}</p>
-                                  <p className="text-xs text-muted-foreground">GHS {p.price}</p>
+                                  <p className="text-xs text-muted-foreground">{formatCurrency(p.price)}</p>
                                 </div>
                               </div>
                             ))}
@@ -556,7 +557,7 @@ export default function VendorPromotionsPage() {
                               </div>
                             ) : 'No products'}
                           </TableCell>
-                          <TableCell>{s.discount_type === "percentage" ? `${s.discount_value}%` : `GHS ${s.discount_value}`}</TableCell>
+                          <TableCell>{s.discount_type === "percentage" ? `${s.discount_value}%` : formatCurrency(s.discount_value)}</TableCell>
                           <TableCell className="text-xs">{format(new Date(s.starts_at), "MMM d")} - {format(new Date(s.ends_at), "MMM d, yyyy")}</TableCell>
                           <TableCell>{getStatusBadge(getPromotionStatus(s.starts_at, s.ends_at, s.is_active))}</TableCell>
                           <TableCell>

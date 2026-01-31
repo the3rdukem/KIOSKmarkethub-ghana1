@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/utils/currency";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -420,7 +421,7 @@ export function OrderTracking({ userType, orderId }: OrderTrackingProps) {
                     <div>
                       <p className="font-medium">{selectedOrder.productName}</p>
                       <p className="text-sm text-muted-foreground">Qty: {selectedOrder.quantity}</p>
-                      <p className="text-sm font-medium">GHS {selectedOrder.totalAmount}</p>
+                      <p className="text-sm font-medium">{formatCurrency(selectedOrder.totalAmount)}</p>
                     </div>
                   </div>
                 </div>

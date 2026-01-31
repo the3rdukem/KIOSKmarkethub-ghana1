@@ -37,6 +37,7 @@ import { toast } from "sonner";
 import { Product, useProductsStore } from "@/lib/products-store";
 import { useUsersStore } from "@/lib/users-store";
 import { MultiImageUpload } from "@/components/ui/image-upload";
+import { formatCurrency } from "@/lib/utils/currency";
 
 // Sentinel value for unset Select fields to prevent Radix crashes
 const ADMIN_UNSET = "__unset__";
@@ -844,7 +845,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                       </TableCell>
                       <TableCell>
                         <div className="flex items-center gap-1">
-                          <span className="font-medium">GHS {product.price.toLocaleString()}</span>
+                          <span className="font-medium">{formatCurrency(product.price)}</span>
                           {product.comparePrice && (
                             <span className="text-xs text-muted-foreground line-through">
                               {product.comparePrice.toLocaleString()}
@@ -1006,7 +1007,7 @@ export function ProductManagement({ currentAdmin, isMasterAdmin }: ProductManage
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Price</Label>
-                  <p className="text-sm font-medium">GHS {selectedProduct.price.toLocaleString()}</p>
+                  <p className="text-sm font-medium">{formatCurrency(selectedProduct.price)}</p>
                 </div>
                 <div>
                   <Label className="text-muted-foreground text-xs">Stock</Label>

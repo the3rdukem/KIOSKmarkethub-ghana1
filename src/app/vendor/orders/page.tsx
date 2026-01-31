@@ -54,7 +54,8 @@ import {
 import { useAuthStore } from "@/lib/auth-store";
 import { formatDistance } from "date-fns";
 import { toast } from "sonner";
-import { exportToCSV, formatCurrency, formatDateTime } from "@/lib/utils/csv-export";
+import { exportToCSV, formatDateTime } from "@/lib/utils/csv-export";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface OrderItem {
   id: string;
@@ -928,7 +929,7 @@ export default function VendorOrdersPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="font-medium">GHS {vendorTotal.toFixed(2)}</span>
+                            <span className="font-medium">{formatCurrency(vendorTotal)}</span>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">
@@ -1062,7 +1063,7 @@ export default function VendorOrdersPage() {
                           </div>
                           <div className="flex items-center gap-3">
                             <div className="text-right">
-                              <p className="font-medium">GHS {(item.finalPrice != null ? item.finalPrice : item.unitPrice * item.quantity).toFixed(2)}</p>
+                              <p className="font-medium">{formatCurrency(item.finalPrice != null ? item.finalPrice : item.unitPrice * item.quantity)}</p>
                               {getItemStatusBadge(item.fulfillmentStatus || 'pending')}
                             </div>
                             {/* Phase 7B: Step 1 - Pack item (pending -> packed) */}
@@ -1094,7 +1095,7 @@ export default function VendorOrdersPage() {
                       {selectedOrder.discountTotal > 0 && (
                         <div className="flex justify-between text-sm text-green-600">
                           <span>Coupon Applied{selectedOrder.couponCode ? ` (${selectedOrder.couponCode})` : ''}</span>
-                          <span>-GHS {selectedOrder.discountTotal.toFixed(2)}</span>
+                          <span>-{formatCurrency(selectedOrder.discountTotal)}</span>
                         </div>
                       )}
                       {/* Commission breakdown for vendor */}
@@ -1110,21 +1111,21 @@ export default function VendorOrdersPage() {
                           <>
                             <div className="flex justify-between text-sm">
                               <span className="text-muted-foreground">Gross Sale</span>
-                              <span>GHS {grossTotal.toFixed(2)}</span>
+                              <span>{formatCurrency(grossTotal)}</span>
                             </div>
                             <div className="flex justify-between text-sm text-red-600">
                               <span>Platform Fee ({(commissionRate * 100).toFixed(0)}%)</span>
-                              <span>-GHS {vendorCommission.toFixed(2)}</span>
+                              <span>-{formatCurrency(vendorCommission)}</span>
                             </div>
                             <div className="flex justify-between font-bold text-green-700 bg-green-50 -mx-4 px-4 py-2 rounded">
                               <span>Your Earnings</span>
-                              <span>GHS {vendorEarnings.toFixed(2)}</span>
+                              <span>{formatCurrency(vendorEarnings)}</span>
                             </div>
                           </>
                         ) : (
                           <div className="flex justify-between font-bold">
                             <span>Your Total</span>
-                            <span>GHS {grossTotal.toFixed(2)}</span>
+                            <span>{formatCurrency(grossTotal)}</span>
                           </div>
                         );
                       })()}

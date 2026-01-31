@@ -4,6 +4,7 @@ import { Suspense, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { SiteLayout } from "@/components/layout/site-layout";
+import { formatCurrency } from "@/lib/utils/currency";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -308,7 +309,7 @@ function OrderSuccessContent() {
                     <p className="text-sm text-muted-foreground">by {item.vendorName}</p>
                   </div>
                   <div className="text-right">
-                    <p className="font-medium">GHS {(item.price * item.quantity).toFixed(2)}</p>
+                    <p className="font-medium">{formatCurrency(item.price * item.quantity)}</p>
                     <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                   </div>
                 </div>
@@ -319,12 +320,12 @@ function OrderSuccessContent() {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span>Subtotal:</span>
-                  <span>GHS {order.subtotal.toFixed(2)}</span>
+                  <span>{formatCurrency(order.subtotal)}</span>
                 </div>
                 {order.discountTotal > 0 && (
                   <div className="flex justify-between text-green-600">
                     <span>Discount:</span>
-                    <span>-GHS {order.discountTotal.toFixed(2)}</span>
+                    <span>-{formatCurrency(order.discountTotal)}</span>
                   </div>
                 )}
                 <div className="flex justify-between">
@@ -333,12 +334,12 @@ function OrderSuccessContent() {
                 </div>
                 <div className="flex justify-between">
                   <span>Tax:</span>
-                  <span>GHS {order.tax.toFixed(2)}</span>
+                  <span>{formatCurrency(order.tax)}</span>
                 </div>
                 <Separator />
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Total:</span>
-                  <span>GHS {order.total.toFixed(2)}</span>
+                  <span>{formatCurrency(order.total)}</span>
                 </div>
               </div>
 
@@ -393,7 +394,7 @@ function OrderSuccessContent() {
                   {transactionId && (
                     <p className="text-sm text-muted-foreground">Transaction: {transactionId}</p>
                   )}
-                  <p className="text-sm text-muted-foreground">Amount: GHS {order.total.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">Amount: {formatCurrency(order.total)}</p>
                   {order.couponCode && (
                     <p className="text-sm text-muted-foreground">Coupon: {order.couponCode}</p>
                   )}

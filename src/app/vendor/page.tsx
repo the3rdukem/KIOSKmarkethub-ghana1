@@ -33,6 +33,7 @@ import { useAuthStore } from "@/lib/auth-store";
 import { VendorAuthGuard } from "@/components/auth/auth-guard";
 import { VerificationBanner } from "@/components/vendor/verification-banner";
 import { formatDistance } from "date-fns";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface VendorStats {
   products: {
@@ -206,7 +207,7 @@ function VendorDashboardContent() {
                 </CardHeader>
                 <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
                   <div className="text-lg sm:text-2xl font-bold text-green-600 truncate">
-                    GHS {(stats?.earnings?.total ?? totalRevenue).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {formatCurrency(stats?.earnings?.total ?? totalRevenue)}
                   </div>
                   <span className="text-xs text-muted-foreground flex items-center gap-1">
                     {stats?.earnings?.commissionSource === 'vendor' ? (
@@ -301,7 +302,7 @@ function VendorDashboardContent() {
                       <div className="flex justify-between items-center py-2 border-b border-gray-200">
                         <span className="text-sm text-muted-foreground">Gross Sales</span>
                         <span className="text-lg font-semibold">
-                          GHS {(stats?.earnings?.grossSales ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {formatCurrency(stats?.earnings?.grossSales ?? 0)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b border-gray-200">
@@ -325,13 +326,13 @@ function VendorDashboardContent() {
                           </TooltipProvider>
                         </div>
                         <span className="text-lg font-semibold text-red-600">
-                          - GHS {(stats?.earnings?.commission ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          - {formatCurrency(stats?.earnings?.commission ?? 0)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-2 bg-green-50 -mx-4 px-4 rounded-b-lg">
                         <span className="text-sm font-medium text-green-800">Your Earnings</span>
                         <span className="text-xl font-bold text-green-600">
-                          GHS {(stats?.earnings?.total ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {formatCurrency(stats?.earnings?.total ?? 0)}
                         </span>
                       </div>
                     </div>
@@ -344,7 +345,7 @@ function VendorDashboardContent() {
                           <span className="text-xs font-medium text-amber-800">Pending</span>
                         </div>
                         <p className="text-lg font-bold text-amber-700">
-                          GHS {(stats?.earnings?.pending ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {formatCurrency(stats?.earnings?.pending ?? 0)}
                         </p>
                         <p className="text-xs text-amber-600">Orders in progress</p>
                       </div>
@@ -354,7 +355,7 @@ function VendorDashboardContent() {
                           <span className="text-xs font-medium text-green-800">Ready to Withdraw</span>
                         </div>
                         <p className="text-lg font-bold text-green-700">
-                          GHS {(stats?.earnings?.completed ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          {formatCurrency(stats?.earnings?.completed ?? 0)}
                         </p>
                         <p className="text-xs text-green-600">From completed orders</p>
                       </div>
@@ -400,7 +401,7 @@ function VendorDashboardContent() {
                             <p className="text-xs text-muted-foreground truncate">{order.buyerName}</p>
                           </div>
                           <div className="text-right flex-shrink-0">
-                            <p className="font-semibold text-sm">GHS {(order.total || 0).toLocaleString()}</p>
+                            <p className="font-semibold text-sm">{formatCurrency(order.total || 0)}</p>
                           </div>
                         </div>
                         <div className="flex items-center justify-between gap-2">
@@ -548,7 +549,7 @@ function VendorDashboardContent() {
               <CardContent className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Total Sales</span>
-                  <span className="font-medium">GHS {totalRevenue.toLocaleString()}</span>
+                  <span className="font-medium">{formatCurrency(totalRevenue)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Pending Orders</span>

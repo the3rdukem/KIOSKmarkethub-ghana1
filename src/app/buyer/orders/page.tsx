@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { formatDistance } from "date-fns";
+import { formatCurrency } from "@/lib/utils/currency";
 
 interface OrderItem {
   id?: string;
@@ -299,7 +300,7 @@ export default function BuyerOrdersPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            <span className="font-medium">GHS {order.total.toFixed(2)}</span>
+                            <span className="font-medium">{formatCurrency(order.total)}</span>
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-2">

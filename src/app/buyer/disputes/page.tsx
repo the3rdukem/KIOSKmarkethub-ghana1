@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { formatCurrency } from "@/lib/utils/currency";
 import { SiteLayout } from "@/components/layout/site-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -308,7 +309,7 @@ export default function BuyerDisputesPage() {
                       <TableCell>{getTypeLabel(dispute.type)}</TableCell>
                       <TableCell>{dispute.vendor_name}</TableCell>
                       <TableCell>
-                        {dispute.amount ? `GHS ${dispute.amount.toFixed(2)}` : "N/A"}
+                        {dispute.amount ? formatCurrency(dispute.amount) : "N/A"}
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">
@@ -369,7 +370,7 @@ export default function BuyerDisputesPage() {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Disputed Amount</Label>
-                    <p>GHS {selectedDispute.amount?.toFixed(2) || "N/A"}</p>
+                    <p>{selectedDispute.amount ? formatCurrency(selectedDispute.amount) : "N/A"}</p>
                   </div>
                 </div>
 
@@ -473,7 +474,7 @@ export default function BuyerDisputesPage() {
                       {selectedDispute.refund_amount && (
                         <div>
                           <Label className="text-green-700">Refund Amount</Label>
-                          <p className="text-green-900 font-medium">GHS {selectedDispute.refund_amount.toFixed(2)}</p>
+                          <p className="text-green-900 font-medium">{formatCurrency(selectedDispute.refund_amount)}</p>
                         </div>
                       )}
                     </div>
@@ -498,7 +499,7 @@ export default function BuyerDisputesPage() {
                       Refund Processed
                     </h4>
                     <p className="text-blue-700 text-sm">
-                      A refund of GHS {selectedDispute.refund_amount?.toFixed(2)} has been processed 
+                      A refund of {selectedDispute.refund_amount ? formatCurrency(selectedDispute.refund_amount) : "N/A"} has been processed 
                       and will be credited to your original payment method.
                     </p>
                     {selectedDispute.refunded_at && (

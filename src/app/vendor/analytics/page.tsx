@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { Product } from "@/lib/products-store";
+import { formatCurrency, formatPriceCompact } from "@/lib/utils/currency";
 import {
   LineChart as RechartsLineChart,
   Line,
@@ -388,7 +389,7 @@ function VendorAnalyticsContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-3xl font-bold">GHS {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+                  <p className="text-3xl font-bold">{formatCurrency(totalRevenue)}</p>
                   <div className="flex items-center text-green-600 text-sm mt-1">
                     <TrendingUp className="w-4 h-4 mr-1" />
                     <span>From {totalOrders} orders</span>
@@ -490,9 +491,9 @@ function VendorAnalyticsContent() {
                       <RechartsLineChart data={formattedTrends}>
                         <CartesianGrid strokeDasharray="3 3" />
                         <XAxis dataKey="formattedDate" fontSize={12} />
-                        <YAxis fontSize={12} tickFormatter={(v) => `GHS ${v.toLocaleString()}`} />
+                        <YAxis fontSize={12} tickFormatter={(v) => formatPriceCompact(v)} />
                         <Tooltip 
-                          formatter={(value: number) => [`GHS ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 'Revenue']}
+                          formatter={(value: number | undefined) => [formatCurrency(value || 0), 'Revenue']}
                           labelFormatter={(label) => `Date: ${label}`}
                         />
                         <Line 
@@ -531,7 +532,7 @@ function VendorAnalyticsContent() {
                         <XAxis dataKey="formattedDate" fontSize={12} />
                         <YAxis fontSize={12} />
                         <Tooltip 
-                          formatter={(value: number) => [value, 'Orders']}
+                          formatter={(value: number | undefined) => [value || 0, 'Orders']}
                           labelFormatter={(label) => `Date: ${label}`}
                         />
                         <Bar dataKey="orders" fill="#3b82f6" radius={[4, 4, 0, 0]} />
@@ -609,7 +610,7 @@ function VendorAnalyticsContent() {
                     <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                       <span className="text-sm text-muted-foreground">Avg Order Value</span>
                       <span className="font-bold">
-                        GHS {(analyticsData?.sales.avgOrderValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {formatCurrency(analyticsData?.sales.avgOrderValue || 0)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
@@ -625,7 +626,7 @@ function VendorAnalyticsContent() {
                     <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
                       <span className="text-sm text-muted-foreground">Net Earnings</span>
                       <span className="font-bold text-green-600">
-                        GHS {(analyticsData?.sales.netEarnings || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {formatCurrency(analyticsData?.sales.netEarnings || 0)}
                       </span>
                     </div>
                   </div>
@@ -665,7 +666,7 @@ function VendorAnalyticsContent() {
                         </div>
                         <div className="text-right">
                           <p className="font-bold text-green-600">
-                            GHS {product.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {formatCurrency(product.totalRevenue)}
                           </p>
                           {product.avgRating && (
                             <div className="flex items-center justify-end gap-1 text-sm">
@@ -721,7 +722,7 @@ function VendorAnalyticsContent() {
                           >
                             {order.status}
                           </Badge>
-                          <p className="font-bold text-green-600">GHS {order.total.toLocaleString()}</p>
+                          <p className="font-bold text-green-600">{formatCurrency(order.total)}</p>
                         </div>
                       </div>
                     ))}
@@ -877,7 +878,7 @@ function VendorAnalyticsContent() {
                             <span className="text-sm font-medium text-muted-foreground">Gross Sales</span>
                           </div>
                           <p className="text-2xl font-bold">
-                            GHS {vendorStats.earnings.grossSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {formatCurrency(vendorStats.earnings.grossSales)}
                           </p>
                         </CardContent>
                       </Card>
@@ -888,7 +889,7 @@ function VendorAnalyticsContent() {
                             <span className="text-sm font-medium text-red-700">Platform Fees</span>
                           </div>
                           <p className="text-2xl font-bold text-red-600">
-                            - GHS {vendorStats.earnings.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            - {formatCurrency(vendorStats.earnings.commission)}
                           </p>
                         </CardContent>
                       </Card>
@@ -899,7 +900,7 @@ function VendorAnalyticsContent() {
                             <span className="text-sm font-medium text-green-700">Net Earnings</span>
                           </div>
                           <p className="text-2xl font-bold text-green-600">
-                            GHS {vendorStats.earnings.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {formatCurrency(vendorStats.earnings.total)}
                           </p>
                         </CardContent>
                       </Card>
@@ -925,7 +926,7 @@ function VendorAnalyticsContent() {
                                 <div className="text-xs text-muted-foreground">Total value of all orders</div>
                               </td>
                               <td className="px-4 py-3 text-right font-medium">
-                                {vendorStats.earnings.grossSales.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                {formatCurrency(vendorStats.earnings.grossSales, { showSymbol: false })}
                               </td>
                             </tr>
                             <tr className="bg-red-50">
@@ -934,7 +935,7 @@ function VendorAnalyticsContent() {
                                 <div className="text-xs text-red-600">Payment processing, buyer protection, marketplace services</div>
                               </td>
                               <td className="px-4 py-3 text-right font-medium text-red-600">
-                                - {vendorStats.earnings.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                - {formatCurrency(vendorStats.earnings.commission, { showSymbol: false })}
                               </td>
                             </tr>
                             <tr className="bg-green-50">
@@ -943,7 +944,7 @@ function VendorAnalyticsContent() {
                                 <div className="text-xs text-green-600">Your total earnings after fees</div>
                               </td>
                               <td className="px-4 py-3 text-right text-xl font-bold text-green-600">
-                                {vendorStats.earnings.total.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                {formatCurrency(vendorStats.earnings.total, { showSymbol: false })}
                               </td>
                             </tr>
                           </tbody>
@@ -959,7 +960,7 @@ function VendorAnalyticsContent() {
                             <span className="text-sm font-medium">Pending Earnings</span>
                           </div>
                           <p className="text-xl font-bold text-amber-700">
-                            GHS {vendorStats.earnings.pending.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {formatCurrency(vendorStats.earnings.pending)}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">From orders still in progress</p>
                         </CardContent>
@@ -971,7 +972,7 @@ function VendorAnalyticsContent() {
                             <span className="text-sm font-medium">Available for Withdrawal</span>
                           </div>
                           <p className="text-xl font-bold text-green-700">
-                            GHS {vendorStats.earnings.completed.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                            {formatCurrency(vendorStats.earnings.completed)}
                           </p>
                           <p className="text-xs text-muted-foreground mt-1">From completed orders</p>
                         </CardContent>

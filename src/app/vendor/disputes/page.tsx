@@ -5,6 +5,7 @@ import { SiteLayout } from "@/components/layout/site-layout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils/currency";
 import {
   Table,
   TableBody,
@@ -361,7 +362,7 @@ export default function VendorDisputesPage() {
                   </div>
                   <div>
                     <Label className="text-muted-foreground">Disputed Amount</Label>
-                    <p className="font-medium">GHS {selectedDispute.amount?.toFixed(2) || "N/A"}</p>
+                    <p className="font-medium">{formatCurrency(selectedDispute.amount) || "N/A"}</p>
                   </div>
                 </div>
 
@@ -408,7 +409,7 @@ export default function VendorDisputesPage() {
                       {selectedDispute.refund_amount && (
                         <div>
                           <Label className="text-green-700">Refund Amount</Label>
-                          <p className="text-green-900 font-medium">GHS {selectedDispute.refund_amount.toFixed(2)}</p>
+                          <p className="text-green-900 font-medium">{formatCurrency(selectedDispute.refund_amount)}</p>
                         </div>
                       )}
                     </div>
