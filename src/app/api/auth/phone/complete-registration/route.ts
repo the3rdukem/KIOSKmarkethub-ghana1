@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { query } from '@/lib/db';
 import { normalizePhoneNumber, isValidGhanaPhone, getPhoneVariants } from '@/lib/db/dal/phone-auth';
 import { createSession } from '@/lib/db/dal/sessions';
+import { hashPassword } from '@/lib/db/dal/auth-service';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -15,11 +16,18 @@ const COOKIE_OPTIONS = {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { phone, name, role, location, businessName, businessType, address } = body;
+    const { phone, password, name, role, location, businessName, businessType, address } = body;
 
-    if (!phone || !name) {
+    if (!phone || !name || !password) {
       return NextResponse.json(
-        { success: false, error: 'Phone and name are required' },
+        { success: false, error: 'Phone, password, and name are required' },
+        { status: 400 }
+      );
+    }
+
+    if (password.length < 8) {
+      return NextResponse.json(
+        { success: false, error: 'Password must be at least 8 characters' },
         { status: 400 }
       );
     }
@@ -71,14 +79,17 @@ export async function POST(request: NextRequest) {
     }
 
     const now = new Date().toISOString();
+    const passwordHash = hashPassword(password);
+    
     const updateFields: string[] = [
       'name = $1',
       'role = $2',
       'status = $3',
-      'updated_at = $4'
+      'password_hash = $4',
+      'updated_at = $5'
     ];
-    const updateValues: (string | null)[] = [name, role, 'active', now];
-    let paramIndex = 5;
+    const updateValues: (string | null)[] = [name, role, 'active', passwordHash, now];
+    let paramIndex = 6;
 
     if (location) {
       updateFields.push(`location = $${paramIndex}`);

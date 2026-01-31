@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Phone, AlertTriangle, Loader2, ArrowLeft, User, MapPin } from "lucide-react";
+import { Phone, AlertTriangle, Loader2, ArrowLeft, User, MapPin, Lock, Eye, EyeOff, CheckCircle } from "lucide-react";
 import { GHANA_REGIONS } from "@/lib/constants/ghana-locations";
 import Link from "next/link";
 
@@ -17,11 +17,15 @@ interface PhoneRegisterFormProps {
   onError: (error: string) => void;
 }
 
-type Step = "phone" | "otp" | "profile";
+type Step = "credentials" | "otp" | "profile";
 
 export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegisterFormProps) {
-  const [step, setStep] = useState<Step>("phone");
+  const [step, setStep] = useState<Step>("credentials");
   const [phone, setPhone] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
@@ -67,11 +71,34 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
     setError("");
   };
 
-  const handleSendOTP = async (e: React.FormEvent) => {
+  const validatePassword = (pwd: string): string[] => {
+    const errors: string[] = [];
+    if (pwd.length < 8) errors.push("At least 8 characters");
+    if (!/[A-Z]/.test(pwd)) errors.push("One uppercase letter");
+    if (!/[a-z]/.test(pwd)) errors.push("One lowercase letter");
+    if (!/[0-9]/.test(pwd)) errors.push("One number");
+    return errors;
+  };
+
+  const passwordErrors = validatePassword(password);
+  const isPasswordValid = passwordErrors.length === 0;
+  const passwordsMatch = password === confirmPassword && confirmPassword.length > 0;
+
+  const handleCredentialsSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (phone.length !== 10 || !phone.startsWith("0")) {
       setError("Please enter a valid 10-digit Ghana phone number starting with 0");
+      return;
+    }
+
+    if (!isPasswordValid) {
+      setError("Please ensure your password meets all requirements");
+      return;
+    }
+
+    if (!passwordsMatch) {
+      setError("Passwords do not match");
       return;
     }
 
@@ -239,6 +266,7 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           phone,
+          password,
           name: `${profileData.firstName} ${profileData.lastName}`,
           role: userType,
           location: `${profileData.city}, ${profileData.region}`,
@@ -267,9 +295,9 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
     }
   };
 
-  if (step === "phone") {
+  if (step === "credentials") {
     return (
-      <form onSubmit={handleSendOTP} className="space-y-4">
+      <form onSubmit={handleCredentialsSubmit} className="space-y-4">
         <div>
           <Label htmlFor="phone">Phone Number</Label>
           <div className="relative">
@@ -287,6 +315,70 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
           <p className="text-xs text-gray-500 mt-1">Enter your 10-digit Ghana phone number</p>
         </div>
 
+        <div>
+          <Label htmlFor="password">Password</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              id="password"
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(""); }}
+              className={`pl-10 pr-10 ${error ? "border-red-500" : ""}`}
+              placeholder="Create a password"
+              disabled={isLoading}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {password && (
+            <div className="mt-2 space-y-1">
+              {["At least 8 characters", "One uppercase letter", "One lowercase letter", "One number"].map((req) => {
+                const passed = !passwordErrors.includes(req);
+                return (
+                  <div key={req} className={`text-xs flex items-center gap-1 ${passed ? "text-green-600" : "text-gray-400"}`}>
+                    <CheckCircle className={`w-3 h-3 ${passed ? "text-green-600" : "text-gray-300"}`} />
+                    {req}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <Label htmlFor="confirmPassword">Confirm Password</Label>
+          <div className="relative">
+            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              id="confirmPassword"
+              type={showConfirmPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => { setConfirmPassword(e.target.value); setError(""); }}
+              className={`pl-10 pr-10 ${confirmPassword && !passwordsMatch ? "border-red-500" : ""}`}
+              placeholder="Confirm your password"
+              disabled={isLoading}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          {confirmPassword && (
+            <p className={`text-xs mt-1 ${passwordsMatch ? "text-green-600" : "text-red-500"}`}>
+              {passwordsMatch ? "Passwords match" : "Passwords do not match"}
+            </p>
+          )}
+        </div>
+
         {error && (
           <Alert className="border-red-200 bg-red-50">
             <AlertTriangle className="h-4 w-4 text-red-600" />
@@ -300,16 +392,20 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
           </p>
         )}
 
-        <Button type="submit" className="w-full" disabled={isLoading || cooldown > 0}>
+        <Button type="submit" className="w-full" disabled={isLoading || cooldown > 0 || !isPasswordValid || !passwordsMatch}>
           {isLoading ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Sending Code...
             </>
           ) : (
-            "Send Verification Code"
+            "Continue"
           )}
         </Button>
+
+        <p className="text-xs text-center text-gray-500">
+          We&apos;ll send a verification code to your phone
+        </p>
       </form>
     );
   }
@@ -319,7 +415,7 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
       <div className="space-y-4">
         <button
           type="button"
-          onClick={() => setStep("phone")}
+          onClick={() => setStep("credentials")}
           className="flex items-center text-sm text-gray-600 hover:text-gray-900"
         >
           <ArrowLeft className="w-4 h-4 mr-1" />
@@ -388,7 +484,11 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
   return (
     <form onSubmit={handleProfileSubmit} className="space-y-4">
       <div className="text-center mb-4">
-        <p className="text-sm text-gray-600">Phone verified! Complete your profile.</p>
+        <div className="flex items-center justify-center gap-2 text-green-600 mb-2">
+          <CheckCircle className="w-5 h-5" />
+          <span className="font-medium">Phone verified!</span>
+        </div>
+        <p className="text-sm text-gray-600">Complete your profile to finish registration.</p>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -399,9 +499,10 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
             <Input
               id="firstName"
               value={profileData.firstName}
-              onChange={(e) => setProfileData(prev => ({ ...prev, firstName: e.target.value }))}
+              onChange={(e) => setProfileData({ ...profileData, firstName: e.target.value })}
               className="pl-10"
               placeholder="First name"
+              disabled={isLoading}
             />
           </div>
         </div>
@@ -410,17 +511,22 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
           <Input
             id="lastName"
             value={profileData.lastName}
-            onChange={(e) => setProfileData(prev => ({ ...prev, lastName: e.target.value }))}
+            onChange={(e) => setProfileData({ ...profileData, lastName: e.target.value })}
             placeholder="Last name"
+            disabled={isLoading}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label>Region</Label>
-          <Select value={profileData.region} onValueChange={(v) => setProfileData(prev => ({ ...prev, region: v }))}>
-            <SelectTrigger>
+          <Label htmlFor="region">Region</Label>
+          <Select
+            value={profileData.region}
+            onValueChange={(value) => setProfileData({ ...profileData, region: value })}
+            disabled={isLoading}
+          >
+            <SelectTrigger id="region">
               <SelectValue placeholder="Select region" />
             </SelectTrigger>
             <SelectContent>
@@ -431,15 +537,16 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
           </Select>
         </div>
         <div>
-          <Label htmlFor="city">City/Town</Label>
+          <Label htmlFor="city">City</Label>
           <div className="relative">
             <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
             <Input
               id="city"
               value={profileData.city}
-              onChange={(e) => setProfileData(prev => ({ ...prev, city: e.target.value }))}
+              onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
               className="pl-10"
-              placeholder="Your city"
+              placeholder="City"
+              disabled={isLoading}
             />
           </div>
         </div>
@@ -452,14 +559,20 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
             <Input
               id="businessName"
               value={profileData.businessName}
-              onChange={(e) => setProfileData(prev => ({ ...prev, businessName: e.target.value }))}
+              onChange={(e) => setProfileData({ ...profileData, businessName: e.target.value })}
               placeholder="Your business name"
+              disabled={isLoading}
             />
           </div>
+
           <div>
-            <Label>Business Type</Label>
-            <Select value={profileData.businessType} onValueChange={(v) => setProfileData(prev => ({ ...prev, businessType: v }))}>
-              <SelectTrigger>
+            <Label htmlFor="businessType">Business Type</Label>
+            <Select
+              value={profileData.businessType}
+              onValueChange={(value) => setProfileData({ ...profileData, businessType: value })}
+              disabled={isLoading}
+            >
+              <SelectTrigger id="businessType">
                 <SelectValue placeholder="Select business type" />
               </SelectTrigger>
               <SelectContent>
@@ -469,29 +582,32 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
               </SelectContent>
             </Select>
           </div>
+
           <div>
-            <Label htmlFor="address">Business Address</Label>
+            <Label htmlFor="address">Business Address (Optional)</Label>
             <Input
               id="address"
               value={profileData.address}
-              onChange={(e) => setProfileData(prev => ({ ...prev, address: e.target.value }))}
+              onChange={(e) => setProfileData({ ...profileData, address: e.target.value })}
               placeholder="Business address"
+              disabled={isLoading}
             />
           </div>
         </>
       )}
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-start space-x-2">
         <Checkbox
-          id="agreeTerms"
+          id="terms"
           checked={profileData.agreeTerms}
-          onCheckedChange={(checked) => setProfileData(prev => ({ ...prev, agreeTerms: !!checked }))}
+          onCheckedChange={(checked) => setProfileData({ ...profileData, agreeTerms: checked === true })}
+          disabled={isLoading}
         />
-        <label htmlFor="agreeTerms" className="text-sm text-gray-600">
+        <label htmlFor="terms" className="text-sm text-gray-600 leading-tight">
           I agree to the{" "}
-          <Link href="/pages/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
+          <Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
           {" "}and{" "}
-          <Link href="/pages/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>
+          <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>
         </label>
       </div>
 
@@ -509,7 +625,7 @@ export function PhoneRegisterForm({ userType, onSuccess, onError }: PhoneRegiste
             Creating Account...
           </>
         ) : (
-          "Create Account"
+          `Create ${userType === "vendor" ? "Vendor" : "Buyer"} Account`
         )}
       </Button>
     </form>
