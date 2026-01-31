@@ -12,29 +12,16 @@ import {
   listMessages,
 } from '@/lib/db/dal/messaging';
 import { createNotification } from '@/lib/db/dal/notifications';
+import { checkRateLimit, getRateLimitHeaders } from '@/lib/db/dal/rate-limits';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-const MESSAGE_RATE_LIMIT = 10;
-const RATE_LIMIT_WINDOW_MS = 60 * 1000;
-const messageRateLimits = new Map<string, { count: number; windowStart: number }>();
-
-function checkMessageRateLimit(userId: string): { allowed: boolean; retryAfterMs?: number } {
-  const now = Date.now();
-  const userLimit = messageRateLimits.get(userId);
-  
-  if (!userLimit || now - userLimit.windowStart > RATE_LIMIT_WINDOW_MS) {
-    messageRateLimits.set(userId, { count: 1, windowStart: now });
-    return { allowed: true };
+async function checkMessageRateLimit(userId: string): Promise<{ allowed: boolean; retryAfterMs?: number }> {
+  const result = await checkRateLimit(userId, 'message_send');
+  if (!result.allowed) {
+    return { allowed: false, retryAfterMs: (result.retryAfterSeconds || 0) * 1000 };
   }
-  
-  if (userLimit.count >= MESSAGE_RATE_LIMIT) {
-    const retryAfterMs = RATE_LIMIT_WINDOW_MS - (now - userLimit.windowStart);
-    return { allowed: false, retryAfterMs };
-  }
-  
-  userLimit.count++;
   return { allowed: true };
 }
 
@@ -106,7 +93,7 @@ export async function POST(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: 'Admins should use /api/admin/messaging endpoint' }, { status: 403 });
     }
 
-    const rateCheck = checkMessageRateLimit(session.userId);
+    const rateCheck = await checkMessageRateLimit(session.userId);
     if (!rateCheck.allowed) {
       const retryAfterSeconds = Math.ceil((rateCheck.retryAfterMs || 60000) / 1000);
       return NextResponse.json(

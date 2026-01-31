@@ -1851,6 +1851,27 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Columns may already exist
   }
+
+  // PHASE 18: Rate Limiting System - Database-backed rate limiting
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS rate_limits (
+        id TEXT PRIMARY KEY,
+        key TEXT NOT NULL,
+        action TEXT NOT NULL,
+        count INTEGER DEFAULT 1,
+        window_start TIMESTAMP NOT NULL DEFAULT NOW(),
+        window_seconds INTEGER NOT NULL,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_rate_limits_key_action ON rate_limits(key, action);
+      CREATE INDEX IF NOT EXISTS idx_rate_limits_window ON rate_limits(window_start);
+    `);
+    console.log('[DB] PHASE 18: Created rate_limits table for distributed rate limiting');
+  } catch (e) {
+    // Table may already exist
+  }
 }
 
 /**

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sendPhoneOTP, isValidGhanaPhone, normalizePhoneNumber } from '@/lib/db/dal/phone-auth';
+import { withRateLimit, getClientIdentifier } from '@/lib/utils/rate-limiter';
 
 export async function POST(request: NextRequest) {
+  const rateLimitCheck = await withRateLimit(request, 'otp_send', getClientIdentifier(request));
+  if (!rateLimitCheck.allowed) {
+    return rateLimitCheck.response;
+  }
+
   try {
     const body = await request.json();
     const { phone } = body;

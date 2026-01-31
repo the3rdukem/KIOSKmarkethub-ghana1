@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyPhoneOTP, normalizePhoneNumber, isValidGhanaPhone } from '@/lib/db/dal/phone-auth';
 import { createSession } from '@/lib/db/dal/sessions';
+import { withRateLimit, getClientIdentifier } from '@/lib/utils/rate-limiter';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -12,6 +13,11 @@ const COOKIE_OPTIONS = {
 };
 
 export async function POST(request: NextRequest) {
+  const rateLimitCheck = await withRateLimit(request, 'otp_verify', getClientIdentifier(request));
+  if (!rateLimitCheck.allowed) {
+    return rateLimitCheck.response;
+  }
+
   try {
     const body = await request.json();
     const { phone, otp } = body;

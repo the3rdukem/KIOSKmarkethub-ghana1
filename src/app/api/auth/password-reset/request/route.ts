@@ -12,10 +12,16 @@ import { createPasswordResetToken } from '@/lib/db/dal/password-reset';
 import { sendEmail } from '@/lib/email';
 import { logAuthEvent } from '@/lib/db/dal/audit';
 import { validateEmail } from '@/lib/validation';
+import { withRateLimit, getClientIdentifier } from '@/lib/utils/rate-limiter';
 
 export async function POST(request: NextRequest) {
   const ipAddress = request.headers.get('x-forwarded-for') || undefined;
   const userAgent = request.headers.get('user-agent') || undefined;
+
+  const rateLimitCheck = await withRateLimit(request, 'password_reset', getClientIdentifier(request));
+  if (!rateLimitCheck.allowed) {
+    return rateLimitCheck.response;
+  }
 
   try {
     const body = await request.json();

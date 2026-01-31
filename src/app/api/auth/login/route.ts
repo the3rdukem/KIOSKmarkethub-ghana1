@@ -13,6 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { loginUser, getRouteForRole, type AuthErrorCode } from '@/lib/db/dal/auth-service';
 import { logAuthEvent } from '@/lib/db/dal/audit';
+import { withRateLimit, addRateLimitHeaders, getClientIdentifier } from '@/lib/utils/rate-limiter';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -40,6 +41,11 @@ function getHttpStatus(code: AuthErrorCode): number {
 export async function POST(request: NextRequest) {
   const ipAddress = request.headers.get('x-forwarded-for') || undefined;
   const userAgent = request.headers.get('user-agent') || undefined;
+
+  const rateLimitCheck = await withRateLimit(request, 'login', getClientIdentifier(request));
+  if (!rateLimitCheck.allowed) {
+    return rateLimitCheck.response;
+  }
 
   try {
     const body = await request.json();

@@ -63,7 +63,13 @@ KIOSK is a well-architected multi-vendor marketplace with strong security founda
 - **Issue**: Rate limiting uses `Map<string, ...>` which is lost on server restart and doesn't work across multiple instances.
 - **Risk**: MEDIUM - Attackers could bypass rate limits by timing requests around restarts or across load-balanced instances.
 - **Recommendation**: Use Redis or database-backed rate limiting for production deployments.
-- **Status**: ⏳ Pending
+- **Status**: ✅ FIXED (2026-01-31)
+  - Created `rate_limits` database table (PHASE 18)
+  - Created DAL: `src/lib/db/dal/rate-limits.ts` with configurable limits
+  - Created utility: `src/lib/utils/rate-limiter.ts` for easy endpoint integration
+  - Applied to: login, admin login, OTP send/verify, password reset, messaging
+  - Updated arkesel-otp.ts to use database-backed rate limiting
+  - Rate limits now persist across restarts and work in multi-instance deployments
 
 ### 7. **Session Token Exposed in Logs During Debug Mode**
 - **Location**: `src/lib/db/dal/sessions.ts` (lines 26-29, 57-60)
@@ -237,10 +243,10 @@ From `replit.md`:
 5. ✅ Set `OTP_SECRET_PEPPER` as required in production (ALREADY DONE)
 
 ### Short-term (First Month)
-6. ⏳ Implement Redis-backed rate limiting
+6. ✅ Implement database-backed rate limiting (DONE - 2026-01-31)
 7. ⏳ Add CSRF protection
 8. ⏳ Complete email verification flow
-9. ⏳ Consolidate duplicate crypto functions
+9. ✅ Consolidate duplicate crypto functions (DONE - 2026-01-31)
 10. ⏳ Refactor large files
 
 ### Medium-term (3 Months)

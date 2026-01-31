@@ -56,9 +56,9 @@ export interface OTPVerifyResponse {
   integrationDisabled?: boolean;
 }
 
-// Rate limiting store (in-memory for demo, use Redis in production)
-const otpRateLimits: Map<string, { count: number; resetAt: number }> = new Map();
-const MAX_REQUESTS_PER_HOUR = 5;
+// Database-backed rate limiting for production
+import { checkRateLimit as dbCheckRateLimit, RateLimitConfig } from '@/lib/db/dal/rate-limits';
+const ARKESEL_OTP_RATE_LIMIT: RateLimitConfig = { maxRequests: 5, windowSeconds: 3600 };
 
 // OTP storage (in-memory for demo, use Redis in production)
 const otpStore: Map<string, { otp: string; expiresAt: number; purpose: OTPPurpose; attempts: number }> = new Map();
@@ -167,45 +167,21 @@ const validatePhoneNumber = (phone: string): { valid: boolean; error?: string } 
 };
 
 /**
- * Check rate limiting
+ * Check rate limiting (database-backed for production)
  */
-const checkRateLimit = (phone: string): { allowed: boolean; error?: string } => {
+const checkRateLimitLocal = async (phone: string): Promise<{ allowed: boolean; error?: string }> => {
   const key = formatPhoneNumber(phone);
-  const now = Date.now();
-  const limit = otpRateLimits.get(key);
-
-  if (limit) {
-    // Reset if time expired
-    if (now > limit.resetAt) {
-      otpRateLimits.delete(key);
-    } else if (limit.count >= MAX_REQUESTS_PER_HOUR) {
-      const waitMinutes = Math.ceil((limit.resetAt - now) / 60000);
-      return {
-        allowed: false,
-        error: `Too many OTP requests. Please wait ${waitMinutes} minutes.`,
-      };
-    }
+  const result = await dbCheckRateLimit(key, 'arkesel_otp_send', ARKESEL_OTP_RATE_LIMIT);
+  
+  if (!result.allowed) {
+    const waitMinutes = Math.ceil((result.retryAfterSeconds || 60) / 60);
+    return {
+      allowed: false,
+      error: `Too many OTP requests. Please wait ${waitMinutes} minutes.`,
+    };
   }
 
   return { allowed: true };
-};
-
-/**
- * Update rate limit counter
- */
-const updateRateLimit = (phone: string): void => {
-  const key = formatPhoneNumber(phone);
-  const now = Date.now();
-  const limit = otpRateLimits.get(key);
-
-  if (limit && now <= limit.resetAt) {
-    limit.count++;
-  } else {
-    otpRateLimits.set(key, {
-      count: 1,
-      resetAt: now + 3600000, // 1 hour
-    });
-  }
 };
 
 /**
@@ -247,8 +223,8 @@ export const sendOTP = async (request: OTPSendRequest): Promise<OTPSendResponse>
     };
   }
 
-  // Check rate limiting
-  const rateLimit = checkRateLimit(request.phone);
+  // Check rate limiting (database-backed)
+  const rateLimit = await checkRateLimitLocal(request.phone);
   if (!rateLimit.allowed) {
     return {
       success: false,
@@ -273,8 +249,6 @@ export const sendOTP = async (request: OTPSendRequest): Promise<OTPSendResponse>
       purpose: request.purpose,
       attempts: 0,
     });
-
-    updateRateLimit(request.phone);
 
     return {
       success: true,
@@ -331,8 +305,6 @@ export const sendOTP = async (request: OTPSendRequest): Promise<OTPSendResponse>
     purpose: request.purpose,
     attempts: 0,
   });
-
-  updateRateLimit(request.phone);
 
   return {
     success: true,
@@ -481,11 +453,7 @@ export const clearExpiredOTPs = (): void => {
     }
   }
 
-  for (const [key, value] of otpRateLimits.entries()) {
-    if (now > value.resetAt) {
-      otpRateLimits.delete(key);
-    }
-  }
+  // Rate limit cleanup is handled by the database (cleanupExpiredRateLimits)
 };
 
 /**
