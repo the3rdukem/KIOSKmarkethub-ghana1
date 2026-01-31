@@ -1836,8 +1836,10 @@ async function runMigrations(client: PoolClient): Promise<void> {
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_otp_expires TIMESTAMP`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_otp_attempts INTEGER DEFAULT 0`);
     await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_otp_last_sent TIMESTAMP`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS payout_auth_token TEXT`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS payout_auth_expires TIMESTAMP`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone) WHERE phone IS NOT NULL AND is_deleted = 0`);
-    console.log('[DB] PHASE 17: Added phone authentication columns (OTP support)');
+    console.log('[DB] PHASE 17: Added phone authentication columns (OTP support) + payout auth');
   } catch (e) {
     // Columns may already exist
   }

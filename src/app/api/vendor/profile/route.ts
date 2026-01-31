@@ -45,7 +45,9 @@ export async function GET(request: NextRequest) {
         name: user.name,
         email: user.email,
         businessName: user.business_name,
+        phone: user.phone,
       } : null,
+      phoneVerified: user?.phone_verified ?? false,
     });
   } catch (error) {
     console.error('[VENDOR_PROFILE_API] Error:', error);

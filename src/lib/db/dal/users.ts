@@ -27,6 +27,8 @@ export interface DbUser {
   phone_otp_expires: string | null;
   phone_otp_attempts: number;
   phone_otp_last_sent: string | null;
+  payout_auth_token: string | null;
+  payout_auth_expires: string | null;
   location: string | null;
   business_name: string | null;
   business_type: string | null;

@@ -136,6 +136,18 @@ export default function VendorWithdrawPage() {
     commissionSource: 'vendor' | 'category' | 'default';
   } | null>(null);
 
+  // Phone verification status
+  const [isPhoneVerified, setIsPhoneVerified] = useState<boolean | null>(null);
+
+  // OTP verification for adding payout accounts
+  const [showOTPDialog, setShowOTPDialog] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [payoutToken, setPayoutToken] = useState<string | null>(null);
+  const [isRequestingOTP, setIsRequestingOTP] = useState(false);
+  const [isVerifyingOTP, setIsVerifyingOTP] = useState(false);
+  const [otpCooldown, setOtpCooldown] = useState(0);
+  const [otpError, setOtpError] = useState("");
+
   const mobileProviders = [
     { code: 'MTN', name: 'MTN Mobile Money', prefix: '024/054/055/059' },
     { code: 'VOD', name: 'Vodafone/Telecel Cash', prefix: '020/050' },
@@ -148,11 +160,12 @@ export default function VendorWithdrawPage() {
 
     setIsLoading(true);
     try {
-      const [payoutsRes, accountsRes, banksRes, statsRes] = await Promise.all([
+      const [payoutsRes, accountsRes, banksRes, statsRes, profileRes] = await Promise.all([
         fetch('/api/vendor/payouts', { credentials: 'include' }),
         fetch('/api/vendor/bank-accounts', { credentials: 'include' }),
         fetch('/api/vendor/banks', { credentials: 'include' }),
         fetch('/api/vendor/stats', { credentials: 'include' }),
+        fetch('/api/vendor/profile', { credentials: 'include' }),
       ]);
 
       if (payoutsRes.ok) {
@@ -189,6 +202,11 @@ export default function VendorWithdrawPage() {
             commissionSource: data.earnings.commissionSource || 'default'
           });
         }
+      }
+
+      if (profileRes.ok) {
+        const data = await profileRes.json();
+        setIsPhoneVerified(data.phoneVerified ?? false);
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
@@ -296,7 +314,89 @@ export default function VendorWithdrawPage() {
     }
   };
 
+  // OTP verification flow for payout accounts
+  const handleRequestOTP = async () => {
+    setIsRequestingOTP(true);
+    setOtpError("");
+
+    try {
+      const response = await fetch('/api/vendor/payouts/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ purpose: 'payout_account' }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.code === 'OTP_COOLDOWN') {
+          setOtpCooldown(data.cooldownRemaining || 60);
+        }
+        throw new Error(data.error || 'Failed to send verification code');
+      }
+
+      toast.success(data.message || 'Verification code sent!');
+      setShowOTPDialog(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to send verification code");
+    } finally {
+      setIsRequestingOTP(false);
+    }
+  };
+
+  const handleVerifyOTP = async () => {
+    if (!otpCode || otpCode.length !== 6) {
+      setOtpError("Please enter a 6-digit code");
+      return;
+    }
+
+    setIsVerifyingOTP(true);
+    setOtpError("");
+
+    try {
+      const response = await fetch('/api/vendor/payouts/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ otp: otpCode }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setOtpError(data.error || 'Invalid verification code');
+        return;
+      }
+
+      setPayoutToken(data.payoutToken);
+      setShowOTPDialog(false);
+      setOtpCode("");
+      toast.success('Verified! You can now add your payout account.');
+      setShowAddAccountDialog(true);
+    } catch (error) {
+      setOtpError("Verification failed. Please try again.");
+    } finally {
+      setIsVerifyingOTP(false);
+    }
+  };
+
+  // Countdown for OTP cooldown
+  useEffect(() => {
+    if (otpCooldown > 0) {
+      const timer = setTimeout(() => setOtpCooldown(otpCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [otpCooldown]);
+
   const handleAddAccount = async () => {
+    // Check if we have a valid payout token
+    if (!payoutToken) {
+      toast.error('Please verify with OTP first');
+      handleRequestOTP();
+      return;
+    }
+
     setIsAddingAccount(true);
 
     try {
@@ -304,6 +404,7 @@ export default function VendorWithdrawPage() {
         account_type: newAccountType,
         account_number: newAccountNumber,
         account_name: newAccountName,
+        payoutToken,
       };
 
       if (newAccountType === 'bank') {
@@ -324,6 +425,18 @@ export default function VendorWithdrawPage() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (data.code === 'PHONE_NOT_VERIFIED') {
+          toast.error('Phone verification required. Please verify your phone number in your profile settings.');
+          setShowAddAccountDialog(false);
+          return;
+        }
+        if (data.code === 'OTP_REQUIRED' || data.code === 'INVALID_TOKEN' || data.code === 'TOKEN_EXPIRED') {
+          toast.error('Verification expired. Please verify again.');
+          setPayoutToken(null);
+          setShowAddAccountDialog(false);
+          handleRequestOTP();
+          return;
+        }
         throw new Error(data.error || 'Failed to add account');
       }
 
@@ -333,6 +446,7 @@ export default function VendorWithdrawPage() {
       setNewAccountName("");
       setNewBankCode("");
       setNewMomoProvider("");
+      setPayoutToken(null);
       fetchData();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to add account");
@@ -692,14 +806,34 @@ export default function VendorWithdrawPage() {
           </TabsContent>
 
           <TabsContent value="accounts" className="mt-6">
+            {/* Phone Verification Warning */}
+            {isPhoneVerified === false && (
+              <Alert className="mb-4 border-amber-200 bg-amber-50">
+                <AlertTriangle className="h-4 w-4 text-amber-600" />
+                <AlertDescription className="text-amber-800">
+                  <strong>Phone verification required:</strong> You must verify your phone number before adding payout accounts.{" "}
+                  <Link href="/vendor/profile" className="underline font-medium hover:text-amber-900">
+                    Verify your phone in Profile Settings
+                  </Link>
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle>Payout Accounts</CardTitle>
                   <CardDescription>Manage your bank and mobile money accounts</CardDescription>
                 </div>
-                <Button onClick={() => setShowAddAccountDialog(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
+                <Button 
+                  onClick={() => payoutToken ? setShowAddAccountDialog(true) : handleRequestOTP()}
+                  disabled={isPhoneVerified === false || isRequestingOTP}
+                >
+                  {isRequestingOTP ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Plus className="w-4 h-4 mr-2" />
+                  )}
                   Add Account
                 </Button>
               </CardHeader>
@@ -708,10 +842,21 @@ export default function VendorWithdrawPage() {
                   <div className="text-center py-12">
                     <Building className="w-12 h-12 text-gray-300 mx-auto mb-4" />
                     <p className="text-muted-foreground mb-4">No payout accounts added yet</p>
-                    <Button onClick={() => setShowAddAccountDialog(true)}>
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Your First Account
-                    </Button>
+                    {isPhoneVerified === false ? (
+                      <p className="text-sm text-amber-600">Verify your phone number to add payout accounts</p>
+                    ) : (
+                      <Button 
+                        onClick={() => payoutToken ? setShowAddAccountDialog(true) : handleRequestOTP()}
+                        disabled={isRequestingOTP}
+                      >
+                        {isRequestingOTP ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Plus className="w-4 h-4 mr-2" />
+                        )}
+                        Add Your First Account
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -840,6 +985,74 @@ export default function VendorWithdrawPage() {
             </Card>
           </TabsContent>
         </Tabs>
+
+        {/* OTP Verification Dialog */}
+        <Dialog open={showOTPDialog} onOpenChange={setShowOTPDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Verify Your Identity</DialogTitle>
+              <DialogDescription>
+                Enter the 6-digit code sent to your phone to add a payout account
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div>
+                <Label htmlFor="otpCode">Verification Code</Label>
+                <Input
+                  id="otpCode"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otpCode}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
+                    setOtpCode(value);
+                    setOtpError("");
+                  }}
+                  placeholder="Enter 6-digit code"
+                  className={`text-center text-2xl tracking-widest ${otpError ? 'border-red-500' : ''}`}
+                />
+                {otpError && <p className="text-sm text-red-500 mt-1">{otpError}</p>}
+              </div>
+
+              <div className="text-center text-sm text-muted-foreground">
+                <p>
+                  Didn&apos;t receive a code?{" "}
+                  {otpCooldown > 0 ? (
+                    <span className="text-gray-400">Resend in {otpCooldown}s</span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleRequestOTP}
+                      disabled={isRequestingOTP}
+                      className="text-blue-600 hover:underline"
+                    >
+                      {isRequestingOTP ? "Sending..." : "Resend Code"}
+                    </button>
+                  )}
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowOTPDialog(false)}>
+                Cancel
+              </Button>
+              <Button 
+                onClick={handleVerifyOTP} 
+                disabled={isVerifyingOTP || otpCode.length !== 6}
+              >
+                {isVerifyingOTP ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Verifying...
+                  </>
+                ) : (
+                  "Verify"
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Add Account Dialog */}
         <Dialog open={showAddAccountDialog} onOpenChange={setShowAddAccountDialog}>

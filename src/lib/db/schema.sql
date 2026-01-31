@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
   phone_otp_expires TIMESTAMP,
   phone_otp_attempts INTEGER DEFAULT 0,
   phone_otp_last_sent TIMESTAMP,
+  payout_auth_token TEXT,
+  payout_auth_expires TIMESTAMP,
   location TEXT,
 
   -- Vendor fields

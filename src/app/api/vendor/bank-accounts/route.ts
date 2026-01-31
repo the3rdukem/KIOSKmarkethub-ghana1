@@ -7,6 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { validateSession } from '@/lib/db/dal/sessions';
+import { getUserById } from '@/lib/db/dal/users';
+import { query } from '@/lib/db';
 import { 
   getVendorBankAccounts, 
   addBankAccount, 
@@ -60,6 +62,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Vendor access required' }, { status: 403 });
     }
 
+    // Security: Require verified phone before adding payout accounts
+    const user = await getUserById(session.user_id);
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+    
+    if (!user.phone_verified) {
+      return NextResponse.json({ 
+        error: 'Phone verification required',
+        code: 'PHONE_NOT_VERIFIED',
+        message: 'You must verify your phone number before adding payout accounts. Please update your profile with a verified phone number.'
+      }, { status: 403 });
+    }
+
     const body = await request.json();
     const { 
       account_type, 
@@ -68,8 +84,33 @@ export async function POST(request: NextRequest) {
       account_number, 
       account_name,
       mobile_money_provider,
-      is_primary 
+      is_primary,
+      payoutToken 
     } = body;
+
+    // Security: Require OTP verification for adding payout accounts
+    if (!payoutToken) {
+      return NextResponse.json({ 
+        error: 'OTP verification required',
+        code: 'OTP_REQUIRED',
+        message: 'Please verify with OTP before adding a payout account.'
+      }, { status: 403 });
+    }
+
+    // Validate payout auth token
+    if (user.payout_auth_token !== payoutToken) {
+      return NextResponse.json({ 
+        error: 'Invalid or expired verification',
+        code: 'INVALID_TOKEN'
+      }, { status: 403 });
+    }
+
+    if (!user.payout_auth_expires || new Date(user.payout_auth_expires) < new Date()) {
+      return NextResponse.json({ 
+        error: 'Verification expired. Please verify again.',
+        code: 'TOKEN_EXPIRED'
+      }, { status: 403 });
+    }
 
     if (!account_type || !account_number || !account_name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -97,6 +138,12 @@ export async function POST(request: NextRequest) {
     if (!result.success) {
       return NextResponse.json({ error: result.error }, { status: 400 });
     }
+
+    // Security: Invalidate payout token after successful use to prevent reuse
+    await query(
+      `UPDATE users SET payout_auth_token = NULL, payout_auth_expires = NULL, updated_at = $1 WHERE id = $2`,
+      [new Date().toISOString(), session.user_id]
+    );
 
     return NextResponse.json({ account: result.account });
   } catch (error) {
