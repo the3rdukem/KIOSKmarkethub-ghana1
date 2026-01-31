@@ -218,12 +218,23 @@ export default function ProductPage() {
           }
           
           try {
-            const relatedRes = await fetch(`/api/products?status=active&category=${encodeURIComponent(productData.category)}&limit=5`);
+            const relatedRes = await fetch(`/api/products?status=active&category=${encodeURIComponent(productData.category)}&limit=8`);
             if (relatedRes.ok) {
               const relatedData = await relatedRes.json();
-              const filtered = (relatedData.products || relatedData || [])
+              let filtered = (relatedData.products || relatedData || [])
                 .filter((p: Product) => p.id !== productId)
                 .slice(0, 4);
+              
+              if (filtered.length < 4 && productData.vendorId) {
+                const vendorRes = await fetch(`/api/products?status=active&vendorId=${productData.vendorId}&limit=8`);
+                if (vendorRes.ok) {
+                  const vendorData = await vendorRes.json();
+                  const vendorProducts = (vendorData.products || vendorData || [])
+                    .filter((p: Product) => p.id !== productId && !filtered.some((f: Product) => f.id === p.id));
+                  filtered = [...filtered, ...vendorProducts].slice(0, 4);
+                }
+              }
+              
               setRelatedProducts(filtered);
             }
           } catch (e) {
@@ -1252,28 +1263,34 @@ export default function ProductPage() {
         </div>
 
         {relatedProducts.length > 0 && (
-          <div className="mt-12">
-            <h3 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">You May Also Like</h3>
+          <section className="mt-12">
+            <div className="flex items-center gap-2 mb-4 sm:mb-6">
+              <Package className="w-5 h-5 text-green-600" />
+              <h3 className="text-xl sm:text-2xl font-bold">You May Also Like</h3>
+            </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6">
               {relatedProducts.map((item) => (
                 <Link key={item.id} href={`/product/${item.id}`}>
-                  <Card className="cursor-pointer hover:shadow-lg transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="aspect-square bg-gray-200 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
-                        {item.images.length > 0 ? (
+                  <Card className="cursor-pointer hover:shadow-lg transition-shadow h-full">
+                    <CardContent className="p-3 sm:p-4">
+                      <div className="aspect-square bg-gray-100 rounded-lg mb-3 flex items-center justify-center overflow-hidden">
+                        {item.images && item.images.length > 0 ? (
                           <img src={item.images[0]} alt={item.name} className="w-full h-full object-cover" />
                         ) : (
-                          <Package className="w-16 h-16 text-gray-400" />
+                          <Package className="w-12 h-12 text-gray-400" />
                         )}
                       </div>
-                      <h4 className="font-semibold mb-2 line-clamp-2">{item.name}</h4>
-                      <p className="font-bold">GHS {item.price.toLocaleString()}</p>
+                      <h4 className="font-semibold text-sm mb-1 line-clamp-2">{item.name}</h4>
+                      <p className="font-bold text-green-600">GHS {item.price.toLocaleString()}</p>
+                      {item.vendorName && (
+                        <p className="text-xs text-muted-foreground mt-1 truncate">{item.vendorName}</p>
+                      )}
                     </CardContent>
                   </Card>
                 </Link>
               ))}
             </div>
-          </div>
+          </section>
         )}
 
         <RecentlyViewedSection currentProductId={productId} limit={6} />
