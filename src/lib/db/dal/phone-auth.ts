@@ -10,6 +10,7 @@
 import { query } from '../index';
 import { createHmac, randomInt } from 'crypto';
 import { DbUser, getUserByPhone, getPhoneVariants } from './users';
+import { getIntegrationById } from './integrations';
 
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_COOLDOWN_SECONDS = 60;
@@ -124,7 +125,7 @@ export async function sendPhoneOTP(phone: string): Promise<OTPResult> {
   } else {
     await query(
       `INSERT INTO users (id, email, name, role, status, phone, phone_otp_hash, phone_otp_expires, phone_otp_attempts, phone_otp_last_sent, created_at, updated_at)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $9, $9)`,
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, $9, $10, $11)`,
       [
         `user_${Date.now()}_${randomInt(1000, 9999)}`,
         `pending_${normalizedPhone.replace('+', '')}@phone.kiosk.local`,
@@ -134,6 +135,8 @@ export async function sendPhoneOTP(phone: string): Promise<OTPResult> {
         normalizedPhone,
         otpHash,
         expiresAt.toISOString(),
+        now.toISOString(),
+        now.toISOString(),
         now.toISOString()
       ]
     );
@@ -299,22 +302,23 @@ function maskPhone(phone: string): string {
 
 async function getArkeselConfig(): Promise<{ apiKey: string; senderId: string; isDemoMode: boolean } | null> {
   try {
-    const result = await query(
-      `SELECT credentials, environment FROM integrations WHERE id = 'arkesel_otp' AND is_enabled = TRUE AND is_configured = TRUE LIMIT 1`
-    );
+    const integration = await getIntegrationById('arkesel_otp');
     
-    if (result.rows.length === 0) {
-      console.log('[Phone Auth] Arkesel integration not configured or not enabled');
+    if (!integration) {
+      console.log('[Phone Auth] Arkesel integration not found');
       return null;
     }
     
-    const integration = result.rows[0];
-    const credentials = typeof integration.credentials === 'string' 
-      ? JSON.parse(integration.credentials) 
-      : integration.credentials;
+    if (!integration.isEnabled || !integration.isConfigured) {
+      console.log('[Phone Auth] Arkesel integration not configured or not enabled', {
+        isEnabled: integration.isEnabled,
+        isConfigured: integration.isConfigured
+      });
+      return null;
+    }
     
-    const apiKey = credentials?.apiKey;
-    const senderId = credentials?.senderId;
+    const apiKey = integration.credentials?.apiKey;
+    const senderId = integration.credentials?.senderId;
     
     if (!apiKey || !senderId) {
       console.log('[Phone Auth] Arkesel credentials incomplete');

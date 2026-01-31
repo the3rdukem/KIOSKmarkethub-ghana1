@@ -53,10 +53,14 @@ export async function POST(request: NextRequest) {
     }
 
     if (result.user) {
-      const { session, token } = await createSession(result.user.id, result.user.role);
+      const isPending = result.user.status === 'pending';
       
-      const cookieStore = await cookies();
-      cookieStore.set('session_token', token, COOKIE_OPTIONS);
+      if (!isPending) {
+        const { session, token } = await createSession(result.user.id, result.user.role);
+        
+        const cookieStore = await cookies();
+        cookieStore.set('session_token', token, COOKIE_OPTIONS);
+      }
 
       return NextResponse.json({
         success: true,
@@ -67,7 +71,8 @@ export async function POST(request: NextRequest) {
           name: result.user.name,
           role: result.user.role,
           phone: result.user.phone,
-          phoneVerified: result.user.phone_verified
+          phoneVerified: result.user.phone_verified,
+          status: result.user.status
         }
       });
     }

@@ -8,15 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Mail,
   Lock,
   Eye,
   EyeOff,
   AlertTriangle,
-  User,
-  Store,
-  Shield,
+  Phone,
   Loader2
 } from "lucide-react";
 import { useAuthStore, loginViaAPI, getRouteForRole, mergeCartAfterAuth, type UserRole } from "@/lib/auth-store";
@@ -24,6 +23,7 @@ import { toast } from "sonner";
 import { GoogleSignInButton, GoogleAuthFallback } from "@/components/integrations/google-sign-in-button";
 import { Separator } from "@/components/ui/separator";
 import { getSafeRedirectUrl } from "@/lib/utils/safe-redirect";
+import { PhoneLoginForm } from "@/components/auth/phone-login-form";
 
 const VALID_ROLES: UserRole[] = ['buyer', 'vendor', 'admin', 'master_admin'];
 
@@ -149,79 +149,109 @@ function LoginPageContent() {
           <CardHeader>
             <CardTitle>Sign In</CardTitle>
             <CardDescription>
-              Enter your credentials to access your account
+              Choose your preferred sign-in method
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="email">Email Address</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => handleInputChange("email", e.target.value)}
-                    className={`pl-10 ${errors.email ? "border-red-500" : ""}`}
-                    placeholder="Enter your email"
-                  />
-                </div>
-                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-              </div>
+            <Tabs defaultValue="phone" className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="phone" className="flex items-center gap-2">
+                  <Phone className="w-4 h-4" />
+                  Phone
+                </TabsTrigger>
+                <TabsTrigger value="email" className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Email
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="phone">
+                <PhoneLoginForm
+                  onSuccess={(user) => {
+                    toast.success(`Welcome back, ${user.name}!`);
+                    mergeCartAfterAuth();
+                    window.location.href = getRedirectDestination(resolveRole(user.role));
+                  }}
+                  onError={(error) => {
+                    toast.error(error);
+                  }}
+                />
+              </TabsContent>
+              
+              <TabsContent value="email">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div>
+                    <Label htmlFor="email">Email Address</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        id="email"
+                        type="email"
+                        value={formData.email}
+                        onChange={(e) => handleInputChange("email", e.target.value)}
+                        className={`pl-10 ${errors.email ? "border-red-500" : ""}`}
+                        placeholder="Enter your email"
+                      />
+                    </div>
+                    {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                  </div>
 
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <Input
-                    id="password"
-                    type={showPassword ? "text" : "password"}
-                    value={formData.password}
-                    onChange={(e) => handleInputChange("password", e.target.value)}
-                    className={`pl-10 pr-10 ${errors.password ? "border-red-500" : ""}`}
-                    placeholder="Enter your password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
-                  >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-                {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
-              </div>
+                  <div>
+                    <Label htmlFor="password">Password</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        id="password"
+                        type={showPassword ? "text" : "password"}
+                        value={formData.password}
+                        onChange={(e) => handleInputChange("password", e.target.value)}
+                        className={`pl-10 pr-10 ${errors.password ? "border-red-500" : ""}`}
+                        placeholder="Enter your password"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password}</p>}
+                  </div>
 
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="rememberMe"
-                    checked={formData.rememberMe}
-                    onCheckedChange={(checked) => handleInputChange("rememberMe", !!checked)}
-                  />
-                  <label htmlFor="rememberMe" className="text-sm text-gray-600">
-                    Remember me
-                  </label>
-                </div>
-                <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
-                  Forgot password?
-                </Link>
-              </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox
+                        id="rememberMe"
+                        checked={formData.rememberMe}
+                        onCheckedChange={(checked) => handleInputChange("rememberMe", !!checked)}
+                      />
+                      <label htmlFor="rememberMe" className="text-sm text-gray-600">
+                        Remember me
+                      </label>
+                    </div>
+                    <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">
+                      Forgot password?
+                    </Link>
+                  </div>
 
-              {errors.submit && (
-                <Alert className="border-red-200 bg-red-50">
-                  <AlertTriangle className="h-4 w-4 text-red-600" />
-                  <AlertDescription className="text-red-800">
-                    {errors.submit}
-                  </AlertDescription>
-                </Alert>
-              )}
+                  {errors.submit && (
+                    <Alert className="border-red-200 bg-red-50">
+                      <AlertTriangle className="h-4 w-4 text-red-600" />
+                      <AlertDescription className="text-red-800">
+                        {errors.submit}
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? "Signing In..." : "Sign In"}
-              </Button>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? "Signing In..." : "Sign In"}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
 
+            <div className="mt-4">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <Separator className="w-full" />
@@ -231,18 +261,20 @@ function LoginPageContent() {
                 </div>
               </div>
 
-              <GoogleSignInButton
-                mode="signin"
-                className="w-full"
-                onSuccess={(credential) => {
-                  toast.success("Google Sign-In successful!");
-                }}
-                onError={(error) => {
-                  toast.error(error);
-                }}
-              />
-              <GoogleAuthFallback />
-            </form>
+              <div className="mt-4">
+                <GoogleSignInButton
+                  mode="signin"
+                  className="w-full"
+                  onSuccess={(credential) => {
+                    toast.success("Google Sign-In successful!");
+                  }}
+                  onError={(error) => {
+                    toast.error(error);
+                  }}
+                />
+                <GoogleAuthFallback />
+              </div>
+            </div>
           </CardContent>
         </Card>
 

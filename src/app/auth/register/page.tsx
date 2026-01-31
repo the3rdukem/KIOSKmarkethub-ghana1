@@ -34,11 +34,13 @@ import { AddressAutocomplete } from "@/components/integrations/address-autocompl
 import { Separator } from "@/components/ui/separator";
 import { getSafeRedirectUrl } from "@/lib/utils/safe-redirect";
 import { GHANA_REGIONS } from "@/lib/constants/ghana-locations";
+import { PhoneRegisterForm } from "@/components/auth/phone-register-form";
 
 function RegisterPageContent() {
   const searchParams = useSearchParams();
   const redirectUrl = getSafeRedirectUrl(searchParams.get('redirect'));
   const [userType, setUserType] = useState<"buyer" | "vendor">("buyer");
+  const [authMethod, setAuthMethod] = useState<"phone" | "email">("phone");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [formData, setFormData] = useState({
@@ -273,6 +275,36 @@ function RegisterPageContent() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            <Tabs value={authMethod} onValueChange={(v) => setAuthMethod(v as "phone" | "email")} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 mb-4">
+                <TabsTrigger value="phone" className="flex items-center gap-2">
+                  <Phone className="w-4 h-4" />
+                  Phone
+                </TabsTrigger>
+                <TabsTrigger value="email" className="flex items-center gap-2">
+                  <Mail className="w-4 h-4" />
+                  Email
+                </TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="phone">
+                <PhoneRegisterForm
+                  userType={userType}
+                  onSuccess={(user) => {
+                    toast.success(`Welcome to KIOSK!`);
+                    if (user.role === "vendor") {
+                      window.location.href = "/vendor/verify";
+                    } else {
+                      window.location.href = redirectUrl || getRouteForRole("buyer");
+                    }
+                  }}
+                  onError={(error) => {
+                    toast.error(error);
+                  }}
+                />
+              </TabsContent>
+              
+              <TabsContent value="email">
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Personal Information */}
               <div className="grid grid-cols-2 gap-4">
@@ -575,7 +607,11 @@ function RegisterPageContent() {
                   "Create Account"
                 )}
               </Button>
+            </form>
+              </TabsContent>
+            </Tabs>
 
+            <div className="mt-4">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <Separator className="w-full" />
@@ -585,19 +621,21 @@ function RegisterPageContent() {
                 </div>
               </div>
 
-              <GoogleSignInButton
-                mode="signup"
-                role={userType}
-                className="w-full"
-                onSuccess={(credential) => {
-                  toast.success("Google Sign-Up successful!");
-                }}
-                onError={(error) => {
-                  toast.error(error);
-                }}
-              />
-              <GoogleAuthFallback />
-            </form>
+              <div className="mt-4">
+                <GoogleSignInButton
+                  mode="signup"
+                  role={userType}
+                  className="w-full"
+                  onSuccess={(credential) => {
+                    toast.success("Google Sign-Up successful!");
+                  }}
+                  onError={(error) => {
+                    toast.error(error);
+                  }}
+                />
+                <GoogleAuthFallback />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
