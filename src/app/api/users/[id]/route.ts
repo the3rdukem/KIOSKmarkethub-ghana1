@@ -14,6 +14,7 @@ import {
   deleteUser,
   type UpdateUserInput,
 } from '@/lib/db/dal/users';
+import { query } from '@/lib/db';
 import { logAdminAction } from '@/lib/db/dal/audit';
 import { getAdminById } from '@/lib/db/dal/admin';
 import { validatePhone, normalizePhone, validateContentSafety, validateAddress } from '@/lib/validation';
@@ -189,6 +190,44 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
           { status: 400 }
         );
       }
+      
+      // Security: Vendors must verify with OTP before changing phone number
+      // Only required when actually changing the phone (not for initial setup or same value)
+      const normalizedNewPhone = normalizePhone(body.phone);
+      const currentPhone = user.phone ? normalizePhone(user.phone) : null;
+      const isPhoneChange = currentPhone && normalizedNewPhone !== currentPhone;
+      
+      if (isPhoneChange && user.role === 'vendor' && isOwnProfile && !isAdmin) {
+        // Require phone change token for vendors changing their phone
+        const { phoneChangeToken } = body;
+        
+        if (!phoneChangeToken) {
+          return NextResponse.json({
+            error: 'OTP verification required',
+            code: 'OTP_REQUIRED',
+            message: 'Please verify with OTP before changing your phone number.'
+          }, { status: 403 });
+        }
+        
+        // Validate the phone change token
+        if (user.phone_change_token !== phoneChangeToken) {
+          return NextResponse.json({
+            error: 'Invalid or expired verification',
+            code: 'INVALID_TOKEN'
+          }, { status: 403 });
+        }
+        
+        // Check token expiry
+        if (!user.phone_change_token_expires || new Date(user.phone_change_token_expires) < new Date()) {
+          return NextResponse.json({
+            error: 'Verification expired',
+            code: 'TOKEN_EXPIRED',
+            message: 'Your verification has expired. Please request a new OTP.'
+          }, { status: 403 });
+        }
+        
+        // Token is valid - will be invalidated after successful update
+      }
     }
     
     // Validate location/address if provided
@@ -315,6 +354,24 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
 
     if (!updatedUser) {
       return NextResponse.json({ error: 'Failed to update user' }, { status: 500 });
+    }
+
+    // If vendor phone was changed, invalidate the token and reset phone_verified
+    if (updates.phone && user.role === 'vendor' && isOwnProfile && !isAdmin) {
+      const currentPhone = user.phone ? normalizePhone(user.phone) : null;
+      const newPhone = normalizePhone(updates.phone);
+      
+      if (currentPhone && newPhone !== currentPhone) {
+        await query(
+          `UPDATE users SET 
+            phone_change_token = NULL,
+            phone_change_token_expires = NULL,
+            phone_verified = false,
+            updated_at = $1
+          WHERE id = $2`,
+          [new Date().toISOString(), id]
+        );
+      }
     }
 
     return NextResponse.json({
