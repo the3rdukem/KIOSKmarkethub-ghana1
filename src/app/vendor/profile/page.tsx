@@ -20,7 +20,6 @@ import {
   Info
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
-import { ImageUpload } from "@/components/ui/image-upload";
 import { toast } from "sonner";
 
 export default function VendorProfilePage() {
@@ -38,7 +37,6 @@ export default function VendorProfilePage() {
   const [profileData, setProfileData] = useState({
     name: "",
     email: "",
-    avatar: "",
   });
 
   const [passwordData, setPasswordData] = useState({
@@ -65,7 +63,6 @@ export default function VendorProfilePage() {
       setProfileData({
         name: user.name || "",
         email: user.email || "",
-        avatar: user.avatar || "",
       });
       setOriginalEmail(user.email || "");
     }
@@ -104,7 +101,6 @@ export default function VendorProfilePage() {
     try {
       const updatePayload: Record<string, string> = {
         name: profileData.name,
-        avatar: profileData.avatar,
       };
 
       if (profileData.email !== originalEmail) {
@@ -238,53 +234,43 @@ export default function VendorProfilePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex flex-col sm:flex-row gap-6">
-                <div className="flex-shrink-0">
-                  <Label className="mb-2 block">Profile Photo</Label>
-                  <ImageUpload
-                    value={profileData.avatar}
-                    onChange={(url) => handleProfileChange("avatar", url)}
-                    className="w-24 h-24 rounded-full"
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="name">Full Name *</Label>
+                  <Input
+                    id="name"
+                    value={profileData.name}
+                    onChange={(e) => handleProfileChange("name", e.target.value)}
+                    placeholder="Your full name"
                   />
                 </div>
-                <div className="flex-1 space-y-4">
-                  <div>
-                    <Label htmlFor="name">Full Name *</Label>
+
+                <div>
+                  <Label htmlFor="email" className="flex items-center gap-2">
+                    Login Email *
+                    <span className="text-xs text-muted-foreground font-normal">
+                      (used to sign in)
+                    </span>
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
                     <Input
-                      id="name"
-                      value={profileData.name}
-                      onChange={(e) => handleProfileChange("name", e.target.value)}
-                      placeholder="Your full name"
+                      id="email"
+                      type="email"
+                      value={profileData.email}
+                      onChange={(e) => handleProfileChange("email", e.target.value)}
+                      className="pl-10"
+                      placeholder="your@email.com"
                     />
                   </div>
-
-                  <div>
-                    <Label htmlFor="email" className="flex items-center gap-2">
-                      Login Email *
-                      <span className="text-xs text-muted-foreground font-normal">
-                        (used to sign in)
-                      </span>
-                    </Label>
-                    <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                      <Input
-                        id="email"
-                        type="email"
-                        value={profileData.email}
-                        onChange={(e) => handleProfileChange("email", e.target.value)}
-                        className="pl-10"
-                        placeholder="your@email.com"
-                      />
-                    </div>
-                    {emailChanged && (
-                      <Alert className="mt-2">
-                        <Info className="h-4 w-4" />
-                        <AlertDescription className="text-sm">
-                          Changing your login email will update how you sign in to KIOSK.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-                  </div>
+                  {emailChanged && (
+                    <Alert className="mt-2">
+                      <Info className="h-4 w-4" />
+                      <AlertDescription className="text-sm">
+                        Changing your login email will update how you sign in to KIOSK.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </div>
               </div>
 

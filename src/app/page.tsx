@@ -404,7 +404,7 @@ export default function HomePage() {
                 <Link key={product.id} href={`/product/${product.id}`}>
                   <Card className="cursor-pointer hover:shadow-lg transition-all duration-300 group hover:scale-[1.02]">
                     <CardHeader className="p-0">
-                      <div className="relative aspect-square">
+                      <div className="relative aspect-square overflow-hidden">
                         {product.images && product.images.length > 0 ? (
                           <img
                             src={product.images[0]}
@@ -416,17 +416,17 @@ export default function HomePage() {
                             <Package className="w-16 h-16 text-gray-400" />
                           </div>
                         )}
-                        <Badge className="absolute top-2 left-2" variant="secondary">
+                        <Badge className="absolute top-2 left-2 text-[10px] sm:text-xs max-w-[45%] truncate" variant="secondary">
                           {product.category}
                         </Badge>
                         {product.activeSale ? (
-                          <Badge className="absolute top-2 right-2 animate-pulse" variant="destructive">
+                          <Badge className="absolute top-2 right-2 text-[10px] sm:text-xs animate-pulse" variant="destructive">
                             {product.activeSale.discountType === 'percentage' 
                               ? `-${product.activeSale.discountValue}%` 
                               : `-GHS ${product.activeSale.discountValue}`}
                           </Badge>
                         ) : product.comparePrice && product.comparePrice > product.price && (
-                          <Badge className="absolute top-2 right-2" variant="destructive">
+                          <Badge className="absolute top-2 right-2 text-[10px] sm:text-xs" variant="destructive">
                             -{Math.round(((product.comparePrice - product.price) / product.comparePrice) * 100)}%
                           </Badge>
                         )}
