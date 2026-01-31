@@ -104,7 +104,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 |---------|--------|-------------|
 | Verified Phone Requirement | ✅ Complete | Backend check requiring phone_verified=true before adding payout accounts, frontend warning banner |
 | OTP Security for Payout Accounts | ✅ Complete | OTP verification via SMS before adding payout accounts, 15-minute token expiry, single-use tokens |
-| OTP Security for Phone Changes | ⏳ Pending | OTP required via current phone OR email before changing profile phone number |
+| OTP Security for Phone Changes | ✅ Complete | OTP required via current phone before changing profile phone number, 10-minute token expiry, single-use tokens, phone_verified reset after change |
 | Email Fallback for OTP | ⏳ Pending | Allow email OTP as fallback when SMS delivery fails |
 | Payout Analytics Dashboard | ⏳ Pending | Visual reports for payout trends, vendor earnings over time |
 | Bulk Payout Processing | ⏳ Pending | Admin ability to approve/process multiple payouts at once |
