@@ -19,6 +19,10 @@ import { createOrLinkOAuthUser, createSessionForUser } from '@/lib/db/dal/auth-s
 import { createAuditLog } from '@/lib/db/dal/audit';
 
 function getBaseUrl(request: NextRequest): string {
+  // Priority: NEXT_PUBLIC_APP_URL (production) > Replit domains (dev) > request origin (fallback)
+  if (process.env.NEXT_PUBLIC_APP_URL) {
+    return process.env.NEXT_PUBLIC_APP_URL;
+  }
   const replitDomain = process.env.REPLIT_DEV_DOMAIN || process.env.REPLIT_DOMAINS;
   if (replitDomain) {
     return `https://${replitDomain}`;

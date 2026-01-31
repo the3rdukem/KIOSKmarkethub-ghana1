@@ -84,6 +84,8 @@ const nextConfig = {
     '*.replit.dev',
     '*.repl.co',
     '*.janeway.replit.dev',
+    '*.onrender.com',
+    '*.render.com',
   ],
   serverExternalPackages: ['pg', 'pg-pool', 'pg-connection-string'],
   webpack: (config, { isServer }) => {
