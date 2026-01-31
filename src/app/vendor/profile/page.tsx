@@ -9,15 +9,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
   ArrowLeft,
   User,
   Mail,
+  Phone,
   Save,
   Loader2,
   Shield,
   Eye,
   EyeOff,
-  Info
+  Info,
+  AlertTriangle
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { toast } from "sonner";
@@ -46,6 +55,19 @@ export default function VendorProfilePage() {
   });
 
   const [originalEmail, setOriginalEmail] = useState("");
+  
+  // Phone change state
+  const [phoneData, setPhoneData] = useState({
+    currentPhone: "",
+    newPhone: "",
+  });
+  const [originalPhone, setOriginalPhone] = useState("");
+  const [isPhoneOtpDialogOpen, setIsPhoneOtpDialogOpen] = useState(false);
+  const [phoneOtpCode, setPhoneOtpCode] = useState("");
+  const [isRequestingPhoneOtp, setIsRequestingPhoneOtp] = useState(false);
+  const [isVerifyingPhoneOtp, setIsVerifyingPhoneOtp] = useState(false);
+  const [phoneChangeToken, setPhoneChangeToken] = useState<string | null>(null);
+  const [isSavingPhone, setIsSavingPhone] = useState(false);
 
   useEffect(() => {
     setIsHydrated(true);
@@ -65,6 +87,11 @@ export default function VendorProfilePage() {
         email: user.email || "",
       });
       setOriginalEmail(user.email || "");
+      setPhoneData({
+        currentPhone: user.phone || "",
+        newPhone: user.phone || "",
+      });
+      setOriginalPhone(user.phone || "");
     }
   }, [isHydrated, isAuthenticated, user, router]);
 
@@ -184,6 +211,122 @@ export default function VendorProfilePage() {
       toast.error(error instanceof Error ? error.message : "Failed to change password. Please try again.");
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  // Phone change handlers
+  const handlePhoneChange = (value: string) => {
+    setPhoneData(prev => ({ ...prev, newPhone: value }));
+  };
+
+  const phoneChanged = phoneData.newPhone !== originalPhone && originalPhone !== "";
+
+  const handleRequestPhoneOtp = async () => {
+    if (!user || !originalPhone) {
+      toast.error("You must have a phone number to change it");
+      return;
+    }
+
+    setIsRequestingPhoneOtp(true);
+
+    try {
+      const response = await fetch('/api/vendor/profile/phone-change/otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to send verification code');
+      }
+
+      setIsPhoneOtpDialogOpen(true);
+      toast.success(`Verification code sent to ${data.maskedPhone || 'your phone'}`);
+    } catch (error) {
+      console.error("Failed to request phone OTP:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to send verification code");
+    } finally {
+      setIsRequestingPhoneOtp(false);
+    }
+  };
+
+  const handleVerifyPhoneOtp = async () => {
+    if (phoneOtpCode.length !== 6) {
+      toast.error("Please enter the 6-digit code");
+      return;
+    }
+
+    setIsVerifyingPhoneOtp(true);
+
+    try {
+      const response = await fetch('/api/vendor/profile/phone-change/otp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ otp: phoneOtpCode }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Invalid verification code');
+      }
+
+      setPhoneChangeToken(data.phoneChangeToken);
+      setIsPhoneOtpDialogOpen(false);
+      setPhoneOtpCode("");
+      toast.success("Verified! You can now update your phone number.");
+    } catch (error) {
+      console.error("Failed to verify phone OTP:", error);
+      toast.error(error instanceof Error ? error.message : "Invalid verification code");
+    } finally {
+      setIsVerifyingPhoneOtp(false);
+    }
+  };
+
+  const handleSavePhone = async () => {
+    if (!user || !phoneChangeToken) {
+      toast.error("Please verify with OTP first");
+      return;
+    }
+
+    if (!phoneData.newPhone.trim()) {
+      toast.error("Phone number is required");
+      return;
+    }
+
+    setIsSavingPhone(true);
+
+    try {
+      const response = await fetch(`/api/users/${user.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          phone: phoneData.newPhone,
+          phoneChangeToken: phoneChangeToken,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || error.error || 'Failed to update phone');
+      }
+
+      // Update local state with new phone
+      updateAuthUser({ phone: phoneData.newPhone });
+
+      setOriginalPhone(phoneData.newPhone);
+      setPhoneData(prev => ({ ...prev, currentPhone: phoneData.newPhone }));
+      setPhoneChangeToken(null);
+      toast.success("Phone number updated! Please verify your new number.");
+    } catch (error) {
+      console.error("Failed to save phone:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update phone number");
+    } finally {
+      setIsSavingPhone(false);
     }
   };
 
@@ -406,6 +549,115 @@ export default function VendorProfilePage() {
             </CardContent>
           </Card>
 
+          {/* Phone Number Change Section */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Phone className="w-5 h-5" />
+                Phone Number
+              </CardTitle>
+              <CardDescription>
+                Update your phone number (requires verification via OTP)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {!originalPhone ? (
+                <Alert>
+                  <Info className="h-4 w-4" />
+                  <AlertDescription>
+                    No phone number is set. Add one in your Store Settings.
+                  </AlertDescription>
+                </Alert>
+              ) : (
+                <>
+                  <div>
+                    <Label htmlFor="currentPhone">Current Phone Number</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        id="currentPhone"
+                        value={phoneData.currentPhone}
+                        className="pl-10"
+                        disabled
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="newPhone">New Phone Number</Label>
+                    <div className="relative">
+                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                      <Input
+                        id="newPhone"
+                        value={phoneData.newPhone}
+                        onChange={(e) => handlePhoneChange(e.target.value)}
+                        className="pl-10"
+                        placeholder="Enter new phone number"
+                      />
+                    </div>
+                  </div>
+
+                  {phoneChangeToken && (
+                    <Alert className="border-green-500 bg-green-50 dark:bg-green-950">
+                      <Shield className="h-4 w-4 text-green-600" />
+                      <AlertDescription className="text-green-700 dark:text-green-300">
+                        Verified! You can now save your new phone number.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  {phoneChanged && !phoneChangeToken && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        To change your phone number, you must first verify ownership of your current number via OTP.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    {phoneChanged && !phoneChangeToken ? (
+                      <Button
+                        onClick={handleRequestPhoneOtp}
+                        disabled={isRequestingPhoneOtp}
+                        variant="outline"
+                      >
+                        {isRequestingPhoneOtp ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Sending OTP...
+                          </>
+                        ) : (
+                          <>
+                            <Shield className="w-4 h-4 mr-2" />
+                            Verify & Change
+                          </>
+                        )}
+                      </Button>
+                    ) : phoneChangeToken ? (
+                      <Button
+                        onClick={handleSavePhone}
+                        disabled={isSavingPhone || !phoneChanged}
+                      >
+                        {isSavingPhone ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4 mr-2" />
+                            Save New Phone
+                          </>
+                        )}
+                      </Button>
+                    ) : null}
+                  </div>
+                </>
+              )}
+            </CardContent>
+          </Card>
+
           <div className="text-center text-sm text-muted-foreground">
             <p>
               Looking for store settings?{" "}
@@ -420,6 +672,59 @@ export default function VendorProfilePage() {
           </div>
         </div>
       </div>
+
+      {/* Phone Change OTP Dialog */}
+      <Dialog open={isPhoneOtpDialogOpen} onOpenChange={setIsPhoneOtpDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Verify Your Identity</DialogTitle>
+            <DialogDescription>
+              Enter the 6-digit code sent to your current phone number to verify you own this account.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="flex justify-center">
+              <Input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={6}
+                value={phoneOtpCode}
+                onChange={(e) => setPhoneOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                placeholder="000000"
+                className="text-center text-2xl tracking-widest w-40"
+              />
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              Enter the 6-digit code. It expires in 10 minutes.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsPhoneOtpDialogOpen(false);
+                setPhoneOtpCode("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleVerifyPhoneOtp}
+              disabled={isVerifyingPhoneOtp || phoneOtpCode.length !== 6}
+            >
+              {isVerifyingPhoneOtp ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Verifying...
+                </>
+              ) : (
+                "Verify"
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </SiteLayout>
   );
 }
