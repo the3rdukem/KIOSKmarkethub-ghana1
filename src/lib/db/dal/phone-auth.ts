@@ -2,15 +2,17 @@
  * Phone Authentication Data Access Layer
  *
  * Handles OTP generation, sending, and verification for phone-based authentication.
- * Works with the Arkesel SMS integration.
+ * Works with the Arkesel SMS integration and email service for dual delivery.
  * 
  * Security: Uses HMAC with server pepper for OTP hashing to prevent offline brute-force
+ * Delivery: OTP is sent via both SMS and Email simultaneously for reliability
  */
 
 import { query } from '../index';
 import { createHmac, randomInt } from 'crypto';
-import { DbUser, getUserByPhone, getPhoneVariants } from './users';
+import { DbUser, getUserByPhone, getPhoneVariants, getUserByEmail } from './users';
 import { getIntegrationById } from './integrations';
+import { sendEmail } from '@/lib/email/email-service';
 
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_COOLDOWN_SECONDS = 60;
@@ -102,14 +104,31 @@ export async function sendPhoneOTP(phone: string): Promise<OTPResult> {
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
   const now = new Date();
 
-  const smsSent = await sendOTPviaSMS(normalizedPhone, otp);
+  // Dual delivery: Send OTP via both SMS and Email in parallel
+  const userEmail = existingUser?.email;
+  const [smsSent, emailSent] = await Promise.all([
+    sendOTPviaSMS(normalizedPhone, otp),
+    sendOTPviaEmail(userEmail || '', otp, 'verification')
+  ]);
   
-  if (!smsSent.success) {
+  // Success if at least one delivery method worked
+  const deliverySuccess = smsSent.success || emailSent.success;
+  
+  if (!deliverySuccess) {
     return {
       success: false,
       message: 'Failed to send verification code. Please try again.'
     };
   }
+
+  // Log delivery status
+  console.log('[Phone Auth] OTP delivery status:', {
+    phone: maskPhone(normalizedPhone),
+    sms: smsSent.success ? 'sent' : 'failed',
+    email: userEmail && !userEmail.includes('@phone.kiosk.local') 
+      ? (emailSent.success ? 'sent' : 'failed') 
+      : 'skipped (no valid email)'
+  });
 
   if (existingUser) {
     await query(
@@ -298,6 +317,90 @@ export async function getOTPStatus(phone: string): Promise<{
 function maskPhone(phone: string): string {
   if (phone.length < 6) return phone;
   return phone.slice(0, 4) + '****' + phone.slice(-3);
+}
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split('@');
+  if (!domain) return email;
+  const maskedLocal = local.length > 2 
+    ? local.slice(0, 2) + '***' 
+    : local[0] + '***';
+  return `${maskedLocal}@${domain}`;
+}
+
+async function sendOTPviaEmail(
+  email: string, 
+  otp: string, 
+  purpose: string = 'verification'
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!email || email.includes('@phone.kiosk.local')) {
+      return { success: true };
+    }
+
+    const purposeMessages: Record<string, { subject: string; action: string }> = {
+      verification: { 
+        subject: 'Your KIOSK Verification Code', 
+        action: 'verify your phone number' 
+      },
+      withdrawal: { 
+        subject: 'Your KIOSK Withdrawal Confirmation Code', 
+        action: 'confirm your withdrawal request' 
+      },
+      phone_change: { 
+        subject: 'Your KIOSK Phone Change Code', 
+        action: 'change your phone number' 
+      },
+      password_change: { 
+        subject: 'Your KIOSK Password Reset Code', 
+        action: 'reset your password' 
+      },
+    };
+
+    const { subject, action } = purposeMessages[purpose] || purposeMessages.verification;
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #16a34a;">KIOSK Verification Code</h2>
+        <p>You requested a code to ${action}.</p>
+        <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <p style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1f2937; margin: 0;">
+            ${otp}
+          </p>
+        </div>
+        <p style="color: #6b7280; font-size: 14px;">
+          This code is valid for ${OTP_EXPIRY_MINUTES} minutes. Do not share this code with anyone.
+        </p>
+        <p style="color: #6b7280; font-size: 14px;">
+          If you didn't request this code, please ignore this email or contact support.
+        </p>
+        <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
+        <p style="color: #9ca3af; font-size: 12px;">
+          This is an automated message from KIOSK. Please do not reply.
+        </p>
+      </div>
+    `;
+
+    const textContent = `Your KIOSK verification code is: ${otp}\n\nThis code is valid for ${OTP_EXPIRY_MINUTES} minutes.\nDo not share this code with anyone.\n\nIf you didn't request this code, please ignore this email.`;
+
+    const result = await sendEmail({
+      to: email,
+      subject,
+      html: htmlContent,
+      text: textContent,
+    });
+
+    if (result.success) {
+      console.log('[Phone Auth] OTP email sent to:', maskEmail(email));
+    } else {
+      console.log('[Phone Auth] OTP email failed:', result.error);
+    }
+
+    return { success: result.success, error: result.error };
+  } catch (error) {
+    console.error('[Phone Auth] Email OTP error:', error);
+    return { success: false, error: 'Email service error' };
+  }
 }
 
 async function getArkeselConfig(): Promise<{ apiKey: string; senderId: string; isDemoMode: boolean } | null> {

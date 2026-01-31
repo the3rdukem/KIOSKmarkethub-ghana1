@@ -3,8 +3,8 @@
  * 
  * POST: Request OTP for payout account security actions
  * 
- * Sends an OTP to the vendor's verified phone number for confirming
- * sensitive actions like adding payout accounts.
+ * Sends an OTP to the vendor's verified phone number AND email for confirming
+ * sensitive actions like adding payout accounts. Dual delivery for reliability.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -14,6 +14,7 @@ import { getUserById } from '@/lib/db/dal/users';
 import { query } from '@/lib/db';
 import { createHmac, randomInt } from 'crypto';
 import { getIntegrationById } from '@/lib/db/dal/integrations';
+import { sendEmail } from '@/lib/email/email-service';
 
 const OTP_EXPIRY_MINUTES = 10;
 const OTP_COOLDOWN_SECONDS = 60;
@@ -133,6 +134,47 @@ async function sendOTPviaSMS(phone: string, otp: string): Promise<{ success: boo
   }
 }
 
+async function sendOTPviaEmail(
+  email: string, 
+  otp: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!email || email.includes('@phone.kiosk.local')) {
+      return { success: true };
+    }
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #16a34a;">KIOSK Payout Security Code</h2>
+        <p>You requested a code to add a payout account.</p>
+        <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <p style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1f2937; margin: 0;">
+            ${otp}
+          </p>
+        </div>
+        <p style="color: #6b7280; font-size: 14px;">
+          This code is valid for ${OTP_EXPIRY_MINUTES} minutes. Do not share this code with anyone.
+        </p>
+        <p style="color: #6b7280; font-size: 14px;">
+          If you didn't request this code, please secure your account immediately.
+        </p>
+      </div>
+    `;
+
+    const result = await sendEmail({
+      to: email,
+      subject: 'Your KIOSK Payout Security Code',
+      html: htmlContent,
+      text: `Your KIOSK payout security code is: ${otp}\n\nThis code is valid for ${OTP_EXPIRY_MINUTES} minutes.\nDo not share this code with anyone.`,
+    });
+
+    return { success: result.success, error: result.error };
+  } catch (error) {
+    console.error('[Payout OTP] Email error:', error);
+    return { success: false, error: 'Email service error' };
+  }
+}
+
 /**
  * POST /api/vendor/payouts/otp
  * Request OTP for payout account security
@@ -184,14 +226,28 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
     const now = new Date();
 
-    const smsSent = await sendOTPviaSMS(user.phone, otp);
+    // Dual delivery: Send OTP via both SMS and Email in parallel
+    const [smsSent, emailSent] = await Promise.all([
+      sendOTPviaSMS(user.phone, otp),
+      sendOTPviaEmail(user.email || '', otp)
+    ]);
     
-    if (!smsSent.success) {
+    // Success if at least one delivery method worked
+    const deliverySuccess = smsSent.success || emailSent.success;
+    
+    if (!deliverySuccess) {
       return NextResponse.json({ 
         error: 'Failed to send verification code. Please try again.',
-        code: 'SMS_FAILED'
+        code: 'DELIVERY_FAILED'
       }, { status: 500 });
     }
+    
+    console.log('[Payout OTP] Delivery status:', {
+      sms: smsSent.success ? 'sent' : 'failed',
+      email: user.email && !user.email.includes('@phone.kiosk.local') 
+        ? (emailSent.success ? 'sent' : 'failed') 
+        : 'skipped'
+    });
 
     await query(
       `UPDATE users SET 

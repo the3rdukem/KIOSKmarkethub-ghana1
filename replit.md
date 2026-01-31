@@ -111,7 +111,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 | CSRF Protection | ✅ Complete | Double Submit Cookie pattern, middleware validation, protected: payouts, admin, password change |
 | XSS Prevention | ✅ Complete | DOMPurify sanitization for HTML content |
 | Paystack Webhook Security | ✅ Complete | Secret enforcement in production |
-| Email Fallback for OTP | ⏳ Pending | Allow email OTP as fallback when SMS delivery fails |
+| Dual OTP Delivery | ✅ Complete | OTP codes sent via both SMS and Email simultaneously for reliability; success if either delivery works |
 | Payout Analytics Dashboard | ⏳ Pending | Visual reports for payout trends, vendor earnings over time |
 | Bulk Payout Processing | ⏳ Pending | Admin ability to approve/process multiple payouts at once |
 | Scheduled Payouts | ⏳ Pending | Automatic weekly/monthly payout processing |

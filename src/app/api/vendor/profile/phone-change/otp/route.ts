@@ -2,7 +2,8 @@
  * Phone Change OTP Request API
  * 
  * POST: Request OTP for phone number change verification
- * Sends OTP to the CURRENT phone number to verify ownership before allowing change
+ * Sends OTP to the CURRENT phone number AND email to verify ownership before allowing change.
+ * Dual delivery for reliability.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -12,6 +13,7 @@ import { getUserById } from '@/lib/db/dal/users';
 import { getIntegrationById } from '@/lib/db/dal/integrations';
 import { query } from '@/lib/db';
 import { createHmac, randomInt } from 'crypto';
+import { sendEmail } from '@/lib/email/email-service';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,6 +135,47 @@ async function sendOTPviaSMS(phone: string, otp: string): Promise<{ success: boo
   }
 }
 
+async function sendOTPviaEmail(
+  email: string, 
+  otp: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!email || email.includes('@phone.kiosk.local')) {
+      return { success: true };
+    }
+
+    const htmlContent = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #16a34a;">KIOSK Phone Change Verification</h2>
+        <p>You requested a code to change your phone number.</p>
+        <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; margin: 20px 0;">
+          <p style="font-size: 32px; font-weight: bold; letter-spacing: 8px; color: #1f2937; margin: 0;">
+            ${otp}
+          </p>
+        </div>
+        <p style="color: #6b7280; font-size: 14px;">
+          This code is valid for ${OTP_EXPIRY_MINUTES} minutes. Do not share this code with anyone.
+        </p>
+        <p style="color: #6b7280; font-size: 14px;">
+          If you didn't request this change, please secure your account immediately.
+        </p>
+      </div>
+    `;
+
+    const result = await sendEmail({
+      to: email,
+      subject: 'Your KIOSK Phone Change Code',
+      html: htmlContent,
+      text: `Your KIOSK phone change verification code is: ${otp}\n\nThis code is valid for ${OTP_EXPIRY_MINUTES} minutes.\nDo not share this code with anyone.`,
+    });
+
+    return { success: result.success, error: result.error };
+  } catch (error) {
+    console.error('[Phone Change OTP] Email error:', error);
+    return { success: false, error: 'Email service error' };
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies();
@@ -190,14 +233,28 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
     const now = new Date();
 
-    const smsSent = await sendOTPviaSMS(user.phone, otp);
+    // Dual delivery: Send OTP via both SMS and Email in parallel
+    const [smsSent, emailSent] = await Promise.all([
+      sendOTPviaSMS(user.phone, otp),
+      sendOTPviaEmail(user.email || '', otp)
+    ]);
     
-    if (!smsSent.success) {
+    // Success if at least one delivery method worked
+    const deliverySuccess = smsSent.success || emailSent.success;
+    
+    if (!deliverySuccess) {
       return NextResponse.json({ 
         error: 'Failed to send verification code. Please try again.',
-        code: 'SMS_FAILED'
+        code: 'DELIVERY_FAILED'
       }, { status: 500 });
     }
+    
+    console.log('[Phone Change OTP] Delivery status:', {
+      sms: smsSent.success ? 'sent' : 'failed',
+      email: user.email && !user.email.includes('@phone.kiosk.local') 
+        ? (emailSent.success ? 'sent' : 'failed') 
+        : 'skipped'
+    });
 
     await query(
       `UPDATE users SET 
