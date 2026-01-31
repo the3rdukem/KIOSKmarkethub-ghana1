@@ -199,9 +199,9 @@ export async function POST(request: NextRequest) {
         phone_otp_expires = $2,
         phone_otp_attempts = 0,
         phone_otp_last_sent = $3,
-        updated_at = $3
-      WHERE id = $4`,
-      [otpHash, expiresAt.toISOString(), now.toISOString(), user.id]
+        updated_at = $4
+      WHERE id = $5`,
+      [otpHash, expiresAt, now, now.toISOString(), user.id]
     );
 
     return NextResponse.json({
