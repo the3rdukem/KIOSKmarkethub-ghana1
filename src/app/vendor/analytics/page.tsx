@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import {
   ArrowLeft,
   TrendingUp,
+  TrendingDown,
   DollarSign,
   ShoppingCart,
   Package,
@@ -25,10 +26,28 @@ import {
   Send,
   FileText,
   Download,
-  Percent
+  Percent,
+  AlertTriangle,
+  LineChart
 } from "lucide-react";
 import { useAuthStore } from "@/lib/auth-store";
 import { Product } from "@/lib/products-store";
+import {
+  LineChart as RechartsLineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell,
+  PieChart,
+  Pie,
+  Legend
+} from "recharts";
+import { format, parseISO } from "date-fns";
 
 interface ApiReview {
   id: string;
@@ -58,17 +77,79 @@ interface NormalizedReview {
   vendorReplyAt?: string | null;
 }
 
+interface SalesTrend {
+  date: string;
+  revenue: number;
+  orders: number;
+  itemsSold: number;
+}
+
+interface ProductPerformance {
+  productId: string;
+  productName: string;
+  totalSold: number;
+  totalRevenue: number;
+  orderCount: number;
+  avgRating: number | null;
+  reviewCount: number;
+}
+
+interface VendorAnalyticsData {
+  sales: {
+    totalRevenue: number;
+    totalOrders: number;
+    totalItemsSold: number;
+    avgOrderValue: number;
+    grossSales: number;
+    totalCommission: number;
+    netEarnings: number;
+    refundedAmount: number;
+    salesTrends: SalesTrend[];
+  };
+  orders: {
+    total: number;
+    byStatus: Record<string, number>;
+    byPaymentStatus: Record<string, number>;
+    pendingFulfillment: number;
+    completedOrders: number;
+    cancelledOrders: number;
+    fulfillmentRate: number;
+  };
+  products: {
+    total: number;
+    active: number;
+    topPerformers: ProductPerformance[];
+    lowStock: number;
+  };
+  reviews: {
+    totalReviews: number;
+    avgRating: number;
+    ratingDistribution: Record<number, number>;
+    recentReviews: Array<{
+      id: string;
+      productName: string;
+      rating: number;
+      comment: string;
+      buyerName: string;
+      createdAt: string;
+    }>;
+  };
+  generatedAt: string;
+}
+
+const RATING_COLORS = ['#ef4444', '#f97316', '#eab308', '#84cc16', '#22c55e'];
+
 function VendorAnalyticsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, isAuthenticated } = useAuthStore();
   const [isHydrated, setIsHydrated] = useState(false);
-  const [timeRange, setTimeRange] = useState("30");
-  const initialTab = searchParams.get("tab") || "products";
+  const [timeRange, setTimeRange] = useState<'7d' | '30d' | '90d' | '1y' | 'all'>("30d");
+  const initialTab = searchParams.get("tab") || "trends";
   const [activeTab, setActiveTab] = useState(initialTab);
 
   useEffect(() => {
-    const tabFromUrl = searchParams.get("tab") || "products";
+    const tabFromUrl = searchParams.get("tab") || "trends";
     setActiveTab(tabFromUrl);
   }, [searchParams]);
 
@@ -80,6 +161,7 @@ function VendorAnalyticsContent() {
   const [vendorProducts, setVendorProducts] = useState<Product[]>([]);
   const [productReviews, setProductReviews] = useState<NormalizedReview[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [analyticsData, setAnalyticsData] = useState<VendorAnalyticsData | null>(null);
   const [vendorStats, setVendorStats] = useState<{
     products: { total: number; draft: number; active: number; pending: number; suspended: number };
     orders: { total: number; pending: number; completed: number; cancelled: number };
@@ -118,10 +200,16 @@ function VendorAnalyticsContent() {
       
       setIsLoading(true);
       try {
-        const [productsRes, reviewsRes, statsRes] = await Promise.all([
+        const bucket = timeRange === '7d' ? 'day' : timeRange === '30d' ? 'day' : timeRange === '90d' ? 'week' : 'month';
+        
+        const [productsRes, reviewsRes, statsRes, analyticsRes] = await Promise.all([
           fetch(`/api/products?vendorId=${user.id}`, { credentials: 'include' }),
           fetch(`/api/reviews?vendorId=${user.id}`, { credentials: 'include' }),
-          fetch('/api/vendor/stats', { credentials: 'include' })
+          fetch('/api/vendor/stats', { credentials: 'include', cache: 'no-store' }),
+          fetch(`/api/vendor/analytics?range=${timeRange}&bucket=${bucket}`, { 
+            credentials: 'include', 
+            cache: 'no-store' 
+          })
         ]);
 
         if (productsRes.ok) {
@@ -151,6 +239,13 @@ function VendorAnalyticsContent() {
           const statsData = await statsRes.json();
           setVendorStats(statsData);
         }
+
+        if (analyticsRes.ok) {
+          const analyticsResult = await analyticsRes.json();
+          if (analyticsResult.success) {
+            setAnalyticsData(analyticsResult.data);
+          }
+        }
       } catch (error) {
         console.error('Failed to fetch analytics data:', error);
       } finally {
@@ -159,7 +254,7 @@ function VendorAnalyticsContent() {
     };
 
     fetchData();
-  }, [isHydrated, user]);
+  }, [isHydrated, user, timeRange]);
 
   const handleSubmitReply = async (reviewId: string) => {
     if (!replyText.trim()) {
@@ -220,24 +315,42 @@ function VendorAnalyticsContent() {
     ? productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length
     : 0;
 
-  // Get metrics from API
-  const totalRevenue = vendorStats?.revenue || 0;
-  const totalOrders = vendorStats?.orders.total || 0;
-  const completedOrders = vendorStats?.orders.completed || 0;
-  const pendingOrders = vendorStats?.orders.pending || 0;
+  const totalRevenue = analyticsData?.sales.totalRevenue || vendorStats?.revenue || 0;
+  const totalOrders = analyticsData?.orders.total || vendorStats?.orders.total || 0;
+  const completedOrders = analyticsData?.orders.completedOrders || vendorStats?.orders.completed || 0;
+  const pendingOrders = analyticsData?.orders.pendingFulfillment || vendorStats?.orders.pending || 0;
 
-  // Calculate order status distribution from API data
-  const statusCounts: Record<string, number> = {};
-  if (vendorStats) {
+  const statusCounts: Record<string, number> = analyticsData?.orders.byStatus || {};
+  if (!analyticsData && vendorStats) {
     if (vendorStats.orders.pending > 0) statusCounts['pending'] = vendorStats.orders.pending;
     if (vendorStats.orders.completed > 0) statusCounts['delivered'] = vendorStats.orders.completed;
     if (vendorStats.orders.cancelled > 0) statusCounts['cancelled'] = vendorStats.orders.cancelled;
   }
 
+  const formattedTrends = (analyticsData?.sales.salesTrends || []).map(t => ({
+    ...t,
+    formattedDate: (() => {
+      try {
+        return format(parseISO(t.date), timeRange === '7d' || timeRange === '30d' ? 'MMM d' : 'MMM yyyy');
+      } catch {
+        return t.date;
+      }
+    })()
+  }));
+
+  const ratingDistributionData = analyticsData?.reviews.ratingDistribution 
+    ? Object.entries(analyticsData.reviews.ratingDistribution)
+        .map(([rating, count]) => ({
+          name: `${rating} Star${parseInt(rating) > 1 ? 's' : ''}`,
+          value: count,
+          rating: parseInt(rating)
+        }))
+        .sort((a, b) => b.rating - a.rating)
+    : [];
+
   return (
     <SiteLayout>
       <div className="container py-8">
-        {/* Header */}
         <div className="mb-8">
           <Button variant="ghost" size="sm" asChild className="mb-2 -ml-2">
             <Link href="/vendor">
@@ -253,29 +366,29 @@ function VendorAnalyticsContent() {
               </h1>
               <p className="text-muted-foreground text-sm sm:text-base">Track your store performance</p>
             </div>
-            <Select value={timeRange} onValueChange={setTimeRange}>
+            <Select value={timeRange} onValueChange={(v) => setTimeRange(v as typeof timeRange)}>
               <SelectTrigger className="w-32 sm:w-40">
                 <Calendar className="w-4 h-4 mr-1 sm:mr-2 hidden sm:inline" />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="7">Last 7 days</SelectItem>
-                <SelectItem value="30">Last 30 days</SelectItem>
-                <SelectItem value="90">Last 90 days</SelectItem>
-                <SelectItem value="365">Last year</SelectItem>
+                <SelectItem value="7d">Last 7 days</SelectItem>
+                <SelectItem value="30d">Last 30 days</SelectItem>
+                <SelectItem value="90d">Last 90 days</SelectItem>
+                <SelectItem value="1y">Last year</SelectItem>
+                <SelectItem value="all">All time</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
-        {/* Key Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Total Revenue</p>
-                  <p className="text-3xl font-bold">GHS {totalRevenue.toLocaleString()}</p>
+                  <p className="text-3xl font-bold">GHS {totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                   <div className="flex items-center text-green-600 text-sm mt-1">
                     <TrendingUp className="w-4 h-4 mr-1" />
                     <span>From {totalOrders} orders</span>
@@ -296,7 +409,7 @@ function VendorAnalyticsContent() {
                   <p className="text-3xl font-bold">{totalOrders}</p>
                   <div className="flex items-center text-sm mt-1">
                     <span className="text-green-600">{completedOrders} completed</span>
-                    <span className="mx-2">•</span>
+                    <span className="mx-2">|</span>
                     <span className="text-orange-600">{pendingOrders} pending</span>
                   </div>
                 </div>
@@ -312,9 +425,14 @@ function VendorAnalyticsContent() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-muted-foreground">Active Products</p>
-                  <p className="text-3xl font-bold">{vendorProducts.filter(p => p.status === "active").length}</p>
-                  <div className="text-sm mt-1 text-muted-foreground">
-                    {vendorProducts.length} total products
+                  <p className="text-3xl font-bold">{analyticsData?.products.active || vendorProducts.filter(p => p.status === "active").length}</p>
+                  <div className="flex items-center text-sm mt-1 text-muted-foreground">
+                    {analyticsData?.products.total || vendorProducts.length} total products
+                    {(analyticsData?.products.lowStock || 0) > 0 && (
+                      <Badge variant="destructive" className="ml-2 text-xs">
+                        {analyticsData?.products.lowStock} low stock
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <div className="p-3 bg-purple-100 rounded-full">
@@ -330,11 +448,13 @@ function VendorAnalyticsContent() {
                 <div>
                   <p className="text-sm text-muted-foreground">Store Rating</p>
                   <p className="text-3xl font-bold flex items-center gap-1">
-                    {averageStoreRating > 0 ? averageStoreRating.toFixed(1) : "-"}
+                    {(analyticsData?.reviews.avgRating || averageStoreRating) > 0 
+                      ? (analyticsData?.reviews.avgRating || averageStoreRating).toFixed(1) 
+                      : "-"}
                     <Star className="w-6 h-6 text-yellow-400 fill-current" />
                   </p>
                   <div className="text-sm mt-1 text-muted-foreground">
-                    {productReviews.length} reviews
+                    {analyticsData?.reviews.totalReviews || productReviews.length} reviews
                   </div>
                 </div>
                 <div className="p-3 bg-yellow-100 rounded-full">
@@ -346,14 +466,224 @@ function VendorAnalyticsContent() {
         </div>
 
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="products">Recent Orders</TabsTrigger>
-            <TabsTrigger value="orders">Order Status</TabsTrigger>
-            <TabsTrigger value="reviews">Recent Reviews</TabsTrigger>
-            <TabsTrigger value="earnings">Earnings Statement</TabsTrigger>
+          <TabsList className="flex-wrap h-auto">
+            <TabsTrigger value="trends">Sales Trends</TabsTrigger>
+            <TabsTrigger value="products">Top Products</TabsTrigger>
+            <TabsTrigger value="orders">Recent Orders</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+            <TabsTrigger value="earnings">Earnings</TabsTrigger>
           </TabsList>
 
+          <TabsContent value="trends">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <LineChart className="w-5 h-5" />
+                    Revenue Trend
+                  </CardTitle>
+                  <CardDescription>Sales revenue over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {formattedTrends.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <RechartsLineChart data={formattedTrends}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="formattedDate" fontSize={12} />
+                        <YAxis fontSize={12} tickFormatter={(v) => `GHS ${v.toLocaleString()}`} />
+                        <Tooltip 
+                          formatter={(value: number) => [`GHS ${value.toLocaleString(undefined, { minimumFractionDigits: 2 })}`, 'Revenue']}
+                          labelFormatter={(label) => `Date: ${label}`}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="revenue" 
+                          stroke="#22c55e" 
+                          strokeWidth={2}
+                          dot={{ fill: '#22c55e' }}
+                        />
+                      </RechartsLineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center">
+                      <div className="text-center">
+                        <LineChart className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                        <p className="text-muted-foreground">No sales data for this period</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <ShoppingCart className="w-5 h-5" />
+                    Orders Trend
+                  </CardTitle>
+                  <CardDescription>Number of orders over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {formattedTrends.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={formattedTrends}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="formattedDate" fontSize={12} />
+                        <YAxis fontSize={12} />
+                        <Tooltip 
+                          formatter={(value: number) => [value, 'Orders']}
+                          labelFormatter={(label) => `Date: ${label}`}
+                        />
+                        <Bar dataKey="orders" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[300px] flex items-center justify-center">
+                      <div className="text-center">
+                        <ShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                        <p className="text-muted-foreground">No order data for this period</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="w-5 h-5" />
+                    Rating Distribution
+                  </CardTitle>
+                  <CardDescription>Breakdown of customer ratings</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {ratingDistributionData.some(d => d.value > 0) ? (
+                    <div className="space-y-3">
+                      {[5, 4, 3, 2, 1].map((rating) => {
+                        const count = analyticsData?.reviews.ratingDistribution[rating] || 0;
+                        const total = analyticsData?.reviews.totalReviews || 1;
+                        const percentage = total > 0 ? (count / total) * 100 : 0;
+                        return (
+                          <div key={rating} className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 w-16">
+                              <span className="text-sm">{rating}</span>
+                              <Star className="w-4 h-4 text-yellow-400 fill-current" />
+                            </div>
+                            <div className="flex-1 bg-gray-200 rounded-full h-2.5">
+                              <div 
+                                className="h-2.5 rounded-full" 
+                                style={{ 
+                                  width: `${percentage}%`,
+                                  backgroundColor: RATING_COLORS[rating - 1]
+                                }}
+                              />
+                            </div>
+                            <span className="w-12 text-sm text-muted-foreground text-right">
+                              {count}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="h-[200px] flex items-center justify-center">
+                      <div className="text-center">
+                        <Star className="w-12 h-12 text-gray-300 mx-auto mb-2" />
+                        <p className="text-muted-foreground">No reviews yet</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Percent className="w-5 h-5" />
+                    Performance Summary
+                  </CardTitle>
+                  <CardDescription>Key metrics at a glance</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-muted-foreground">Avg Order Value</span>
+                      <span className="font-bold">
+                        GHS {(analyticsData?.sales.avgOrderValue || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-muted-foreground">Items Sold</span>
+                      <span className="font-bold">{analyticsData?.sales.totalItemsSold || 0}</span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-muted-foreground">Fulfillment Rate</span>
+                      <span className="font-bold">
+                        {(analyticsData?.orders.fulfillmentRate || 0).toFixed(1)}%
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                      <span className="text-sm text-muted-foreground">Net Earnings</span>
+                      <span className="font-bold text-green-600">
+                        GHS {(analyticsData?.sales.netEarnings || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
           <TabsContent value="products">
+            <Card>
+              <CardHeader>
+                <CardTitle>Top Performing Products</CardTitle>
+                <CardDescription>Your best-selling products by revenue</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {(analyticsData?.products.topPerformers || []).length === 0 ? (
+                  <div className="text-center py-12">
+                    <Package className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                    <p className="text-muted-foreground">No product sales data yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {analyticsData?.products.topPerformers.map((product, index) => (
+                      <div key={product.productId} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div className="flex items-center gap-4">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white ${
+                            index === 0 ? 'bg-yellow-500' : index === 1 ? 'bg-gray-400' : index === 2 ? 'bg-amber-600' : 'bg-gray-200 text-gray-600'
+                          }`}>
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-medium">{product.productName}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {product.totalSold} sold | {product.orderCount} orders
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-green-600">
+                            GHS {product.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                          </p>
+                          {product.avgRating && (
+                            <div className="flex items-center justify-end gap-1 text-sm">
+                              <Star className="w-3 h-3 text-yellow-400 fill-current" />
+                              <span>{product.avgRating.toFixed(1)}</span>
+                              <span className="text-muted-foreground">({product.reviewCount})</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="orders">
             <Card>
               <CardHeader>
                 <CardTitle>Recent Orders</CardTitle>
@@ -394,46 +724,6 @@ function VendorAnalyticsContent() {
                           <p className="font-bold text-green-600">GHS {order.total.toLocaleString()}</p>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="orders">
-            <Card>
-              <CardHeader>
-                <CardTitle>Order Status Distribution</CardTitle>
-                <CardDescription>Breakdown of orders by status</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {totalOrders === 0 ? (
-                  <div className="text-center py-12">
-                    <ShoppingCart className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                    <p className="text-muted-foreground">No orders yet</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {Object.entries(statusCounts).map(([status, count]) => (
-                      <Card key={status}>
-                        <CardContent className="p-4 text-center">
-                          <Badge
-                            variant={
-                              status === "delivered" ? "default" :
-                              status === "pending" ? "secondary" :
-                              status === "cancelled" ? "destructive" : "outline"
-                            }
-                            className="mb-2"
-                          >
-                            {status}
-                          </Badge>
-                          <p className="text-2xl font-bold">{count}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {Math.round((count / totalOrders) * 100)}%
-                          </p>
-                        </CardContent>
-                      </Card>
                     ))}
                   </div>
                 )}
@@ -544,7 +834,6 @@ function VendorAnalyticsContent() {
             </Card>
           </TabsContent>
 
-          {/* Earnings Statement Tab */}
           <TabsContent value="earnings">
             <Card>
               <CardHeader>
@@ -580,7 +869,6 @@ function VendorAnalyticsContent() {
               <CardContent className="space-y-6">
                 {vendorStats?.earnings ? (
                   <>
-                    {/* Summary Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <Card className="bg-gray-50">
                         <CardContent className="p-4">
@@ -617,7 +905,6 @@ function VendorAnalyticsContent() {
                       </Card>
                     </div>
 
-                    {/* Detailed Statement */}
                     <Card className="border-2">
                       <CardHeader className="bg-gray-50 border-b">
                         <CardTitle className="text-lg">Earnings Statement</CardTitle>
@@ -664,7 +951,6 @@ function VendorAnalyticsContent() {
                       </CardContent>
                     </Card>
 
-                    {/* Earnings Status Breakdown */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <Card className="border-l-4 border-l-amber-500">
                         <CardContent className="p-4">
@@ -692,7 +978,6 @@ function VendorAnalyticsContent() {
                       </Card>
                     </div>
 
-                    {/* Fee Explanation */}
                     <Card className="bg-blue-50 border-blue-200">
                       <CardContent className="p-4">
                         <h4 className="font-medium text-blue-800 mb-2">Understanding Your Rate</h4>
