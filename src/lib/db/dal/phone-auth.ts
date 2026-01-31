@@ -297,28 +297,106 @@ function maskPhone(phone: string): string {
   return phone.slice(0, 4) + '****' + phone.slice(-3);
 }
 
+async function getArkeselConfig(): Promise<{ apiKey: string; senderId: string; isDemoMode: boolean } | null> {
+  try {
+    const result = await query(
+      `SELECT credentials, environment FROM integrations WHERE id = 'arkesel_otp' AND is_enabled = TRUE AND is_configured = TRUE LIMIT 1`
+    );
+    
+    if (result.rows.length === 0) {
+      console.log('[Phone Auth] Arkesel integration not configured or not enabled');
+      return null;
+    }
+    
+    const integration = result.rows[0];
+    const credentials = typeof integration.credentials === 'string' 
+      ? JSON.parse(integration.credentials) 
+      : integration.credentials;
+    
+    const apiKey = credentials?.apiKey;
+    const senderId = credentials?.senderId;
+    
+    if (!apiKey || !senderId) {
+      console.log('[Phone Auth] Arkesel credentials incomplete');
+      return null;
+    }
+    
+    return {
+      apiKey,
+      senderId,
+      isDemoMode: integration.environment === 'demo'
+    };
+  } catch (error) {
+    console.error('[Phone Auth] Error loading Arkesel config:', error);
+    return null;
+  }
+}
+
+function formatPhoneForArkesel(phone: string): string {
+  let cleaned = phone.replace(/[\s\-\(\)\+]/g, '');
+  if (cleaned.startsWith('0')) {
+    cleaned = '233' + cleaned.substring(1);
+  }
+  if (!cleaned.startsWith('233')) {
+    cleaned = '233' + cleaned;
+  }
+  return cleaned;
+}
+
 async function sendOTPviaSMS(phone: string, otp: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_APP_URL || ''}/api/sms/send`, {
+    const config = await getArkeselConfig();
+    
+    if (!config) {
+      console.log('[Phone Auth] SMS service not configured, OTP not sent');
+      return { 
+        success: process.env.NODE_ENV !== 'production',
+        error: process.env.NODE_ENV === 'production' 
+          ? 'SMS service not configured' 
+          : undefined
+      };
+    }
+
+    const formattedPhone = formatPhoneForArkesel(phone);
+    const message = `Your KIOSK verification code is: ${otp}. Valid for ${OTP_EXPIRY_MINUTES} minutes. Do not share this code.`;
+    
+    if (config.isDemoMode) {
+      console.log('[Phone Auth DEMO] OTP:', otp, 'to:', formattedPhone);
+      console.log('[Phone Auth DEMO] Message:', message);
+      return { success: true };
+    }
+    
+    const response = await fetch('https://sms.arkesel.com/api/v2/sms/send', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'api-key': config.apiKey,
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
-        to: phone,
-        message: `Your KIOSK verification code is: ${otp}. Valid for ${OTP_EXPIRY_MINUTES} minutes. Do not share this code.`,
-        internal: true
+        sender: config.senderId,
+        message,
+        recipients: [formattedPhone]
       })
     });
 
     if (!response.ok) {
-      console.error('[Phone Auth] SMS API error:', response.status);
-      return { success: false, error: 'SMS API error' };
+      const errorText = await response.text();
+      console.error('[Phone Auth] SMS API error:', response.status, errorText);
+      return { success: false, error: 'SMS delivery failed' };
     }
 
     const result = await response.json();
-    return { success: result.success !== false };
+    console.log('[Phone Auth] SMS API response:', result);
+    
+    // Arkesel returns { status: "success" } on success
+    const isSuccess = result.status === 'success' || result.code === 'ok';
+    return { 
+      success: isSuccess,
+      error: isSuccess ? undefined : 'SMS delivery failed'
+    };
   } catch (error) {
     console.error('[Phone Auth] Failed to send SMS:', error);
-    return { success: false, error: String(error) };
+    return { success: false, error: 'SMS service error' };
   }
 }
 
