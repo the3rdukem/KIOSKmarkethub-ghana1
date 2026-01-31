@@ -1828,6 +1828,19 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Columns may already exist
   }
+
+  // PHASE 17: Phone Authentication - OTP-based registration/login
+  try {
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT FALSE`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_otp_hash TEXT`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_otp_expires TIMESTAMP`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_otp_attempts INTEGER DEFAULT 0`);
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_otp_last_sent TIMESTAMP`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_users_phone ON users(phone) WHERE phone IS NOT NULL AND is_deleted = 0`);
+    console.log('[DB] PHASE 17: Added phone authentication columns (OTP support)');
+  } catch (e) {
+    // Columns may already exist
+  }
 }
 
 /**

@@ -22,6 +22,11 @@ export interface DbUser {
   status: UserStatus;
   avatar: string | null;
   phone: string | null;
+  phone_verified: boolean;
+  phone_otp_hash: string | null;
+  phone_otp_expires: string | null;
+  phone_otp_attempts: number;
+  phone_otp_last_sent: string | null;
   location: string | null;
   business_name: string | null;
   business_type: string | null;
@@ -156,7 +161,7 @@ export async function getUserByEmail(email: string): Promise<DbUser | null> {
  * Generate all possible phone format variants for matching
  * This handles the mismatch between stored formats (0244...) and normalized formats (+233244...)
  */
-function getPhoneVariants(phone: string): string[] {
+export function getPhoneVariants(phone: string): string[] {
   const cleaned = phone.replace(/[\s\-\(\)]/g, '');
   const variants: string[] = [cleaned];
   

@@ -16,6 +16,11 @@ CREATE TABLE IF NOT EXISTS users (
   status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active', 'suspended', 'pending', 'banned', 'deleted')),
   avatar TEXT,
   phone TEXT,
+  phone_verified BOOLEAN DEFAULT FALSE,
+  phone_otp_hash TEXT,
+  phone_otp_expires TIMESTAMP,
+  phone_otp_attempts INTEGER DEFAULT 0,
+  phone_otp_last_sent TIMESTAMP,
   location TEXT,
 
   -- Vendor fields
