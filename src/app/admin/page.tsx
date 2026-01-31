@@ -2064,43 +2064,80 @@ function AdminDashboardContent() {
                           <p className="font-medium">Low Stock Alert Test</p>
                           <p className="text-xs text-muted-foreground">Scan ALL products with low stock and send alerts</p>
                         </div>
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          onClick={async () => {
-                            try {
-                              const alertRes = await fetch('/api/admin/test/low-stock-alert', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ mode: 'scan' }),
-                              });
-                              const alertData = await alertRes.json();
-                              if (alertData.success) {
-                                const results = alertData.results || [];
-                                if (results.length === 0) {
-                                  toast.info('No products with low stock found');
-                                  return;
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                const alertRes = await fetch('/api/admin/test/low-stock-alert', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ mode: 'scan' }),
+                                });
+                                const alertData = await alertRes.json();
+                                if (alertData.success) {
+                                  const results = alertData.results || [];
+                                  if (results.length === 0) {
+                                    toast.info('No products with low stock found');
+                                    return;
+                                  }
+                                  const notifSent = results.filter((r: { notificationSent: boolean }) => r.notificationSent).length;
+                                  const smsSent = results.filter((r: { smsSent: boolean }) => r.smsSent).length;
+                                  const skipped = results.filter((r: { notificationSent: boolean; smsSent: boolean }) => !r.notificationSent && !r.smsSent).length;
+                                  toast.success(
+                                    `Scanned ${results.length} low stock products:\n` +
+                                    `Notifications sent: ${notifSent}\n` +
+                                    `SMS sent: ${smsSent}\n` +
+                                    `Skipped (cooldown/settings): ${skipped}`
+                                  );
+                                } else {
+                                  toast.error(alertData.error || 'Failed to scan');
                                 }
-                                const notifSent = results.filter((r: { notificationSent: boolean }) => r.notificationSent).length;
-                                const smsSent = results.filter((r: { smsSent: boolean }) => r.smsSent).length;
-                                const skipped = results.filter((r: { notificationSent: boolean; smsSent: boolean }) => !r.notificationSent && !r.smsSent).length;
-                                toast.success(
-                                  `Scanned ${results.length} low stock products:\n` +
-                                  `Notifications sent: ${notifSent}\n` +
-                                  `SMS sent: ${smsSent}\n` +
-                                  `Skipped (cooldown/settings): ${skipped}`
-                                );
-                              } else {
-                                toast.error(alertData.error || 'Failed to scan');
+                              } catch (error) {
+                                toast.error('Failed to scan low stock products');
                               }
-                            } catch (error) {
-                              toast.error('Failed to scan low stock products');
-                            }
-                          }}
-                        >
-                          <AlertTriangle className="w-4 h-4 mr-2" />
-                          Scan All Low Stock
-                        </Button>
+                            }}
+                          >
+                            <AlertTriangle className="w-4 h-4 mr-2" />
+                            Scan All
+                          </Button>
+                          <Button 
+                            variant="default" 
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                const alertRes = await fetch('/api/admin/test/low-stock-alert', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ mode: 'scan', skipCooldown: true }),
+                                });
+                                const alertData = await alertRes.json();
+                                if (alertData.success) {
+                                  const results = alertData.results || [];
+                                  if (results.length === 0) {
+                                    toast.info('No products with low stock found');
+                                    return;
+                                  }
+                                  const notifSent = results.filter((r: { notificationSent: boolean }) => r.notificationSent).length;
+                                  const smsSent = results.filter((r: { smsSent: boolean }) => r.smsSent).length;
+                                  toast.success(
+                                    `Scanned ${results.length} low stock products (cooldown bypassed):\n` +
+                                    `Notifications sent: ${notifSent}\n` +
+                                    `SMS sent: ${smsSent}`
+                                  );
+                                } else {
+                                  toast.error(alertData.error || 'Failed to scan');
+                                }
+                              } catch (error) {
+                                toast.error('Failed to scan low stock products');
+                              }
+                            }}
+                          >
+                            <AlertTriangle className="w-4 h-4 mr-2" />
+                            Scan All (Skip Cooldown)
+                          </Button>
+                        </div>
                       </div>
                       <div className="flex items-center justify-between mt-3">
                         <div>
@@ -2156,7 +2193,8 @@ function AdminDashboardContent() {
                         </Button>
                       </div>
                       <p className="text-xs text-muted-foreground bg-yellow-50 p-2 rounded mt-2">
-                        <strong>Scan All:</strong> Checks ALL products with inventory tracking and sends alerts to vendors for those below threshold. 
+                        <strong>Scan All:</strong> Checks ALL products with inventory tracking. Respects 24h cooldown.<br/>
+                        <strong>Scan All (Skip Cooldown):</strong> Same as above but bypasses cooldown for testing. 
                         Products alerted in the last 24h are skipped (cooldown).<br/>
                         <strong>Test Single:</strong> Tests one product while bypassing the cooldown.</p>
                     </div>

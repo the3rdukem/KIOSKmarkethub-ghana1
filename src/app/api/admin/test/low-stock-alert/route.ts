@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (mode === 'scan') {
-      const results = await runLowStockCheck(vendorId);
+      const results = await runLowStockCheck(vendorId, { skipCooldown: skipCooldown === true });
       
       return NextResponse.json({
         success: true,

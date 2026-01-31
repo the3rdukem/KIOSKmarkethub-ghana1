@@ -288,7 +288,10 @@ export async function getVendorLowStockProducts(vendorId: string): Promise<Array
  * Batch check and alert for products that have low stock
  * Called periodically or after inventory updates
  */
-export async function runLowStockCheck(vendorId?: string): Promise<LowStockCheckResult[]> {
+export async function runLowStockCheck(
+  vendorId?: string,
+  options?: { skipCooldown?: boolean }
+): Promise<LowStockCheckResult[]> {
   const results: LowStockCheckResult[] = [];
 
   try {
@@ -335,7 +338,8 @@ export async function runLowStockCheck(vendorId?: string): Promise<LowStockCheck
           product.name,
           product.vendor_id,
           product.quantity,
-          threshold
+          threshold,
+          { skipCooldown: options?.skipCooldown }
         );
         results.push(alertResult);
       }
