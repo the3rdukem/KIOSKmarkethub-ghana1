@@ -369,10 +369,11 @@ export async function getVendorReviewMetrics(
       p.name as product_name,
       r.rating,
       r.comment,
-      r.buyer_name,
+      COALESCE(u.name, 'Anonymous') as buyer_name,
       r.created_at
     FROM reviews r
     JOIN products p ON r.product_id = p.id
+    LEFT JOIN users u ON r.buyer_id = u.id
     WHERE p.vendor_id = $1 AND r.status = 'approved' AND ${dateFilter}
     ORDER BY r.created_at DESC
     LIMIT 5`,
