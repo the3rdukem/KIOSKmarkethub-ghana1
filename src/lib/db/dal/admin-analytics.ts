@@ -93,16 +93,16 @@ export interface AdminAnalytics {
   generatedAt: string;
 }
 
-function getDateRangeFilter(range: DateRange): string {
+function getDateRangeFilter(range: DateRange, columnAlias: string = 'created_at'): string {
   switch (range) {
     case '7d':
-      return `created_at >= NOW() - INTERVAL '7 days'`;
+      return `${columnAlias}::timestamp >= NOW() - INTERVAL '7 days'`;
     case '30d':
-      return `created_at >= NOW() - INTERVAL '30 days'`;
+      return `${columnAlias}::timestamp >= NOW() - INTERVAL '30 days'`;
     case '90d':
-      return `created_at >= NOW() - INTERVAL '90 days'`;
+      return `${columnAlias}::timestamp >= NOW() - INTERVAL '90 days'`;
     case '1y':
-      return `created_at >= NOW() - INTERVAL '1 year'`;
+      return `${columnAlias}::timestamp >= NOW() - INTERVAL '1 year'`;
     case 'all':
     default:
       return '1=1';
@@ -188,11 +188,11 @@ export async function getUserMetrics(
     role: string;
     count: string;
   }>(
-    `SELECT role, COUNT(*) as count FROM users WHERE is_deleted = 0 GROUP BY role`
+    `SELECT role, COUNT(*) as count FROM users WHERE COALESCE(is_deleted::int, 0) = 0 GROUP BY role`
   );
 
   const newUsersResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM users WHERE is_deleted = 0 AND ${dateFilter}`
+    `SELECT COUNT(*) as count FROM users WHERE COALESCE(is_deleted::int, 0) = 0 AND ${dateFilter}`
   );
 
   const trendsResult = await query<{
@@ -203,7 +203,7 @@ export async function getUserMetrics(
       DATE_TRUNC('${truncFormat}', created_at::timestamp) as bucket_date,
       COUNT(*) as count
     FROM users 
-    WHERE is_deleted = 0 AND ${dateFilter}
+    WHERE COALESCE(is_deleted::int, 0) = 0 AND ${dateFilter}
     GROUP BY DATE_TRUNC('${truncFormat}', created_at::timestamp)
     ORDER BY bucket_date ASC`
   );
@@ -217,7 +217,7 @@ export async function getUserMetrics(
   }
 
   const adminCountResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM admin_users WHERE is_active = true`
+    `SELECT COUNT(*) as count FROM admin_users WHERE COALESCE(is_active::int, 1) = 1`
   );
 
   return {
@@ -239,7 +239,7 @@ export async function getProductMetrics(): Promise<ProductMetrics> {
   );
 
   const outOfStockResult = await query<{ count: string }>(
-    `SELECT COUNT(*) as count FROM products WHERE stock_quantity = 0 AND status = 'active'`
+    `SELECT COUNT(*) as count FROM products WHERE quantity = 0 AND status = 'active'`
   );
 
   const statusCounts: Record<string, number> = {};
@@ -266,7 +266,7 @@ export async function getVendorMetrics(): Promise<VendorMetrics> {
   const statusResult = await query<{ verification_status: string; count: string }>(
     `SELECT verification_status, COUNT(*) as count 
      FROM users 
-     WHERE role = 'vendor' AND is_deleted = 0 
+     WHERE role = 'vendor' AND COALESCE(is_deleted::int, 0) = 0 
      GROUP BY verification_status`
   );
 
@@ -374,11 +374,12 @@ export async function getFinancialMetrics(
   const dateFilter = getDateRangeFilter(range);
   const truncFormat = getDateTruncFormat(bucket);
 
+  const orderDateFilter = getDateRangeFilter(range, 'o.created_at');
   const commissionResult = await query<{ total: string }>(
     `SELECT COALESCE(SUM(commission_amount), 0) as total 
      FROM order_items oi
      JOIN orders o ON oi.order_id = o.id
-     WHERE o.payment_status = 'paid' AND o.${dateFilter.replace('created_at', 'o.created_at')}`
+     WHERE o.payment_status = 'paid' AND ${orderDateFilter}`
   );
 
   const payoutsResult = await query<{ status: string; total: string }>(
