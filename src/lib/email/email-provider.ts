@@ -7,7 +7,7 @@
 
 export interface SendEmailParams {
   to: string;
-  subject: string;
+  subject?: string;
   html?: string;
   text?: string;
   templateId?: string;

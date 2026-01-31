@@ -28,6 +28,7 @@ import { createNotification } from '@/lib/db/dal/notifications';
 import { sendOrderConfirmationSMS, sendVendorNewOrderSMS } from '@/lib/services/arkesel-sms';
 import { getDisputeByOrderId } from '@/lib/db/dal/disputes';
 import { checkProductStock } from '@/lib/services/low-stock-alerts';
+import { sendOrderConfirmationEmail, sendVendorNewOrderEmail } from '@/lib/services/order-emails';
 
 /**
  * GET /api/orders
@@ -349,6 +350,7 @@ export async function POST(request: NextRequest) {
       vendorIds.map(async (vendorId) => {
         const vendorItems = body.items.filter((item: { vendorId: string }) => item.vendorId === vendorId);
         const itemCount = vendorItems.reduce((sum: number, item: { quantity: number }) => sum + item.quantity, 0);
+        const itemsTotal = vendorItems.reduce((sum: number, item: { price: number; quantity: number }) => sum + item.price * item.quantity, 0);
         try {
           await createNotification({
             userId: vendorId,
@@ -361,8 +363,31 @@ export async function POST(request: NextRequest) {
         } catch (err) {
           console.error('[NOTIFICATION] Failed to notify vendor:', vendorId, err);
         }
+        
+        // Send email notification (fire-and-forget, non-blocking)
+        sendVendorNewOrderEmail(vendorId, {
+          orderId: order.id,
+          orderNumber: order.id,
+          buyerName: user.name,
+          items: vendorItems.map((item: { productName?: string; name?: string; quantity: number; price: number }) => ({
+            productName: item.productName || item.name || 'Product',
+            quantity: item.quantity,
+            unitPrice: item.price,
+          })),
+          itemsTotal: `GHS ${itemsTotal.toFixed(2)}`,
+        }).catch(err => console.error('[EMAIL] Failed to send vendor new order email:', err));
       })
     );
+
+    // Send order confirmation email to buyer (fire-and-forget)
+    sendOrderConfirmationEmail({
+      orderId: order.id,
+      orderNumber: order.id,
+      buyerId: session.user_id,
+      buyerName: user.name,
+      buyerEmail: user.email,
+      orderTotal: `GHS ${total.toFixed(2)}`,
+    }).catch(err => console.error('[EMAIL] Failed to send order confirmation:', err));
 
     // Send SMS notifications (fire-and-forget, don't block response)
     // Note: SMS is sent after payment confirmation via Paystack webhook

@@ -32,6 +32,12 @@ import { createAuditLog } from '@/lib/db/dal/audit';
 import { getUserById } from '@/lib/db/dal/users';
 import { createNotification } from '@/lib/db/dal/notifications';
 import { sendOrderStatusSMS, sendVendorNewOrderSMS } from '@/lib/services/arkesel-sms';
+import { 
+  sendOrderCancelledEmail, 
+  sendOrderDeliveredEmail, 
+  sendOrderShippedEmail, 
+  sendOrderStatusUpdateEmail 
+} from '@/lib/services/order-emails';
 
 interface RouteParams {
   params: Promise<{ id: string }>;
@@ -364,6 +370,17 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
         payload: { orderId: id, itemId, vendorName },
       }).catch(err => console.error('[NOTIFICATION] Failed to notify buyer:', err));
 
+      // Send shipped email notification (fire-and-forget)
+      sendOrderShippedEmail({
+        orderId: id,
+        orderNumber: id,
+        buyerId: order.buyer_id,
+        buyerName: order.buyer_name,
+        buyerEmail: order.buyer_email,
+        orderTotal: `GHS ${order.total?.toFixed(2) || '0.00'}`,
+        trackingNumber: order.tracking_number || undefined,
+      }).catch(err => console.error('[EMAIL] Failed to send shipped email:', err));
+
     } else if (action === 'markDelivered' || action === 'fulfill') {
       // Phase 7B: Mark delivered action - transitions item from 'handed_to_courier' to 'delivered'
       // 'fulfill' is legacy action that now does the same thing
@@ -485,6 +502,17 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       message: `Your order #${id} has been cancelled by the admin. If you made a payment, a refund will be processed.`,
       payload: { orderId: id },
     }).catch(err => console.error('[NOTIFICATION] Failed to notify buyer of cancellation:', err));
+
+    // Send cancellation email to buyer (fire-and-forget)
+    sendOrderCancelledEmail({
+      orderId: id,
+      orderNumber: id,
+      buyerId: order.buyer_id,
+      buyerName: order.buyer_name,
+      buyerEmail: order.buyer_email,
+      orderTotal: `GHS ${order.total?.toFixed(2) || '0.00'}`,
+      reason: 'Cancelled by admin',
+    }).catch(err => console.error('[EMAIL] Failed to send cancellation email:', err));
 
     // Notify vendors whose items were in the order (fire-and-forget)
     const orderItems = parseOrderItems(order);
@@ -719,6 +747,16 @@ async function handleOrderLevelAction(
         'delivered'
       ).catch(err => console.error('[SMS] Failed to send delivered SMS:', err));
     }
+
+    // Send email notification (fire-and-forget)
+    sendOrderDeliveredEmail({
+      orderId,
+      orderNumber: orderId,
+      buyerId: order.buyer_id,
+      buyerName: order.buyer_name,
+      buyerEmail: order.buyer_email,
+      orderTotal: `GHS ${order.total?.toFixed(2) || '0.00'}`,
+    }).catch(err => console.error('[EMAIL] Failed to send delivered email:', err));
 
     return NextResponse.json({
       success: true,

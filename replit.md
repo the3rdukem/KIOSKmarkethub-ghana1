@@ -39,7 +39,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Payment System**: Updates include `payment_reference`, `payment_provider`, `paid_at`, and `currency` columns in orders table, with webhook integration.
 - **Messaging System**: Database schema for conversations and messages, DAL with role-based authorization, and REST API endpoints.
 - **In-App Notifications**: Database table `notifications` with append-only design, DAL, and API.
-- **Email Infrastructure**: Database table `email_templates`, DAL for provider config and templates, and Admin API for management. Supports dry-run, rich text editor, and variable compilation.
+- **Email Infrastructure**: Database table `email_templates`, DAL for provider config and templates, and Admin API for management. Supports dry-run, rich text editor, and variable compilation. Order event emails: confirmation, payment received, shipped, delivered, cancelled (to buyers); new order notifications (to vendors).
 - **Password Reset Flow**: End-to-end password reset with secure tokens, expiry, and strength validation.
 - **Analytics Event Tracking**: Non-blocking, fire-and-forget analytics for user interactions, ready for external integration.
 - **Site Content Management System**: Database-backed admin control over branding, promotional banners, hero slideshow, footer links, homepage sections, and static pages with full CRUD.
@@ -88,7 +88,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 
 | Feature | Est. Days | Status | Notes |
 |---------|-----------|--------|-------|
-| Email Notifications (Order events) | 3-4 | ⏳ Pending | Bundle with SMS - leverages existing email infrastructure |
+| Email Notifications (Order events) | 3-4 | ✅ Complete | Order confirmation, payment received, shipped, delivered, cancelled emails to buyers; new order emails to vendors |
 | Low Stock Alerts (Email/SMS) | 1-2 | ✅ Complete | Integrated into order processing, configurable threshold in vendor settings |
 | Admin Dashboard Analytics | 4-5 | ⏳ Pending | Platform oversight and business metrics |
 | Export Functionality (CSV) | 2-3 | ✅ Complete | Vendor products/orders, admin orders/payouts with formatted exports |

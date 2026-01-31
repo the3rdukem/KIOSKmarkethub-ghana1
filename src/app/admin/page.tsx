@@ -58,7 +58,7 @@ import { useSiteSettingsStore } from "@/lib/site-settings-store";
 import { useApprovalWorkflowsStore, ApprovalRequest } from "@/lib/approval-workflows-store";
 import {
   Layers, FileEdit, CheckSquare, Trash2, RotateCcw, Palette, Globe2,
-  Layout, Tag, Plus, Edit, GripVertical, Image as ImageIcon, Save, Link2
+  Layout, Tag, Plus, Edit, GripVertical, Image as ImageIcon, Save, Link2, Mail
 } from "lucide-react";
 import { AdminAuthGuard } from "@/components/auth/auth-guard";
 import { EmailTemplateEditor } from "@/components/admin/email-template-editor";
@@ -2197,6 +2197,46 @@ function AdminDashboardContent() {
                         <strong>Scan All (Skip Cooldown):</strong> Same as above but bypasses cooldown for testing. 
                         Products alerted in the last 24h are skipped (cooldown).<br/>
                         <strong>Test Single:</strong> Tests one product while bypassing the cooldown.</p>
+                    </div>
+                    
+                    <div className="p-4 border rounded-lg space-y-3 mt-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium">Email Templates</p>
+                          <p className="text-xs text-muted-foreground">Seed default order email templates</p>
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={async () => {
+                            try {
+                              const response = await fetch('/api/admin/email/templates/seed', {
+                                method: 'POST',
+                                credentials: 'include',
+                              });
+                              const data = await response.json();
+                              if (data.success) {
+                                toast.success(
+                                  `Email templates seeded!\n` +
+                                  `Created: ${data.created.length}\n` +
+                                  `Skipped (already exist): ${data.skipped.length}`
+                                );
+                              } else {
+                                toast.error(data.error || 'Failed to seed templates');
+                              }
+                            } catch (error) {
+                              toast.error('Failed to seed email templates');
+                            }
+                          }}
+                        >
+                          <Mail className="w-4 h-4 mr-2" />
+                          Seed Email Templates
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground bg-blue-50 p-2 rounded">
+                        Seeds default email templates for order events: order_confirmation, order_shipped, 
+                        order_delivered, order_cancelled, payment_received, vendor_new_order, etc.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

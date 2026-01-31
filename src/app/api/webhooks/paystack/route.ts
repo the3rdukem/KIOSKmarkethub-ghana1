@@ -12,6 +12,7 @@ import { createAuditLog } from '@/lib/db/dal/audit';
 import { createHash } from 'crypto';
 import { sendOrderConfirmationSMS, sendVendorNewOrderSMS } from '@/lib/services/arkesel-sms';
 import { getUserById } from '@/lib/db/dal/users';
+import { sendPaymentReceivedEmail } from '@/lib/services/order-emails';
 import { updatePayoutStatus, getPayoutById, getPayoutByReference } from '@/lib/db/dal/payouts';
 import { sendSMS } from '@/lib/services/arkesel-sms';
 
@@ -230,6 +231,16 @@ async function handleChargeSuccess(data: PaystackEvent['data']): Promise<void> {
           paidAmountGHS
         ).catch(err => console.error('[SMS] Failed to send order confirmation SMS:', err));
       }
+
+      // Send payment received email to buyer (fire-and-forget)
+      sendPaymentReceivedEmail({
+        orderId,
+        orderNumber: orderId,
+        buyerId: order.buyer_id,
+        buyerName: order.buyer_name,
+        buyerEmail: order.buyer_email || buyer?.email || data.customer.email,
+        orderTotal: `GHS ${paidAmountGHS.toFixed(2)}`,
+      }).catch(err => console.error('[EMAIL] Failed to send payment received email:', err));
 
       // Send SMS to vendors about new order
       const orderItems = await getOrderItemsByOrderId(orderId);

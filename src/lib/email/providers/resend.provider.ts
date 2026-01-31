@@ -34,7 +34,7 @@ export class ResendEmailProvider implements EmailProvider {
       } = {
         from,
         to: params.to,
-        subject: params.subject,
+        subject: params.subject || 'Notification',
       };
 
       if (params.html) {
