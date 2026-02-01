@@ -2,9 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { validateSession } from '@/lib/db/dal/sessions';
 import { getWishlistByUser, addToWishlist, mergeWishlist } from '@/lib/db/dal/wishlist';
+import { withRateLimit } from '@/lib/utils/rate-limiter';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const rateLimitCheck = await withRateLimit(request, 'api_public_read');
+    if (!rateLimitCheck.allowed) {
+      return rateLimitCheck.response;
+    }
+
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get('session_token')?.value;
 

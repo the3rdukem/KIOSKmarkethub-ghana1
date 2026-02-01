@@ -1,8 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getVisibleFooterLinks } from '@/lib/db/dal/footer-links';
+import { withRateLimit } from '@/lib/utils/rate-limiter';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const rateLimitCheck = await withRateLimit(request, 'api_public_read');
+    if (!rateLimitCheck.allowed) {
+      return rateLimitCheck.response;
+    }
+
     const links = await getVisibleFooterLinks();
     
     const sections: Record<string, Array<{ title: string; url: string; isExternal: boolean }>> = {};

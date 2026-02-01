@@ -22,6 +22,7 @@ import { getActiveSalesForProducts } from '@/lib/db/dal/promotions';
 import { getBulkProductRatings } from '@/lib/db/dal/reviews';
 import { validateTextField, validateContentSafety, validateProductName } from '@/lib/validation';
 import { normalizeProductForApi, UNSET_VALUE } from '@/lib/contracts/product.contract';
+import { withRateLimit, addRateLimitHeaders } from '@/lib/utils/rate-limiter';
 
 /**
  * GET /api/products
@@ -31,11 +32,20 @@ import { normalizeProductForApi, UNSET_VALUE } from '@/lib/contracts/product.con
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
+    const search = searchParams.get('search') || undefined;
+    
+    const rateLimitCheck = await withRateLimit(
+      request,
+      search ? 'api_search' : 'api_public_read'
+    );
+    if (!rateLimitCheck.allowed) {
+      return rateLimitCheck.response;
+    }
+
     const vendorId = searchParams.get('vendorId') || undefined;
     const category = searchParams.get('category') || undefined;
     const status = searchParams.get('status') as 'active' | 'draft' | undefined;
     const featured = searchParams.get('featured');
-    const search = searchParams.get('search') || undefined;
     const limit = searchParams.get('limit');
     const offset = searchParams.get('offset');
 

@@ -23,6 +23,7 @@ import {
   CartOwnerType
 } from '@/lib/db/dal/cart';
 import { v4 as uuidv4 } from 'uuid';
+import { withRateLimit } from '@/lib/utils/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -65,6 +66,11 @@ async function getCartIdentity(request: NextRequest): Promise<{
 
 export async function GET(request: NextRequest) {
   try {
+    const rateLimitCheck = await withRateLimit(request, 'api_public_read');
+    if (!rateLimitCheck.allowed) {
+      return rateLimitCheck.response;
+    }
+
     const identity = await getCartIdentity(request);
     const cart = await getOrCreateCart(identity.ownerType, identity.ownerId);
     

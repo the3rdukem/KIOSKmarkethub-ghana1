@@ -19,7 +19,9 @@ export type RateLimitAction =
   | 'otp_verify'
   | 'password_reset'
   | 'message_send'
-  | 'api_general';
+  | 'api_general'
+  | 'api_public_read'
+  | 'api_search';
 
 export function getClientIdentifier(request: NextRequest): string {
   const forwarded = request.headers.get('x-forwarded-for');

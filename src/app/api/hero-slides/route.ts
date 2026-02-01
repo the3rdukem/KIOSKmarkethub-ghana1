@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateSessionToken } from '@/lib/db/dal/auth-service';
 import { cookies } from 'next/headers';
 import * as heroSlidesDAL from '@/lib/db/dal/hero-slides';
+import { withRateLimit } from '@/lib/utils/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
+    const rateLimitCheck = await withRateLimit(request, 'api_public_read');
+    if (!rateLimitCheck.allowed) {
+      return rateLimitCheck.response;
+    }
+
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get('active') === 'true';
 

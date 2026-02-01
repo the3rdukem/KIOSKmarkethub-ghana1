@@ -19,6 +19,7 @@ import {
 import { createAuditLog } from '@/lib/db/dal/audit';
 import { query } from '@/lib/db';
 import { validateContentSafety } from '@/lib/validation';
+import { withRateLimit } from '@/lib/utils/rate-limiter';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -34,6 +35,11 @@ async function getSession(sessionToken: string) {
 
 export async function GET(request: NextRequest) {
   try {
+    const rateLimitCheck = await withRateLimit(request, 'api_public_read');
+    if (!rateLimitCheck.allowed) {
+      return rateLimitCheck.response;
+    }
+
     const { searchParams } = new URL(request.url);
     const productId = searchParams.get('productId');
     const buyerId = searchParams.get('buyerId');

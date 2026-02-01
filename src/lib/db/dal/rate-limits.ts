@@ -37,6 +37,8 @@ export const RATE_LIMIT_CONFIGS: Record<string, RateLimitConfig> = {
   password_reset: { maxRequests: 3, windowSeconds: 3600 },
   message_send: { maxRequests: 20, windowSeconds: 60 },
   api_general: { maxRequests: 100, windowSeconds: 60 },
+  api_public_read: { maxRequests: 60, windowSeconds: 60 },
+  api_search: { maxRequests: 30, windowSeconds: 60 },
 };
 
 export async function checkRateLimit(

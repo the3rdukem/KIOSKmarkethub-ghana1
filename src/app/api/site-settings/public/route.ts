@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getSettings } from '@/lib/db/dal/site-settings';
+import { withRateLimit } from '@/lib/utils/rate-limiter';
 
 const PUBLIC_SETTING_KEYS = [
   'site_name',
@@ -28,8 +29,13 @@ const PUBLIC_SETTING_KEYS = [
   'social_linkedin'
 ];
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const rateLimitCheck = await withRateLimit(request, 'api_public_read');
+    if (!rateLimitCheck.allowed) {
+      return rateLimitCheck.response;
+    }
+
     const settings = await getSettings(PUBLIC_SETTING_KEYS);
     return NextResponse.json({ settings });
   } catch (error) {

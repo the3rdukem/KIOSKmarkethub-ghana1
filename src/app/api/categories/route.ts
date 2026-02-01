@@ -23,6 +23,7 @@ import {
   getCategoryStats,
 } from '@/lib/db/dal/categories';
 import { createAuditLog } from '@/lib/db/dal/audit';
+import { withRateLimit } from '@/lib/utils/rate-limiter';
 
 /**
  * GET /api/categories
@@ -31,6 +32,11 @@ import { createAuditLog } from '@/lib/db/dal/audit';
  */
 export async function GET(request: NextRequest) {
   try {
+    const rateLimitCheck = await withRateLimit(request, 'api_public_read');
+    if (!rateLimitCheck.allowed) {
+      return rateLimitCheck.response;
+    }
+
     const { searchParams } = new URL(request.url);
     const activeOnly = searchParams.get('active') !== 'false';
     const menuOnly = searchParams.get('menu') === 'true';
