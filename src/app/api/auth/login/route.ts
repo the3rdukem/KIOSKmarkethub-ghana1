@@ -15,6 +15,9 @@ import { loginUser, getRouteForRole, type AuthErrorCode } from '@/lib/db/dal/aut
 import { logAuthEvent } from '@/lib/db/dal/audit';
 import { withRateLimit, addRateLimitHeaders, getClientIdentifier } from '@/lib/utils/rate-limiter';
 import { setCsrfCookie } from '@/lib/utils/csrf';
+import { createLogger } from '@/lib/utils/logger';
+
+const log = createLogger('AUTH_LOGIN');
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -52,7 +55,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { email, phone, password } = body;
 
-    console.log('[LOGIN_API] Starting atomic login', { email, phone: phone ? '***' : undefined });
+    log.info('Starting atomic login', { email, hasPhone: !!phone });
 
     const result = await loginUser(
       { email, phone, password },
@@ -61,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     if (!result.success || !result.data) {
       const error = result.error!;
-      console.log('[LOGIN_API] Login failed:', error.code, error.message);
+      log.warn('Login failed', { code: error.code, message: error.message });
 
       await logAuthEvent(
         'LOGIN_FAILED',
@@ -86,7 +89,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { user, session } = result.data;
-    console.log('[LOGIN_API] Login successful, setting session cookie', { userId: user.id, role: user.role });
+    log.info('Login successful', { userId: user.id, role: user.role });
 
     await logAuthEvent(
       'LOGIN_SUCCESS',
@@ -106,7 +109,7 @@ export async function POST(request: NextRequest) {
 
     await setCsrfCookie();
 
-    console.log('[LOGIN_API] Session and CSRF cookies set, returning success');
+    log.info('Session and CSRF cookies set');
 
     return NextResponse.json({
       success: true,
@@ -127,7 +130,7 @@ export async function POST(request: NextRequest) {
       redirect: getRouteForRole(user.role),
     });
   } catch (error) {
-    console.error('[LOGIN_API] Unexpected error:', error);
+    log.error('Unexpected error', {}, error);
 
     await logAuthEvent(
       'LOGIN_ERROR',

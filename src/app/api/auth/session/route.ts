@@ -12,6 +12,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { validateSessionToken } from '@/lib/db/dal/auth-service';
 import { ensureCsrfToken } from '@/lib/utils/csrf';
+import { createLogger } from '@/lib/utils/logger';
+
+const log = createLogger('AUTH_SESSION');
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -25,10 +28,10 @@ export async function GET(request: NextRequest) {
     const cookieStore = await cookies();
     const sessionToken = cookieStore.get('session_token')?.value;
 
-    console.log('[SESSION_API] Validating session', { hasToken: !!sessionToken });
+    log.debug('Validating session', { hasToken: !!sessionToken });
 
     if (!sessionToken) {
-      console.log('[SESSION_API] No session token found');
+      log.debug('No session token found');
       return NextResponse.json({ authenticated: false, user: null });
     }
 
@@ -36,7 +39,7 @@ export async function GET(request: NextRequest) {
 
     if (!result.success || !result.data) {
       const error = result.error!;
-      console.log('[SESSION_API] Session validation failed:', error.code, error.message);
+      log.debug('Session validation failed', { code: error.code, message: error.message });
 
       cookieStore.set('session_token', '', {
         ...COOKIE_OPTIONS,
@@ -52,14 +55,10 @@ export async function GET(request: NextRequest) {
     }
 
     const { session, user } = result.data;
-    console.log('[SESSION_API] Session valid', {
-      sessionId: session.id,
-      userId: session.userId,
-      role: session.userRole,
-    });
+    log.debug('Session valid', { sessionId: session.id, userId: session.userId, role: session.userRole });
 
     if (!user) {
-      console.error('[SESSION_API] Session valid but no user data');
+      log.error('Session valid but no user data', { sessionId: session.id });
       return NextResponse.json({ authenticated: false, user: null });
     }
 
@@ -93,7 +92,7 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('[SESSION_API] Unexpected error:', error);
+    log.error('Unexpected error', {}, error);
     return NextResponse.json({
       authenticated: false,
       user: null,
