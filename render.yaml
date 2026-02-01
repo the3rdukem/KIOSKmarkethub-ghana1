@@ -7,16 +7,23 @@ services:
     buildCommand: npm install && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
+    autoDeploy: false
     envVars:
       - key: NODE_ENV
         value: production
       - key: PORT
         value: 5000
+      - key: NODE_VERSION
+        value: 20
       - key: DATABASE_URL
         sync: false
       - key: SESSION_SECRET
         generateValue: true
       - key: NEXT_PUBLIC_APP_URL
+        sync: false
+      - key: MASTER_ADMIN_EMAIL
+        sync: false
+      - key: MASTER_ADMIN_PASSWORD
         sync: false
       - key: GOOGLE_CLIENT_ID
         sync: false
@@ -35,4 +42,10 @@ services:
       - key: ARKESEL_API_KEY
         sync: false
       - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      - key: SMILE_PARTNER_ID
+        sync: false
+      - key: SMILE_API_KEY
+        sync: false
+      - key: SMILE_CALLBACK_URL
         sync: false
