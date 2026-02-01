@@ -481,7 +481,10 @@ export function MainNav() {
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-2">
             {!safeUser || effectiveRole === "buyer" ? (
-              <img src="/images/kiosk-logo-horizontal.png" alt={siteName} className="h-12 w-auto mix-blend-multiply" />
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">K</div>
+                <span className="font-bold text-xl text-gray-900">KIOSK</span>
+              </div>
             ) : (
               <>
                 <div className={`w-8 h-8 rounded-lg ${getPortalColor()} flex items-center justify-center text-white font-bold overflow-hidden`}>
