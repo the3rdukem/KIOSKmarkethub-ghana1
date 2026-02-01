@@ -66,6 +66,8 @@ Set these in your Render dashboard before deploying:
 **Critical (Required):**
 - `DATABASE_URL` - PostgreSQL connection string
 - `SESSION_SECRET` - Session encryption key (auto-generated)
+- `OTP_SECRET_PEPPER` - OTP hashing secret (auto-generated)
+- `INTEGRATION_ENCRYPTION_KEY` - Encryption key for API credentials (auto-generated)
 - `NEXT_PUBLIC_APP_URL` - Your production URL (e.g., https://kiosk.com.gh)
 - `MASTER_ADMIN_EMAIL` - Master admin email address
 - `MASTER_ADMIN_PASSWORD` - Master admin password (12+ chars, strong)
