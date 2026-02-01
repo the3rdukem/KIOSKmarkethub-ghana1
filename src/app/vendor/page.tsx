@@ -206,7 +206,7 @@ function VendorDashboardContent() {
                   <DollarSign className="h-4 w-4 text-green-600" />
                 </CardHeader>
                 <CardContent className="p-3 sm:p-6 pt-0 sm:pt-0">
-                  <div className="text-lg sm:text-2xl font-bold text-green-600 truncate">
+                  <div className="text-base sm:text-xl font-bold text-green-600 leading-tight" style={{ fontSize: 'clamp(0.875rem, 2vw, 1.25rem)' }}>
                     {formatCurrency(stats?.earnings?.total ?? totalRevenue)}
                   </div>
                   <span className="text-xs text-muted-foreground flex items-center gap-1">

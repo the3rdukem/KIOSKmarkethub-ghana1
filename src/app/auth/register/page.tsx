@@ -390,11 +390,8 @@ function RegisterPageContent() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-md w-full space-y-8">
           <div className="text-center">
-            <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
-              <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold">
-                K
-              </div>
-              <span className="font-bold text-xl">KIOSK</span>
+            <Link href="/" className="inline-block mb-6">
+              <img src="/images/kiosk-logo-horizontal.png" alt="KIOSK" className="h-12 w-auto mx-auto" />
             </Link>
             <h2 className="text-3xl font-bold text-gray-900">Verify Your Phone</h2>
           </div>
@@ -477,11 +474,8 @@ function RegisterPageContent() {
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold">
-              K
-            </div>
-            <span className="font-bold text-xl">KIOSK</span>
+          <Link href="/" className="inline-block mb-6">
+            <img src="/images/kiosk-logo-horizontal.png" alt="KIOSK" className="h-12 w-auto mx-auto" />
           </Link>
           <h2 className="text-3xl font-bold text-gray-900">Join KIOSK</h2>
           <p className="mt-2 text-gray-600">

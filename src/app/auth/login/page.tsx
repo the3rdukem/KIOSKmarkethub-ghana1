@@ -102,8 +102,18 @@ function LoginPageContent() {
       const result = await loginViaAPI(formData.email, formData.password);
 
       if (!result.success) {
-        // Display exact server error message
-        setErrors({ submit: result.error || "Invalid email or password" });
+        const errorMsg = result.error || "Invalid email or password";
+        const errorLower = errorMsg.toLowerCase();
+        
+        // Detect which field to highlight based on error message
+        if (errorLower.includes('password') || errorLower.includes('incorrect password') || errorLower.includes('wrong password')) {
+          setErrors({ password: "Incorrect password", submit: errorMsg });
+        } else if (errorLower.includes('not found') || errorLower.includes('no account') || errorLower.includes('email')) {
+          setErrors({ email: "Account not found", submit: errorMsg });
+        } else {
+          // Generic error - highlight both fields
+          setErrors({ email: " ", password: " ", submit: errorMsg });
+        }
         setIsLoading(false);
         return;
       }
@@ -137,11 +147,8 @@ function LoginPageContent() {
       <div className="max-w-md w-full space-y-8 relative z-10">
         {/* Header */}
         <div className="text-center">
-          <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-green-600 flex items-center justify-center text-white font-bold">
-              K
-            </div>
-            <span className="font-bold text-xl">KIOSK</span>
+          <Link href="/" className="inline-block mb-6">
+            <img src="/images/kiosk-logo-horizontal.png" alt="KIOSK" className="h-12 w-auto mx-auto" />
           </Link>
           <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
           <p className="mt-2 text-gray-600">

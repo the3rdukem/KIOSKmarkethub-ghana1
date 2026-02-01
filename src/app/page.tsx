@@ -152,7 +152,7 @@ export default function HomePage() {
       )}
 
       {/* Hero Section with Advanced Search - Enhanced with subtle animation */}
-      <section className="relative bg-gradient-to-br from-blue-50 via-green-50 to-blue-50 py-16 lg:py-24 overflow-hidden">
+      <section className="relative bg-gradient-to-br from-blue-50 via-green-50 to-blue-50 py-10 lg:py-16 overflow-hidden">
         {/* Animated background elements */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute -top-24 -right-24 w-96 h-96 bg-green-200/30 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
@@ -161,7 +161,7 @@ export default function HomePage() {
         <div className="container">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h1 className="font-bold text-gray-900 mb-6 whitespace-nowrap" style={{ fontSize: 'clamp(1.25rem, 4vw, 3rem)' }}>
+              <h1 className="font-bold text-gray-900 mb-4" style={{ fontSize: 'clamp(1.5rem, 4vw, 3rem)', lineHeight: '1.2' }}>
                 {heroHeadline.includes(' ') ? (
                   <>
                     {heroHeadline.split(' ').slice(0, -1).join(' ')}{' '}
@@ -304,13 +304,13 @@ export default function HomePage() {
                   <ShoppingBag className="w-32 h-32 text-green-600" />
                 )}
               </div>
-              <div className="absolute -top-4 -right-4 bg-white rounded-lg shadow-lg p-3">
+              <div className="absolute -top-4 -right-4 bg-white rounded-lg shadow-lg p-3 z-10">
                 <div className="flex items-center gap-2 text-sm">
                   <Shield className="w-4 h-4 text-green-600" />
                   <span className="font-semibold">Verified Secure</span>
                 </div>
               </div>
-              <div className="absolute -bottom-4 -left-4 bg-white rounded-lg shadow-lg p-3">
+              <div className="absolute -bottom-4 -left-4 bg-white rounded-lg shadow-lg p-3 z-10">
                 <div className="flex items-center gap-2 text-sm">
                   <TrendingUp className="w-4 h-4 text-blue-600" />
                   <span className="font-semibold">Mobile Money</span>
@@ -429,7 +429,7 @@ export default function HomePage() {
                             <Package className="w-16 h-16 text-gray-400" />
                           </div>
                         )}
-                        <Badge className="absolute top-2 left-2 text-[10px] sm:text-xs max-w-[45%] truncate" variant="secondary">
+                        <Badge className="absolute top-2 left-2 text-[10px] sm:text-xs max-w-[60%] truncate" variant="secondary">
                           {product.category}
                         </Badge>
                         {product.activeSale ? (

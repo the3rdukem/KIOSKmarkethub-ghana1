@@ -1213,7 +1213,7 @@ function SearchPageContent() {
     }
 
     return (
-      <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden">
+      <Card className="group hover:shadow-lg transition-all duration-300 overflow-hidden h-full flex flex-col">
         <div className="relative">
           <Link href={`/product/${product.id}`}>
             <div className="aspect-square bg-gray-100 overflow-hidden">
@@ -1256,65 +1256,62 @@ function SearchPageContent() {
           </Button>
         </div>
 
-        <CardContent className="p-4">
-          <Link href={`/product/${product.id}`}>
-            <h3 className="font-semibold text-sm line-clamp-2 mb-2 hover:text-green-600 transition-colors">
-              {product.name}
-            </h3>
-          </Link>
+        <CardContent className="p-4 flex flex-col flex-1">
+          <div className="flex-1">
+            <Link href={`/product/${product.id}`}>
+              <h3 className="font-semibold text-sm line-clamp-2 mb-2 hover:text-green-600 transition-colors min-h-[2.5rem]">
+                {product.name}
+              </h3>
+            </Link>
 
-          {/* Rating */}
-          <div className="flex items-center gap-1 mb-2">
-            <div className="flex">
-              {[...Array(5)].map((_, i) => (
-                <Star
-                  key={i}
-                  className={`w-3 h-3 ${
-                    i < Math.floor(rating) ? "text-yellow-400 fill-current" : "text-gray-300"
-                  }`}
-                />
-              ))}
+            {/* Rating */}
+            <div className="flex items-center gap-1 mb-2">
+              <div className="flex">
+                {[...Array(5)].map((_, i) => (
+                  <Star
+                    key={i}
+                    className={`w-3 h-3 ${
+                      i < Math.floor(rating) ? "text-yellow-400 fill-current" : "text-gray-300"
+                    }`}
+                  />
+                ))}
+              </div>
+              <span className="text-xs text-muted-foreground">
+                ({reviewCount})
+              </span>
             </div>
-            <span className="text-xs text-muted-foreground">
-              ({reviewCount})
-            </span>
-          </div>
 
-          {/* Vendor */}
-          <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
-            <span className="truncate">{product.vendorName}</span>
-          </div>
+            {/* Vendor */}
+            <div className="flex items-center gap-1 text-xs text-muted-foreground mb-2">
+              <span className="truncate">{product.vendorName}</span>
+            </div>
 
-          {/* Price */}
-          <div className="flex items-center gap-2 flex-wrap mb-3">
-            {product.activeSale ? (
-              <>
-                <span className="font-bold text-lg text-green-600">{formatCurrency(product.effectivePrice || product.price)}</span>
-                <span className="text-sm text-muted-foreground line-through">
-                  {formatCurrency(product.price)}
-                </span>
-                <Badge variant="destructive" className="text-xs animate-pulse">
-                  {product.activeSale.discountType === 'percentage' 
-                    ? `-${product.activeSale.discountValue}%` 
-                    : `-${formatCurrency(product.activeSale.discountValue)}`}
-                </Badge>
-              </>
-            ) : (
-              <>
-                <span className="font-bold text-lg">{formatCurrency(product.price)}</span>
-                {product.comparePrice && (
-                  <span className="text-sm text-muted-foreground line-through">
-                    {formatCurrency(product.comparePrice)}
+            {/* Price */}
+            <div className="flex items-center gap-2 flex-wrap mb-3 min-h-[1.75rem]">
+              {product.activeSale ? (
+                <>
+                  <span className="font-bold text-base text-green-600">{formatCurrency(product.effectivePrice || product.price)}</span>
+                  <span className="text-xs text-muted-foreground line-through">
+                    {formatCurrency(product.price)}
                   </span>
-                )}
-              </>
-            )}
+                </>
+              ) : (
+                <>
+                  <span className="font-bold text-base">{formatCurrency(product.price)}</span>
+                  {product.comparePrice && (
+                    <span className="text-xs text-muted-foreground line-through">
+                      {formatCurrency(product.comparePrice)}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
           </div>
 
-          {/* Add to Cart */}
+          {/* Add to Cart - Fixed at bottom */}
           <Button
             size="sm"
-            className="w-full bg-green-600 hover:bg-green-700"
+            className="w-full bg-green-600 hover:bg-green-700 mt-auto"
             disabled={!inStock}
             onClick={() => handleAddToCart(product)}
           >
