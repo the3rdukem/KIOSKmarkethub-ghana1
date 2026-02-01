@@ -178,7 +178,7 @@ export default function BuyerNotificationsPage() {
 
   const handleMarkAllAsRead = () => {
     markAllAsRead(user.id);
-    toast.success("All notifications marked as read");
+    toast.success("All marked as read!");
   };
 
   const handleDeleteNotification = (id: string) => {
@@ -213,10 +213,10 @@ export default function BuyerNotificationsPage() {
       if (!response.ok) {
         throw new Error('Failed to save preferences');
       }
-      toast.success("Preferences saved");
+      toast.success("Preferences saved!");
     } catch (error) {
       console.error('Failed to save preferences:', error);
-      toast.error("Failed to save preferences");
+      toast.error("Could not save preferences. Please try again.");
     }
   };
 

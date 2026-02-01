@@ -204,7 +204,7 @@ export default function BuyerProfilePage() {
       toast.success("Profile updated successfully");
       setIsEditing(false);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to update profile");
+      toast.error(error instanceof Error ? error.message : "Could not update profile. Please try again.");
     } finally {
       setIsSaving(false);
     }

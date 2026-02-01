@@ -91,7 +91,7 @@ export default function BuyerDisputesPage() {
       setDisputes(data.disputes || []);
     } catch (error) {
       console.error("Error fetching disputes:", error);
-      toast.error("Failed to load disputes");
+      toast.error("Could not load disputes. Please try again.");
     } finally {
       setLoading(false);
     }

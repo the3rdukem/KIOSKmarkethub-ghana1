@@ -300,7 +300,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
 
       if (!initResponse.ok) {
         const errorData = await initResponse.json();
-        toast.error(errorData.error || "Failed to initialize payment");
+        toast.error(errorData.error || "Could not start payment. Please try again.");
         setIsProcessingPayment(false);
         return;
       }
@@ -338,7 +338,7 @@ export default function OrderDetailPage({ params }: OrderDetailPageProps) {
       });
     } catch (error) {
       console.error("Payment error:", error);
-      toast.error("Failed to initialize payment. Please try again.");
+      toast.error("Could not start payment. Please try again.");
       setIsProcessingPayment(false);
     }
   };
