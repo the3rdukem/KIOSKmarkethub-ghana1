@@ -1901,6 +1901,54 @@ async function runMigrations(client: PoolClient): Promise<void> {
     // Table may already exist or error occurred
     console.log('[DB] PHASE 19: attribute_options table setup (may already exist)');
   }
+
+  // PHASE 20: Platform Flash Sales - Allow admin-created platform-wide sales
+  try {
+    // Add is_platform_sale column to distinguish admin sales from vendor sales
+    await client.query(`
+      ALTER TABLE sales ADD COLUMN IF NOT EXISTS is_platform_sale INTEGER DEFAULT 0
+    `);
+    // Add created_by column to track who created the sale (admin user id for platform sales)
+    await client.query(`
+      ALTER TABLE sales ADD COLUMN IF NOT EXISTS created_by TEXT
+    `);
+    // Add banner_image for visual promotion
+    await client.query(`
+      ALTER TABLE sales ADD COLUMN IF NOT EXISTS banner_image TEXT
+    `);
+    // Add description for marketing copy
+    await client.query(`
+      ALTER TABLE sales ADD COLUMN IF NOT EXISTS description TEXT
+    `);
+    // Make vendor_user_id nullable for platform sales
+    // This is safe because existing rows already have vendor_user_id
+    await client.query(`
+      ALTER TABLE sales ALTER COLUMN vendor_user_id DROP NOT NULL
+    `);
+    console.log('[DB] PHASE 20: Added platform flash sale support to sales table');
+  } catch (e) {
+    console.log('[DB] PHASE 20: Platform flash sales migration (may already exist)');
+  }
+
+  // PHASE 21: Product Views Tracking - For trending/best-selling products
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS product_views (
+        id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL,
+        user_id TEXT,
+        session_id TEXT,
+        viewed_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        CONSTRAINT fk_product_views_product FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
+      );
+      CREATE INDEX IF NOT EXISTS idx_product_views_product ON product_views(product_id);
+      CREATE INDEX IF NOT EXISTS idx_product_views_time ON product_views(viewed_at);
+      CREATE INDEX IF NOT EXISTS idx_product_views_session ON product_views(session_id);
+    `);
+    console.log('[DB] PHASE 21: Created product_views table for trending products');
+  } catch (e) {
+    console.log('[DB] PHASE 21: product_views table setup (may already exist)');
+  }
 }
 
 /**

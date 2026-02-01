@@ -51,6 +51,7 @@ import { useAuthStore } from "@/lib/auth-store";
 import { useSiteSettingsStore, PromotionalBanner, HeroBanner } from "@/lib/site-settings-store";
 import { useProductsStore } from "@/lib/products-store";
 import { useCategoriesStore } from "@/lib/categories-store";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 type BannerLinkType = 'none' | 'product' | 'category' | 'store' | 'external';
 
@@ -343,24 +344,15 @@ export default function AdminBannersPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Banner Image URL</Label>
-                  <Input
+                  <Label>Banner Image</Label>
+                  <ImageUpload
                     value={formData.imageUrl}
-                    onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                    placeholder="https://example.com/banner.jpg"
+                    onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+                    onRemove={() => setFormData({ ...formData, imageUrl: "" })}
+                    label="Upload Banner Image"
+                    description="PNG, JPG up to 5MB. Recommended: 1200x400px for top banners"
+                    aspectRatio="banner"
                   />
-                  {formData.imageUrl && (
-                    <div className="mt-2 border rounded-lg overflow-hidden">
-                      <img
-                        src={formData.imageUrl}
-                        alt="Banner preview"
-                        className="w-full h-32 object-cover"
-                        onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/placeholder.jpg';
-                        }}
-                      />
-                    </div>
-                  )}
                 </div>
 
                 <Separator />
@@ -748,20 +740,15 @@ export default function AdminBannersPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Banner Image URL</Label>
-                <Input
+                <Label>Banner Image</Label>
+                <ImageUpload
                   value={formData.imageUrl}
-                  onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                  onChange={(url) => setFormData({ ...formData, imageUrl: url })}
+                  onRemove={() => setFormData({ ...formData, imageUrl: "" })}
+                  label="Upload Banner Image"
+                  description="PNG, JPG up to 5MB. Recommended: 1200x400px"
+                  aspectRatio="banner"
                 />
-                {formData.imageUrl && (
-                  <div className="mt-2 border rounded-lg overflow-hidden">
-                    <img
-                      src={formData.imageUrl}
-                      alt="Banner preview"
-                      className="w-full h-32 object-cover"
-                    />
-                  </div>
-                )}
               </div>
 
               <div className="space-y-2">

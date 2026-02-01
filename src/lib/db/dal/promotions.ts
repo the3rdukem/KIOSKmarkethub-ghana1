@@ -501,3 +501,327 @@ export async function deleteSale(id: string, vendorUserId: string): Promise<bool
   );
   return (result.rowCount ?? 0) > 0;
 }
+
+// ============================================
+// PLATFORM FLASH SALES (Admin-created)
+// ============================================
+
+export interface PlatformFlashSale {
+  id: string;
+  name: string;
+  description: string | null;
+  banner_image: string | null;
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  starts_at: string;
+  ends_at: string;
+  is_active: boolean;
+  is_platform_sale: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  product_ids?: string[];
+  product_count?: number;
+}
+
+export interface CreatePlatformFlashSaleInput {
+  name: string;
+  description?: string;
+  banner_image?: string;
+  product_ids: string[];
+  discount_type: 'percentage' | 'fixed';
+  discount_value: number;
+  starts_at: string;
+  ends_at: string;
+  created_by: string;
+}
+
+export interface UpdatePlatformFlashSaleInput {
+  name?: string;
+  description?: string;
+  banner_image?: string;
+  product_ids?: string[];
+  discount_type?: 'percentage' | 'fixed';
+  discount_value?: number;
+  starts_at?: string;
+  ends_at?: string;
+  is_active?: boolean;
+}
+
+export async function getPlatformFlashSales(): Promise<PlatformFlashSale[]> {
+  const result = await query<PlatformFlashSale & { product_count: string }>(
+    `SELECT s.*, 
+            (SELECT COUNT(*) FROM sale_products sp WHERE sp.sale_id = s.id) as product_count
+     FROM sales s 
+     WHERE s.is_platform_sale = 1 
+     ORDER BY s.created_at DESC`
+  );
+  return result.rows.map(row => ({
+    ...row,
+    is_active: Boolean(row.is_active),
+    is_platform_sale: Boolean(row.is_platform_sale),
+    product_count: parseInt(row.product_count as string) || 0,
+  }));
+}
+
+export async function getActivePlatformFlashSales(): Promise<PlatformFlashSale[]> {
+  const now = new Date().toISOString();
+  const result = await query<PlatformFlashSale>(
+    `SELECT s.*
+     FROM sales s 
+     WHERE s.is_platform_sale = 1 
+       AND s.is_active = 1
+       AND s.starts_at <= $1 
+       AND s.ends_at >= $1
+     ORDER BY s.starts_at ASC`,
+    [now]
+  );
+  return result.rows.map(row => ({
+    ...row,
+    is_active: Boolean(row.is_active),
+    is_platform_sale: Boolean(row.is_platform_sale),
+  }));
+}
+
+export async function getPlatformFlashSaleById(id: string): Promise<PlatformFlashSale | null> {
+  const result = await query<PlatformFlashSale>(
+    `SELECT * FROM sales WHERE id = $1 AND is_platform_sale = 1`,
+    [id]
+  );
+  if (result.rows.length === 0) return null;
+  
+  // Get associated products
+  const productsResult = await query<{ product_id: string }>(
+    `SELECT product_id FROM sale_products WHERE sale_id = $1`,
+    [id]
+  );
+  
+  return {
+    ...result.rows[0],
+    is_active: Boolean(result.rows[0].is_active),
+    is_platform_sale: Boolean(result.rows[0].is_platform_sale),
+    product_ids: productsResult.rows.map(r => r.product_id),
+  };
+}
+
+export async function createPlatformFlashSale(input: CreatePlatformFlashSaleInput): Promise<PlatformFlashSale> {
+  const pool = getPool();
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    const saleId = generateId('flash');
+    
+    // Create the sale record
+    await client.query(
+      `INSERT INTO sales (id, name, description, banner_image, discount_type, discount_value, starts_at, ends_at, is_active, is_platform_sale, created_by, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 1, 1, $9, NOW()::TEXT, NOW()::TEXT)`,
+      [
+        saleId,
+        input.name,
+        input.description || null,
+        input.banner_image || null,
+        input.discount_type,
+        input.discount_value,
+        input.starts_at,
+        input.ends_at,
+        input.created_by,
+      ]
+    );
+    
+    // Add products to the sale
+    for (const productId of input.product_ids) {
+      const spId = generateId('sp');
+      await client.query(
+        `INSERT INTO sale_products (id, sale_id, product_id, created_at) VALUES ($1, $2, $3, NOW()::TEXT)
+         ON CONFLICT (sale_id, product_id) DO NOTHING`,
+        [spId, saleId, productId]
+      );
+    }
+    
+    await client.query('COMMIT');
+    
+    return {
+      id: saleId,
+      name: input.name,
+      description: input.description || null,
+      banner_image: input.banner_image || null,
+      discount_type: input.discount_type,
+      discount_value: input.discount_value,
+      starts_at: input.starts_at,
+      ends_at: input.ends_at,
+      is_active: true,
+      is_platform_sale: true,
+      created_by: input.created_by,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      product_ids: input.product_ids,
+    };
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updatePlatformFlashSale(id: string, input: UpdatePlatformFlashSaleInput): Promise<PlatformFlashSale | null> {
+  const pool = getPool();
+  const client = await pool.connect();
+  
+  try {
+    await client.query('BEGIN');
+    
+    // Build dynamic update query
+    const updates: string[] = ['updated_at = NOW()::TEXT'];
+    const values: (string | number | boolean)[] = [];
+    let paramIndex = 1;
+    
+    if (input.name !== undefined) {
+      updates.push(`name = $${paramIndex++}`);
+      values.push(input.name);
+    }
+    if (input.description !== undefined) {
+      updates.push(`description = $${paramIndex++}`);
+      values.push(input.description);
+    }
+    if (input.banner_image !== undefined) {
+      updates.push(`banner_image = $${paramIndex++}`);
+      values.push(input.banner_image);
+    }
+    if (input.discount_type !== undefined) {
+      updates.push(`discount_type = $${paramIndex++}`);
+      values.push(input.discount_type);
+    }
+    if (input.discount_value !== undefined) {
+      updates.push(`discount_value = $${paramIndex++}`);
+      values.push(input.discount_value);
+    }
+    if (input.starts_at !== undefined) {
+      updates.push(`starts_at = $${paramIndex++}`);
+      values.push(input.starts_at);
+    }
+    if (input.ends_at !== undefined) {
+      updates.push(`ends_at = $${paramIndex++}`);
+      values.push(input.ends_at);
+    }
+    if (input.is_active !== undefined) {
+      updates.push(`is_active = $${paramIndex++}`);
+      values.push(input.is_active ? 1 : 0);
+    }
+    
+    values.push(id);
+    
+    await client.query(
+      `UPDATE sales SET ${updates.join(', ')} WHERE id = $${paramIndex} AND is_platform_sale = 1`,
+      values
+    );
+    
+    // Update products if provided
+    if (input.product_ids !== undefined) {
+      // Remove existing products
+      await client.query(`DELETE FROM sale_products WHERE sale_id = $1`, [id]);
+      
+      // Add new products
+      for (const productId of input.product_ids) {
+        const spId = generateId('sp');
+        await client.query(
+          `INSERT INTO sale_products (id, sale_id, product_id, created_at) VALUES ($1, $2, $3, NOW()::TEXT)
+           ON CONFLICT (sale_id, product_id) DO NOTHING`,
+          [spId, id, productId]
+        );
+      }
+    }
+    
+    await client.query('COMMIT');
+    
+    return getPlatformFlashSaleById(id);
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deletePlatformFlashSale(id: string): Promise<boolean> {
+  const result = await query(
+    `DELETE FROM sales WHERE id = $1 AND is_platform_sale = 1`,
+    [id]
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+export async function getFlashSaleProducts(saleId: string): Promise<{ id: string; name: string; price: number; images: string }[]> {
+  const result = await query<{ id: string; name: string; price: number; images: string }>(
+    `SELECT p.id, p.name, p.price, p.images
+     FROM products p
+     INNER JOIN sale_products sp ON p.id = sp.product_id
+     WHERE sp.sale_id = $1 AND p.status = 'active'`,
+    [saleId]
+  );
+  return result.rows;
+}
+
+export async function getProductsInActiveFlashSales(): Promise<{ product_id: string; sale_id: string; discount_type: string; discount_value: number; ends_at: string }[]> {
+  const now = new Date().toISOString();
+  const result = await query<{ product_id: string; sale_id: string; discount_type: string; discount_value: number; ends_at: string }>(
+    `SELECT sp.product_id, s.id as sale_id, s.discount_type, s.discount_value, s.ends_at
+     FROM sales s
+     INNER JOIN sale_products sp ON s.id = sp.sale_id
+     WHERE s.is_platform_sale = 1 
+       AND s.is_active = 1
+       AND s.starts_at <= $1 
+       AND s.ends_at >= $1`,
+    [now]
+  );
+  return result.rows;
+}
+
+// ============================================
+// PRODUCT VIEWS TRACKING (For Trending)
+// ============================================
+
+export async function trackProductView(productId: string, userId?: string, sessionId?: string): Promise<void> {
+  const viewId = generateId('pv');
+  await query(
+    `INSERT INTO product_views (id, product_id, user_id, session_id, viewed_at) 
+     VALUES ($1, $2, $3, $4, NOW())`,
+    [viewId, productId, userId || null, sessionId || null]
+  );
+}
+
+export async function getTrendingProducts(limit: number = 10, days: number = 7): Promise<{ product_id: string; view_count: number }[]> {
+  const result = await query<{ product_id: string; view_count: string }>(
+    `SELECT product_id, COUNT(*) as view_count
+     FROM product_views
+     WHERE viewed_at >= NOW() - INTERVAL '${days} days'
+     GROUP BY product_id
+     ORDER BY view_count DESC
+     LIMIT $1`,
+    [limit]
+  );
+  return result.rows.map(r => ({
+    product_id: r.product_id,
+    view_count: parseInt(r.view_count),
+  }));
+}
+
+export async function getBestSellingProducts(limit: number = 10, days: number = 30): Promise<{ product_id: string; units_sold: number }[]> {
+  const result = await query<{ product_id: string; units_sold: string }>(
+    `SELECT oi.product_id, SUM(oi.quantity) as units_sold
+     FROM order_items oi
+     INNER JOIN orders o ON oi.order_id = o.id
+     WHERE o.created_at >= NOW() - INTERVAL '${days} days'
+       AND o.status NOT IN ('cancelled', 'refunded')
+     GROUP BY oi.product_id
+     ORDER BY units_sold DESC
+     LIMIT $1`,
+    [limit]
+  );
+  return result.rows.map(r => ({
+    product_id: r.product_id,
+    units_sold: parseInt(r.units_sold),
+  }));
+}

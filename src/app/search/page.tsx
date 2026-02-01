@@ -46,6 +46,7 @@ import { useOpenAI } from "@/lib/integrations-store";
 import { isOpenAIEnabled, semanticSearch } from "@/lib/services/openai";
 import { formatCurrency } from "@/lib/utils/currency";
 import { toast } from "sonner";
+import { PromotionalSection } from "@/components/search/promotional-section";
 
 interface CategoryAttribute {
   id: string;
@@ -1563,6 +1564,9 @@ function SearchPageContent() {
             </div>
           )}
         </div>
+
+        {/* Promotional Section - Flash Sales, Trending, Best Sellers */}
+        <PromotionalSection />
 
         <div className="flex gap-6">
           {/* Desktop Filters Sidebar */}

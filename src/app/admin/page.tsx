@@ -59,7 +59,7 @@ import { useSiteSettingsStore } from "@/lib/site-settings-store";
 import { useApprovalWorkflowsStore, ApprovalRequest } from "@/lib/approval-workflows-store";
 import {
   Layers, FileEdit, CheckSquare, Trash2, RotateCcw, Palette, Globe2,
-  Layout, Tag, Plus, Edit, GripVertical, Image as ImageIcon, Save, Link2, Mail
+  Layout, Tag, Plus, Edit, GripVertical, Image as ImageIcon, Save, Link2, Mail, Zap
 } from "lucide-react";
 import { AdminAuthGuard } from "@/components/auth/auth-guard";
 import { EmailTemplateEditor } from "@/components/admin/email-template-editor";
@@ -1514,6 +1514,11 @@ function AdminDashboardContent() {
                       <Button className="w-full justify-start" variant="outline" asChild>
                         <a href="/admin/banners">
                           <ImageIcon className="w-4 h-4 mr-2" />Promotional Banners
+                        </a>
+                      </Button>
+                      <Button className="w-full justify-start" variant="outline" asChild>
+                        <a href="/admin/flash-sales">
+                          <Zap className="w-4 h-4 mr-2 text-yellow-500" />Flash Sales
                         </a>
                       </Button>
                       <Button className="w-full justify-start" variant="outline" asChild>
