@@ -6,6 +6,22 @@ import { X, ChevronLeft, ChevronRight, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSiteSettingsStore, PromotionalBanner } from "@/lib/site-settings-store";
 
+interface DBPromotionalBanner {
+  id: string;
+  title: string;
+  description?: string;
+  image_url?: string;
+  video_url?: string;
+  media_type: 'image' | 'video';
+  link_url?: string;
+  position: 'top' | 'sidebar' | 'footer' | 'popup';
+  is_active: boolean;
+  start_date?: string;
+  end_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface PromotionalBannerDisplayProps {
   position?: PromotionalBanner['position'];
   className?: string;
@@ -15,16 +31,44 @@ export function PromotionalBannerDisplay({
   position = 'top',
   className = "",
 }: PromotionalBannerDisplayProps) {
-  const { getActivePromotionalBanners } = useSiteSettingsStore();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [isHydrated, setIsHydrated] = useState(false);
+  const [allBanners, setAllBanners] = useState<PromotionalBanner[]>([]);
 
   useEffect(() => {
     setIsHydrated(true);
-  }, []);
+    
+    const fetchBanners = async () => {
+      try {
+        const response = await fetch(`/api/promotional-banners?position=${position}`);
+        if (response.ok) {
+          const data = await response.json();
+          const mappedBanners: PromotionalBanner[] = data.banners.map((b: DBPromotionalBanner) => ({
+            id: b.id,
+            title: b.title,
+            description: b.description,
+            imageUrl: b.image_url,
+            videoUrl: b.video_url,
+            mediaType: b.media_type,
+            linkUrl: b.link_url,
+            position: b.position,
+            isActive: b.is_active,
+            startDate: b.start_date,
+            endDate: b.end_date,
+            createdAt: b.created_at,
+            updatedAt: b.updated_at,
+          }));
+          setAllBanners(mappedBanners);
+        }
+      } catch (error) {
+        console.error('Failed to fetch promotional banners:', error);
+      }
+    };
+    
+    fetchBanners();
+  }, [position]);
 
-  const allBanners = isHydrated ? getActivePromotionalBanners(position) : [];
   const banners = allBanners.filter(b => !dismissed.has(b.id));
 
   // Auto-rotate banners
@@ -425,7 +469,7 @@ export function HeroBannerCarousel({ className = "" }: { className?: string }) {
           </Button>
 
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-2">
-            {banners.map((_, idx) => (
+            {banners.map((_: unknown, idx: number) => (
               <button
                 key={idx}
                 onClick={() => setCurrentIndex(idx)}
@@ -443,15 +487,43 @@ export function HeroBannerCarousel({ className = "" }: { className?: string }) {
 
 // Standalone Popup Banner Display - shows popup banners as overlay
 export function PopupBannerDisplay() {
-  const { getActivePromotionalBanners } = useSiteSettingsStore();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [isHydrated, setIsHydrated] = useState(false);
+  const [allBanners, setAllBanners] = useState<PromotionalBanner[]>([]);
 
   useEffect(() => {
     setIsHydrated(true);
+    
+    const fetchBanners = async () => {
+      try {
+        const response = await fetch('/api/promotional-banners?position=popup');
+        if (response.ok) {
+          const data = await response.json();
+          const mappedBanners: PromotionalBanner[] = data.banners.map((b: DBPromotionalBanner) => ({
+            id: b.id,
+            title: b.title,
+            description: b.description,
+            imageUrl: b.image_url,
+            videoUrl: b.video_url,
+            mediaType: b.media_type,
+            linkUrl: b.link_url,
+            position: b.position,
+            isActive: b.is_active,
+            startDate: b.start_date,
+            endDate: b.end_date,
+            createdAt: b.created_at,
+            updatedAt: b.updated_at,
+          }));
+          setAllBanners(mappedBanners);
+        }
+      } catch (error) {
+        console.error('Failed to fetch popup banners:', error);
+      }
+    };
+    
+    fetchBanners();
   }, []);
 
-  const allBanners = isHydrated ? getActivePromotionalBanners('popup') : [];
   const banners = allBanners.filter(b => !dismissed.has(b.id));
 
   const handleDismiss = (id: string) => {
@@ -548,15 +620,43 @@ export function PopupBannerDisplay() {
 
 // Sidebar Banner Display - shows sidebar banners in a vertical stack
 export function SidebarBannerDisplay({ className = "" }: { className?: string }) {
-  const { getActivePromotionalBanners } = useSiteSettingsStore();
   const [dismissed, setDismissed] = useState<Set<string>>(new Set());
   const [isHydrated, setIsHydrated] = useState(false);
+  const [allBanners, setAllBanners] = useState<PromotionalBanner[]>([]);
 
   useEffect(() => {
     setIsHydrated(true);
+    
+    const fetchBanners = async () => {
+      try {
+        const response = await fetch('/api/promotional-banners?position=sidebar');
+        if (response.ok) {
+          const data = await response.json();
+          const mappedBanners: PromotionalBanner[] = data.banners.map((b: DBPromotionalBanner) => ({
+            id: b.id,
+            title: b.title,
+            description: b.description,
+            imageUrl: b.image_url,
+            videoUrl: b.video_url,
+            mediaType: b.media_type,
+            linkUrl: b.link_url,
+            position: b.position,
+            isActive: b.is_active,
+            startDate: b.start_date,
+            endDate: b.end_date,
+            createdAt: b.created_at,
+            updatedAt: b.updated_at,
+          }));
+          setAllBanners(mappedBanners);
+        }
+      } catch (error) {
+        console.error('Failed to fetch sidebar banners:', error);
+      }
+    };
+    
+    fetchBanners();
   }, []);
 
-  const allBanners = isHydrated ? getActivePromotionalBanners('sidebar') : [];
   const banners = allBanners.filter(b => !dismissed.has(b.id));
 
   const handleDismiss = (id: string) => {

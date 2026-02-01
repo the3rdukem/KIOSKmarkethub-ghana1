@@ -946,6 +946,32 @@ async function runMigrations(client: PoolClient): Promise<void> {
     // Columns may already exist
   }
 
+  // PHASE 11c: Create promotional_banners table (moved from localStorage to DB for video support)
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS promotional_banners (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT,
+        image_url TEXT,
+        video_url TEXT,
+        media_type TEXT DEFAULT 'image',
+        link_url TEXT,
+        position TEXT NOT NULL DEFAULT 'top',
+        is_active INTEGER DEFAULT 1,
+        start_date TEXT,
+        end_date TEXT,
+        created_at TEXT NOT NULL DEFAULT (NOW()::TEXT),
+        updated_at TEXT NOT NULL DEFAULT (NOW()::TEXT)
+      );
+      CREATE INDEX IF NOT EXISTS idx_promo_banners_position ON promotional_banners(position);
+      CREATE INDEX IF NOT EXISTS idx_promo_banners_active ON promotional_banners(is_active);
+    `);
+    console.log('[DB] PHASE 11c: Created promotional_banners table');
+  } catch (e) {
+    // Table may already exist
+  }
+
   // Create sales table if it doesn't exist (multi-product support via join table)
   try {
     await client.query(`

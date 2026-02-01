@@ -87,16 +87,27 @@ const defaultBannerForm: BannerFormData = {
   videoUrl: "",
 };
 
+interface DBPromotionalBanner {
+  id: string;
+  title: string;
+  description?: string;
+  image_url?: string;
+  video_url?: string;
+  media_type: 'image' | 'video';
+  link_url?: string;
+  position: 'top' | 'sidebar' | 'footer' | 'popup';
+  is_active: boolean;
+  start_date?: string;
+  end_date?: string;
+  created_at: string;
+  updated_at: string;
+}
+
 export default function AdminBannersPage() {
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore();
   const {
-    promotionalBanners,
     heroBanners,
-    addPromotionalBanner,
-    updatePromotionalBanner,
-    deletePromotionalBanner,
-    getActivePromotionalBanners,
     addHeroBanner,
     updateHeroBanner,
     deleteHeroBanner,
@@ -109,9 +120,42 @@ export default function AdminBannersPage() {
   const [selectedBanner, setSelectedBanner] = useState<PromotionalBanner | null>(null);
   const [bannerType, setBannerType] = useState<'promo' | 'hero'>('promo');
   const [formData, setFormData] = useState<BannerFormData>(defaultBannerForm);
+  const [promotionalBanners, setPromotionalBanners] = useState<PromotionalBanner[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchBanners = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/promotional-banners');
+      if (response.ok) {
+        const data = await response.json();
+        const mappedBanners: PromotionalBanner[] = data.banners.map((b: DBPromotionalBanner) => ({
+          id: b.id,
+          title: b.title,
+          description: b.description,
+          imageUrl: b.image_url,
+          videoUrl: b.video_url,
+          mediaType: b.media_type,
+          linkUrl: b.link_url,
+          position: b.position,
+          isActive: b.is_active,
+          startDate: b.start_date,
+          endDate: b.end_date,
+          createdAt: b.created_at,
+          updatedAt: b.updated_at,
+        }));
+        setPromotionalBanners(mappedBanners);
+      }
+    } catch (error) {
+      console.error('Failed to fetch banners:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
     setIsHydrated(true);
+    fetchBanners();
   }, []);
 
   useEffect(() => {
@@ -134,78 +178,132 @@ export default function AdminBannersPage() {
     setSelectedBanner(null);
   };
 
-  const handleCreateBanner = () => {
+  const handleCreateBanner = async () => {
     if (!user) return;
     if (!formData.title.trim()) {
       toast.error("Please enter a banner title");
       return;
     }
 
-    addPromotionalBanner(
-      {
-        title: formData.title,
-        description: formData.description,
-        imageUrl: formData.imageUrl,
-        linkUrl: formData.linkUrl,
-        position: formData.position,
-        startDate: formData.startDate || undefined,
-        endDate: formData.endDate || undefined,
-        isActive: formData.isActive,
-        order: formData.order,
-        mediaType: formData.mediaType,
-        videoUrl: formData.videoUrl || undefined,
-      },
-      user.id,
-      user.email || ""
-    );
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/promotional-banners', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          image_url: formData.imageUrl,
+          video_url: formData.videoUrl || null,
+          media_type: formData.mediaType,
+          link_url: formData.linkUrl,
+          position: formData.position,
+          is_active: formData.isActive,
+          start_date: formData.startDate || null,
+          end_date: formData.endDate || null,
+        }),
+      });
 
-    toast.success("Banner created successfully!");
-    setShowCreateDialog(false);
-    resetForm();
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to create banner');
+        return;
+      }
+
+      toast.success("Banner created successfully!");
+      setShowCreateDialog(false);
+      resetForm();
+      fetchBanners();
+    } catch (error) {
+      console.error('Failed to create banner:', error);
+      toast.error('Failed to create banner');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleUpdateBanner = () => {
+  const handleUpdateBanner = async () => {
     if (!user || !selectedBanner) return;
 
-    updatePromotionalBanner(
-      selectedBanner.id,
-      {
-        title: formData.title,
-        description: formData.description,
-        imageUrl: formData.imageUrl,
-        linkUrl: formData.linkUrl,
-        position: formData.position,
-        startDate: formData.startDate || undefined,
-        endDate: formData.endDate || undefined,
-        isActive: formData.isActive,
-        order: formData.order,
-        mediaType: formData.mediaType,
-        videoUrl: formData.videoUrl || undefined,
-      },
-      user.id,
-      user.email || ""
-    );
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/promotional-banners/${selectedBanner.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: formData.title,
+          description: formData.description,
+          image_url: formData.imageUrl,
+          video_url: formData.videoUrl || null,
+          media_type: formData.mediaType,
+          link_url: formData.linkUrl,
+          position: formData.position,
+          is_active: formData.isActive,
+          start_date: formData.startDate || null,
+          end_date: formData.endDate || null,
+        }),
+      });
 
-    toast.success("Banner updated successfully!");
-    setSelectedBanner(null);
-    resetForm();
+      if (!response.ok) {
+        const error = await response.json();
+        toast.error(error.error || 'Failed to update banner');
+        return;
+      }
+
+      toast.success("Banner updated successfully!");
+      setSelectedBanner(null);
+      resetForm();
+      fetchBanners();
+    } catch (error) {
+      console.error('Failed to update banner:', error);
+      toast.error('Failed to update banner');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDeleteBanner = (banner: PromotionalBanner) => {
+  const handleDeleteBanner = async (banner: PromotionalBanner) => {
     if (!user) return;
-    deletePromotionalBanner(banner.id, user.id, user.email || "");
-    toast.success("Banner deleted");
+    
+    try {
+      const response = await fetch(`/api/promotional-banners/${banner.id}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        toast.error('Failed to delete banner');
+        return;
+      }
+
+      toast.success("Banner deleted");
+      fetchBanners();
+    } catch (error) {
+      console.error('Failed to delete banner:', error);
+      toast.error('Failed to delete banner');
+    }
   };
 
-  const handleToggleBanner = (banner: PromotionalBanner) => {
+  const handleToggleBanner = async (banner: PromotionalBanner) => {
     if (!user) return;
-    updatePromotionalBanner(
-      banner.id,
-      { isActive: !banner.isActive },
-      user.id,
-      user.email || ""
-    );
-    toast.success(banner.isActive ? "Banner disabled" : "Banner enabled");
+    
+    try {
+      const response = await fetch(`/api/promotional-banners/${banner.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: !banner.isActive }),
+      });
+
+      if (!response.ok) {
+        toast.error('Failed to toggle banner');
+        return;
+      }
+
+      toast.success(banner.isActive ? "Banner disabled" : "Banner enabled");
+      fetchBanners();
+    } catch (error) {
+      console.error('Failed to toggle banner:', error);
+      toast.error('Failed to toggle banner');
+    }
   };
 
   const openEditDialog = (banner: PromotionalBanner) => {
@@ -299,7 +397,7 @@ export default function AdminBannersPage() {
     );
   }
 
-  const activeBanners = getActivePromotionalBanners();
+  const activeBanners = promotionalBanners.filter(b => b.isActive);
 
   return (
     <SiteLayout>
