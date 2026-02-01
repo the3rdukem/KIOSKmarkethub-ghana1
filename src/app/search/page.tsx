@@ -75,7 +75,7 @@ function DebouncedNumberInput({
   min,
   max,
   className,
-  debounceMs = 500
+  debounceMs = 800
 }: {
   value: number | null;
   onChange: (value: number | null) => void;
@@ -87,19 +87,26 @@ function DebouncedNumberInput({
 }) {
   const [localValue, setLocalValue] = useState(value?.toString() ?? "");
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const isInternalChange = useRef(false);
+  const isFocused = useRef(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!isInternalChange.current) {
+    if (!isFocused.current) {
       setLocalValue(value?.toString() ?? "");
     }
-    isInternalChange.current = false;
   }, [value]);
+
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, []);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     setLocalValue(newValue);
-    isInternalChange.current = true;
 
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
@@ -111,12 +118,28 @@ function DebouncedNumberInput({
     }, debounceMs);
   };
 
+  const handleFocus = () => {
+    isFocused.current = true;
+  };
+
+  const handleBlur = () => {
+    isFocused.current = false;
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    const parsed = localValue ? parseInt(localValue) : null;
+    onChange(parsed);
+  };
+
   return (
     <Input
+      ref={inputRef}
       type="number"
       placeholder={placeholder}
       value={localValue}
       onChange={handleChange}
+      onFocus={handleFocus}
+      onBlur={handleBlur}
       className={className}
       min={min}
       max={max}
