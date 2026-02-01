@@ -41,7 +41,14 @@ export async function POST(request: NextRequest) {
     const result = await createPasswordResetToken(email);
 
     if (result.success && result.token && result.expiresAt) {
-      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:5000';
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL;
+      if (!baseUrl) {
+        console.error('[PASSWORD_RESET] NEXT_PUBLIC_APP_URL is not configured');
+        return NextResponse.json({ 
+          success: false, 
+          error: 'Password reset is not properly configured. Please contact support.' 
+        }, { status: 500 });
+      }
       const resetLink = `${baseUrl}/reset-password?token=${result.token}`;
       const siteName = 'KIOSK';
       const supportEmail = 'support@kiosk.com.gh';

@@ -8,8 +8,19 @@
 import { query } from '../index';
 import { createHash, createCipheriv, createDecipheriv, randomBytes } from 'crypto';
 
-// Encryption key from environment or generate a default for development
-const ENCRYPTION_KEY = process.env.INTEGRATION_ENCRYPTION_KEY || 'marketplace-dev-key-32chars!!';
+// Encryption key from environment - required in production
+function getEncryptionKey(): string {
+  const key = process.env.INTEGRATION_ENCRYPTION_KEY;
+  if (!key) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('CRITICAL: INTEGRATION_ENCRYPTION_KEY environment variable is required in production');
+    }
+    console.warn('[SECURITY WARNING] INTEGRATION_ENCRYPTION_KEY not set - using development default. DO NOT USE IN PRODUCTION');
+    return 'marketplace-dev-key-32chars!!';
+  }
+  return key;
+}
+const ENCRYPTION_KEY = getEncryptionKey();
 const ALGORITHM = 'aes-256-cbc';
 
 function getKeyBuffer(): Buffer {

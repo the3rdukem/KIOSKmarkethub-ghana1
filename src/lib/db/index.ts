@@ -149,19 +149,20 @@ async function seedMasterAdmin(client: PoolClient): Promise<void> {
     return;
   }
 
-  // Create master admin with environment variables or secure defaults
-  const email = process.env.MASTER_ADMIN_EMAIL || 'the3rdukem@gmail.com';
+  // Create master admin with environment variables - NO FALLBACKS
+  const email = process.env.MASTER_ADMIN_EMAIL;
   const password = process.env.MASTER_ADMIN_PASSWORD;
-  const name = 'System Administrator';
+  const name = process.env.MASTER_ADMIN_NAME || 'System Administrator';
   
-  // SECURITY: Require MASTER_ADMIN_PASSWORD in production
-  if (!password) {
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('CRITICAL: MASTER_ADMIN_PASSWORD environment variable is required in production');
-    }
-    console.warn('[SECURITY WARNING] Using default master admin password - DO NOT USE IN PRODUCTION');
+  // SECURITY: Require both MASTER_ADMIN_EMAIL and MASTER_ADMIN_PASSWORD
+  if (!email || !password) {
+    console.error('[SECURITY] MASTER_ADMIN_EMAIL and MASTER_ADMIN_PASSWORD environment variables are required.');
+    throw new Error(
+      'MASTER_ADMIN_EMAIL and MASTER_ADMIN_PASSWORD environment variables are required. ' +
+      'These must be set before the application can start.'
+    );
   }
-  const adminPassword = password || '123asdqweX$';
+  const adminPassword = password;
   
   // Hash password using bcrypt via crypto utility
   const { hashPasswordSync } = require('@/lib/utils/crypto');
