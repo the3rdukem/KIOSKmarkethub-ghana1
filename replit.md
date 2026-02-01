@@ -52,6 +52,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Admin Dashboard Analytics**: Comprehensive platform metrics with date range filtering (7d/30d/90d/1y/all) and time bucketing (day/week/month). Tracks revenue, orders, users, products, vendors, fulfillment rates, commissions, and payouts. Includes trend charts (recharts), pie charts for status distributions, and top vendor leaderboard.
 - **Structured Logging**: JSON-based logging utility in `src/lib/utils/logger.ts`. Usage: `const log = createLogger('COMPONENT_NAME')`. Supports levels: debug, info, warn, error. Controlled by `LOG_LEVEL` env var (default: 'info'). Applied to auth routes; progressively migrating from console.log.
 - **Rate Limiting**: Database-backed distributed rate limiting in `src/lib/utils/rate-limiter.ts`. Applied to public endpoints (products, categories, cart, reviews, etc.) with 60 req/min for reads and 30 req/min for searches.
+- **DAL Error Handling**: Standardized error utilities in `src/lib/db/dal/errors.ts`. Provides `DALResult<T>` type, `success()/failure()` helpers, and `handleDALError()` for consistent error handling. Ready for DAL file migration when authorized.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions and vendor payouts.
