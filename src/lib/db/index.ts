@@ -935,6 +935,17 @@ async function runMigrations(client: PoolClient): Promise<void> {
     // Table may already exist
   }
 
+  // PHASE 11b: Add video support columns to hero_slides
+  try {
+    await client.query(`
+      ALTER TABLE hero_slides ADD COLUMN IF NOT EXISTS media_type TEXT DEFAULT 'image';
+      ALTER TABLE hero_slides ADD COLUMN IF NOT EXISTS video_url TEXT;
+    `);
+    console.log('[DB] PHASE 11b: Added video support to hero_slides');
+  } catch (e) {
+    // Columns may already exist
+  }
+
   // Create sales table if it doesn't exist (multi-product support via join table)
   try {
     await client.query(`

@@ -8,6 +8,8 @@ export interface HeroSlide {
   link_url: string | null;
   order_num: number;
   is_active: boolean;
+  media_type: 'image' | 'video';
+  video_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -19,6 +21,8 @@ export interface CreateHeroSlideInput {
   link_url?: string;
   order_num?: number;
   is_active?: boolean;
+  media_type?: 'image' | 'video';
+  video_url?: string;
 }
 
 export interface UpdateHeroSlideInput {
@@ -28,6 +32,8 @@ export interface UpdateHeroSlideInput {
   link_url?: string;
   order_num?: number;
   is_active?: boolean;
+  media_type?: 'image' | 'video';
+  video_url?: string;
 }
 
 export async function getAllHeroSlides(): Promise<HeroSlide[]> {
@@ -57,8 +63,8 @@ export async function createHeroSlide(input: CreateHeroSlideInput): Promise<Hero
   const now = new Date().toISOString();
   
   const result = await query<HeroSlide>(
-    `INSERT INTO hero_slides (id, title, subtitle, image_url, link_url, order_num, is_active, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    `INSERT INTO hero_slides (id, title, subtitle, image_url, link_url, order_num, is_active, media_type, video_url, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING *`,
     [
       id,
@@ -68,6 +74,8 @@ export async function createHeroSlide(input: CreateHeroSlideInput): Promise<Hero
       input.link_url || null,
       input.order_num ?? 0,
       input.is_active ?? true,
+      input.media_type || 'image',
+      input.video_url || null,
       now,
       now
     ]
@@ -104,6 +112,14 @@ export async function updateHeroSlide(id: string, input: UpdateHeroSlideInput): 
   if (input.is_active !== undefined) {
     updates.push(`is_active = $${paramCount++}`);
     values.push(input.is_active);
+  }
+  if (input.media_type !== undefined) {
+    updates.push(`media_type = $${paramCount++}`);
+    values.push(input.media_type);
+  }
+  if (input.video_url !== undefined) {
+    updates.push(`video_url = $${paramCount++}`);
+    values.push(input.video_url || null);
   }
 
   if (updates.length === 0) {

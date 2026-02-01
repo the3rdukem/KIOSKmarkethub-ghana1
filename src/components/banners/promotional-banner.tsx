@@ -77,7 +77,17 @@ export function PromotionalBannerDisplay({
             )}
 
             <div className="flex flex-col sm:flex-row items-center gap-3 sm:gap-4 text-center">
-              {currentBanner.imageUrl && (
+              {currentBanner.mediaType === 'video' && currentBanner.videoUrl ? (
+                <video
+                  src={currentBanner.videoUrl}
+                  poster={currentBanner.imageUrl}
+                  className="h-16 w-auto max-w-[200px] object-contain rounded"
+                  autoPlay
+                  muted
+                  loop
+                  playsInline
+                />
+              ) : currentBanner.imageUrl && (
                 <img
                   src={currentBanner.imageUrl}
                   alt={currentBanner.title}
@@ -152,7 +162,17 @@ export function PromotionalBannerDisplay({
             key={banner.id}
             className="relative rounded-lg overflow-hidden bg-gradient-to-br from-green-50 to-green-100 border"
           >
-            {banner.imageUrl && (
+            {banner.mediaType === 'video' && banner.videoUrl ? (
+              <video
+                src={banner.videoUrl}
+                poster={banner.imageUrl}
+                className="w-full h-32 object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+              />
+            ) : banner.imageUrl && (
               <img
                 src={banner.imageUrl}
                 alt={banner.title}
@@ -192,7 +212,17 @@ export function PromotionalBannerDisplay({
       >
         <div className="container">
           <div className="flex flex-col md:flex-row items-center justify-center gap-6 md:gap-10">
-            {currentBanner.imageUrl && (
+            {currentBanner.mediaType === 'video' && currentBanner.videoUrl ? (
+              <video
+                src={currentBanner.videoUrl}
+                poster={currentBanner.imageUrl}
+                className="h-32 md:h-40 w-auto max-w-[300px] object-contain"
+                autoPlay
+                muted
+                loop
+                playsInline
+              />
+            ) : currentBanner.imageUrl && (
               <img
                 src={currentBanner.imageUrl}
                 alt={currentBanner.title}
@@ -267,7 +297,17 @@ export function PromotionalBannerDisplay({
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden">
-          {currentBanner.imageUrl && (
+          {currentBanner.mediaType === 'video' && currentBanner.videoUrl ? (
+            <video
+              src={currentBanner.videoUrl}
+              poster={currentBanner.imageUrl}
+              className="w-full h-48 object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+          ) : currentBanner.imageUrl && (
             <img
               src={currentBanner.imageUrl}
               alt={currentBanner.title}
@@ -444,13 +484,25 @@ export function PopupBannerDisplay() {
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
       <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-300">
-        {currentBanner.imageUrl && (
+        {(currentBanner.imageUrl || (currentBanner.mediaType === 'video' && currentBanner.videoUrl)) && (
           <div className="relative">
-            <img
-              src={currentBanner.imageUrl}
-              alt={currentBanner.title}
-              className="w-full h-56 object-cover"
-            />
+            {currentBanner.mediaType === 'video' && currentBanner.videoUrl ? (
+              <video
+                src={currentBanner.videoUrl}
+                poster={currentBanner.imageUrl}
+                className="w-full h-56 object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+              />
+            ) : (
+              <img
+                src={currentBanner.imageUrl}
+                alt={currentBanner.title}
+                className="w-full h-56 object-cover"
+              />
+            )}
             <button
               onClick={() => handleDismiss(currentBanner.id)}
               className="absolute top-3 right-3 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors"
@@ -522,7 +574,17 @@ export function SidebarBannerDisplay({ className = "" }: { className?: string })
           key={banner.id}
           className="relative rounded-lg overflow-hidden bg-gradient-to-br from-green-50 to-green-100 border shadow-sm"
         >
-          {banner.imageUrl && (
+          {banner.mediaType === 'video' && banner.videoUrl ? (
+            <video
+              src={banner.videoUrl}
+              poster={banner.imageUrl}
+              className="w-full h-36 object-cover"
+              autoPlay
+              muted
+              loop
+              playsInline
+            />
+          ) : banner.imageUrl && (
             <img
               src={banner.imageUrl}
               alt={banner.title}

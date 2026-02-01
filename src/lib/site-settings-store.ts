@@ -41,6 +41,8 @@ export interface PromotionalBanner {
   endDate?: string;
   isActive: boolean;
   order: number;
+  mediaType?: 'image' | 'video';
+  videoUrl?: string;
   createdAt: string;
   updatedAt: string;
 }

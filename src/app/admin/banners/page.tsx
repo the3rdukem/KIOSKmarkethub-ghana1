@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   Image as ImageIcon,
+  Video,
   Plus,
   Edit,
   Trash2,
@@ -43,7 +44,8 @@ import {
   ArrowUpDown,
   CheckCircle,
   XCircle,
-  ArrowLeft
+  ArrowLeft,
+  Upload
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistance, format } from "date-fns";
@@ -66,6 +68,8 @@ interface BannerFormData {
   endDate: string;
   isActive: boolean;
   order: number;
+  mediaType: 'image' | 'video';
+  videoUrl: string;
 }
 
 const defaultBannerForm: BannerFormData = {
@@ -79,6 +83,8 @@ const defaultBannerForm: BannerFormData = {
   endDate: "",
   isActive: true,
   order: 1,
+  mediaType: "image",
+  videoUrl: "",
 };
 
 export default function AdminBannersPage() {
@@ -146,6 +152,8 @@ export default function AdminBannersPage() {
         endDate: formData.endDate || undefined,
         isActive: formData.isActive,
         order: formData.order,
+        mediaType: formData.mediaType,
+        videoUrl: formData.videoUrl || undefined,
       },
       user.id,
       user.email || ""
@@ -171,6 +179,8 @@ export default function AdminBannersPage() {
         endDate: formData.endDate || undefined,
         isActive: formData.isActive,
         order: formData.order,
+        mediaType: formData.mediaType,
+        videoUrl: formData.videoUrl || undefined,
       },
       user.id,
       user.email || ""
@@ -211,7 +221,30 @@ export default function AdminBannersPage() {
       endDate: banner.endDate || "",
       isActive: banner.isActive,
       order: banner.order,
+      mediaType: banner.mediaType || "image",
+      videoUrl: banner.videoUrl || "",
     });
+  };
+
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Video must be less than 50MB");
+      return;
+    }
+
+    if (!file.type.startsWith("video/")) {
+      toast.error("Please upload a valid video file (MP4, WebM)");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData({ ...formData, videoUrl: reader.result as string });
+    };
+    reader.readAsDataURL(file);
   };
 
   const getBannerStatus = (banner: PromotionalBanner) => {
@@ -344,13 +377,81 @@ export default function AdminBannersPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Banner Image</Label>
+                  <Label>Media Type</Label>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant={formData.mediaType === "image" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, mediaType: "image" })}
+                      className="flex items-center gap-2"
+                    >
+                      <ImageIcon className="w-4 h-4" />
+                      Image
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={formData.mediaType === "video" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, mediaType: "video" })}
+                      className="flex items-center gap-2"
+                    >
+                      <Video className="w-4 h-4" />
+                      Video
+                    </Button>
+                  </div>
+                </div>
+
+                {formData.mediaType === "video" && (
+                  <div className="space-y-2">
+                    <Label>Video File</Label>
+                    {formData.videoUrl ? (
+                      <div className="relative">
+                        <video
+                          src={formData.videoUrl}
+                          className="w-full h-48 object-cover rounded-lg"
+                          controls
+                          muted
+                        />
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2"
+                          onClick={() => setFormData({ ...formData, videoUrl: "" })}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+                        <Video className="w-8 h-8 text-muted-foreground mb-2" />
+                        <span className="text-sm text-muted-foreground">
+                          Click to upload video
+                        </span>
+                        <span className="text-xs text-muted-foreground mt-1">
+                          MP4 or WebM, max 50MB
+                        </span>
+                        <input
+                          type="file"
+                          accept="video/mp4,video/webm"
+                          className="hidden"
+                          onChange={handleVideoUpload}
+                        />
+                      </label>
+                    )}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <Label>{formData.mediaType === "video" ? "Poster Image (fallback)" : "Banner Image"}</Label>
                   <ImageUpload
                     value={formData.imageUrl}
                     onChange={(url) => setFormData({ ...formData, imageUrl: url })}
                     onRemove={() => setFormData({ ...formData, imageUrl: "" })}
-                    label="Upload Banner Image"
-                    description="PNG, JPG up to 5MB. Recommended: 1200x400px for top banners"
+                    label={formData.mediaType === "video" ? "Upload Poster Image" : "Upload Banner Image"}
+                    description={formData.mediaType === "video" 
+                      ? "Shown while video loads" 
+                      : "PNG, JPG up to 5MB. Recommended: 1200x400px for top banners"}
                     aspectRatio="banner"
                   />
                 </div>

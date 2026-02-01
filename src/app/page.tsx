@@ -29,6 +29,8 @@ interface HeroSlide {
   link_url: string | null;
   order_num: number;
   is_active: boolean;
+  media_type: 'image' | 'video';
+  video_url: string | null;
 }
 
 export default function HomePage() {
@@ -230,11 +232,23 @@ export default function HomePage() {
                     {heroSlides.map((slide, index) => {
                       const slideContent = (
                         <>
-                          <img 
-                            src={slide.image_url} 
-                            alt={slide.title || "Hero slide"} 
-                            className="w-full h-full object-cover"
-                          />
+                          {slide.media_type === 'video' && slide.video_url ? (
+                            <video
+                              src={slide.video_url}
+                              poster={slide.image_url}
+                              className="w-full h-full object-cover"
+                              autoPlay
+                              muted
+                              loop
+                              playsInline
+                            />
+                          ) : (
+                            <img 
+                              src={slide.image_url} 
+                              alt={slide.title || "Hero slide"} 
+                              className="w-full h-full object-cover"
+                            />
+                          )}
                           {(slide.title || slide.subtitle) && (
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex items-end p-4 sm:p-6 pointer-events-none">
                               <div className="text-white">

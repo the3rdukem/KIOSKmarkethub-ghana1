@@ -32,6 +32,7 @@ import {
   Trash2,
   Edit,
   Image as ImageIcon,
+  Video,
   Link as LinkIcon,
   GripVertical,
   Eye,
@@ -52,6 +53,8 @@ interface HeroSlide {
   link_url: string | null;
   order_num: number;
   is_active: boolean;
+  media_type: 'image' | 'video';
+  video_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -72,6 +75,8 @@ export default function AdminHeroSlidesPage() {
     image_url: "",
     link_url: "",
     is_active: true,
+    media_type: "image" as "image" | "video",
+    video_url: "",
   });
 
   useEffect(() => {
@@ -120,6 +125,8 @@ export default function AdminHeroSlidesPage() {
         image_url: slide.image_url,
         link_url: slide.link_url || "",
         is_active: slide.is_active,
+        media_type: slide.media_type || "image",
+        video_url: slide.video_url || "",
       });
     } else {
       setEditingSlide(null);
@@ -129,6 +136,8 @@ export default function AdminHeroSlidesPage() {
         image_url: "",
         link_url: "",
         is_active: true,
+        media_type: "image",
+        video_url: "",
       });
     }
     setShowDialog(true);
@@ -150,9 +159,34 @@ export default function AdminHeroSlidesPage() {
     reader.readAsDataURL(file);
   };
 
+  const handleVideoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 50 * 1024 * 1024) {
+      toast.error("Video must be less than 50MB");
+      return;
+    }
+
+    if (!file.type.startsWith("video/")) {
+      toast.error("Please upload a valid video file (MP4, WebM)");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData({ ...formData, video_url: reader.result as string });
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSave = async () => {
-    if (!formData.image_url) {
+    if (formData.media_type === "image" && !formData.image_url) {
       toast.error("Please upload an image");
+      return;
+    }
+    if (formData.media_type === "video" && !formData.video_url && !formData.image_url) {
+      toast.error("Please upload a video and poster image");
       return;
     }
 
@@ -330,7 +364,8 @@ export default function AdminHeroSlidesPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[50px]">Order</TableHead>
-                    <TableHead className="w-[120px]">Image</TableHead>
+                    <TableHead className="w-[120px]">Media</TableHead>
+                    <TableHead className="w-[60px]">Type</TableHead>
                     <TableHead>Title</TableHead>
                     <TableHead>Link</TableHead>
                     <TableHead className="w-[100px]">Status</TableHead>
@@ -363,11 +398,34 @@ export default function AdminHeroSlidesPage() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <img
-                          src={slide.image_url}
-                          alt={slide.title || "Slide"}
-                          className="w-24 h-14 object-cover rounded"
-                        />
+                        {slide.media_type === "video" && slide.video_url ? (
+                          <div className="relative w-24 h-14">
+                            <video
+                              src={slide.video_url}
+                              className="w-24 h-14 object-cover rounded"
+                              muted
+                              poster={slide.image_url}
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Video className="w-6 h-6 text-white drop-shadow-lg" />
+                            </div>
+                          </div>
+                        ) : (
+                          <img
+                            src={slide.image_url}
+                            alt={slide.title || "Slide"}
+                            className="w-24 h-14 object-cover rounded"
+                          />
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={slide.media_type === "video" ? "secondary" : "outline"}>
+                          {slide.media_type === "video" ? (
+                            <><Video className="w-3 h-3 mr-1" />Video</>
+                          ) : (
+                            <><ImageIcon className="w-3 h-3 mr-1" />Image</>
+                          )}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div>
@@ -445,7 +503,75 @@ export default function AdminHeroSlidesPage() {
 
             <div className="space-y-4 py-4">
               <div>
-                <Label>Slide Image *</Label>
+                <Label className="mb-2 block">Media Type</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={formData.media_type === "image" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, media_type: "image" })}
+                    className="flex items-center gap-2"
+                  >
+                    <ImageIcon className="w-4 h-4" />
+                    Image
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={formData.media_type === "video" ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, media_type: "video" })}
+                    className="flex items-center gap-2"
+                  >
+                    <Video className="w-4 h-4" />
+                    Video
+                  </Button>
+                </div>
+              </div>
+
+              {formData.media_type === "video" && (
+                <div>
+                  <Label>Video File *</Label>
+                  <div className="mt-2">
+                    {formData.video_url ? (
+                      <div className="relative">
+                        <video
+                          src={formData.video_url}
+                          className="w-full h-48 object-cover rounded-lg"
+                          controls
+                          muted
+                        />
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          className="absolute top-2 right-2"
+                          onClick={() => setFormData({ ...formData, video_url: "" })}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    ) : (
+                      <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-50">
+                        <Video className="w-8 h-8 text-muted-foreground mb-2" />
+                        <span className="text-sm text-muted-foreground">
+                          Click to upload video
+                        </span>
+                        <span className="text-xs text-muted-foreground mt-1">
+                          MP4 or WebM, max 50MB
+                        </span>
+                        <input
+                          type="file"
+                          accept="video/mp4,video/webm"
+                          className="hidden"
+                          onChange={handleVideoUpload}
+                        />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <Label>{formData.media_type === "video" ? "Poster Image (fallback) *" : "Slide Image *"}</Label>
                 <div className="mt-2">
                   {formData.image_url ? (
                     <div className="relative">
@@ -470,7 +596,9 @@ export default function AdminHeroSlidesPage() {
                         Click to upload image
                       </span>
                       <span className="text-xs text-muted-foreground mt-1">
-                        Recommended: 1920x600px, max 5MB
+                        {formData.media_type === "video" 
+                          ? "Shown while video loads, required" 
+                          : "Recommended: 1920x600px, max 5MB"}
                       </span>
                       <input
                         type="file"
