@@ -206,55 +206,63 @@ export function PromotionalSection() {
   };
 
   return (
-    <div className="mb-6 bg-gradient-to-r from-orange-50 via-yellow-50 to-red-50 rounded-xl p-4 border border-orange-100">
+    <div className="mb-6 bg-gradient-to-r from-rose-50 via-pink-50 to-fuchsia-50 rounded-xl p-3 md:p-4 border border-rose-100">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <div className="flex items-center justify-between mb-4">
-          <TabsList className="bg-white/80">
-            {flashSaleProducts.length > 0 && (
-              <TabsTrigger value="flash-sale" className="gap-2">
-                <Zap className="w-4 h-4 text-yellow-500" />
-                Flash Sale
-              </TabsTrigger>
-            )}
-            {trendingProducts.length > 0 && (
-              <TabsTrigger value="trending" className="gap-2">
-                <TrendingUp className="w-4 h-4 text-blue-500" />
-                Trending
-              </TabsTrigger>
-            )}
-            {bestSellers.length > 0 && (
-              <TabsTrigger value="bestsellers" className="gap-2">
-                <Flame className="w-4 h-4 text-orange-500" />
-                Best Sellers
-              </TabsTrigger>
-            )}
-          </TabsList>
+        {/* Mobile-optimized header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+          <div className="flex items-center justify-between">
+            <TabsList className="bg-white/80 h-auto flex-wrap">
+              {flashSaleProducts.length > 0 && (
+                <TabsTrigger value="flash-sale" className="gap-1 text-xs sm:text-sm px-2 sm:px-3 py-1.5">
+                  <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-rose-500" />
+                  <span className="hidden xs:inline">Flash Sale</span>
+                  <span className="xs:hidden">Sale</span>
+                </TabsTrigger>
+              )}
+              {trendingProducts.length > 0 && (
+                <TabsTrigger value="trending" className="gap-1 text-xs sm:text-sm px-2 sm:px-3 py-1.5">
+                  <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500" />
+                  <span className="hidden xs:inline">Trending</span>
+                  <span className="xs:hidden">Hot</span>
+                </TabsTrigger>
+              )}
+              {bestSellers.length > 0 && (
+                <TabsTrigger value="bestsellers" className="gap-1 text-xs sm:text-sm px-2 sm:px-3 py-1.5">
+                  <Flame className="w-3 h-3 sm:w-4 sm:h-4 text-orange-500" />
+                  <span className="hidden xs:inline">Best Sellers</span>
+                  <span className="xs:hidden">Top</span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+            
+            {/* Navigation arrows - visible on mobile too */}
+            <div className="flex items-center gap-1 ml-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 sm:h-8 sm:w-8"
+                onClick={() => scroll('left')}
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-7 w-7 sm:h-8 sm:w-8"
+                onClick={() => scroll('right')}
+              >
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
           
+          {/* Countdown timer */}
           {activeTab === 'flash-sale' && countdown && (
-            <div className="flex items-center gap-2 text-sm font-medium">
-              <Clock className="w-4 h-4 text-red-500" />
-              <span className="text-red-600">Ends in: {countdown}</span>
+            <div className="flex items-center gap-2 text-xs sm:text-sm font-medium bg-white/60 rounded-full px-3 py-1 w-fit">
+              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-rose-500" />
+              <span className="text-rose-600">{countdown}</span>
             </div>
           )}
-          
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => scroll('left')}
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={() => scroll('right')}
-            >
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
         </div>
         
         {isLoading ? (

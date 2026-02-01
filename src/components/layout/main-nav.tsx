@@ -491,10 +491,8 @@ export function MainNav() {
               )
             ) : (
               <>
-                <div className={`w-8 h-8 rounded-lg ${getPortalColor()} flex items-center justify-center text-white font-bold overflow-hidden`}>
-                  {branding.logo_url ? (
-                    <img src={branding.logo_url} alt={siteName} className="w-full h-full object-cover" />
-                  ) : effectiveRole === "vendor" ? (
+                <div className={`w-8 h-8 rounded-lg ${getPortalColor()} flex items-center justify-center text-white font-bold`}>
+                  {effectiveRole === "vendor" ? (
                     <Store className="w-4 h-4" />
                   ) : effectiveRole === "master_admin" ? (
                     <Crown className="w-4 h-4" />

@@ -1347,13 +1347,15 @@ function SearchPageContent() {
               </div>
             )}
 
-            {/* Results count + View Controls */}
-            <div className="flex items-center gap-4 ml-auto">
-              {/* Results count */}
-              <p className="text-sm text-muted-foreground hidden sm:block">
+            {/* Results count - Left side */}
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted-foreground">
                 {filteredAndSortedProducts.length} product{filteredAndSortedProducts.length !== 1 ? 's' : ''} found
               </p>
+            </div>
 
+            {/* View Controls - Right side */}
+            <div className="flex items-center gap-4 ml-auto">
               {/* Mobile Filter Button */}
               <Sheet open={showFilters} onOpenChange={setShowFilters}>
                 <SheetTrigger asChild>
