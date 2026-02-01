@@ -83,12 +83,24 @@ export const ADMIN_PERMISSIONS: AdminPermission[] = [
   'VIEW_ANALYTICS',
 ];
 
-// Initial Master Admin credentials (from environment or default)
-const INITIAL_MASTER_ADMIN = {
-  email: process.env.MASTER_ADMIN_EMAIL || 'the3rdukem@gmail.com',
-  password: process.env.MASTER_ADMIN_PASSWORD || '123asdqweX$',
-  name: 'System Administrator',
-};
+// Initial Master Admin credentials (from environment - REQUIRED)
+function getMasterAdminCredentials() {
+  const email = process.env.MASTER_ADMIN_EMAIL;
+  const password = process.env.MASTER_ADMIN_PASSWORD;
+  
+  if (!email || !password) {
+    throw new Error(
+      'MASTER_ADMIN_EMAIL and MASTER_ADMIN_PASSWORD environment variables are required. ' +
+      'Please set these in your Secrets/Environment Variables before initializing the admin system.'
+    );
+  }
+  
+  return {
+    email,
+    password,
+    name: process.env.MASTER_ADMIN_NAME || 'System Administrator',
+  };
+}
 
 /**
  * Initialize the system with the initial master admin
@@ -101,15 +113,18 @@ export async function initializeAdminSystem(): Promise<void> {
   const existingAdmin = result.rows[0];
 
   if (!existingAdmin) {
+    // Get credentials from environment (will throw if not set)
+    const credentials = getMasterAdminCredentials();
+    
     // Create initial master admin
     await createAdminUser({
-      email: INITIAL_MASTER_ADMIN.email,
-      password: INITIAL_MASTER_ADMIN.password,
-      name: INITIAL_MASTER_ADMIN.name,
+      email: credentials.email,
+      password: credentials.password,
+      name: credentials.name,
       role: 'MASTER_ADMIN',
       permissions: MASTER_ADMIN_PERMISSIONS,
     });
-    console.log('[DB] Initial Master Admin created:', INITIAL_MASTER_ADMIN.email);
+    console.log('[DB] Initial Master Admin created:', credentials.email);
   }
 }
 
