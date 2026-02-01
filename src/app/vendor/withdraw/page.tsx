@@ -237,6 +237,14 @@ export default function VendorWithdrawPage() {
     }
   }, [isHydrated, user, fetchData]);
 
+  // Countdown for OTP cooldown - must be before any conditional returns
+  useEffect(() => {
+    if (otpCooldown > 0) {
+      const timer = setTimeout(() => setOtpCooldown(otpCooldown - 1), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [otpCooldown]);
+
   if (!isHydrated || isLoading) {
     return (
       <SiteLayout>
@@ -382,14 +390,6 @@ export default function VendorWithdrawPage() {
       setIsVerifyingOTP(false);
     }
   };
-
-  // Countdown for OTP cooldown
-  useEffect(() => {
-    if (otpCooldown > 0) {
-      const timer = setTimeout(() => setOtpCooldown(otpCooldown - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [otpCooldown]);
 
   const handleAddAccount = async () => {
     // Check if we have a valid payout token

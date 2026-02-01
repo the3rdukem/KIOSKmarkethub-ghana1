@@ -1,0 +1,62 @@
+## Error Type
+Console Error
+
+## Error Message
+React has detected a change in the order of Hooks called by VendorWithdrawPage. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+1. useContext                 useContext
+2. useCallback                useCallback
+3. useCallback                useCallback
+4. useSyncExternalStore       useSyncExternalStore
+5. useDebugValue              useDebugValue
+6. useState                   useState
+7. useState                   useState
+8. useState                   useState
+9. useState                   useState
+10. useState                  useState
+11. useState                  useState
+12. useState                  useState
+13. useState                  useState
+14. useState                  useState
+15. useState                  useState
+16. useState                  useState
+17. useState                  useState
+18. useState                  useState
+19. useState                  useState
+20. useState                  useState
+21. useState                  useState
+22. useState                  useState
+23. useState                  useState
+24. useState                  useState
+25. useState                  useState
+26. useState                  useState
+27. useState                  useState
+28. useState                  useState
+29. useState                  useState
+30. useState                  useState
+31. useState                  useState
+32. useState                  useState
+33. useState                  useState
+34. useCallback               useCallback
+35. useEffect                 useEffect
+36. useEffect                 useEffect
+37. useEffect                 useEffect
+38. undefined                 useEffect
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+    at VendorWithdrawPage (src/app/vendor/withdraw/page.tsx:387:12)
+
+## Code Frame
+  385 |
+  386 |   // Countdown for OTP cooldown
+> 387 |   useEffect(() => {
+      |            ^
+  388 |     if (otpCooldown > 0) {
+  389 |       const timer = setTimeout(() => setOtpCooldown(otpCooldown - 1), 1000);
+  390 |       return () => clearTimeout(timer);
+
+Next.js version: 15.5.9 (Turbopack)
