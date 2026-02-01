@@ -46,6 +46,18 @@ import { useOpenAI } from "@/lib/integrations-store";
 import { isOpenAIEnabled, semanticSearch } from "@/lib/services/openai";
 import { formatCurrency } from "@/lib/utils/currency";
 import { toast } from "sonner";
+
+// Format attribute values: snake_case/camelCase to Title Case
+const formatAttributeValue = (value: string): string => {
+  if (!value) return value;
+  // Convert snake_case and camelCase to space-separated words
+  return value
+    .replace(/_/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
+};
 import { PromotionalSection } from "@/components/search/promotional-section";
 
 interface CategoryAttribute {
@@ -760,6 +772,33 @@ function SearchPageContent() {
         </Select>
       </CollapsibleFilterSection>
 
+      {/* Price Range - Moved up for better visibility */}
+      <CollapsibleFilterSection 
+        title="Price" 
+        defaultOpen={true}
+        badge={priceRange[0] > 0 || priceRange[1] < maxPrice ? 1 : undefined}
+      >
+        <RangeFilterSection
+          label=""
+          currentRange={{ 
+            min: priceRange[0] === 0 ? null : priceRange[0], 
+            max: priceRange[1] === maxPrice ? null : priceRange[1] 
+          }}
+          onApply={(range) => {
+            setPriceRange([range.min ?? 0, range.max ?? maxPrice]);
+          }}
+          availableRange={{ min: 0, max: maxPrice }}
+          presets={[
+            { label: "Under 500", min: null, max: 500 },
+            { label: "500-2K", min: 500, max: 2000 },
+            { label: "2K-10K", min: 2000, max: 10000 },
+            { label: "10K-50K", min: 10000, max: 50000 },
+            { label: "50K+", min: 50000, max: null },
+          ]}
+          formatValue={(val) => formatCurrency(val).replace('GHS ', '')}
+        />
+      </CollapsibleFilterSection>
+
       {/* Vendor Filter - Autocomplete for scalability */}
       {uniqueVendors.length > 1 && (
         <CollapsibleFilterSection 
@@ -982,7 +1021,7 @@ function SearchPageContent() {
                                 setAttributeFilters(prev => ({ ...prev, [attr.key]: option }));
                               }}
                             />
-                            <span className="text-sm">{option}</span>
+                            <span className="text-sm">{formatAttributeValue(option)}</span>
                           </label>
                         ))}
                       </>
@@ -1012,7 +1051,7 @@ function SearchPageContent() {
                                 : "hover:bg-gray-100"
                             }`}
                           >
-                            {option}
+                            {formatAttributeValue(option)}
                           </button>
                         ))}
                         {filteredOptions.length > 20 && (
@@ -1034,33 +1073,6 @@ function SearchPageContent() {
           })}
         </>
       )}
-
-      {/* Price Range */}
-      <CollapsibleFilterSection 
-        title="Price" 
-        defaultOpen={true}
-        badge={priceRange[0] > 0 || priceRange[1] < maxPrice ? 1 : undefined}
-      >
-        <RangeFilterSection
-          label=""
-          currentRange={{ 
-            min: priceRange[0] === 0 ? null : priceRange[0], 
-            max: priceRange[1] === maxPrice ? null : priceRange[1] 
-          }}
-          onApply={(range) => {
-            setPriceRange([range.min ?? 0, range.max ?? maxPrice]);
-          }}
-          availableRange={{ min: 0, max: maxPrice }}
-          presets={[
-            { label: "Under 500", min: null, max: 500 },
-            { label: "500-2K", min: 500, max: 2000 },
-            { label: "2K-10K", min: 2000, max: 10000 },
-            { label: "10K-50K", min: 10000, max: 50000 },
-            { label: "50K+", min: 50000, max: null },
-          ]}
-          formatValue={(val) => formatCurrency(val).replace('GHS ', '')}
-        />
-      </CollapsibleFilterSection>
 
       {/* Rating Filter */}
       <CollapsibleFilterSection 
