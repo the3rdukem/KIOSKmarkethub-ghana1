@@ -154,25 +154,55 @@ function SearchPageContent() {
 
   // Transform formSchema to attributes format for filtering
   // Supports select, multi_select, checkbox, and number field types
+  // Inherits attributes from parent categories (parent first, then child - child can override)
   const categoryAttributes = useMemo((): CategoryAttribute[] => {
-    if (!selectedCategoryData?.formSchema) return [];
+    if (!selectedCategoryData) return [];
+    
     const filterableTypes = ['select', 'multi_select', 'checkbox', 'number'];
-    return selectedCategoryData.formSchema
-      .filter(field => filterableTypes.includes(field.type))
-      .map((field, index) => ({
-        id: `attr_${selectedCategoryData.id}_${field.key}`,
-        key: field.key,
-        label: field.label,
-        type: field.type,
-        required: field.required,
-        placeholder: field.placeholder,
-        helpText: field.helpText,
-        options: field.type === 'checkbox' ? ['Yes', 'No'] : field.options,
-        min: field.min,
-        max: field.max,
-        order: index + 1,
-      }));
-  }, [selectedCategoryData]);
+    
+    // Collect all categories in the hierarchy (from root parent down to selected)
+    const categoryChain: ApiCategory[] = [];
+    let current: ApiCategory | null = selectedCategoryData;
+    
+    // Walk up the parent chain
+    while (current) {
+      categoryChain.unshift(current); // Add to beginning so parents come first
+      if (current.parentId) {
+        current = apiCategories.find(c => c.id === current!.parentId) || null;
+      } else {
+        current = null;
+      }
+    }
+    
+    // Merge attributes from all categories in chain
+    // Later categories (children) can override parent attributes with same key
+    const attributeMap = new Map<string, CategoryAttribute>();
+    let orderCounter = 1;
+    
+    for (const category of categoryChain) {
+      if (!category.formSchema) continue;
+      
+      for (const field of category.formSchema) {
+        if (!filterableTypes.includes(field.type)) continue;
+        
+        attributeMap.set(field.key, {
+          id: `attr_${category.id}_${field.key}`,
+          key: field.key,
+          label: field.label,
+          type: field.type,
+          required: field.required,
+          placeholder: field.placeholder,
+          helpText: field.helpText,
+          options: field.type === 'checkbox' ? ['Yes', 'No'] : field.options,
+          min: field.min,
+          max: field.max,
+          order: orderCounter++,
+        });
+      }
+    }
+    
+    return Array.from(attributeMap.values()).sort((a, b) => a.order - b.order);
+  }, [selectedCategoryData, apiCategories]);
   const [selectedVendor, setSelectedVendor] = useState("All Vendors");
   const [vendorSearchQuery, setVendorSearchQuery] = useState("");
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100000]);
