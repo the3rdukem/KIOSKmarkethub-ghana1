@@ -45,12 +45,23 @@ import { formatCurrency } from "@/lib/utils/currency";
 interface CategoryFormField {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'multi_select' | 'boolean' | 'date' | 'textarea';
+  type: 'text' | 'number' | 'select' | 'multi_select' | 'boolean' | 'date' | 'textarea' | 'dependent_select';
   required: boolean;
   placeholder?: string;
   options?: string[];
   min?: number;
   max?: number;
+  dependsOn?: string;
+  optionsSource?: string;
+  level?: number;
+  childFieldKey?: string;
+}
+
+interface AttributeOption {
+  id: string;
+  value: string;
+  parentOptionId: string | null;
+  level: number;
 }
 
 interface ApiCategory {
@@ -82,6 +93,9 @@ export default function EditProductPage() {
   const [productLoaded, setProductLoaded] = useState(false);
   const [apiCategories, setApiCategories] = useState<ApiCategory[]>([]);
   const [categoriesLoading, setCategoriesLoading] = useState(true);
+  const [cascadingOptions, setCascadingOptions] = useState<Record<string, AttributeOption[]>>({});
+  const [cascadingLoading, setCascadingLoading] = useState<Record<string, boolean>>({});
+  const [cascadingLoaded, setCascadingLoaded] = useState<Record<string, string | null>>({});
 
   const { form, validateForPublish, validateForDraft, scrollToFirstError } = useProductForm({
     mode: "edit",
@@ -153,7 +167,7 @@ export default function EditProductPage() {
       if (hasExistingValue && existingValue !== UNSET_VALUE) {
         reconciledAttrs[field.key] = existingValue;
       } else {
-        if (field.type === 'select' || field.type === 'multi_select') {
+        if (field.type === 'select' || field.type === 'multi_select' || field.type === 'dependent_select') {
           reconciledAttrs[field.key] = UNSET_VALUE;
         } else if (field.type === 'boolean') {
           reconciledAttrs[field.key] = false;
@@ -237,6 +251,64 @@ export default function EditProductPage() {
   const currentPrice = watchPrice ? parseFloat(watchPrice) : 0;
   const { salePrice, discount, sale: activeSale } = isHydrated ? getSalePrice(productId, currentPrice) : { salePrice: currentPrice, discount: 0, sale: undefined };
   const isOnSale = discount > 0;
+
+  const fetchCascadingOptions = async (fieldKey: string, parentOptionId?: string) => {
+    if (!selectedCategory?.id) return;
+    const loadKey = parentOptionId || 'root';
+    if (cascadingLoaded[fieldKey] === loadKey) return;
+    setCascadingLoading(prev => ({ ...prev, [fieldKey]: true }));
+    try {
+      let url = `/api/attribute-options?categoryId=${selectedCategory.id}&fieldKey=${fieldKey}`;
+      if (parentOptionId) {
+        url += `&parentOptionId=${parentOptionId}`;
+      }
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.options) {
+        setCascadingOptions(prev => ({ ...prev, [fieldKey]: data.options }));
+        setCascadingLoaded(prev => ({ ...prev, [fieldKey]: loadKey }));
+      }
+    } catch (error) {
+      console.error(`Failed to fetch cascading options for ${fieldKey}:`, error);
+    } finally {
+      setCascadingLoading(prev => ({ ...prev, [fieldKey]: false }));
+    }
+  };
+
+  useEffect(() => {
+    if (!selectedCategory?.id || !currentCategoryFields.length) return;
+    const rootDependentFields = currentCategoryFields.filter(
+      f => f.type === 'dependent_select' && !f.dependsOn
+    );
+    rootDependentFields.forEach(field => {
+      fetchCascadingOptions(field.key);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory?.id, currentCategoryFields]);
+
+  useEffect(() => {
+    if (!productLoaded || !selectedCategory?.id || !currentCategoryFields.length) return;
+    const existingAttrs = getValues("categoryAttributes") || {};
+    
+    const loadChildOptions = () => {
+      currentCategoryFields.forEach(field => {
+        if (field.type === 'dependent_select' && field.dependsOn) {
+          const parentValue = existingAttrs[field.dependsOn];
+          if (parentValue && parentValue !== UNSET_VALUE && parentValue !== '') {
+            const parentOptions = cascadingOptions[field.dependsOn] || [];
+            const parentOption = parentOptions.find(o => o.value === parentValue);
+            if (parentOption && cascadingLoaded[field.key] !== parentOption.id) {
+              fetchCascadingOptions(field.key, parentOption.id);
+            }
+          }
+        }
+      });
+    };
+    
+    const timer = setTimeout(loadChildOptions, 100);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productLoaded, selectedCategory?.id, JSON.stringify(Object.keys(cascadingOptions))]);
 
   // Dynamic Category Attribute Field Component using per-attribute RHF registration
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -387,6 +459,88 @@ export default function EditProductPage() {
                   className={errorMessage ? "border-red-500" : ""}
                 />
               )}
+            />
+            {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
+          </div>
+        );
+
+      case "dependent_select":
+        const options = cascadingOptions[field.key] || [];
+        const isLoading = cascadingLoading[field.key] || false;
+        const parentFieldKey = field.dependsOn;
+        const parentValue = parentFieldKey ? watch(`categoryAttributes.${parentFieldKey}`) : undefined;
+        const hasValidParent = parentValue && parentValue !== UNSET_VALUE && parentValue !== '';
+        const isDisabled = isLoading || Boolean(parentFieldKey && !hasValidParent);
+        
+        return (
+          <div data-field={fieldPath}>
+            <Label htmlFor={field.key}>
+              {field.label} {field.required && <span className="text-red-500">*</span>}
+            </Label>
+            <Controller
+              name={fieldPath as any}
+              control={control}
+              render={({ field: rhfField }) => {
+                const currentValue = rhfField.value ?? "";
+                return (
+                  <Select
+                    value={currentValue}
+                    onValueChange={(selectedValue) => {
+                      rhfField.onChange(selectedValue);
+                      const selectedOption = options.find(o => o.value === selectedValue);
+                      const childFields = currentCategoryFields.filter(f => f.dependsOn === field.key);
+                      childFields.forEach(child => {
+                        setValue(`categoryAttributes.${child.key}` as any, UNSET_VALUE);
+                        setCascadingLoaded(prev => ({ ...prev, [child.key]: null }));
+                        if (selectedOption) {
+                          fetchCascadingOptions(child.key, selectedOption.id);
+                        } else {
+                          setCascadingOptions(prev => ({ ...prev, [child.key]: [] }));
+                        }
+                      });
+                    }}
+                    disabled={isDisabled}
+                  >
+                    <SelectTrigger
+                      id={field.key}
+                      name={fieldPath}
+                      data-field={fieldPath}
+                      ref={rhfField.ref}
+                      className={errorMessage ? "border-red-500" : ""}
+                    >
+                      {isLoading ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-muted-foreground">Loading...</span>
+                        </div>
+                      ) : (
+                        <SelectValue 
+                          placeholder={
+                            parentFieldKey && !hasValidParent 
+                              ? `Select ${currentCategoryFields.find(f => f.key === parentFieldKey)?.label || parentFieldKey} first`
+                              : `Select ${field.label.toLowerCase()}`
+                          } 
+                        />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      {options.length === 0 ? (
+                        <div className="py-2 px-3 text-sm text-muted-foreground">
+                          {parentFieldKey && !hasValidParent 
+                            ? `Select ${currentCategoryFields.find(f => f.key === parentFieldKey)?.label || parentFieldKey} first`
+                            : "No options available"}
+                        </div>
+                      ) : (
+                        options.map((option) => (
+                          <SelectItem key={option.id} value={option.value}>
+                            {option.value}
+                          </SelectItem>
+                        ))
+                      )}
+                    </SelectContent>
+                  </Select>
+                );
+              }}
             />
             {errorMessage && <p className="text-red-500 text-xs mt-1">{errorMessage}</p>}
           </div>
