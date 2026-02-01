@@ -56,6 +56,7 @@ import { useAuthStore } from "@/lib/auth-store";
 import { formatDistance } from "date-fns";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils/currency";
+import { getFriendlyErrorMessage, successMessages } from "@/lib/utils/friendly-errors";
 
 const PAYOUT_MINIMUM = 50;
 
@@ -212,7 +213,7 @@ export default function VendorWithdrawPage() {
       }
     } catch (error) {
       console.error('Failed to fetch data:', error);
-      toast.error('Failed to load payout data');
+      toast.error('Could not load your payout information. Please refresh the page.');
     } finally {
       setIsLoading(false);
     }
@@ -312,13 +313,13 @@ export default function VendorWithdrawPage() {
         throw new Error(data.error || 'Failed to submit withdrawal');
       }
 
-      toast.success(`Withdrawal request submitted! Reference: ${data.payout?.reference || 'PENDING'}`);
+      toast.success(successMessages.withdrawal.submitted);
       setWithdrawAmount("");
       setConfirmDialogOpen(false);
       setActiveTab("history");
       fetchData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to process withdrawal");
+      toast.error(getFriendlyErrorMessage(error));
     } finally {
       setIsProcessing(false);
     }
@@ -346,10 +347,10 @@ export default function VendorWithdrawPage() {
         throw new Error(data.error || 'Failed to send verification code');
       }
 
-      toast.success(data.message || 'Verification code sent!');
+      toast.success(successMessages.verification.codeSent);
       setShowOTPDialog(true);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to send verification code");
+      toast.error(getFriendlyErrorMessage(error));
     } finally {
       setIsRequestingOTP(false);
     }
@@ -382,7 +383,7 @@ export default function VendorWithdrawPage() {
       setPayoutToken(data.payoutToken);
       setShowOTPDialog(false);
       setOtpCode("");
-      toast.success('Verified! You can now add your payout account.');
+      toast.success(successMessages.verification.verified);
       setShowAddAccountDialog(true);
     } catch (error) {
       setOtpError("Verification failed. Please try again.");
@@ -394,7 +395,7 @@ export default function VendorWithdrawPage() {
   const handleAddAccount = async () => {
     // Check if we have a valid payout token
     if (!payoutToken) {
-      toast.error('Please verify with OTP first');
+      toast.error('Please verify your identity first by entering the code sent to your phone.');
       handleRequestOTP();
       return;
     }
@@ -428,12 +429,12 @@ export default function VendorWithdrawPage() {
 
       if (!response.ok) {
         if (data.code === 'PHONE_NOT_VERIFIED') {
-          toast.error('Phone verification required. Please verify your phone number in your profile settings.');
+          toast.error('Please verify your phone number in your profile settings before adding a payout account.');
           setShowAddAccountDialog(false);
           return;
         }
         if (data.code === 'OTP_REQUIRED' || data.code === 'INVALID_TOKEN' || data.code === 'TOKEN_EXPIRED') {
-          toast.error('Verification expired. Please verify again.');
+          toast.error('Your verification has expired. Please request a new code.');
           setPayoutToken(null);
           setShowAddAccountDialog(false);
           handleRequestOTP();
@@ -442,7 +443,7 @@ export default function VendorWithdrawPage() {
         throw new Error(data.error || 'Failed to add account');
       }
 
-      toast.success('Account added successfully');
+      toast.success(successMessages.account.added);
       setShowAddAccountDialog(false);
       setNewAccountNumber("");
       setNewAccountName("");
@@ -451,7 +452,7 @@ export default function VendorWithdrawPage() {
       setPayoutToken(null);
       fetchData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to add account");
+      toast.error(getFriendlyErrorMessage(error));
     } finally {
       setIsAddingAccount(false);
     }
@@ -471,10 +472,10 @@ export default function VendorWithdrawPage() {
         throw new Error('Failed to delete account');
       }
 
-      toast.success('Account removed');
+      toast.success(successMessages.account.removed);
       fetchData();
     } catch (error) {
-      toast.error("Failed to remove account");
+      toast.error('Could not remove this account. Please try again.');
     }
   };
 
@@ -494,10 +495,10 @@ export default function VendorWithdrawPage() {
         throw new Error('Failed to set primary account');
       }
 
-      toast.success('Primary account updated');
+      toast.success(successMessages.account.setPrimary);
       fetchData();
     } catch (error) {
-      toast.error("Failed to update primary account");
+      toast.error('Could not update your default account. Please try again.');
     }
   };
 
@@ -519,10 +520,10 @@ export default function VendorWithdrawPage() {
         throw new Error(data.error || 'Failed to verify account');
       }
 
-      toast.success('Account verified and ready for payouts');
+      toast.success(successMessages.account.verified);
       fetchData();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Failed to verify account");
+      toast.error(getFriendlyErrorMessage(error));
     }
   };
 
