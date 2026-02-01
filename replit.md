@@ -17,7 +17,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 **UI/UX Decisions:**
 - Modern and responsive design using Tailwind CSS and `shadcn/ui`.
 - Admin UI includes fixed table layouts and consistent column widths.
-- Enhanced search page UX with Radix Select for category filters, dynamic price sliders, and category attribute filters.
+- Enhanced search page UX with Radix Select for category filters, dynamic price sliders, category attribute filters, collapsible filter sections with badges, Apply/Clear buttons for range filters, preset range quick-select buttons, and active filter chips above results with individual remove buttons.
 - Dashboard tabs (Admin, Buyer, Vendor) use URL-synced state for direct linking.
 
 **Technical Implementations:**
