@@ -381,14 +381,16 @@ function SearchPageContent() {
         return productAttrs?.[key] === value;
       });
 
-      // Range filters (number types)
+      // Range filters (number types) - excludes products without the attribute when range is active
       const matchesRangeFilters = Object.entries(rangeFilters).every(([key, range]) => {
         if (range.min === null && range.max === null) return true;
         const productAttrs = product.categoryAttributes as Record<string, unknown> | undefined;
         const value = productAttrs?.[key];
-        if (value === undefined || value === null) return true;
+        // If range is active but product doesn't have the attribute, exclude it
+        if (value === undefined || value === null || value === '') return false;
         const numValue = typeof value === 'number' ? value : parseFloat(String(value));
-        if (isNaN(numValue)) return true;
+        // If value is not a valid number, exclude it
+        if (isNaN(numValue)) return false;
         if (range.min !== null && numValue < range.min) return false;
         if (range.max !== null && numValue > range.max) return false;
         return true;
