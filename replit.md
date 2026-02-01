@@ -35,7 +35,7 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Auth Redirect Security**: Utilizes `getSafeRedirectUrl()` to prevent open redirect vulnerabilities.
 - **Buyer Orders Persistence**: Buyer orders are synced with Zustand store upon user identity changes.
 - **Database-Backed Wishlist**: `wishlist_items` table with CRUD operations, API endpoints, and store synchronization.
-- **Dynamic Filtering**: Price slider and category attribute filters dynamically appear based on product data.
+- **Smart Dynamic Filtering (Phase 1)**: Category attribute filters compute available options from actual product data. Numeric attributes (year, mileage, etc.) render as "From X to Y" range inputs instead of endless dropdowns. Select filters with 8+ options include search functionality. Products without numeric attributes are excluded when range filters are active. Foundation laid for Phase 2 cascading dependencies.
 - **Currency Formatting**: Centralized `formatCurrency` utility in `src/lib/utils/currency.ts` for consistent GHS display across all frontend components.
 - **Payment System**: Updates include `payment_reference`, `payment_provider`, `paid_at`, and `currency` columns in orders table, with webhook integration.
 - **Messaging System**: Database schema for conversations and messages, DAL with role-based authorization, and REST API endpoints.
