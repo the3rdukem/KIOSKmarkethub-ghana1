@@ -10,6 +10,9 @@
  */
 
 import { query } from '../index';
+import { createLogger } from '@/lib/utils/logger';
+
+const log = createLogger('DAL_COMMISSION');
 
 export interface CommissionRates {
   defaultRate: number;
@@ -41,7 +44,7 @@ export async function getDefaultCommissionRate(): Promise<number> {
     }
     return 0.08; // Default 8% if not set
   } catch (error) {
-    console.error('[Commission] Error getting default rate:', error);
+    log.error('Error getting default rate', {}, error);
     return 0.08;
   }
 }
@@ -66,7 +69,7 @@ export async function setDefaultCommissionRate(rate: number, updatedBy?: string)
     );
     return true;
   } catch (error) {
-    console.error('[Commission] Error setting default rate:', error);
+    log.error('Error setting default rate', { rate }, error);
     return false;
   }
 }
@@ -85,7 +88,7 @@ export async function getCategoryCommissionRate(categoryId: string): Promise<num
     }
     return null;
   } catch (error) {
-    console.error('[Commission] Error getting category rate:', error);
+    log.error('Error getting category rate', { categoryId }, error);
     return null;
   }
 }
@@ -111,7 +114,7 @@ export async function setCategoryCommissionRate(
     );
     return true;
   } catch (error) {
-    console.error('[Commission] Error setting category rate:', error);
+    log.error('Error setting category rate', { categoryId, rate }, error);
     return false;
   }
 }
@@ -130,7 +133,7 @@ export async function getVendorCommissionRate(vendorId: string): Promise<number 
     }
     return null;
   } catch (error) {
-    console.error('[Commission] Error getting vendor rate:', error);
+    log.error('Error getting vendor rate', { vendorId }, error);
     return null;
   }
 }
@@ -156,7 +159,7 @@ export async function setVendorCommissionRate(
     );
     return true;
   } catch (error) {
-    console.error('[Commission] Error setting vendor rate:', error);
+    log.error('Error setting vendor rate', { vendorId, rate }, error);
     return false;
   }
 }
@@ -275,7 +278,7 @@ export async function getAllCategoryCommissionRates(): Promise<Array<{
       commissionRate: row.commission_rate !== null ? parseFloat(String(row.commission_rate)) : null
     }));
   } catch (error) {
-    console.error('[Commission] Error getting all category rates:', error);
+    log.error('Error getting all category rates', {}, error);
     return [];
   }
 }
@@ -305,7 +308,7 @@ export async function getAllVendorCommissionRates(): Promise<Array<{
       commission_rate: row.commission_rate !== null ? parseFloat(String(row.commission_rate)) : null
     }));
   } catch (error) {
-    console.error('[Commission] Error getting all vendor rates:', error);
+    log.error('Error getting all vendor rates', {}, error);
     return [];
   }
 }
@@ -355,7 +358,7 @@ export async function getCommissionSummary(
       averageCommissionRate: parseFloat(String(row.avg_commission_rate || '0')) || 0
     };
   } catch (error) {
-    console.error('[Commission] Error getting commission summary:', error);
+    log.error('Error getting commission summary', { startDate, endDate }, error);
     return {
       totalOrders: 0,
       totalRevenue: 0,
@@ -413,7 +416,7 @@ export async function getVendorEarningsSummary(vendorId: string): Promise<{
       paidEarnings
     };
   } catch (error) {
-    console.error('[Commission] Error getting vendor earnings:', error);
+    log.error('Error getting vendor earnings', { vendorId }, error);
     return {
       totalSales: 0,
       totalCommissionPaid: 0,

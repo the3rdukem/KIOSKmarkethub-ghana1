@@ -29,6 +29,9 @@ import { sendOrderConfirmationSMS, sendVendorNewOrderSMS } from '@/lib/services/
 import { getDisputeByOrderId } from '@/lib/db/dal/disputes';
 import { checkProductStock } from '@/lib/services/low-stock-alerts';
 import { sendOrderConfirmationEmail, sendVendorNewOrderEmail } from '@/lib/services/order-emails';
+import { createLogger } from '@/lib/utils/logger';
+
+const log = createLogger('ORDERS');
 
 /**
  * GET /api/orders
@@ -145,7 +148,7 @@ export async function GET(request: NextRequest) {
       total: transformedOrders.length,
     });
   } catch (error) {
-    console.error('Get orders error:', error);
+    log.error('Get orders error', {}, error);
     return NextResponse.json({ error: 'Failed to fetch orders' }, { status: 500 });
   }
 }
@@ -228,14 +231,13 @@ export async function POST(request: NextRequest) {
     const tax = body.tax || 0;
     const total = subtotal - discountTotal + shippingFee + tax;
 
-    console.log('[ORDER_CREATE] Totals:', { 
+    log.info('Creating order', { 
       subtotal, 
       discountTotal, 
       shippingFee, 
       tax, 
       total,
-      couponCode: body.couponCode,
-      bodyDiscountTotal: body.discountTotal 
+      couponCode: body.couponCode 
     });
 
     // Build order input
@@ -361,7 +363,7 @@ export async function POST(request: NextRequest) {
             payload: { orderId: order.id, buyerName: user.name, itemCount },
           });
         } catch (err) {
-          console.error('[NOTIFICATION] Failed to notify vendor:', vendorId, err);
+          log.error('Failed to notify vendor', { vendorId }, err);
         }
         
         // Send email notification (fire-and-forget, non-blocking)
@@ -375,7 +377,7 @@ export async function POST(request: NextRequest) {
             unitPrice: item.price,
           })),
           itemsTotal: `GHS ${itemsTotal.toFixed(2)}`,
-        }).catch(err => console.error('[EMAIL] Failed to send vendor new order email:', err));
+        }).catch(err => log.error('Failed to send vendor new order email', {}, err));
       })
     );
 
@@ -387,7 +389,7 @@ export async function POST(request: NextRequest) {
       buyerName: user.name,
       buyerEmail: user.email,
       orderTotal: `GHS ${total.toFixed(2)}`,
-    }).catch(err => console.error('[EMAIL] Failed to send order confirmation:', err));
+    }).catch(err => log.error('Failed to send order confirmation email', {}, err));
 
     // Send SMS notifications (fire-and-forget, don't block response)
     // Note: SMS is sent after payment confirmation via Paystack webhook
@@ -408,7 +410,7 @@ export async function POST(request: NextRequest) {
               true
             );
           } catch (err) {
-            console.error('[LOW_STOCK] Error checking stock for product:', item.productId, err);
+            log.error('Error checking stock', { productId: item.productId }, err);
           }
         }
       })
@@ -430,7 +432,7 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Create order error:', error);
+    log.error('Create order error', {}, error);
     return NextResponse.json({ error: 'Failed to create order' }, { status: 500 });
   }
 }

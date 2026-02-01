@@ -24,6 +24,9 @@ import {
   validateContentSafety 
 } from '@/lib/validation';
 import { setCsrfCookie } from '@/lib/utils/csrf';
+import { createLogger } from '@/lib/utils/logger';
+
+const log = createLogger('AUTH_REGISTER');
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -181,7 +184,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    console.log('[REGISTER_API] Starting atomic registration', { email, role });
+    log.info('Starting atomic registration', { email, role });
 
     // Note: Vendor business address is validated but stored in location field
     // Future enhancement: Add dedicated address column for vendors
@@ -192,7 +195,7 @@ export async function POST(request: NextRequest) {
 
     if (!result.success || !result.data) {
       const error = result.error!;
-      console.log('[REGISTER_API] Registration failed:', error.code, error.message);
+      log.warn('Registration failed', { code: error.code, message: error.message });
 
       await logAuthEvent(
         'REGISTRATION_FAILED',
@@ -217,7 +220,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { user, session } = result.data;
-    console.log('[REGISTER_API] Registration successful, setting session cookie', { userId: user.id, role: user.role });
+    log.info('Registration successful', { userId: user.id, role: user.role });
 
     await logAuthEvent(
       'REGISTRATION_SUCCESS',
@@ -237,7 +240,7 @@ export async function POST(request: NextRequest) {
 
     await setCsrfCookie();
 
-    console.log('[REGISTER_API] Session and CSRF cookies set, returning success');
+    log.info('Session and CSRF cookies set');
 
     return NextResponse.json({
       success: true,
@@ -257,7 +260,7 @@ export async function POST(request: NextRequest) {
       redirect: getRouteForRole(user.role),
     });
   } catch (error) {
-    console.error('[REGISTER_API] Unexpected error:', error);
+    log.error('Unexpected error', {}, error);
 
     await logAuthEvent(
       'REGISTRATION_ERROR',
