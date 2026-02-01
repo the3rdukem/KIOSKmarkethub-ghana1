@@ -55,6 +55,40 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Rate Limiting**: Database-backed distributed rate limiting in `src/lib/utils/rate-limiter.ts`. Applied to public endpoints (products, categories, cart, reviews, etc.) with configurable limits.
 - **DAL Error Handling**: Standardized error utilities in `src/lib/db/dal/errors.ts`. Provides `DALResult<T>` type, `success()/failure()` helpers, and `handleDALError()` for consistent error handling.
 - **Automated Testing**: Vitest-based API test suite in `tests/api/`. Covers critical public endpoint tests.
+- **Admin Profile Management**: Admin profile page (`/admin/profile`) for viewing account info and changing passwords. Strong password requirements (12+ chars, uppercase, lowercase, number, special character) with audit logging.
+- **Secure Admin Initialization**: Master admin credentials are required via `MASTER_ADMIN_EMAIL` and `MASTER_ADMIN_PASSWORD` environment variables. System fails to initialize if not set, preventing weak defaults.
+
+## Render.com Deployment
+
+### Required Environment Variables
+Set these in your Render dashboard before deploying:
+
+**Critical (Required):**
+- `DATABASE_URL` - PostgreSQL connection string
+- `SESSION_SECRET` - Session encryption key (auto-generated)
+- `NEXT_PUBLIC_APP_URL` - Your production URL (e.g., https://kiosk.com.gh)
+- `MASTER_ADMIN_EMAIL` - Master admin email address
+- `MASTER_ADMIN_PASSWORD` - Master admin password (12+ chars, strong)
+
+**Payment & SMS:**
+- `PAYSTACK_SECRET_KEY` - Paystack secret key for payments
+- `PAYSTACK_PUBLIC_KEY` - Paystack public key
+- `ARKESEL_API_KEY` - Arkesel API key for SMS
+
+**Optional Integrations:**
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` - Google OAuth
+- `SUPABASE_URL` / `SUPABASE_ANON_KEY` - Image storage
+- `GOOGLE_MAPS_API_KEY` - Location services
+- `SMILE_PARTNER_ID` / `SMILE_API_KEY` / `SMILE_CALLBACK_URL` - KYC verification
+- `RESEND_API_KEY` - Email sending
+
+### Deployment Steps
+1. Push code to GitHub repository
+2. Create new Web Service on Render.com
+3. Connect to your GitHub repository
+4. Set environment variables in Render dashboard
+5. Deploy (build command: `npm install && npm run build`, start: `npm start`)
+6. Verify health check at `/api/health`
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions and vendor payouts.
