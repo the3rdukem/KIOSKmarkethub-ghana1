@@ -13,6 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
 import {
   Sheet,
   SheetContent,
@@ -68,79 +69,59 @@ interface RangeFilter {
   max: number | null;
 }
 
-function DebouncedNumberInput({
-  value,
+function RangeNumberInput({
+  initialValue,
   onChange,
   placeholder,
   min,
   max,
   className,
-  debounceMs = 800
 }: {
-  value: number | null;
+  initialValue: number | null;
   onChange: (value: number | null) => void;
   placeholder?: string;
   min?: number;
   max?: number;
   className?: string;
-  debounceMs?: number;
 }) {
-  const [localValue, setLocalValue] = useState(value?.toString() ?? "");
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
-  const isFocused = useRef(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const lastCommittedValue = useRef(initialValue);
 
   useEffect(() => {
-    if (!isFocused.current) {
-      setLocalValue(value?.toString() ?? "");
+    if (inputRef.current && lastCommittedValue.current !== initialValue) {
+      inputRef.current.value = initialValue?.toString() ?? "";
+      lastCommittedValue.current = initialValue;
     }
-  }, [value]);
+  }, [initialValue]);
 
-  useEffect(() => {
-    return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
-    };
-  }, []);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = e.target.value;
-    setLocalValue(newValue);
-
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
-    debounceRef.current = setTimeout(() => {
-      const parsed = newValue ? parseInt(newValue) : null;
+  const commitValue = () => {
+    if (!inputRef.current) return;
+    const val = inputRef.current.value;
+    const parsed = val ? parseInt(val) : null;
+    if (parsed !== lastCommittedValue.current) {
+      lastCommittedValue.current = parsed;
       onChange(parsed);
-    }, debounceMs);
-  };
-
-  const handleFocus = () => {
-    isFocused.current = true;
-  };
-
-  const handleBlur = () => {
-    isFocused.current = false;
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
     }
-    const parsed = localValue ? parseInt(localValue) : null;
-    onChange(parsed);
   };
 
   return (
-    <Input
+    <input
       ref={inputRef}
       type="number"
       placeholder={placeholder}
-      value={localValue}
-      onChange={handleChange}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-      className={className}
+      defaultValue={initialValue?.toString() ?? ""}
+      onBlur={commitValue}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commitValue();
+          inputRef.current?.blur();
+        }
+      }}
+      className={cn(
+        "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+        className
+      )}
       min={min}
       max={max}
     />
@@ -740,32 +721,32 @@ function SearchPageContent() {
                   <div className="mt-2 space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
-                        <DebouncedNumberInput
+                        <RangeNumberInput
                           placeholder={isYearField ? `From ${numericRange.min}` : `Min`}
-                          value={currentRange.min}
+                          initialValue={currentRange.min}
                           onChange={(value) => {
                             setRangeFilters(prev => ({
                               ...prev,
                               [attr.key]: { ...prev[attr.key], min: value }
                             }));
                           }}
-                          className="text-sm h-9"
+                          className="text-sm"
                           min={numericRange.min}
                           max={numericRange.max}
                         />
                       </div>
                       <span className="text-muted-foreground text-sm">to</span>
                       <div className="flex-1">
-                        <DebouncedNumberInput
+                        <RangeNumberInput
                           placeholder={isYearField ? `To ${numericRange.max}` : `Max`}
-                          value={currentRange.max}
+                          initialValue={currentRange.max}
                           onChange={(value) => {
                             setRangeFilters(prev => ({
                               ...prev,
                               [attr.key]: { ...prev[attr.key], max: value }
                             }));
                           }}
-                          className="text-sm h-9"
+                          className="text-sm"
                           min={numericRange.min}
                           max={numericRange.max}
                         />
