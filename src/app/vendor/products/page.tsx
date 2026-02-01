@@ -174,17 +174,17 @@ export default function VendorProductsPage() {
           credentials: 'include',
         });
         if (response.ok) {
-          toast.success(`Product "${productName}" deleted successfully!`);
+          toast.success(`"${productName}" has been deleted.`);
           if (user) {
             fetchVendorProducts(user.id);
           }
         } else {
           const data = await response.json();
-          toast.error(data.error || 'Failed to delete product');
+          toast.error(data.error || 'Could not delete product. Please try again.');
         }
       } catch (error) {
         console.error('Delete error:', error);
-        toast.error('Failed to delete product');
+        toast.error('Could not delete product. Please try again.');
       }
     }
   };
@@ -225,7 +225,7 @@ export default function VendorProductsPage() {
 
       if (response.ok) {
         const data = await response.json();
-        toast.success(`Product duplicated as draft!`);
+        toast.success('Product duplicated! Edit the draft to publish it.');
         if (data.product?.id) {
           router.push(`/vendor/products/edit/${data.product.id}`);
         } else if (user) {
@@ -234,9 +234,9 @@ export default function VendorProductsPage() {
       } else {
         const data = await response.json();
         if (data.code === 'VENDOR_NOT_VERIFIED') {
-          toast.error('Your account must be verified to create products');
+          toast.error('Please complete account verification to create products.');
         } else {
-          toast.error(data.error || 'Failed to duplicate product');
+          toast.error(data.error || 'Could not duplicate product. Please try again.');
         }
         if (user) {
           fetchVendorProducts(user.id);
@@ -245,7 +245,7 @@ export default function VendorProductsPage() {
     } catch (error) {
       toast.dismiss('duplicate');
       console.error('Duplicate error:', error);
-      toast.error('Failed to duplicate product');
+      toast.error('Could not duplicate product. Please try again.');
       if (user) {
         fetchVendorProducts(user.id);
       }

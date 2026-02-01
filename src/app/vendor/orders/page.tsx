@@ -408,7 +408,7 @@ export default function VendorOrdersPage() {
       });
 
       if (response.ok) {
-        toast.success('Item marked as packed');
+        toast.success('Item packed and ready for delivery');
         fetchOrders();
         if (selectedOrder && selectedOrder.id === orderId) {
           const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
@@ -419,11 +419,11 @@ export default function VendorOrdersPage() {
         }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to pack item');
+        toast.error(data.error || 'Could not mark item as packed. Please try again.');
       }
     } catch (error) {
       console.error('Failed to pack item:', error);
-      toast.error('Failed to pack item');
+      toast.error('Could not mark item as packed. Please try again.');
     } finally {
       setPackingItemId(null);
     }
@@ -444,7 +444,7 @@ export default function VendorOrdersPage() {
       });
 
       if (response.ok) {
-        toast.success('Item handed to courier');
+        toast.success('Item handed to courier for delivery');
         fetchOrders();
         if (selectedOrder && selectedOrder.id === orderId) {
           const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
@@ -455,11 +455,11 @@ export default function VendorOrdersPage() {
         }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to hand to courier');
+        toast.error(data.error || 'Could not update status. Please try again.');
       }
     } catch (error) {
       console.error('Failed to hand to courier:', error);
-      toast.error('Failed to hand to courier');
+      toast.error('Could not update status. Please try again.');
     } finally {
       setHandingToCourierId(null);
     }
@@ -480,7 +480,7 @@ export default function VendorOrdersPage() {
       });
 
       if (response.ok) {
-        toast.success('Item marked as delivered');
+        toast.success('Item delivered successfully!');
         fetchOrders();
         if (selectedOrder && selectedOrder.id === orderId) {
           const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
@@ -491,11 +491,11 @@ export default function VendorOrdersPage() {
         }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to mark as delivered');
+        toast.error(data.error || 'Could not update delivery status. Please try again.');
       }
     } catch (error) {
       console.error('Failed to mark as delivered:', error);
-      toast.error('Failed to mark as delivered');
+      toast.error('Could not update delivery status. Please try again.');
     } finally {
       setDeliveringItemId(null);
     }
@@ -516,7 +516,7 @@ export default function VendorOrdersPage() {
       });
 
       if (response.ok) {
-        toast.success('Item marked as shipped');
+        toast.success('Item shipped!');
         fetchOrders();
         if (selectedOrder && selectedOrder.id === orderId) {
           const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
@@ -527,11 +527,11 @@ export default function VendorOrdersPage() {
         }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to ship item');
+        toast.error(data.error || 'Could not ship item. Please try again.');
       }
     } catch (error) {
       console.error('Failed to ship item:', error);
-      toast.error('Failed to ship item');
+      toast.error('Could not ship item. Please try again.');
     } finally {
       setShippingItemId(null);
     }
@@ -551,7 +551,7 @@ export default function VendorOrdersPage() {
       });
 
       if (response.ok) {
-        toast.success('Item marked as delivered');
+        toast.success('Item delivered successfully!');
         fetchOrders();
         if (selectedOrder && selectedOrder.id === orderId) {
           const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
@@ -562,11 +562,11 @@ export default function VendorOrdersPage() {
         }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to mark as delivered');
+        toast.error(data.error || 'Could not update delivery status. Please try again.');
       }
     } catch (error) {
       console.error('Failed to mark as delivered:', error);
-      toast.error('Failed to mark as delivered');
+      toast.error('Could not update delivery status. Please try again.');
     } finally {
       setFulfillingItemId(null);
     }
@@ -584,7 +584,7 @@ export default function VendorOrdersPage() {
       });
 
       if (response.ok) {
-        toast.success('Your items are ready for pickup');
+        toast.success('Items ready for customer pickup!');
         fetchOrders();
         const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
         if (updatedResponse.ok) {
@@ -593,11 +593,11 @@ export default function VendorOrdersPage() {
         }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to update order');
+        toast.error(data.error || 'Could not update order. Please try again.');
       }
     } catch (error) {
       console.error('Failed to mark ready for pickup:', error);
-      toast.error('Failed to update order');
+      toast.error('Could not update order. Please try again.');
     } finally {
       setOrderActionLoading(null);
     }
@@ -663,11 +663,11 @@ export default function VendorOrdersPage() {
         }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to book courier');
+        toast.error(data.error || 'Could not book courier. Please try again.');
       }
     } catch (error) {
       console.error('Failed to book courier:', error);
-      toast.error('Failed to book courier');
+      toast.error('Could not book courier. Please try again.');
     } finally {
       setOrderActionLoading(null);
     }
@@ -686,7 +686,7 @@ export default function VendorOrdersPage() {
       });
 
       if (response.ok) {
-        toast.success('Your items marked as delivered. 48-hour dispute window started.');
+        toast.success('Items delivered! Buyer has 48 hours to report any issues.');
         fetchOrders();
         const updatedResponse = await fetch(`/api/orders/${orderId}`, { credentials: 'include' });
         if (updatedResponse.ok) {
@@ -695,11 +695,11 @@ export default function VendorOrdersPage() {
         }
       } else {
         const data = await response.json();
-        toast.error(data.error || 'Failed to mark items as delivered');
+        toast.error(data.error || 'Could not mark items as delivered. Please try again.');
       }
     } catch (error) {
       console.error('Failed to mark items as delivered:', error);
-      toast.error('Failed to mark items as delivered');
+      toast.error('Could not mark items as delivered. Please try again.');
     } finally {
       setOrderActionLoading(null);
     }
