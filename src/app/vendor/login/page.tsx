@@ -170,8 +170,13 @@ export default function VendorLoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/30 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Subtle background pattern */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-blue-100/40 rounded-full blur-3xl" />
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-indigo-100/40 rounded-full blur-3xl" />
+      </div>
+      <div className="max-w-md w-full space-y-8 relative z-10">
         {/* Header */}
         <div className="text-center">
           <Link href="/" className="flex items-center justify-center space-x-2 mb-6">
@@ -191,12 +196,16 @@ export default function VendorLoginPage() {
           </p>
         </div>
 
-        {/* Verification Notice */}
-        <Alert className="border-blue-200 bg-blue-50">
-          <Shield className="h-4 w-4 text-blue-600" />
-          <AlertDescription className="text-blue-800">
-            <strong>Verified Vendor Program:</strong> All vendors undergo ID and facial recognition verification for marketplace security.
-          </AlertDescription>
+        {/* Verification Notice - Enhanced */}
+        <Alert className="border-blue-200 bg-gradient-to-r from-blue-50 to-indigo-50 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+              <Shield className="h-5 w-5 text-blue-600" />
+            </div>
+            <AlertDescription className="text-blue-800">
+              <strong className="text-blue-900">Verified Vendor Program:</strong> All vendors undergo ID and facial recognition verification for marketplace security.
+            </AlertDescription>
+          </div>
         </Alert>
 
         {/* Main Form */}

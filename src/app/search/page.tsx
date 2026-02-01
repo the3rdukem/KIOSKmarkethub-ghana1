@@ -742,7 +742,7 @@ function SearchPageContent() {
   // Removed early return for loading state - will use conditional rendering in JSX
 
   const FilterSidebar = () => (
-    <div className="space-y-2">
+    <div className="space-y-4">
       {/* Categories */}
       <CollapsibleFilterSection title="Category" defaultOpen={true}>
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -1329,28 +1329,22 @@ function SearchPageContent() {
   return (
     <SiteLayout>
       <div className="container py-6">
-        {/* Search Header */}
+        {/* Search Header - Simplified (search bar is in site header) */}
         <div className="mb-6">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            {/* Search Input */}
-            <div className="relative flex-1 max-w-xl">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-5 h-5" />
-              <Input
-                type="text"
-                placeholder="Search products, categories, vendors..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 text-lg"
-              />
-              {searchQuery && (
+            {/* Search Query Display (not a duplicate input) */}
+            {debouncedSearchQuery && (
+              <div className="flex items-center gap-2 text-lg">
+                <span className="text-muted-foreground">Results for:</span>
+                <span className="font-semibold">"{debouncedSearchQuery}"</span>
                 <button
                   onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  className="text-muted-foreground hover:text-foreground ml-2"
                 >
                   <X className="w-5 h-5" />
                 </button>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* View Controls */}
             <div className="flex items-center gap-2">
@@ -1561,24 +1555,68 @@ function SearchPageContent() {
           {/* Products Grid */}
           <div className="flex-1">
             {isLoading ? (
-              <div className="flex items-center justify-center min-h-[400px]">
-                <Loader2 className="w-12 h-12 animate-spin text-gray-400" />
+              /* Skeleton Loading */
+              <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {[...Array(8)].map((_, i) => (
+                  <Card key={i} className="overflow-hidden animate-pulse">
+                    <div className="aspect-square bg-gray-200" />
+                    <CardContent className="p-4 space-y-3">
+                      <div className="h-4 bg-gray-200 rounded w-3/4" />
+                      <div className="h-3 bg-gray-200 rounded w-1/2" />
+                      <div className="h-3 bg-gray-200 rounded w-1/4" />
+                      <div className="h-6 bg-gray-200 rounded w-1/3" />
+                      <div className="h-9 bg-gray-200 rounded w-full" />
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
             ) : filteredAndSortedProducts.length === 0 ? (
-              <div className="text-center py-16">
-                <Package className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No Products Found</h3>
-                <p className="text-muted-foreground mb-4">
+              /* Friendly No Results State */
+              <div className="text-center py-16 px-4">
+                <div className="w-32 h-32 mx-auto mb-6 relative">
+                  <div className="absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full" />
+                  <div className="absolute inset-4 flex items-center justify-center">
+                    <Search className="w-12 h-12 text-gray-400" />
+                  </div>
+                  <div className="absolute -right-2 -bottom-2 bg-white rounded-full p-2 shadow-lg">
+                    <Package className="w-6 h-6 text-gray-400" />
+                  </div>
+                </div>
+                <h3 className="text-2xl font-bold text-gray-800 mb-3">No Products Found</h3>
+                <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                   {allProducts.length === 0
-                    ? "No products have been listed yet. Check back later!"
-                    : "Try adjusting your search or filter criteria."}
+                    ? "No products have been listed yet. Check back soon for new arrivals!"
+                    : debouncedSearchQuery
+                      ? `We couldn't find any products matching "${debouncedSearchQuery}". Try a different search term or browse our categories.`
+                      : "No products match your current filters. Try adjusting or clearing some filters."}
                 </p>
-                {activeFiltersCount > 0 && (
-                  <Button variant="outline" onClick={clearFilters}>
-                    <X className="w-4 h-4 mr-2" />
-                    Clear All Filters
+                <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                  {activeFiltersCount > 0 && (
+                    <Button variant="outline" onClick={clearFilters} className="gap-2">
+                      <X className="w-4 h-4" />
+                      Clear All Filters
+                    </Button>
+                  )}
+                  <Button asChild className="bg-green-600 hover:bg-green-700 gap-2">
+                    <Link href="/search">
+                      <Search className="w-4 h-4" />
+                      Browse All Products
+                    </Link>
                   </Button>
-                )}
+                </div>
+                {/* Suggested Categories */}
+                <div className="mt-8 pt-6 border-t">
+                  <p className="text-sm text-muted-foreground mb-4">Popular categories:</p>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {["Electronics", "Fashion", "Vehicles", "Mobile Phones"].map((cat) => (
+                      <Link key={cat} href={`/search?category=${encodeURIComponent(cat)}`}>
+                        <Badge variant="outline" className="hover:bg-green-50 hover:border-green-300 cursor-pointer transition-colors px-3 py-1">
+                          {cat}
+                        </Badge>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
               </div>
             ) : (
               <div className={`grid gap-3 sm:gap-4 ${

@@ -507,29 +507,56 @@ function RegisterPageContent() {
                 </TabsTrigger>
               </TabsList>
 
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+              {/* Enhanced Account Type Cards */}
+              <div className="mt-4 p-5 rounded-xl border-2 transition-all duration-300" 
+                   style={{ 
+                     background: userType === "buyer" 
+                       ? "linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)" 
+                       : "linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%)",
+                     borderColor: userType === "buyer" ? "#93C5FD" : "#6EE7B7"
+                   }}>
                 {userType === "buyer" ? (
-                  <div className="flex items-start gap-3">
-                    <User className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <User className="w-6 h-6 text-blue-600" />
+                    </div>
                     <div>
-                      <h4 className="font-semibold text-sm">Buyer Account</h4>
-                      <p className="text-xs text-muted-foreground">
+                      <h4 className="font-bold text-base text-blue-900">Buyer Account</h4>
+                      <p className="text-sm text-blue-700 mt-1">
                         Shop from verified vendors, track orders, and enjoy buyer protection
                       </p>
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Secure Payments
+                        </Badge>
+                        <Badge variant="secondary" className="bg-blue-100 text-blue-700 text-xs">
+                          <Shield className="w-3 h-3 mr-1" />
+                          Buyer Protected
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-start gap-3">
-                    <Store className="w-5 h-5 text-green-600 mt-0.5" />
+                  <div className="flex items-start gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0 shadow-sm">
+                      <Store className="w-6 h-6 text-green-600" />
+                    </div>
                     <div>
-                      <h4 className="font-semibold text-sm">Vendor Account</h4>
-                      <p className="text-xs text-muted-foreground">
-                        Start selling your products with ID + facial verification required
+                      <h4 className="font-bold text-base text-green-900">Vendor Account</h4>
+                      <p className="text-sm text-green-700 mt-1">
+                        Start selling your products to thousands of buyers across Ghana
                       </p>
-                      <Badge variant="outline" className="text-xs mt-1">
-                        <Shield className="w-3 h-3 mr-1" />
-                        Verification Required
-                      </Badge>
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                          <Shield className="w-3 h-3 mr-1" />
+                          ID Verification
+                        </Badge>
+                        <Badge variant="secondary" className="bg-green-100 text-green-700 text-xs">
+                          <CheckCircle className="w-3 h-3 mr-1" />
+                          Verified Badge
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 )}

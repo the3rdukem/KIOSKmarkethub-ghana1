@@ -76,18 +76,41 @@ export default function CartPage() {
 
         {items.length === 0 ? (
           <Card>
-            <CardContent className="flex flex-col items-center justify-center py-16">
-              <ShoppingCart className="w-16 h-16 text-gray-400 mb-4" />
-              <h2 className="text-xl font-semibold text-gray-700 mb-2">Your cart is empty</h2>
-              <p className="text-gray-500 text-center mb-6">
-                Looks like you haven't added any items to your cart yet.
+            <CardContent className="flex flex-col items-center justify-center py-16 px-4">
+              {/* Enhanced Empty Cart Illustration */}
+              <div className="w-32 h-32 relative mb-6">
+                <div className="absolute inset-0 bg-gradient-to-br from-green-100 to-blue-100 rounded-full" />
+                <div className="absolute inset-4 bg-white rounded-full flex items-center justify-center shadow-inner">
+                  <ShoppingCart className="w-12 h-12 text-gray-400" />
+                </div>
+                <div className="absolute -right-2 top-0 bg-white rounded-full p-2 shadow-lg">
+                  <Package className="w-5 h-5 text-green-500" />
+                </div>
+              </div>
+              <h2 className="text-2xl font-bold text-gray-800 mb-2">Your cart is empty</h2>
+              <p className="text-gray-500 text-center mb-6 max-w-sm">
+                Looks like you haven't added any items to your cart yet. Discover amazing products from verified vendors!
               </p>
               <Link href="/search">
-                <Button className="bg-green-600 hover:bg-green-700">
+                <Button className="bg-green-600 hover:bg-green-700 hover:scale-105 transition-all duration-200 shadow-lg">
                   Start Shopping
                   <ArrowRight className="w-4 h-4 ml-2" />
                 </Button>
               </Link>
+              
+              {/* Popular Categories Suggestion */}
+              <div className="mt-8 pt-6 border-t w-full max-w-md">
+                <p className="text-sm text-muted-foreground mb-4 text-center">Popular categories:</p>
+                <div className="flex flex-wrap justify-center gap-2">
+                  {["Electronics", "Fashion", "Vehicles", "Mobile Phones"].map((cat) => (
+                    <Link key={cat} href={`/search?category=${encodeURIComponent(cat)}`}>
+                      <Badge variant="outline" className="hover:bg-green-50 hover:border-green-300 cursor-pointer transition-colors px-3 py-1">
+                        {cat}
+                      </Badge>
+                    </Link>
+                  ))}
+                </div>
+              </div>
             </CardContent>
           </Card>
         ) : (

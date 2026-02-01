@@ -151,8 +151,13 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Hero Section with Advanced Search */}
-      <section className="bg-gradient-to-br from-blue-50 via-green-50 to-blue-50 py-16 lg:py-24">
+      {/* Hero Section with Advanced Search - Enhanced with subtle animation */}
+      <section className="relative bg-gradient-to-br from-blue-50 via-green-50 to-blue-50 py-16 lg:py-24 overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-24 -right-24 w-96 h-96 bg-green-200/30 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '4s' }} />
+          <div className="absolute -bottom-24 -left-24 w-96 h-96 bg-blue-200/30 rounded-full blur-3xl animate-pulse" style={{ animationDuration: '6s', animationDelay: '2s' }} />
+        </div>
         <div className="container">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
@@ -182,31 +187,38 @@ export default function HomePage() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="bg-green-600 hover:bg-green-700 whitespace-nowrap" asChild>
+                <Button size="lg" className="bg-green-600 hover:bg-green-700 hover:scale-105 transition-all duration-200 whitespace-nowrap shadow-lg hover:shadow-xl" asChild>
                   <Link href={heroCtaLink}>
                     <Search className="w-5 h-5 mr-2 flex-shrink-0" />
                     <span className="truncate">{heroCtaText}</span>
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" className="whitespace-nowrap" asChild>
+                <Button size="lg" variant="outline" className="hover:scale-105 transition-all duration-200 whitespace-nowrap" asChild>
                   <Link href="/auth/register">
                     Become a Vendor
                   </Link>
                 </Button>
               </div>
 
-              <div className="flex items-center gap-4 sm:gap-6 mt-8 text-xs sm:text-sm text-gray-600">
-                <div className="flex items-center gap-1 sm:gap-2">
-                  <Shield className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Verified Vendors</span>
+              {/* Enhanced Trust Badges */}
+              <div className="flex flex-wrap gap-3 sm:gap-4 mt-8">
+                <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-sm border border-green-100">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                    <Shield className="w-4 h-4 text-green-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Verified Vendors</span>
                 </div>
-                <div className="flex items-center gap-1 sm:gap-2">
-                  <Users className="w-3 h-3 sm:w-4 sm:h-4 text-blue-600 flex-shrink-0" />
-                  <span className="whitespace-nowrap">{totalVendors > 0 ? `${totalVendors}+ Vendors` : "Easy to Join"}</span>
+                <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-sm border border-blue-100">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <Users className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">{totalVendors > 0 ? `${totalVendors}+ Sellers` : "Easy to Join"}</span>
                 </div>
-                <div className="flex items-center gap-1 sm:gap-2">
-                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
-                  <span className="whitespace-nowrap">Buyer Protected</span>
+                <div className="flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-4 py-2 shadow-sm border border-green-100">
+                  <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                  </div>
+                  <span className="text-sm font-medium text-gray-700">Buyer Protected</span>
                 </div>
               </div>
             </div>
