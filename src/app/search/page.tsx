@@ -58,6 +58,9 @@ interface CategoryAttribute {
   min?: number;
   max?: number;
   order: number;
+  dependsOn?: string;
+  optionsSource?: string;
+  level?: number;
 }
 
 interface RangeFilter {
@@ -158,7 +161,7 @@ function SearchPageContent() {
   const categoryAttributes = useMemo((): CategoryAttribute[] => {
     if (!selectedCategoryData) return [];
     
-    const filterableTypes = ['select', 'multi_select', 'checkbox', 'number'];
+    const filterableTypes = ['select', 'multi_select', 'checkbox', 'number', 'dependent_select'];
     
     // Collect all categories in the hierarchy (from root parent down to selected)
     const categoryChain: ApiCategory[] = [];
@@ -197,6 +200,9 @@ function SearchPageContent() {
           min: field.min,
           max: field.max,
           order: orderCounter++,
+          dependsOn: (field as any).dependsOn,
+          optionsSource: (field as any).optionsSource,
+          level: (field as any).level,
         });
       }
     }
@@ -212,6 +218,8 @@ function SearchPageContent() {
   const [attributeFilters, setAttributeFilters] = useState<Record<string, string>>({});
   const [rangeFilters, setRangeFilters] = useState<Record<string, RangeFilter>>({});
   const [attributeSearchQueries, setAttributeSearchQueries] = useState<Record<string, string>>({});
+  const [cascadingOptions, setCascadingOptions] = useState<Record<string, Array<{ id: string; value: string }>>>({});
+  const [cascadingLoading, setCascadingLoading] = useState<Record<string, boolean>>({});
   const [sortBy, setSortBy] = useState("relevance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
@@ -511,7 +519,44 @@ function SearchPageContent() {
     setAttributeFilters({});
     setRangeFilters({});
     setAttributeSearchQueries({});
+    setCascadingOptions({});
+    setCascadingLoading({});
   }, [selectedCategory]);
+
+  // Fetch cascading options for dependent_select filters
+  const fetchCascadingOptions = useCallback(async (fieldKey: string, parentOptionId?: string) => {
+    if (!selectedCategoryData?.id) return;
+    
+    setCascadingLoading(prev => ({ ...prev, [fieldKey]: true }));
+    try {
+      let url = `/api/attribute-options?categoryId=${selectedCategoryData.id}&fieldKey=${fieldKey}`;
+      if (parentOptionId) {
+        url += `&parentOptionId=${parentOptionId}`;
+      }
+      
+      const res = await fetch(url);
+      const data = await res.json();
+      
+      if (data.options) {
+        setCascadingOptions(prev => ({ ...prev, [fieldKey]: data.options }));
+      }
+    } catch (error) {
+      console.error(`Failed to fetch cascading options for ${fieldKey}:`, error);
+    } finally {
+      setCascadingLoading(prev => ({ ...prev, [fieldKey]: false }));
+    }
+  }, [selectedCategoryData?.id]);
+
+  // Load initial cascading options when category changes
+  useEffect(() => {
+    if (selectedCategoryData?.id && categoryAttributes.length > 0) {
+      const dependentFields = categoryAttributes.filter(a => a.type === 'dependent_select');
+      const rootFields = dependentFields.filter(a => !a.dependsOn);
+      rootFields.forEach(field => {
+        fetchCascadingOptions(field.key);
+      });
+    }
+  }, [selectedCategoryData?.id, categoryAttributes, fetchCascadingOptions]);
 
   // Removed early return for loading state - will use conditional rendering in JSX
 
@@ -664,6 +709,71 @@ function SearchPageContent() {
                       </button>
                     )}
                   </div>
+                </div>
+              );
+            }
+            
+            // For dependent_select - cascading dropdown filters
+            // IMPORTANT: Stores display VALUE (not ID) to match product attribute storage
+            if (attr.type === 'dependent_select') {
+              const options = cascadingOptions[attr.key] || [];
+              const isLoadingOptions = cascadingLoading[attr.key] || false;
+              const parentKey = attr.dependsOn;
+              const parentValue = parentKey ? attributeFilters[parentKey] : undefined;
+              const isDisabled = isLoadingOptions || Boolean(parentKey && (!parentValue || parentValue === 'all'));
+              const currentValue = attributeFilters[attr.key] || 'all';
+              
+              const parentAttr = categoryAttributes.find(a => a.key === parentKey);
+              const parentLabel = parentAttr?.label || parentKey || '';
+              
+              return (
+                <div key={attr.key}>
+                  <Label className="text-sm font-semibold">{attr.label || attr.key}</Label>
+                  <Select
+                    value={currentValue}
+                    onValueChange={(selectedValue) => {
+                      // Store the display value (matches product attribute storage)
+                      setAttributeFilters(prev => ({ ...prev, [attr.key]: selectedValue }));
+                      // Find the option to get its ID for loading child options
+                      const selectedOption = options.find(o => o.value === selectedValue);
+                      // Clear and reload child filters using the option ID
+                      const childFields = categoryAttributes.filter(a => a.dependsOn === attr.key);
+                      childFields.forEach(child => {
+                        setAttributeFilters(prev => ({ ...prev, [child.key]: 'all' }));
+                        if (selectedOption) {
+                          fetchCascadingOptions(child.key, selectedOption.id);
+                        } else {
+                          setCascadingOptions(prev => ({ ...prev, [child.key]: [] }));
+                        }
+                      });
+                    }}
+                    disabled={isDisabled}
+                  >
+                    <SelectTrigger className="mt-2 h-9 text-sm">
+                      {isLoadingOptions ? (
+                        <div className="flex items-center gap-2">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span className="text-muted-foreground">Loading...</span>
+                        </div>
+                      ) : (
+                        <SelectValue 
+                          placeholder={
+                            parentKey && (!parentValue || parentValue === 'all')
+                              ? `Select ${parentLabel} first`
+                              : `All ${attr.label || attr.key}`
+                          } 
+                        />
+                      )}
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All {attr.label || attr.key}</SelectItem>
+                      {options.map((option) => (
+                        <SelectItem key={option.id} value={option.value}>
+                          {option.value}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               );
             }

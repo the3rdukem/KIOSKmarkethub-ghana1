@@ -25,18 +25,23 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  Layers, Plus, Edit, Trash2, MoreHorizontal, RefreshCw, Loader2, Tag
+  Layers, Plus, Edit, Trash2, MoreHorizontal, RefreshCw, Loader2, Tag, FolderTree
 } from "lucide-react";
 import { toast } from "sonner";
+import { AttributeOptionsManager } from "./attribute-options-manager";
 
 interface CategoryFormField {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'multi_select' | 'boolean' | 'date' | 'textarea';
+  type: 'text' | 'number' | 'select' | 'multi_select' | 'boolean' | 'date' | 'textarea' | 'dependent_select';
   required: boolean;
   placeholder?: string;
   helpText?: string;
   options?: string[];
+  dependsOn?: string;
+  optionsSource?: string;
+  level?: number;
+  childFieldKey?: string;
 }
 
 interface ApiCategory {
@@ -87,6 +92,7 @@ const FIELD_TYPES = [
   { value: 'text', label: 'Text' },
   { value: 'number', label: 'Number' },
   { value: 'select', label: 'Dropdown' },
+  { value: 'dependent_select', label: 'Cascading Dropdown' },
   { value: 'multi_select', label: 'Multi-Select' },
   { value: 'boolean', label: 'Yes/No' },
   { value: 'textarea', label: 'Long Text' },
@@ -102,6 +108,7 @@ export function CategoryManagement() {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showSchemaDialog, setShowSchemaDialog] = useState(false);
+  const [showOptionsDialog, setShowOptionsDialog] = useState(false);
 
   const [selectedCategory, setSelectedCategory] = useState<ApiCategory | null>(null);
   const [formData, setFormData] = useState<CategoryFormData>(initialFormData);
@@ -112,6 +119,9 @@ export function CategoryManagement() {
     type: "text",
     required: false,
     options: [],
+    dependsOn: undefined,
+    optionsSource: undefined,
+    level: 1,
   });
   const [newFieldOption, setNewFieldOption] = useState("");
 
@@ -264,10 +274,22 @@ export function CategoryManagement() {
       toast.error("Field key must be unique");
       return;
     }
+    if (newField.type === 'dependent_select' && (newField.level || 1) > 3) {
+      toast.error("Maximum 3 levels allowed for cascading dropdowns");
+      return;
+    }
+
+    const fieldToAdd: CategoryFormField = { ...newField };
+    if (newField.type === 'dependent_select') {
+      fieldToAdd.optionsSource = 'attribute_options';
+      if (!newField.dependsOn) {
+        fieldToAdd.level = 1;
+      }
+    }
 
     setFormData({
       ...formData,
-      formSchema: [...formData.formSchema, { ...newField }],
+      formSchema: [...formData.formSchema, fieldToAdd],
     });
     setNewField({
       key: "",
@@ -275,6 +297,9 @@ export function CategoryManagement() {
       type: "text",
       required: false,
       options: [],
+      dependsOn: undefined,
+      optionsSource: undefined,
+      level: 1,
     });
   }
 
@@ -448,6 +473,10 @@ export function CategoryManagement() {
                           <DropdownMenuItem onClick={() => openSchemaDialog(category)}>
                             <Tag className="w-4 h-4 mr-2" />
                             Manage Fields
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => { setSelectedCategory(category); setShowOptionsDialog(true); }}>
+                            <FolderTree className="w-4 h-4 mr-2" />
+                            Manage Options
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
@@ -660,6 +689,47 @@ export function CategoryManagement() {
                   </div>
                 </div>
               </div>
+              {newField.type === 'dependent_select' && (
+                <div className="space-y-3 p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-blue-700">
+                    Cascading dropdowns get their options from the Manage Options dialog. 
+                    Configure which field this depends on below.
+                  </p>
+                  <div>
+                    <Label>Depends On (Parent Field)</Label>
+                    <Select
+                      value={newField.dependsOn || ""}
+                      onValueChange={(v) => {
+                        const parentField = formData.formSchema.find(f => f.key === v);
+                        const parentLevel = parentField?.level || 1;
+                        setNewField({ 
+                          ...newField, 
+                          dependsOn: v || undefined,
+                          level: parentLevel + 1,
+                          optionsSource: 'attribute_options'
+                        });
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select parent field (or none for root)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">None (Root level)</SelectItem>
+                        {formData.formSchema
+                          .filter(f => f.type === 'select' || f.type === 'dependent_select')
+                          .map((f) => (
+                            <SelectItem key={f.key} value={f.key}>
+                              {f.label} (Level {f.level || 1})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      This field will be Level {newField.level || 1}. Max 3 levels allowed.
+                    </p>
+                  </div>
+                </div>
+              )}
               {(newField.type === 'select' || newField.type === 'multi_select') && (
                 <div>
                   <Label>Options</Label>
@@ -717,8 +787,14 @@ export function CategoryManagement() {
                       <div>
                         <p className="font-medium">{field.label}</p>
                         <p className="text-xs text-muted-foreground">
-                          Key: {field.key} | Type: {field.type} {field.required && "| Required"}
+                          Key: {field.key} | Type: {field.type === 'dependent_select' ? 'Cascading' : field.type} {field.required && "| Required"}
+                          {field.level && field.type === 'dependent_select' && ` | Level ${field.level}`}
                         </p>
+                        {field.dependsOn && (
+                          <p className="text-xs text-blue-600">
+                            Depends on: {formData.formSchema.find(f => f.key === field.dependsOn)?.label || field.dependsOn}
+                          </p>
+                        )}
                         {field.options && field.options.length > 0 && (
                           <p className="text-xs text-muted-foreground">
                             Options: {field.options.join(", ")}
@@ -761,6 +837,15 @@ export function CategoryManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {selectedCategory && (
+        <AttributeOptionsManager
+          category={selectedCategory}
+          open={showOptionsDialog}
+          onOpenChange={setShowOptionsDialog}
+          onSchemaUpdate={fetchCategories}
+        />
+      )}
     </div>
   );
 }
