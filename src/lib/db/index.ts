@@ -1872,6 +1872,34 @@ async function runMigrations(client: PoolClient): Promise<void> {
   } catch (e) {
     // Table may already exist
   }
+
+  // PHASE 19: Cascading Attribute Options - Hierarchical options for dependent filters
+  // Supports 3-level dependencies: Level 1 (Make) → Level 2 (Model) → Level 3 (Trim/Variant)
+  try {
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS attribute_options (
+        id VARCHAR(50) PRIMARY KEY,
+        category_id VARCHAR(50) NOT NULL REFERENCES categories(id) ON DELETE CASCADE,
+        field_key VARCHAR(100) NOT NULL,
+        value VARCHAR(255) NOT NULL,
+        parent_option_id VARCHAR(50) REFERENCES attribute_options(id) ON DELETE CASCADE,
+        level INTEGER NOT NULL DEFAULT 1 CHECK (level >= 1 AND level <= 3),
+        display_order INTEGER DEFAULT 0,
+        is_active INTEGER DEFAULT 1,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_attr_opts_category ON attribute_options(category_id);
+      CREATE INDEX IF NOT EXISTS idx_attr_opts_field ON attribute_options(category_id, field_key);
+      CREATE INDEX IF NOT EXISTS idx_attr_opts_parent ON attribute_options(parent_option_id);
+      CREATE INDEX IF NOT EXISTS idx_attr_opts_level ON attribute_options(category_id, level);
+      CREATE UNIQUE INDEX IF NOT EXISTS idx_attr_opts_unique ON attribute_options(category_id, field_key, value, COALESCE(parent_option_id, ''));
+    `);
+    console.log('[DB] PHASE 19: Created attribute_options table for cascading filters');
+  } catch (e) {
+    // Table may already exist or error occurred
+    console.log('[DB] PHASE 19: attribute_options table setup (may already exist)');
+  }
 }
 
 /**

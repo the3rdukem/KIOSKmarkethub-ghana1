@@ -11,13 +11,17 @@ import { v4 as uuidv4 } from 'uuid';
 export interface CategoryFormField {
   key: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'multi_select' | 'boolean' | 'date' | 'textarea';
+  type: 'text' | 'number' | 'select' | 'multi_select' | 'boolean' | 'date' | 'textarea' | 'dependent_select';
   required: boolean;
   placeholder?: string;
   helpText?: string;
   options?: string[];
   min?: number;
   max?: number;
+  dependsOn?: string;
+  optionsSource?: 'static' | 'dynamic';
+  level?: 1 | 2 | 3;
+  childFieldKey?: string;
 }
 
 export interface DbCategory {
