@@ -1327,8 +1327,11 @@ function SearchPageContent() {
   return (
     <SiteLayout>
       <div className="container py-6">
-        {/* Search Header - Simplified (search bar is in site header) */}
-        <div className="mb-6">
+        {/* Promotional Section - Flash Sales, Trending, Best Sellers (at top) */}
+        <PromotionalSection />
+
+        {/* Search Header - Below promotional section */}
+        <div className="mb-6 mt-6">
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
             {/* Search Query Display (not a duplicate input) */}
             {debouncedSearchQuery && (
@@ -1344,8 +1347,13 @@ function SearchPageContent() {
               </div>
             )}
 
-            {/* View Controls */}
-            <div className="flex items-center gap-2 ml-auto">
+            {/* Results count + View Controls */}
+            <div className="flex items-center gap-4 ml-auto">
+              {/* Results count */}
+              <p className="text-sm text-muted-foreground hidden sm:block">
+                {filteredAndSortedProducts.length} product{filteredAndSortedProducts.length !== 1 ? 's' : ''} found
+              </p>
+
               {/* Mobile Filter Button */}
               <Sheet open={showFilters} onOpenChange={setShowFilters}>
                 <SheetTrigger asChild>
@@ -1429,25 +1437,6 @@ function SearchPageContent() {
                 onClick={() => setShowFilters(true)}
               >
                 +{dynamicCategories.length - 6} more
-              </Badge>
-            )}
-          </div>
-
-          {/* Results count */}
-          <div className="flex items-center gap-2 mt-3">
-            <p className="text-sm text-muted-foreground">
-              {filteredAndSortedProducts.length} product{filteredAndSortedProducts.length !== 1 ? 's' : ''} found
-              {debouncedSearchQuery && ` for "${debouncedSearchQuery}"`}
-            </p>
-            {isAISearching && (
-              <Badge variant="secondary" className="text-xs">
-                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                AI analyzing...
-              </Badge>
-            )}
-            {!isAISearching && aiSearchResults.size > 0 && aiSearchEnabled && (
-              <Badge variant="outline" className="text-xs text-green-600 border-green-200 bg-green-50">
-                AI-enhanced results
               </Badge>
             )}
           </div>
@@ -1564,9 +1553,6 @@ function SearchPageContent() {
             </div>
           )}
         </div>
-
-        {/* Promotional Section - Flash Sales, Trending, Best Sellers */}
-        <PromotionalSection />
 
         <div className="flex gap-6">
           {/* Desktop Filters Sidebar */}
