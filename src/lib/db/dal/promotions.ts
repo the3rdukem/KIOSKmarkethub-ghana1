@@ -813,12 +813,12 @@ export async function getBestSellingProducts(limit: number = 10, days: number = 
     `SELECT oi.product_id, SUM(oi.quantity) as units_sold
      FROM order_items oi
      INNER JOIN orders o ON oi.order_id = o.id
-     WHERE o.created_at >= NOW() - INTERVAL '${days} days'
+     WHERE o.created_at::timestamp >= NOW() - ($2 || ' days')::interval
        AND o.status NOT IN ('cancelled', 'refunded')
      GROUP BY oi.product_id
      ORDER BY units_sold DESC
      LIMIT $1`,
-    [limit]
+    [limit, days]
   );
   return result.rows.map(r => ({
     product_id: r.product_id,

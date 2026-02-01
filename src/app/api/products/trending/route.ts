@@ -33,10 +33,10 @@ export async function GET(request: NextRequest) {
       price: number;
       images: string;
       category_id: string;
-      vendor_user_id: string;
+      vendor_id: string;
       status: string;
     }>(
-      `SELECT id, name, price, images, category_id, vendor_user_id, status
+      `SELECT id, name, price, images, category_id, vendor_id, status
        FROM products 
        WHERE id IN (${placeholders}) AND status = 'active'`,
       productIds
