@@ -1355,15 +1355,15 @@ function SearchPageContent() {
             </div>
 
             {/* View Controls - Right side */}
-            <div className="flex items-center gap-4 ml-auto">
+            <div className="flex items-center gap-2 sm:gap-4 ml-auto flex-shrink-0">
               {/* Mobile Filter Button */}
               <Sheet open={showFilters} onOpenChange={setShowFilters}>
                 <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="md:hidden">
-                    <SlidersHorizontal className="w-4 h-4 mr-2" />
-                    Filters
+                  <Button variant="outline" size="sm" className="md:hidden px-2 sm:px-3">
+                    <SlidersHorizontal className="w-4 h-4 sm:mr-2" />
+                    <span className="hidden sm:inline">Filters</span>
                     {activeFiltersCount > 0 && (
-                      <Badge variant="secondary" className="ml-2">
+                      <Badge variant="secondary" className="ml-1 sm:ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
                         {activeFiltersCount}
                       </Badge>
                     )}
@@ -1384,7 +1384,7 @@ function SearchPageContent() {
 
               {/* Sort */}
               <Select value={sortBy} onValueChange={setSortBy}>
-                <SelectTrigger className="w-40">
+                <SelectTrigger className="w-28 sm:w-40">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1397,20 +1397,22 @@ function SearchPageContent() {
               </Select>
 
               {/* View Mode - Visible on all screens */}
-              <div className="flex items-center gap-1 border rounded-lg p-1">
+              <div className="flex items-center border rounded-lg p-0.5 sm:p-1">
                 <Button
                   variant={viewMode === "grid" ? "secondary" : "ghost"}
                   size="sm"
+                  className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                   onClick={() => setViewMode("grid")}
                 >
-                  <Grid3X3 className="w-4 h-4" />
+                  <Grid3X3 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
                 <Button
                   variant={viewMode === "list" ? "secondary" : "ghost"}
                   size="sm"
+                  className="h-7 w-7 sm:h-8 sm:w-8 p-0"
                   onClick={() => setViewMode("list")}
                 >
-                  <List className="w-4 h-4" />
+                  <List className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 </Button>
               </div>
             </div>

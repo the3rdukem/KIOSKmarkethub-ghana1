@@ -157,7 +157,7 @@ export function PromotionalSection() {
       <Link
         key={product.id}
         href={`/product/${product.id}`}
-        className="flex-shrink-0 w-48 group"
+        className="flex-shrink-0 w-32 sm:w-40 md:w-48 group"
       >
         <Card className="overflow-hidden h-full hover:shadow-lg transition-shadow">
           <div className="relative aspect-square bg-gray-100">
@@ -168,13 +168,13 @@ export function PromotionalSection() {
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform"
               />
             ) : (
-              <div className="w-full h-full flex items-center justify-center text-gray-400">
+              <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
                 No image
               </div>
             )}
             
             {isFlashSale && discountValue && (
-              <Badge className="absolute top-2 left-2 bg-red-500 text-white">
+              <Badge className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-red-500 text-white text-[10px] sm:text-xs px-1.5 sm:px-2">
                 {discountType === 'percentage' ? `-${discountValue}%` : `-${formatCurrency(discountValue)}`}
               </Badge>
             )}
@@ -182,19 +182,19 @@ export function PromotionalSection() {
             <Button
               size="icon"
               variant="secondary"
-              className="absolute bottom-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
+              className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2 opacity-0 group-hover:opacity-100 transition-opacity h-6 w-6 sm:h-8 sm:w-8"
               onClick={(e) => handleAddToCart(product, e)}
             >
-              <ShoppingCart className="w-4 h-4" />
+              <ShoppingCart className="w-3 h-3 sm:w-4 sm:h-4" />
             </Button>
           </div>
           
-          <CardContent className="p-3">
-            <h3 className="font-medium text-sm line-clamp-2 mb-2">{product.name}</h3>
-            <div className="flex items-center gap-2">
-              <span className="font-bold text-green-600">{formatCurrency(price)}</span>
+          <CardContent className="p-2 sm:p-3">
+            <h3 className="font-medium text-xs sm:text-sm line-clamp-2 mb-1 sm:mb-2">{product.name}</h3>
+            <div className="flex items-center gap-1 sm:gap-2 flex-wrap">
+              <span className="font-bold text-green-600 text-xs sm:text-sm">{formatCurrency(price)}</span>
               {originalPrice && (
-                <span className="text-sm text-muted-foreground line-through">
+                <span className="text-[10px] sm:text-sm text-muted-foreground line-through">
                   {formatCurrency(originalPrice)}
                 </span>
               )}
@@ -206,75 +206,73 @@ export function PromotionalSection() {
   };
 
   return (
-    <div className="mb-6 bg-gradient-to-r from-rose-50 via-pink-50 to-fuchsia-50 rounded-xl p-3 md:p-4 border border-rose-100">
+    <div className="mb-6 bg-gradient-to-r from-orange-50 via-amber-50 to-yellow-50 rounded-xl p-2 sm:p-3 md:p-4 border border-orange-200">
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        {/* Mobile-optimized header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
-          <div className="flex items-center justify-between">
-            <TabsList className="bg-white/80 h-auto flex-wrap">
-              {flashSaleProducts.length > 0 && (
-                <TabsTrigger value="flash-sale" className="gap-1 text-xs sm:text-sm px-2 sm:px-3 py-1.5">
-                  <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-rose-500" />
-                  <span className="hidden xs:inline">Flash Sale</span>
-                  <span className="xs:hidden">Sale</span>
-                </TabsTrigger>
-              )}
-              {trendingProducts.length > 0 && (
-                <TabsTrigger value="trending" className="gap-1 text-xs sm:text-sm px-2 sm:px-3 py-1.5">
-                  <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500" />
-                  <span className="hidden xs:inline">Trending</span>
-                  <span className="xs:hidden">Hot</span>
-                </TabsTrigger>
-              )}
-              {bestSellers.length > 0 && (
-                <TabsTrigger value="bestsellers" className="gap-1 text-xs sm:text-sm px-2 sm:px-3 py-1.5">
-                  <Flame className="w-3 h-3 sm:w-4 sm:h-4 text-orange-500" />
-                  <span className="hidden xs:inline">Best Sellers</span>
-                  <span className="xs:hidden">Top</span>
-                </TabsTrigger>
-              )}
-            </TabsList>
-            
-            {/* Navigation arrows - visible on mobile too */}
-            <div className="flex items-center gap-1 ml-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 sm:h-8 sm:w-8"
-                onClick={() => scroll('left')}
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 sm:h-8 sm:w-8"
-                onClick={() => scroll('right')}
-              >
-                <ChevronRight className="w-4 h-4" />
-              </Button>
-            </div>
-          </div>
+        {/* Compact header - all inline */}
+        <div className="flex items-center justify-between gap-2 mb-2 sm:mb-3">
+          <TabsList className="bg-white/80 h-auto">
+            {flashSaleProducts.length > 0 && (
+              <TabsTrigger value="flash-sale" className="gap-1 text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5">
+                <Zap className="w-3 h-3 sm:w-4 sm:h-4 text-orange-500" />
+                <span className="hidden sm:inline">Flash Sale</span>
+                <span className="sm:hidden">Sale</span>
+              </TabsTrigger>
+            )}
+            {trendingProducts.length > 0 && (
+              <TabsTrigger value="trending" className="gap-1 text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5">
+                <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500" />
+                <span className="hidden sm:inline">Trending</span>
+                <span className="sm:hidden">Hot</span>
+              </TabsTrigger>
+            )}
+            {bestSellers.length > 0 && (
+              <TabsTrigger value="bestsellers" className="gap-1 text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-1.5">
+                <Flame className="w-3 h-3 sm:w-4 sm:h-4 text-orange-500" />
+                <span className="hidden sm:inline">Best Sellers</span>
+                <span className="sm:hidden">Top</span>
+              </TabsTrigger>
+            )}
+          </TabsList>
           
-          {/* Countdown timer */}
+          {/* Countdown timer - inline with tabs */}
           {activeTab === 'flash-sale' && countdown && (
-            <div className="flex items-center gap-2 text-xs sm:text-sm font-medium bg-white/60 rounded-full px-3 py-1 w-fit">
-              <Clock className="w-3 h-3 sm:w-4 sm:h-4 text-rose-500" />
-              <span className="text-rose-600">{countdown}</span>
+            <div className="flex items-center gap-1 text-xs font-medium text-orange-600">
+              <Clock className="w-3 h-3" />
+              <span>{countdown}</span>
             </div>
           )}
+          
+          {/* Navigation arrows */}
+          <div className="flex items-center gap-0.5 ml-auto">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 sm:h-8 sm:w-8"
+              onClick={() => scroll('left')}
+            >
+              <ChevronLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-6 w-6 sm:h-8 sm:w-8"
+              onClick={() => scroll('right')}
+            >
+              <ChevronRight className="w-3 h-3 sm:w-4 sm:h-4" />
+            </Button>
+          </div>
         </div>
         
         {isLoading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-6 h-6 animate-spin" />
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="w-5 h-5 animate-spin" />
           </div>
         ) : (
           <>
             <TabsContent value="flash-sale" className="mt-0">
               <div
                 ref={scrollRef}
-                className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide"
+                className="flex gap-2 sm:gap-4 overflow-x-auto pb-1 scrollbar-hide"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {flashSaleProducts.map((product) => renderProductCard(product, true))}
@@ -289,7 +287,7 @@ export function PromotionalSection() {
             <TabsContent value="trending" className="mt-0">
               <div
                 ref={scrollRef}
-                className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide"
+                className="flex gap-2 sm:gap-4 overflow-x-auto pb-1 scrollbar-hide"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {trendingProducts.map((product) => renderProductCard(product, false))}
@@ -304,7 +302,7 @@ export function PromotionalSection() {
             <TabsContent value="bestsellers" className="mt-0">
               <div
                 ref={scrollRef}
-                className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide"
+                className="flex gap-2 sm:gap-4 overflow-x-auto pb-1 scrollbar-hide"
                 style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
               >
                 {bestSellers.map((product) => renderProductCard(product, false))}
