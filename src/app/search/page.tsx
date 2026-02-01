@@ -60,6 +60,17 @@ interface CategoryAttribute {
   order: number;
 }
 
+interface RangeFilter {
+  min: number | null;
+  max: number | null;
+}
+
+interface DynamicFilterOptions {
+  availableValues: string[];
+  numericRange: { min: number; max: number } | null;
+  productCount: number;
+}
+
 interface ApiCategory {
   id: string;
   name: string;
@@ -169,6 +180,8 @@ function SearchPageContent() {
   const [minRating, setMinRating] = useState(0);
   const [inStockOnly, setInStockOnly] = useState(false);
   const [attributeFilters, setAttributeFilters] = useState<Record<string, string>>({});
+  const [rangeFilters, setRangeFilters] = useState<Record<string, RangeFilter>>({});
+  const [attributeSearchQueries, setAttributeSearchQueries] = useState<Record<string, string>>({});
   const [sortBy, setSortBy] = useState("relevance");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [showFilters, setShowFilters] = useState(false);
@@ -288,6 +301,52 @@ function SearchPageContent() {
     return uniqueVendors.filter(v => v.toLowerCase().includes(query));
   }, [uniqueVendors, vendorSearchQuery]);
 
+  // Compute dynamic filter options from actual product data
+  const dynamicFilterOptions = useMemo((): Record<string, DynamicFilterOptions> => {
+    const options: Record<string, DynamicFilterOptions> = {};
+    
+    // Filter products by selected category first
+    const categoryProducts = selectedCategory === "All Categories" 
+      ? allProducts 
+      : allProducts.filter(p => p.category === selectedCategory);
+    
+    categoryAttributes.forEach(attr => {
+      const values: string[] = [];
+      let numericMin = Infinity;
+      let numericMax = -Infinity;
+      let hasNumericValues = false;
+      
+      categoryProducts.forEach(product => {
+        const productAttrs = product.categoryAttributes as Record<string, unknown> | undefined;
+        if (productAttrs && productAttrs[attr.key] !== undefined && productAttrs[attr.key] !== null && productAttrs[attr.key] !== '') {
+          const value = productAttrs[attr.key];
+          
+          if (attr.type === 'number') {
+            const numVal = typeof value === 'number' ? value : parseFloat(String(value));
+            if (!isNaN(numVal)) {
+              hasNumericValues = true;
+              numericMin = Math.min(numericMin, numVal);
+              numericMax = Math.max(numericMax, numVal);
+            }
+          } else {
+            const strValue = String(value);
+            if (!values.includes(strValue)) {
+              values.push(strValue);
+            }
+          }
+        }
+      });
+      
+      options[attr.key] = {
+        availableValues: values.sort(),
+        numericRange: hasNumericValues ? { min: numericMin, max: numericMax } : null,
+        productCount: categoryProducts.length,
+      };
+    });
+    
+    return options;
+  }, [allProducts, selectedCategory, categoryAttributes]);
+
   // Advanced filtering and sorting logic
   const filteredAndSortedProducts = useMemo(() => {
     const filtered = allProducts.filter(product => {
@@ -315,14 +374,27 @@ function SearchPageContent() {
       const inStock = !product.trackQuantity || product.quantity > 0;
       const matchesStock = !inStockOnly || inStock;
 
-      // Category attribute filters
+      // Category attribute filters (select/multi_select/checkbox)
       const matchesAttributes = Object.entries(attributeFilters).every(([key, value]) => {
         if (!value || value === "all") return true;
         const productAttrs = product.categoryAttributes as Record<string, string> | undefined;
         return productAttrs?.[key] === value;
       });
 
-      return matchesSearch && matchesCategory && matchesVendor && matchesPrice && matchesRating && matchesStock && matchesAttributes;
+      // Range filters (number types)
+      const matchesRangeFilters = Object.entries(rangeFilters).every(([key, range]) => {
+        if (range.min === null && range.max === null) return true;
+        const productAttrs = product.categoryAttributes as Record<string, unknown> | undefined;
+        const value = productAttrs?.[key];
+        if (value === undefined || value === null) return true;
+        const numValue = typeof value === 'number' ? value : parseFloat(String(value));
+        if (isNaN(numValue)) return true;
+        if (range.min !== null && numValue < range.min) return false;
+        if (range.max !== null && numValue > range.max) return false;
+        return true;
+      });
+
+      return matchesSearch && matchesCategory && matchesVendor && matchesPrice && matchesRating && matchesStock && matchesAttributes && matchesRangeFilters;
     });
 
     // Sorting
@@ -346,7 +418,7 @@ function SearchPageContent() {
     });
 
     return sorted;
-  }, [allProducts, debouncedSearchQuery, selectedCategory, selectedVendor, priceRange, minRating, inStockOnly, sortBy, aiSearchResults, attributeFilters]);
+  }, [allProducts, debouncedSearchQuery, selectedCategory, selectedVendor, priceRange, minRating, inStockOnly, sortBy, aiSearchResults, attributeFilters, rangeFilters]);
 
   const handleAddToCart = useCallback((product: Product) => {
     const priceToUse = product.effectivePrice ?? product.price;
@@ -386,22 +458,27 @@ function SearchPageContent() {
     setInStockOnly(false);
     setSortBy("relevance");
     setAttributeFilters({});
+    setRangeFilters({});
+    setAttributeSearchQueries({});
   }, [maxPrice]);
 
   const activeFiltersCount = useMemo(() => {
     const attrFiltersActive = Object.values(attributeFilters).filter(v => v && v !== "all").length;
+    const rangeFiltersActive = Object.values(rangeFilters).filter(r => r.min !== null || r.max !== null).length;
     return [
       selectedCategory !== "All Categories",
       selectedVendor !== "All Vendors",
       priceRange[0] > 0 || priceRange[1] < maxPrice,
       minRating > 0,
       inStockOnly,
-    ].filter(Boolean).length + attrFiltersActive;
-  }, [selectedCategory, selectedVendor, priceRange, maxPrice, minRating, inStockOnly, attributeFilters]);
+    ].filter(Boolean).length + attrFiltersActive + rangeFiltersActive;
+  }, [selectedCategory, selectedVendor, priceRange, maxPrice, minRating, inStockOnly, attributeFilters, rangeFilters]);
 
   // Clear attribute filters when category changes
   useEffect(() => {
     setAttributeFilters({});
+    setRangeFilters({});
+    setAttributeSearchQueries({});
   }, [selectedCategory]);
 
   // Removed early return for loading state - will use conditional rendering in JSX
@@ -486,39 +563,143 @@ function SearchPageContent() {
         </>
       )}
 
-      {/* Dynamic Category Attribute Filters */}
+      {/* Dynamic Category Attribute Filters - Smart Filters */}
       {categoryAttributes.length > 0 && (
         <>
-          {categoryAttributes.map((attr) => (
-            <div key={attr.key}>
-              <Label className="text-sm font-semibold">{attr.label || attr.key}</Label>
-              <div className="mt-2 space-y-2 max-h-48 overflow-y-auto">
-                <button
-                  onClick={() => setAttributeFilters(prev => ({ ...prev, [attr.key]: "all" }))}
-                  className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
-                    !attributeFilters[attr.key] || attributeFilters[attr.key] === "all"
-                      ? "bg-emerald-100 text-emerald-800 font-medium"
-                      : "hover:bg-gray-100"
-                  }`}
-                >
-                  All {attr.label || attr.key}
-                </button>
-                {attr.options?.map((option) => (
-                  <button
-                    key={option}
-                    onClick={() => setAttributeFilters(prev => ({ ...prev, [attr.key]: option }))}
-                    className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
-                      attributeFilters[attr.key] === option
-                        ? "bg-emerald-100 text-emerald-800 font-medium"
-                        : "hover:bg-gray-100"
-                    }`}
-                  >
-                    {option}
-                  </button>
-                ))}
+          {categoryAttributes.map((attr) => {
+            const filterOptions = dynamicFilterOptions[attr.key];
+            const availableValues = filterOptions?.availableValues || [];
+            const numericRange = filterOptions?.numericRange;
+            const searchQuery = attributeSearchQueries[attr.key] || "";
+            
+            // For number types, show range inputs
+            if (attr.type === 'number' && numericRange) {
+              const currentRange = rangeFilters[attr.key] || { min: null, max: null };
+              const isYearField = attr.key.toLowerCase().includes('year');
+              const isMileageField = attr.key.toLowerCase().includes('mileage') || attr.key.toLowerCase().includes('km');
+              
+              return (
+                <div key={attr.key}>
+                  <Label className="text-sm font-semibold">{attr.label || attr.key}</Label>
+                  <div className="mt-2 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1">
+                        <Input
+                          type="number"
+                          placeholder={isYearField ? `From ${numericRange.min}` : `Min`}
+                          value={currentRange.min ?? ""}
+                          onChange={(e) => {
+                            const value = e.target.value ? parseInt(e.target.value) : null;
+                            setRangeFilters(prev => ({
+                              ...prev,
+                              [attr.key]: { ...currentRange, min: value }
+                            }));
+                          }}
+                          className="text-sm h-9"
+                          min={numericRange.min}
+                          max={numericRange.max}
+                        />
+                      </div>
+                      <span className="text-muted-foreground text-sm">to</span>
+                      <div className="flex-1">
+                        <Input
+                          type="number"
+                          placeholder={isYearField ? `To ${numericRange.max}` : `Max`}
+                          value={currentRange.max ?? ""}
+                          onChange={(e) => {
+                            const value = e.target.value ? parseInt(e.target.value) : null;
+                            setRangeFilters(prev => ({
+                              ...prev,
+                              [attr.key]: { ...currentRange, max: value }
+                            }));
+                          }}
+                          className="text-sm h-9"
+                          min={numericRange.min}
+                          max={numericRange.max}
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Available: {numericRange.min.toLocaleString()} - {numericRange.max.toLocaleString()}
+                      {isMileageField && " km"}
+                    </p>
+                    {(currentRange.min !== null || currentRange.max !== null) && (
+                      <button
+                        onClick={() => setRangeFilters(prev => ({ ...prev, [attr.key]: { min: null, max: null } }))}
+                        className="text-xs text-emerald-600 hover:underline"
+                      >
+                        Clear range
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            }
+            
+            // For select/multi_select/checkbox with options - show searchable list
+            const filteredOptions = searchQuery.trim()
+              ? availableValues.filter(v => v.toLowerCase().includes(searchQuery.toLowerCase()))
+              : availableValues;
+            
+            // If no options available from products, skip this filter
+            if (availableValues.length === 0) return null;
+            
+            return (
+              <div key={attr.key}>
+                <Label className="text-sm font-semibold">{attr.label || attr.key}</Label>
+                <div className="mt-2">
+                  {/* Show search input if more than 8 options */}
+                  {availableValues.length > 8 && (
+                    <Input
+                      type="text"
+                      placeholder={`Search ${attr.label || attr.key}...`}
+                      value={searchQuery}
+                      onChange={(e) => setAttributeSearchQueries(prev => ({ ...prev, [attr.key]: e.target.value }))}
+                      className="mb-2 text-sm h-9"
+                    />
+                  )}
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    <button
+                      onClick={() => setAttributeFilters(prev => ({ ...prev, [attr.key]: "all" }))}
+                      className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
+                        !attributeFilters[attr.key] || attributeFilters[attr.key] === "all"
+                          ? "bg-emerald-100 text-emerald-800 font-medium"
+                          : "hover:bg-gray-100"
+                      }`}
+                    >
+                      All {attr.label || attr.key}
+                    </button>
+                    {filteredOptions.slice(0, 20).map((option) => (
+                      <button
+                        key={option}
+                        onClick={() => {
+                          setAttributeFilters(prev => ({ ...prev, [attr.key]: option }));
+                          setAttributeSearchQueries(prev => ({ ...prev, [attr.key]: "" }));
+                        }}
+                        className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
+                          attributeFilters[attr.key] === option
+                            ? "bg-emerald-100 text-emerald-800 font-medium"
+                            : "hover:bg-gray-100"
+                        }`}
+                      >
+                        {option}
+                      </button>
+                    ))}
+                    {filteredOptions.length > 20 && (
+                      <p className="text-xs text-muted-foreground py-1 text-center">
+                        +{filteredOptions.length - 20} more - type to filter
+                      </p>
+                    )}
+                    {filteredOptions.length === 0 && searchQuery && (
+                      <p className="text-xs text-muted-foreground py-2 text-center">
+                        No matching options
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
           <Separator />
         </>
       )}
