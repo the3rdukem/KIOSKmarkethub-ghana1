@@ -1408,6 +1408,33 @@ function SearchPageContent() {
             </div>
           </div>
 
+          {/* Mobile Quick Filter Pills - Horizontal scroll */}
+          <div className="flex md:hidden gap-2 mt-3 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+            {dynamicCategories.slice(0, 6).map((cat) => (
+              <Badge
+                key={cat}
+                variant={selectedCategory === cat ? "default" : "outline"}
+                className={`flex-shrink-0 cursor-pointer transition-all whitespace-nowrap px-3 py-1.5 ${
+                  selectedCategory === cat 
+                    ? "bg-green-600 hover:bg-green-700 text-white" 
+                    : "hover:bg-green-50 hover:border-green-300"
+                }`}
+                onClick={() => setSelectedCategory(selectedCategory === cat ? "All Categories" : cat)}
+              >
+                {cat}
+              </Badge>
+            ))}
+            {dynamicCategories.length > 6 && (
+              <Badge 
+                variant="outline" 
+                className="flex-shrink-0 cursor-pointer hover:bg-gray-100 whitespace-nowrap px-3 py-1.5"
+                onClick={() => setShowFilters(true)}
+              >
+                +{dynamicCategories.length - 6} more
+              </Badge>
+            )}
+          </div>
+
           {/* Results count */}
           <div className="flex items-center gap-2 mt-3">
             <p className="text-sm text-muted-foreground">

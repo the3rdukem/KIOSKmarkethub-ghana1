@@ -321,36 +321,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Platform Stats - Horizontal on mobile */}
-      <section className="py-8 sm:py-16 bg-white">
-        <div className="container">
-          <div className="flex justify-between sm:grid sm:grid-cols-3 gap-2 sm:gap-8">
-            <Card className="text-center flex-1">
-              <CardContent className="p-3 sm:p-6">
-                <Package className="w-6 h-6 sm:w-12 sm:h-12 text-blue-600 mx-auto mb-1 sm:mb-4" />
-                <h3 className="text-lg sm:text-2xl font-bold mb-0 sm:mb-2">{totalProducts > 0 ? totalProducts.toLocaleString() : "0"}</h3>
-                <p className="text-muted-foreground text-xs sm:text-base">{totalProducts > 0 ? "Products" : "Products"}</p>
-              </CardContent>
-            </Card>
-            <Card className="text-center flex-1">
-              <CardContent className="p-3 sm:p-6">
-                <Shield className="w-6 h-6 sm:w-12 sm:h-12 text-green-600 mx-auto mb-1 sm:mb-4" />
-                <h3 className="text-lg sm:text-2xl font-bold mb-0 sm:mb-2">100%</h3>
-                <p className="text-muted-foreground text-xs sm:text-base">Verified</p>
-              </CardContent>
-            </Card>
-            <Card className="text-center flex-1">
-              <CardContent className="p-3 sm:p-6">
-                <Users className="w-6 h-6 sm:w-12 sm:h-12 text-purple-600 mx-auto mb-1 sm:mb-4" />
-                <h3 className="text-lg sm:text-2xl font-bold mb-0 sm:mb-2">{totalVendors > 0 ? totalVendors.toLocaleString() : "0"}</h3>
-                <p className="text-muted-foreground text-xs sm:text-base">{totalVendors > 0 ? "Sellers" : "Sellers"}</p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      </section>
-
-      {/* Categories */}
+      {/* Categories - Moved above Platform Stats */}
       <section className="py-16 bg-gray-50">
         <div className="container">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 sm:mb-12">
@@ -377,6 +348,35 @@ export default function HomePage() {
                 </Card>
               </Link>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Platform Stats - Horizontal on mobile */}
+      <section className="py-8 sm:py-16 bg-white">
+        <div className="container">
+          <div className="flex justify-between sm:grid sm:grid-cols-3 gap-2 sm:gap-8">
+            <Card className="text-center flex-1">
+              <CardContent className="p-3 sm:p-6">
+                <Package className="w-6 h-6 sm:w-12 sm:h-12 text-blue-600 mx-auto mb-1 sm:mb-4" />
+                <h3 className="text-lg sm:text-2xl font-bold mb-0 sm:mb-2">{totalProducts > 0 ? totalProducts.toLocaleString() : "0"}</h3>
+                <p className="text-muted-foreground text-xs sm:text-base">{totalProducts > 0 ? "Products" : "Products"}</p>
+              </CardContent>
+            </Card>
+            <Card className="text-center flex-1">
+              <CardContent className="p-3 sm:p-6">
+                <Shield className="w-6 h-6 sm:w-12 sm:h-12 text-green-600 mx-auto mb-1 sm:mb-4" />
+                <h3 className="text-lg sm:text-2xl font-bold mb-0 sm:mb-2">100%</h3>
+                <p className="text-muted-foreground text-xs sm:text-base">Verified</p>
+              </CardContent>
+            </Card>
+            <Card className="text-center flex-1">
+              <CardContent className="p-3 sm:p-6">
+                <Users className="w-6 h-6 sm:w-12 sm:h-12 text-purple-600 mx-auto mb-1 sm:mb-4" />
+                <h3 className="text-lg sm:text-2xl font-bold mb-0 sm:mb-2">{totalVendors > 0 ? totalVendors.toLocaleString() : "0"}</h3>
+                <p className="text-muted-foreground text-xs sm:text-base">{totalVendors > 0 ? "Sellers" : "Sellers"}</p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
