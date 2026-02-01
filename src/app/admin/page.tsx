@@ -37,6 +37,7 @@ import {
 } from "lucide-react";
 import { formatDistance, format } from "date-fns";
 import { toast } from "sonner";
+import { getCsrfHeaders } from "@/lib/utils/csrf-client";
 import { useAuthStore, hasAdminPermission } from "@/lib/auth-store";
 import { useUsersStore, PlatformUser, Dispute, APIConfiguration } from "@/lib/users-store";
 import { useProductsStore, Product } from "@/lib/products-store";
@@ -1131,13 +1132,17 @@ function AdminDashboardContent() {
       const response = await fetch('/api/admin/site-settings', {
         method: 'PUT',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getCsrfHeaders()
+        },
         body: JSON.stringify({ settings: dbBranding }),
       });
       if (response.ok) {
         toast.success('Branding settings saved successfully');
       } else {
-        toast.error('Failed to save branding settings');
+        const data = await response.json().catch(() => ({}));
+        toast.error(data.error || 'Failed to save branding settings');
       }
     } catch (error) {
       console.error('Failed to save branding:', error);

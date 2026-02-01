@@ -481,10 +481,14 @@ export function MainNav() {
         <div className="flex items-center space-x-4">
           <Link href="/" className="flex items-center space-x-2">
             {!safeUser || effectiveRole === "buyer" ? (
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">K</div>
-                <span className="font-bold text-xl text-gray-900">KIOSK</span>
-              </div>
+              branding.logo_url ? (
+                <img src={branding.logo_url} alt={siteName} className="h-10 w-auto max-w-[180px] object-contain" />
+              ) : (
+                <div className="flex items-center space-x-2">
+                  <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center text-white font-bold text-lg">K</div>
+                  <span className="font-bold text-xl text-gray-900">{siteName}</span>
+                </div>
+              )
             ) : (
               <>
                 <div className={`w-8 h-8 rounded-lg ${getPortalColor()} flex items-center justify-center text-white font-bold overflow-hidden`}>
