@@ -704,18 +704,6 @@ export const useArkeselOTP = () => {
   };
 };
 
-export const useGoogleCloudStorage = () => {
-  const store = useIntegrationsStore();
-  const integration = store.getIntegration('google_cloud_storage');
-
-  return {
-    isEnabled: integration?.isEnabled && integration?.isConfigured,
-    isReady: store.isIntegrationReady('google_cloud_storage'),
-    bucketName: store.getCredentialValue('google_cloud_storage', 'GCS_BUCKET_NAME'),
-    projectId: store.getCredentialValue('google_cloud_storage', 'GCS_PROJECT_ID'),
-  };
-};
-
 export const useOpenAI = () => {
   const store = useIntegrationsStore();
   const integration = store.getIntegration('openai');
@@ -727,14 +715,3 @@ export const useOpenAI = () => {
   };
 };
 
-export const useFacialRecognition = () => {
-  const store = useIntegrationsStore();
-  const integration = store.getIntegration('facial_recognition');
-
-  return {
-    isEnabled: integration?.isEnabled && integration?.isConfigured,
-    isReady: store.isIntegrationReady('facial_recognition'),
-    environment: integration?.environment || 'demo',
-    isDemoMode: integration?.environment === 'demo',
-  };
-};

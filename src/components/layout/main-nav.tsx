@@ -459,7 +459,7 @@ export function MainNav() {
       } else if (effectiveRole === 'admin' || effectiveRole === 'master_admin') {
         return [
           { href: '/admin', label: 'Admin Dashboard', icon: LayoutDashboard },
-          { href: '/admin/verification', label: 'Verifications', icon: Shield },
+          { href: '/admin/verifications', label: 'Verifications', icon: Shield },
           { href: '/admin/orders', label: 'Orders', icon: ShoppingBag },
           { href: '/admin/payouts', label: 'Payouts', icon: Wallet },
           { href: '/admin?tab=vendors', label: 'Vendors', icon: Store },

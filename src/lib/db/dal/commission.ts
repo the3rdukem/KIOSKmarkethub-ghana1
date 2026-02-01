@@ -377,7 +377,8 @@ export async function getVendorEarningsSummary(vendorId: string): Promise<{
   paidEarnings: number;
 }> {
   try {
-    const result = await query(
+    // Get total sales and earnings from order items
+    const earningsResult = await query(
       `SELECT 
         COALESCE(SUM(CASE WHEN o.payment_status = 'paid' THEN oi.price * oi.quantity ELSE 0 END), 0) as total_sales,
         COALESCE(SUM(CASE WHEN o.payment_status = 'paid' THEN oi.commission_amount ELSE 0 END), 0) as total_commission,
@@ -388,17 +389,28 @@ export async function getVendorEarningsSummary(vendorId: string): Promise<{
       [vendorId]
     );
 
-    const row = result.rows[0];
-    const totalSales = parseFloat(String(row.total_sales || '0')) || 0;
-    const totalCommissionPaid = parseFloat(String(row.total_commission || '0')) || 0;
-    const totalEarnings = parseFloat(String(row.total_earnings || '0')) || 0;
+    // Get total successfully paid out from payouts table
+    const payoutsResult = await query(
+      `SELECT COALESCE(SUM(amount), 0) as total_paid
+       FROM vendor_payouts
+       WHERE vendor_id = $1 AND status = 'success'`,
+      [vendorId]
+    );
+
+    const earningsRow = earningsResult.rows[0];
+    const totalSales = parseFloat(String(earningsRow.total_sales || '0')) || 0;
+    const totalCommissionPaid = parseFloat(String(earningsRow.total_commission || '0')) || 0;
+    const totalEarnings = parseFloat(String(earningsRow.total_earnings || '0')) || 0;
+
+    const paidEarnings = parseFloat(String(payoutsResult.rows[0]?.total_paid || '0')) || 0;
+    const pendingEarnings = Math.max(0, totalEarnings - paidEarnings);
 
     return {
       totalSales,
       totalCommissionPaid,
       totalEarnings,
-      pendingEarnings: totalEarnings, // TODO: Subtract paid payouts
-      paidEarnings: 0 // TODO: Get from payouts table
+      pendingEarnings,
+      paidEarnings
     };
   } catch (error) {
     console.error('[Commission] Error getting vendor earnings:', error);

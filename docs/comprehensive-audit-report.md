@@ -1,26 +1,28 @@
 # KIOSK Comprehensive Audit Report
 **Date:** February 1, 2026  
-**Scope:** Full codebase analysis after Dual OTP Delivery implementation
+**Scope:** Full codebase analysis after Dual OTP Delivery implementation  
+**Last Updated:** February 1, 2026 (Post-cleanup)
 
 ---
 
 ## EXECUTIVE SUMMARY
 
-After comprehensive testing of all features, I identified **23 issues** across 7 categories. The application is fundamentally sound with 348 TypeScript files, 33 DAL modules, and 100+ API endpoints. Most critical issues relate to **duplicate code** and **dead code** that should be refactored.
+After comprehensive testing of all features, I identified **23 issues** across 7 categories. The application is fundamentally sound with 348 TypeScript files, 33 DAL modules, and 100+ API endpoints. 
+
+### CLEANUP COMPLETED
+- Deleted ~1,400 lines of dead code
+- Fixed commission calculation bug
+- Removed duplicate mock verification page
+- Updated nav links to point to working verification page
 
 ---
 
 ## 1. BUGS
 
-### 1.1 Commission Calculation - Incomplete Implementation
-**Location:** `src/lib/db/dal/commission.ts:400-401`
-**Severity:** Medium
-**Details:** The commission earnings calculation has TODO markers indicating incomplete logic:
-```typescript
-pendingEarnings: totalEarnings, // TODO: Subtract paid payouts
-paidEarnings: 0 // TODO: Get from payouts table
-```
-**Impact:** Vendor earnings may not accurately reflect actual paid amounts.
+### 1.1 Commission Calculation - ~~Incomplete Implementation~~ FIXED
+**Location:** `src/lib/db/dal/commission.ts`
+**Status:** FIXED (February 1, 2026)
+**Fix:** Added query to vendor_payouts table to get total successfully paid out. `pendingEarnings` now correctly equals `totalEarnings - paidEarnings`.
 
 ### 1.2 Email Verification Flow - Not Wired Up
 **Location:** `src/app/api/users/[id]/route.ts:297`
@@ -95,30 +97,31 @@ paidEarnings: 0 // TODO: Get from payouts table
 
 ## 4. DEAD CODE
 
-### 4.1 arkesel-otp.ts - Entire File Unused
-**Location:** `src/lib/services/arkesel-otp.ts` (462 lines)
-**Analysis:** No imports found anywhere in the codebase. All OTP functionality is implemented in `phone-auth.ts` DAL instead.
-**Recommendation:** Delete this file.
+### 4.1 arkesel-otp.ts - ~~Entire File Unused~~ ACTUALLY USED
+**Status:** KEPT - IS used by `src/components/integrations/otp-verification.tsx`
+**Note:** Initial analysis was incorrect; this file is actively imported.
 
-### 4.2 facial-recognition.ts - Not Imported
-**Location:** `src/lib/services/facial-recognition.ts` (436 lines)
-**Analysis:** Only self-references found. Never imported by any component or API.
-**Recommendation:** Delete or implement if needed for future KYC.
+### 4.2 facial-recognition.ts - ~~Not Imported~~ DELETED
+**Status:** DELETED (February 1, 2026)
+**Reason:** Only referenced by unused hook in integrations-store.ts
 
-### 4.3 google-cloud-storage.ts - Not Imported
-**Location:** `src/lib/services/google-cloud-storage.ts` (507 lines)
-**Analysis:** Only referenced by integrations-store.ts hook but never actually used.
-**Recommendation:** Delete (Supabase Storage is used instead).
+### 4.3 google-cloud-storage.ts - ~~Not Imported~~ DELETED
+**Status:** DELETED (February 1, 2026)
+**Reason:** Only referenced by unused hook (Supabase Storage is used instead)
 
-### 4.4 hashOTP/verifyOTP in crypto.ts - Never Used
+### 4.4 Unused hooks in integrations-store.ts - DELETED
+**Status:** DELETED (February 1, 2026)
+- `useGoogleCloudStorage` hook removed
+- `useFacialRecognition` hook removed
+
+### 4.5 Admin Verification Page (Mock Version) - DELETED
+**Status:** DELETED (February 1, 2026)
+**Action:** Nav links updated to point to `/admin/verifications` (the real API version)
+
+### 4.6 hashOTP/verifyOTP in crypto.ts - Still Exists (Low Priority)
 **Location:** `src/lib/utils/crypto.ts:99-109`
 **Analysis:** These functions exist but all OTP endpoints define their own local versions.
-**Recommendation:** Delete from crypto.ts OR refactor all OTP code to use these.
-
-### 4.5 Admin Verification Page (Mock Version)
-**Location:** `src/app/admin/verification/` (entire directory)
-**Analysis:** Uses hardcoded mock data, no API calls, no useEffect for data fetching.
-**Recommendation:** Delete entire directory.
+**Status:** Low priority - consider refactoring OTP code to use these in future.
 
 ---
 

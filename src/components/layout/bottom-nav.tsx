@@ -33,7 +33,7 @@ const adminNavItems: NavItem[] = [
   { href: "/admin", icon: BarChart3, label: "Dashboard" },
   { href: "/admin/vendors", icon: Store, label: "Vendors" },
   { href: "/admin/orders", icon: Package, label: "Orders" },
-  { href: "/admin/verification", icon: Shield, label: "Verify" },
+  { href: "/admin/verifications", icon: Shield, label: "Verify" },
   { href: "/admin/settings", icon: Settings, label: "Settings" },
 ];
 
