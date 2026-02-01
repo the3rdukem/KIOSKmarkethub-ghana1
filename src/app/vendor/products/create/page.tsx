@@ -185,6 +185,43 @@ export default function CreateProductPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoriesLoading, watchCategory, currentCategoryFields, setValue]);
 
+  // State for cascading options - moved here before early returns
+  // Fetch cascading options for dependent_select fields
+  const fetchCascadingOptions = async (fieldKey: string, parentOptionId?: string) => {
+    if (!selectedCategory?.id) return;
+    
+    setCascadingLoading(prev => ({ ...prev, [fieldKey]: true }));
+    try {
+      let url = `/api/attribute-options?categoryId=${selectedCategory.id}&fieldKey=${fieldKey}`;
+      if (parentOptionId) {
+        url += `&parentOptionId=${parentOptionId}`;
+      }
+      
+      const res = await fetch(url);
+      const data = await res.json();
+      
+      if (data.options) {
+        setCascadingOptions(prev => ({ ...prev, [fieldKey]: data.options }));
+      }
+    } catch (error) {
+      console.error(`Failed to fetch options for ${fieldKey}:`, error);
+    } finally {
+      setCascadingLoading(prev => ({ ...prev, [fieldKey]: false }));
+    }
+  };
+
+  // Load initial cascading options when category changes - must be before early returns
+  useEffect(() => {
+    if (selectedCategory?.id && currentCategoryFields.length > 0) {
+      const dependentFields = currentCategoryFields.filter(f => f.type === 'dependent_select');
+      const rootFields = dependentFields.filter(f => !f.dependsOn);
+      rootFields.forEach(field => {
+        fetchCascadingOptions(field.key);
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedCategory?.id]);
+
   if (!isHydrated) {
     return (
       <SiteLayout>
@@ -349,42 +386,6 @@ export default function CreateProductPage() {
       setIsLoading(false);
     }
   };
-
-  // Fetch cascading options for dependent_select fields
-  const fetchCascadingOptions = async (fieldKey: string, parentOptionId?: string) => {
-    if (!selectedCategory?.id) return;
-    
-    setCascadingLoading(prev => ({ ...prev, [fieldKey]: true }));
-    try {
-      let url = `/api/attribute-options?categoryId=${selectedCategory.id}&fieldKey=${fieldKey}`;
-      if (parentOptionId) {
-        url += `&parentOptionId=${parentOptionId}`;
-      }
-      
-      const res = await fetch(url);
-      const data = await res.json();
-      
-      if (data.options) {
-        setCascadingOptions(prev => ({ ...prev, [fieldKey]: data.options }));
-      }
-    } catch (error) {
-      console.error(`Failed to fetch options for ${fieldKey}:`, error);
-    } finally {
-      setCascadingLoading(prev => ({ ...prev, [fieldKey]: false }));
-    }
-  };
-
-  // Load initial cascading options when category changes
-  useEffect(() => {
-    if (selectedCategory?.id && currentCategoryFields.length > 0) {
-      const dependentFields = currentCategoryFields.filter(f => f.type === 'dependent_select');
-      const rootFields = dependentFields.filter(f => !f.dependsOn);
-      rootFields.forEach(field => {
-        fetchCascadingOptions(field.key);
-      });
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCategory?.id]);
 
   // Dynamic Category Attribute Field Component using per-attribute RHF registration
   // Uses 'any' type cast for dynamic nested paths (recommended RHF workaround for Record types)

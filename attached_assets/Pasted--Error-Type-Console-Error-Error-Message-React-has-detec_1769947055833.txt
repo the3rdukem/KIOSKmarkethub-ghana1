@@ -1,0 +1,68 @@
+## Error Type
+Console Error
+
+## Error Message
+React has detected a change in the order of Hooks called by CreateProductPage. This will lead to bugs and errors if not fixed. For more information, read the Rules of Hooks: https://react.dev/link/rules-of-hooks
+
+   Previous render            Next render
+   ------------------------------------------------------
+1. useContext                 useContext
+2. useCallback                useCallback
+3. useCallback                useCallback
+4. useSyncExternalStore       useSyncExternalStore
+5. useDebugValue              useDebugValue
+6. useCallback                useCallback
+7. useCallback                useCallback
+8. useSyncExternalStore       useSyncExternalStore
+9. useDebugValue              useDebugValue
+10. useState                  useState
+11. useState                  useState
+12. useState                  useState
+13. useState                  useState
+14. useState                  useState
+15. useState                  useState
+16. useState                  useState
+17. useState                  useState
+18. useState                  useState
+19. useState                  useState
+20. useRef                    useRef
+21. useRef                    useRef
+22. useState                  useState
+23. useLayoutEffect           useLayoutEffect
+24. useEffect                 useEffect
+25. useEffect                 useEffect
+26. useEffect                 useEffect
+27. useEffect                 useEffect
+28. useEffect                 useEffect
+29. useEffect                 useEffect
+30. useEffect                 useEffect
+31. useEffect                 useEffect
+32. useCallback               useCallback
+33. useCallback               useCallback
+34. useCallback               useCallback
+35. useCallback               useCallback
+36. useCallback               useCallback
+37. useEffect                 useEffect
+38. useEffect                 useEffect
+39. useEffect                 useEffect
+40. useMemo                   useMemo
+41. useRef                    useRef
+42. useRef                    useRef
+43. useEffect                 useEffect
+44. undefined                 useEffect
+   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+    at CreateProductPage (src/app/vendor/products/create/page.tsx:378:12)
+
+## Code Frame
+  376 |
+  377 |   // Load initial cascading options when category changes
+> 378 |   useEffect(() => {
+      |            ^
+  379 |     if (selectedCategory?.id && currentCategoryFields.length > 0) {
+  380 |       const dependentFields = currentCategoryFields.filter(f => f.type === 'dependent_select');
+  381 |       const rootFields = dependentFields.filter(f => !f.dependsOn);
+
+Next.js version: 15.5.9 (Turbopack)
