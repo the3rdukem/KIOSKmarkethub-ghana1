@@ -937,13 +937,16 @@ function SearchPageContent() {
               );
             }
             
-            // For select/multi_select/checkbox with options - show searchable list
+            // For select/multi_select/checkbox with options - show searchable list or checkbox list
             const filteredOptions = searchQuery.trim()
               ? availableValues.filter(v => v.toLowerCase().includes(searchQuery.toLowerCase()))
               : availableValues;
             
             // If no options available from products, skip this filter
             if (availableValues.length === 0) return null;
+            
+            // Use checkbox-style UI for filters with 6 or fewer options (more scannable)
+            const useCheckboxStyle = availableValues.length <= 6;
             
             return (
               <div key={attr.key}>
@@ -960,41 +963,68 @@ function SearchPageContent() {
                     />
                   )}
                   <div className="space-y-1 max-h-48 overflow-y-auto">
-                    <button
-                      onClick={() => setAttributeFilters(prev => ({ ...prev, [attr.key]: "all" }))}
-                      className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
-                        !attributeFilters[attr.key] || attributeFilters[attr.key] === "all"
-                          ? "bg-emerald-100 text-emerald-800 font-medium"
-                          : "hover:bg-gray-100"
-                      }`}
-                    >
-                      All {attr.label || attr.key}
-                    </button>
-                    {filteredOptions.slice(0, 20).map((option) => (
-                      <button
-                        key={option}
-                        onClick={() => {
-                          setAttributeFilters(prev => ({ ...prev, [attr.key]: option }));
-                          setAttributeSearchQueries(prev => ({ ...prev, [attr.key]: "" }));
-                        }}
-                        className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
-                          attributeFilters[attr.key] === option
-                            ? "bg-emerald-100 text-emerald-800 font-medium"
-                            : "hover:bg-gray-100"
-                        }`}
-                      >
-                        {option}
-                      </button>
-                    ))}
-                    {filteredOptions.length > 20 && (
-                      <p className="text-xs text-muted-foreground py-1 text-center">
-                        +{filteredOptions.length - 20} more - type to filter
-                      </p>
-                    )}
-                    {filteredOptions.length === 0 && searchQuery && (
-                      <p className="text-xs text-muted-foreground py-2 text-center">
-                        No matching options
-                      </p>
+                    {useCheckboxStyle ? (
+                      // Checkbox-style UI for few options (Condition, Transmission, etc.)
+                      <>
+                        <label className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-gray-50 cursor-pointer">
+                          <Checkbox
+                            checked={!attributeFilters[attr.key] || attributeFilters[attr.key] === "all"}
+                            onCheckedChange={() => setAttributeFilters(prev => ({ ...prev, [attr.key]: "all" }))}
+                          />
+                          <span className="text-sm">All {attr.label || attr.key}</span>
+                        </label>
+                        {availableValues.map((option) => (
+                          <label key={option} className="flex items-center gap-2 py-1.5 px-2 rounded hover:bg-gray-50 cursor-pointer">
+                            <Checkbox
+                              checked={attributeFilters[attr.key] === option}
+                              onCheckedChange={() => {
+                                setAttributeFilters(prev => ({ ...prev, [attr.key]: option }));
+                              }}
+                            />
+                            <span className="text-sm">{option}</span>
+                          </label>
+                        ))}
+                      </>
+                    ) : (
+                      // Button-style UI for many options
+                      <>
+                        <button
+                          onClick={() => setAttributeFilters(prev => ({ ...prev, [attr.key]: "all" }))}
+                          className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
+                            !attributeFilters[attr.key] || attributeFilters[attr.key] === "all"
+                              ? "bg-emerald-100 text-emerald-800 font-medium"
+                              : "hover:bg-gray-100"
+                          }`}
+                        >
+                          All {attr.label || attr.key}
+                        </button>
+                        {filteredOptions.slice(0, 20).map((option) => (
+                          <button
+                            key={option}
+                            onClick={() => {
+                              setAttributeFilters(prev => ({ ...prev, [attr.key]: option }));
+                              setAttributeSearchQueries(prev => ({ ...prev, [attr.key]: "" }));
+                            }}
+                            className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
+                              attributeFilters[attr.key] === option
+                                ? "bg-emerald-100 text-emerald-800 font-medium"
+                                : "hover:bg-gray-100"
+                            }`}
+                          >
+                            {option}
+                          </button>
+                        ))}
+                        {filteredOptions.length > 20 && (
+                          <p className="text-xs text-muted-foreground py-1 text-center">
+                            +{filteredOptions.length - 20} more - type to filter
+                          </p>
+                        )}
+                        {filteredOptions.length === 0 && searchQuery && (
+                          <p className="text-xs text-muted-foreground py-2 text-center">
+                            No matching options
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
