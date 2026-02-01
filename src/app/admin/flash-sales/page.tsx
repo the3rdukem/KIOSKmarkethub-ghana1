@@ -104,8 +104,8 @@ export default function AdminFlashSalesPage() {
   const [productSearch, setProductSearch] = useState("");
 
   useEffect(() => {
-    if (!isAuthenticated || user?.role !== 'admin') {
-      router.push('/auth/admin/login');
+    if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'master_admin')) {
+      router.push('/auth/login');
       return;
     }
     fetchData();
@@ -310,7 +310,7 @@ export default function AdminFlashSalesPage() {
     }));
   };
 
-  if (!isAuthenticated || user?.role !== 'admin') {
+  if (!isAuthenticated || (user?.role !== 'admin' && user?.role !== 'master_admin')) {
     return null;
   }
 
