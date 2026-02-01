@@ -29,6 +29,7 @@ const CSRF_EXEMPT_PATHS = [
   '/api/auth/phone/complete-registration',
   '/api/auth/password-reset/request',
   '/api/auth/password-reset/reset',
+  '/api/auth/google/init',
   '/api/auth/google/callback',
   '/api/webhooks/',
   '/api/paystack/webhook',
