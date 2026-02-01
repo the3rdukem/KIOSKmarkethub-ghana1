@@ -120,7 +120,7 @@ function AdminManagementSection({
     try {
       const response = await fetch('/api/admin/admins', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify({
           email: newAdminData.email,
@@ -155,7 +155,7 @@ function AdminManagementSection({
     try {
       const response = await fetch(`/api/admin/admins/${selectedAdminToRevoke.id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify({ action: 'revoke', reason: revokeReason }),
       });
@@ -313,7 +313,7 @@ function AdminManagementSection({
                                   try {
                                     const response = await fetch(`/api/admin/admins/${admin.id}`, {
                                       method: 'PATCH',
-                                      headers: { 'Content-Type': 'application/json' },
+                                      headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
                                       credentials: 'include',
                                       body: JSON.stringify({ action: 'activate' }),
                                     });
@@ -402,6 +402,7 @@ function AdminManagementSection({
                       const response = await fetch(`/api/admin/admins/${selectedAdminToDelete.id}`, {
                         method: 'DELETE',
                         credentials: 'include',
+                        headers: { ...getCsrfHeaders() },
                       });
                       if (response.ok) {
                         toast.success(`Deleted admin account: ${selectedAdminToDelete.name}`);
@@ -540,7 +541,7 @@ function EmailManagementSection() {
     try {
       const response = await fetch('/api/admin/email/config', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         credentials: 'include',
         body: JSON.stringify(configForm),
       });
@@ -706,6 +707,7 @@ function EmailManagementSection() {
                     const response = await fetch('/api/admin/email/templates/seed', {
                       method: 'POST',
                       credentials: 'include',
+                      headers: { ...getCsrfHeaders() },
                     });
                     if (response.ok) {
                       const data = await response.json();
@@ -1157,7 +1159,7 @@ function AdminDashboardContent() {
       const response = await fetch('/api/admin/footer-links', {
         method: 'PATCH',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         body: JSON.stringify({ id: linkId, action: 'toggle' }),
       });
       if (response.ok) {
@@ -1179,7 +1181,7 @@ function AdminDashboardContent() {
       const response = await fetch('/api/admin/footer-links', {
         method: isNew ? 'POST' : 'PUT',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
         body: JSON.stringify(isNew ? {
           section: editingFooterLink.section,
           title: editingFooterLink.title,
@@ -1224,6 +1226,7 @@ function AdminDashboardContent() {
       const response = await fetch(`/api/admin/footer-links?id=${footerLinkToDelete}`, {
         method: 'DELETE',
         credentials: 'include',
+        headers: { ...getCsrfHeaders() },
       });
       
       if (response.ok) {
@@ -1717,7 +1720,7 @@ function AdminDashboardContent() {
                                               if (confirm(`Cancel order #${order.id.slice(-8).toUpperCase()}? This will restore inventory.`)) {
                                                 fetch(`/api/orders/${order.id}`, {
                                                   method: 'DELETE',
-                                                  headers: { 'Content-Type': 'application/json' },
+                                                  headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
                                                   credentials: 'include',
                                                   body: JSON.stringify({ reason: 'Cancelled by admin' }),
                                                 }).then(res => {
@@ -2082,7 +2085,7 @@ function AdminDashboardContent() {
                               try {
                                 const alertRes = await fetch('/api/admin/test/low-stock-alert', {
                                   method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
+                                  headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
                                   body: JSON.stringify({ mode: 'scan' }),
                                 });
                                 const alertData = await alertRes.json();
@@ -2119,7 +2122,7 @@ function AdminDashboardContent() {
                               try {
                                 const alertRes = await fetch('/api/admin/test/low-stock-alert', {
                                   method: 'POST',
-                                  headers: { 'Content-Type': 'application/json' },
+                                  headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
                                   body: JSON.stringify({ mode: 'scan', skipCooldown: true }),
                                 });
                                 const alertData = await alertRes.json();
@@ -2161,7 +2164,7 @@ function AdminDashboardContent() {
                             try {
                               const findRes = await fetch('/api/admin/test/low-stock-alert', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
                                 body: JSON.stringify({ mode: 'find_product' }),
                               });
                               const findData = await findRes.json();
@@ -2172,7 +2175,7 @@ function AdminDashboardContent() {
                               const product = findData.products[0];
                               const alertRes = await fetch('/api/admin/test/low-stock-alert', {
                                 method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
+                                headers: { 'Content-Type': 'application/json', ...getCsrfHeaders() },
                                 body: JSON.stringify({ 
                                   mode: 'manual',
                                   vendorId: product.vendor_id,
@@ -2223,6 +2226,7 @@ function AdminDashboardContent() {
                               const response = await fetch('/api/admin/email/templates/seed', {
                                 method: 'POST',
                                 credentials: 'include',
+                                headers: { ...getCsrfHeaders() },
                               });
                               const data = await response.json();
                               if (data.success) {
