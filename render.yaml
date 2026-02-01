@@ -19,6 +19,8 @@ services:
         sync: false
       - key: SESSION_SECRET
         generateValue: true
+      - key: OTP_SECRET_PEPPER
+        generateValue: true
       - key: NEXT_PUBLIC_APP_URL
         sync: false
       - key: MASTER_ADMIN_EMAIL
