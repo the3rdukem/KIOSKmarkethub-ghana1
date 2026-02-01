@@ -69,62 +69,183 @@ interface RangeFilter {
   max: number | null;
 }
 
-function RangeNumberInput({
-  initialValue,
-  onChange,
-  placeholder,
-  min,
-  max,
-  className,
+interface RangePreset {
+  label: string;
+  min: number | null;
+  max: number | null;
+}
+
+function RangeFilterSection({
+  label,
+  currentRange,
+  onApply,
+  availableRange,
+  presets,
+  unit,
+  formatValue,
 }: {
-  initialValue: number | null;
-  onChange: (value: number | null) => void;
-  placeholder?: string;
-  min?: number;
-  max?: number;
-  className?: string;
+  label: string;
+  currentRange: { min: number | null; max: number | null };
+  onApply: (range: { min: number | null; max: number | null }) => void;
+  availableRange: { min: number; max: number };
+  presets?: RangePreset[];
+  unit?: string;
+  formatValue?: (val: number) => string;
 }) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const lastCommittedValue = useRef(initialValue);
+  const [localMin, setLocalMin] = useState<string>(currentRange.min?.toString() ?? "");
+  const [localMax, setLocalMax] = useState<string>(currentRange.max?.toString() ?? "");
+  const [isDirty, setIsDirty] = useState(false);
 
   useEffect(() => {
-    if (inputRef.current && lastCommittedValue.current !== initialValue) {
-      inputRef.current.value = initialValue?.toString() ?? "";
-      lastCommittedValue.current = initialValue;
-    }
-  }, [initialValue]);
+    setLocalMin(currentRange.min?.toString() ?? "");
+    setLocalMax(currentRange.max?.toString() ?? "");
+    setIsDirty(false);
+  }, [currentRange.min, currentRange.max]);
 
-  const commitValue = () => {
-    if (!inputRef.current) return;
-    const val = inputRef.current.value;
-    const parsed = val ? parseInt(val) : null;
-    if (parsed !== lastCommittedValue.current) {
-      lastCommittedValue.current = parsed;
-      onChange(parsed);
-    }
+  const handleApply = () => {
+    const minVal = localMin ? parseInt(localMin) : null;
+    const maxVal = localMax ? parseInt(localMax) : null;
+    onApply({ min: minVal, max: maxVal });
+    setIsDirty(false);
   };
 
+  const handleClear = () => {
+    setLocalMin("");
+    setLocalMax("");
+    onApply({ min: null, max: null });
+    setIsDirty(false);
+  };
+
+  const handlePreset = (preset: RangePreset) => {
+    setLocalMin(preset.min?.toString() ?? "");
+    setLocalMax(preset.max?.toString() ?? "");
+    onApply({ min: preset.min, max: preset.max });
+    setIsDirty(false);
+  };
+
+  const format = formatValue || ((val: number) => val.toLocaleString());
+  const hasActiveFilter = currentRange.min !== null || currentRange.max !== null;
+
   return (
-    <input
-      ref={inputRef}
-      type="number"
-      placeholder={placeholder}
-      defaultValue={initialValue?.toString() ?? ""}
-      onBlur={commitValue}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter') {
-          e.preventDefault();
-          commitValue();
-          inputRef.current?.blur();
-        }
-      }}
-      className={cn(
-        "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
-        className
+    <div className="space-y-3">
+      {label && <Label className="text-sm font-semibold">{label}</Label>}
+      
+      <div className="flex items-center gap-2">
+        <input
+          type="number"
+          placeholder="Min"
+          value={localMin}
+          onChange={(e) => { setLocalMin(e.target.value); setIsDirty(true); }}
+          className={cn(
+            "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          )}
+          min={availableRange.min}
+          max={availableRange.max}
+        />
+        <span className="text-muted-foreground text-sm shrink-0">to</span>
+        <input
+          type="number"
+          placeholder="Max"
+          value={localMax}
+          onChange={(e) => { setLocalMax(e.target.value); setIsDirty(true); }}
+          className={cn(
+            "flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          )}
+          min={availableRange.min}
+          max={availableRange.max}
+        />
+      </div>
+
+      <div className="flex gap-2">
+        <Button
+          size="sm"
+          onClick={handleApply}
+          disabled={!isDirty}
+          className="flex-1 h-8 text-xs"
+        >
+          Apply
+        </Button>
+        {hasActiveFilter && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleClear}
+            className="h-8 text-xs"
+          >
+            Clear
+          </Button>
+        )}
+      </div>
+
+      {presets && presets.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {presets.map((preset, idx) => (
+            <button
+              key={idx}
+              onClick={() => handlePreset(preset)}
+              className={cn(
+                "px-2 py-1 text-xs rounded-md border transition-colors",
+                currentRange.min === preset.min && currentRange.max === preset.max
+                  ? "bg-emerald-100 border-emerald-300 text-emerald-800"
+                  : "bg-gray-50 border-gray-200 hover:bg-gray-100 text-gray-700"
+              )}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
       )}
-      min={min}
-      max={max}
-    />
+
+      <p className="text-xs text-muted-foreground">
+        Available: {format(availableRange.min)} - {format(availableRange.max)}{unit && ` ${unit}`}
+      </p>
+    </div>
+  );
+}
+
+function CollapsibleFilterSection({
+  title,
+  children,
+  defaultOpen = true,
+  badge,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  badge?: string | number;
+}) {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="border-b border-gray-100 pb-4">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-between w-full py-2 text-left hover:bg-gray-50 rounded-md transition-colors -mx-2 px-2"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-900">{title}</span>
+          {badge !== undefined && (
+            <Badge variant="secondary" className="text-xs h-5 px-1.5">
+              {badge}
+            </Badge>
+          )}
+        </div>
+        <ChevronDown
+          className={cn(
+            "w-4 h-4 text-gray-500 transition-transform duration-200",
+            isOpen ? "rotate-180" : ""
+          )}
+        />
+      </button>
+      <div
+        className={cn(
+          "overflow-hidden transition-all duration-200",
+          isOpen ? "max-h-[2000px] opacity-100 mt-3" : "max-h-0 opacity-0"
+        )}
+      >
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -621,12 +742,11 @@ function SearchPageContent() {
   // Removed early return for loading state - will use conditional rendering in JSX
 
   const FilterSidebar = () => (
-    <div className="space-y-6">
+    <div className="space-y-2">
       {/* Categories */}
-      <div>
-        <Label className="text-sm font-semibold">Category</Label>
+      <CollapsibleFilterSection title="Category" defaultOpen={true}>
         <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-          <SelectTrigger className="mt-2">
+          <SelectTrigger>
             <SelectValue placeholder="Select a category" />
           </SelectTrigger>
           <SelectContent>
@@ -637,67 +757,65 @@ function SearchPageContent() {
             ))}
           </SelectContent>
         </Select>
-      </div>
-
-      <Separator />
+      </CollapsibleFilterSection>
 
       {/* Vendor Filter - Autocomplete for scalability */}
       {uniqueVendors.length > 1 && (
-        <>
-          <div>
-            <Label className="text-sm font-semibold">Vendor</Label>
-            <div className="mt-2 relative">
-              <Input
-                type="text"
-                placeholder="Search vendors..."
-                value={vendorSearchQuery}
-                onChange={(e) => setVendorSearchQuery(e.target.value)}
-                className="w-full text-sm"
-              />
-              {selectedVendor !== "All Vendors" && (
-                <div className="mt-2 flex items-center gap-2">
-                  <Badge variant="secondary" className="flex items-center gap-1">
-                    {selectedVendor}
-                    <button
-                      onClick={() => setSelectedVendor("All Vendors")}
-                      className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </Badge>
-                </div>
-              )}
-              <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
-                {filteredVendors.length === 0 ? (
-                  <p className="text-xs text-muted-foreground py-2 text-center">No vendors found</p>
-                ) : (
-                  filteredVendors.slice(0, 20).map((vendor) => (
-                    <button
-                      key={vendor}
-                      onClick={() => {
-                        setSelectedVendor(vendor);
-                        setVendorSearchQuery("");
-                      }}
-                      className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
-                        selectedVendor === vendor
-                          ? "bg-emerald-100 text-emerald-800 font-medium"
-                          : "hover:bg-gray-100"
-                      }`}
-                    >
-                      {vendor}
-                    </button>
-                  ))
-                )}
-                {filteredVendors.length > 20 && (
-                  <p className="text-xs text-muted-foreground py-1 text-center">
-                    +{filteredVendors.length - 20} more - type to filter
-                  </p>
-                )}
+        <CollapsibleFilterSection 
+          title="Vendor" 
+          defaultOpen={false}
+          badge={selectedVendor !== "All Vendors" ? 1 : undefined}
+        >
+          <div className="relative">
+            <Input
+              type="text"
+              placeholder="Search vendors..."
+              value={vendorSearchQuery}
+              onChange={(e) => setVendorSearchQuery(e.target.value)}
+              className="w-full text-sm"
+            />
+            {selectedVendor !== "All Vendors" && (
+              <div className="mt-2 flex items-center gap-2">
+                <Badge variant="secondary" className="flex items-center gap-1">
+                  {selectedVendor}
+                  <button
+                    onClick={() => setSelectedVendor("All Vendors")}
+                    className="ml-1 hover:bg-gray-200 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
               </div>
+            )}
+            <div className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+              {filteredVendors.length === 0 ? (
+                <p className="text-xs text-muted-foreground py-2 text-center">No vendors found</p>
+              ) : (
+                filteredVendors.slice(0, 20).map((vendor) => (
+                  <button
+                    key={vendor}
+                    onClick={() => {
+                      setSelectedVendor(vendor);
+                      setVendorSearchQuery("");
+                    }}
+                    className={`block w-full text-left text-sm py-1.5 px-2 rounded transition-colors ${
+                      selectedVendor === vendor
+                        ? "bg-emerald-100 text-emerald-800 font-medium"
+                        : "hover:bg-gray-100"
+                    }`}
+                  >
+                    {vendor}
+                  </button>
+                ))
+              )}
+              {filteredVendors.length > 20 && (
+                <p className="text-xs text-muted-foreground py-1 text-center">
+                  +{filteredVendors.length - 20} more - type to filter
+                </p>
+              )}
             </div>
           </div>
-          <Separator />
-        </>
+        </CollapsibleFilterSection>
       )}
 
       {/* Dynamic Category Attribute Filters - Smart Filters */}
@@ -709,62 +827,47 @@ function SearchPageContent() {
             const numericRange = filterOptions?.numericRange;
             const searchQuery = attributeSearchQueries[attr.key] || "";
             
-            // For number types, show range inputs
+            // For number types, show range inputs with presets
             if (attr.type === 'number' && numericRange) {
               const currentRange = rangeFilters[attr.key] || { min: null, max: null };
               const isYearField = attr.key.toLowerCase().includes('year');
               const isMileageField = attr.key.toLowerCase().includes('mileage') || attr.key.toLowerCase().includes('km');
               
+              // Generate presets based on field type
+              let presets: RangePreset[] = [];
+              const currentYear = new Date().getFullYear();
+              
+              if (isYearField) {
+                presets = [
+                  { label: `${currentYear - 2}+`, min: currentYear - 2, max: null },
+                  { label: `${currentYear - 5}-${currentYear - 3}`, min: currentYear - 5, max: currentYear - 3 },
+                  { label: `${currentYear - 10}-${currentYear - 6}`, min: currentYear - 10, max: currentYear - 6 },
+                  { label: `Before ${currentYear - 10}`, min: null, max: currentYear - 11 },
+                ];
+              } else if (isMileageField) {
+                presets = [
+                  { label: "Under 50K", min: null, max: 50000 },
+                  { label: "50-100K", min: 50000, max: 100000 },
+                  { label: "100-150K", min: 100000, max: 150000 },
+                  { label: "150K+", min: 150000, max: null },
+                ];
+              }
+              
               return (
                 <div key={attr.key}>
-                  <Label className="text-sm font-semibold">{attr.label || attr.key}</Label>
-                  <div className="mt-2 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1">
-                        <RangeNumberInput
-                          placeholder={isYearField ? `From ${numericRange.min}` : `Min`}
-                          initialValue={currentRange.min}
-                          onChange={(value) => {
-                            setRangeFilters(prev => ({
-                              ...prev,
-                              [attr.key]: { ...prev[attr.key], min: value }
-                            }));
-                          }}
-                          className="text-sm"
-                          min={numericRange.min}
-                          max={numericRange.max}
-                        />
-                      </div>
-                      <span className="text-muted-foreground text-sm">to</span>
-                      <div className="flex-1">
-                        <RangeNumberInput
-                          placeholder={isYearField ? `To ${numericRange.max}` : `Max`}
-                          initialValue={currentRange.max}
-                          onChange={(value) => {
-                            setRangeFilters(prev => ({
-                              ...prev,
-                              [attr.key]: { ...prev[attr.key], max: value }
-                            }));
-                          }}
-                          className="text-sm"
-                          min={numericRange.min}
-                          max={numericRange.max}
-                        />
-                      </div>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Available: {numericRange.min.toLocaleString()} - {numericRange.max.toLocaleString()}
-                      {isMileageField && " km"}
-                    </p>
-                    {(currentRange.min !== null || currentRange.max !== null) && (
-                      <button
-                        onClick={() => setRangeFilters(prev => ({ ...prev, [attr.key]: { min: null, max: null } }))}
-                        className="text-xs text-emerald-600 hover:underline"
-                      >
-                        Clear range
-                      </button>
-                    )}
-                  </div>
+                  <RangeFilterSection
+                    label={attr.label || attr.key}
+                    currentRange={currentRange}
+                    onApply={(range) => {
+                      setRangeFilters(prev => ({
+                        ...prev,
+                        [attr.key]: range
+                      }));
+                    }}
+                    availableRange={numericRange}
+                    presets={presets}
+                    unit={isMileageField ? "km" : undefined}
+                  />
                 </div>
               );
             }
@@ -898,34 +1001,43 @@ function SearchPageContent() {
               </div>
             );
           })}
-          <Separator />
         </>
       )}
 
       {/* Price Range */}
-      <div>
-        <Label className="text-sm font-semibold">Price Range (GHS)</Label>
-        <div className="mt-4 px-2">
-          <Slider
-            value={priceRange}
-            onValueChange={(value) => setPriceRange([value[0], value[1]])}
-            min={0}
-            max={maxPrice}
-            step={Math.max(1, Math.floor(maxPrice / 200))}
-          />
-          <div className="flex justify-between mt-2 text-sm text-muted-foreground">
-            <span>{formatCurrency(priceRange[0])}</span>
-            <span>{formatCurrency(priceRange[1])}</span>
-          </div>
-        </div>
-      </div>
-
-      <Separator />
+      <CollapsibleFilterSection 
+        title="Price" 
+        defaultOpen={true}
+        badge={priceRange[0] > 0 || priceRange[1] < maxPrice ? 1 : undefined}
+      >
+        <RangeFilterSection
+          label=""
+          currentRange={{ 
+            min: priceRange[0] === 0 ? null : priceRange[0], 
+            max: priceRange[1] === maxPrice ? null : priceRange[1] 
+          }}
+          onApply={(range) => {
+            setPriceRange([range.min ?? 0, range.max ?? maxPrice]);
+          }}
+          availableRange={{ min: 0, max: maxPrice }}
+          presets={[
+            { label: "Under 500", min: null, max: 500 },
+            { label: "500-2K", min: 500, max: 2000 },
+            { label: "2K-10K", min: 2000, max: 10000 },
+            { label: "10K-50K", min: 10000, max: 50000 },
+            { label: "50K+", min: 50000, max: null },
+          ]}
+          formatValue={(val) => formatCurrency(val).replace('GHS ', '')}
+        />
+      </CollapsibleFilterSection>
 
       {/* Rating Filter */}
-      <div>
-        <Label className="text-sm font-semibold">Minimum Rating</Label>
-        <div className="mt-2 space-y-2">
+      <CollapsibleFilterSection 
+        title="Minimum Rating" 
+        defaultOpen={false}
+        badge={minRating > 0 ? 1 : undefined}
+      >
+        <div className="space-y-2">
           {[0, 3, 4, 4.5].map((rating) => (
             <button
               key={rating}
@@ -956,12 +1068,14 @@ function SearchPageContent() {
             </button>
           ))}
         </div>
-      </div>
-
-      <Separator />
+      </CollapsibleFilterSection>
 
       {/* Other Filters */}
-      <div className="space-y-3">
+      <CollapsibleFilterSection 
+        title="Availability" 
+        defaultOpen={false}
+        badge={inStockOnly ? 1 : undefined}
+      >
         <div className="flex items-center space-x-2">
           <Checkbox
             id="inStock"
@@ -972,16 +1086,15 @@ function SearchPageContent() {
             In Stock Only
           </label>
         </div>
-      </div>
+      </CollapsibleFilterSection>
 
       {activeFiltersCount > 0 && (
-        <>
-          <Separator />
+        <div className="pt-2">
           <Button variant="outline" onClick={clearFilters} className="w-full">
             <X className="w-4 h-4 mr-2" />
             Clear All Filters ({activeFiltersCount})
           </Button>
-        </>
+        </div>
       )}
     </div>
   );
@@ -1289,6 +1402,118 @@ function SearchPageContent() {
               </Badge>
             )}
           </div>
+
+          {/* Active Filter Chips */}
+          {activeFiltersCount > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mt-3">
+              <span className="text-xs text-muted-foreground">Active filters:</span>
+              
+              {selectedCategory !== "All Categories" && (
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                  Category: {selectedCategory}
+                  <button
+                    onClick={() => setSelectedCategory("All Categories")}
+                    className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              )}
+              
+              {selectedVendor !== "All Vendors" && (
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                  Vendor: {selectedVendor}
+                  <button
+                    onClick={() => setSelectedVendor("All Vendors")}
+                    className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              )}
+              
+              {(priceRange[0] > 0 || priceRange[1] < maxPrice) && (
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                  Price: {formatCurrency(priceRange[0])} - {formatCurrency(priceRange[1])}
+                  <button
+                    onClick={() => setPriceRange([0, maxPrice])}
+                    className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              )}
+              
+              {minRating > 0 && (
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                  Rating: {minRating}+
+                  <button
+                    onClick={() => setMinRating(0)}
+                    className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              )}
+              
+              {inStockOnly && (
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs">
+                  In Stock Only
+                  <button
+                    onClick={() => setInStockOnly(false)}
+                    className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </Badge>
+              )}
+              
+              {Object.entries(attributeFilters).map(([key, value]) => {
+                if (!value || value === 'all') return null;
+                const attr = categoryAttributes.find(a => a.key === key);
+                return (
+                  <Badge key={key} variant="secondary" className="flex items-center gap-1 text-xs">
+                    {attr?.label || key}: {value}
+                    <button
+                      onClick={() => setAttributeFilters(prev => ({ ...prev, [key]: 'all' }))}
+                      className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+              
+              {Object.entries(rangeFilters).map(([key, range]) => {
+                if (range.min === null && range.max === null) return null;
+                const attr = categoryAttributes.find(a => a.key === key);
+                const label = attr?.label || key;
+                const rangeText = range.min !== null && range.max !== null
+                  ? `${range.min.toLocaleString()} - ${range.max.toLocaleString()}`
+                  : range.min !== null
+                    ? `${range.min.toLocaleString()}+`
+                    : `Up to ${range.max?.toLocaleString()}`;
+                return (
+                  <Badge key={key} variant="secondary" className="flex items-center gap-1 text-xs">
+                    {label}: {rangeText}
+                    <button
+                      onClick={() => setRangeFilters(prev => ({ ...prev, [key]: { min: null, max: null } }))}
+                      className="ml-1 hover:bg-gray-300 rounded-full p-0.5"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </Badge>
+                );
+              })}
+              
+              <button
+                onClick={clearFilters}
+                className="text-xs text-emerald-600 hover:underline ml-2"
+              >
+                Clear all
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="flex gap-6">
