@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -73,12 +73,14 @@ export function AttributeOptionsManager({
   const [selectedParent, setSelectedParent] = useState<string | null>(null);
   const [selectedLevel, setSelectedLevel] = useState<number>(1);
 
-  const dependentFields = (category.formSchema || []).filter(
-    f => f.type === 'dependent_select'
+  const dependentFields = useMemo(() => 
+    (category.formSchema || []).filter(f => f.type === 'dependent_select'),
+    [category.formSchema]
   );
 
-  const selectFields = (category.formSchema || []).filter(
-    f => f.type === 'select' || f.type === 'dependent_select'
+  const selectFields = useMemo(() => 
+    (category.formSchema || []).filter(f => f.type === 'select' || f.type === 'dependent_select'),
+    [category.formSchema]
   );
 
   const fetchOptions = useCallback(async () => {
@@ -102,11 +104,14 @@ export function AttributeOptionsManager({
   useEffect(() => {
     if (open && category.id) {
       fetchOptions();
-      if (selectFields.length > 0 && !selectedFieldKey) {
-        setSelectedFieldKey(selectFields[0].key);
-      }
     }
-  }, [open, category.id, fetchOptions, selectFields, selectedFieldKey]);
+  }, [open, category.id, fetchOptions]);
+
+  useEffect(() => {
+    if (open && selectFields.length > 0 && !selectedFieldKey) {
+      setSelectedFieldKey(selectFields[0].key);
+    }
+  }, [open, selectFields, selectedFieldKey]);
 
   function getFieldLabel(fieldKey: string): string {
     const field = category.formSchema?.find(f => f.key === fieldKey);
