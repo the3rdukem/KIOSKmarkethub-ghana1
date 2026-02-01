@@ -49,10 +49,11 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Vendor Payouts System**: Database-backed system using Paystack Transfers API. Manages vendor bank accounts, payout requests, and balance calculation. Vendor/Admin UIs for withdrawals and history. Webhook handlers for payout status.
 - **Dispute Resolution + Refunds System**: Full dispute lifecycle with DAL (disputes table with refund tracking), Admin/Buyer APIs, Paystack refund integration, commission reversal logic, and notification triggers. Supports dispute creation within 48-hour window, investigation workflow, resolution types (full/partial refund, replacement, no action), and async refund status tracking via webhooks.
 - **Vendor Profile Management**: Separate "My Profile" page (`/vendor/profile`) for account-level settings distinct from Store Settings. Supports login email change (with validation, uniqueness check, lowercase normalization) and password change. Foundation laid for email verification flow (pendingEmail, emailVerificationToken fields in DAL).
-- **Admin Dashboard Analytics**: Comprehensive platform metrics with date range filtering (7d/30d/90d/1y/all) and time bucketing (day/week/month). Tracks revenue, orders, users, products, vendors, fulfillment rates, commissions, and payouts. Includes trend charts (recharts), pie charts for status distributions, and top vendor leaderboard.
-- **Structured Logging**: JSON-based logging utility in `src/lib/utils/logger.ts`. Usage: `const log = createLogger('COMPONENT_NAME')`. Supports levels: debug, info, warn, error. Controlled by `LOG_LEVEL` env var (default: 'info'). Applied to auth routes; progressively migrating from console.log.
-- **Rate Limiting**: Database-backed distributed rate limiting in `src/lib/utils/rate-limiter.ts`. Applied to public endpoints (products, categories, cart, reviews, etc.) with 60 req/min for reads and 30 req/min for searches.
-- **DAL Error Handling**: Standardized error utilities in `src/lib/db/dal/errors.ts`. Provides `DALResult<T>` type, `success()/failure()` helpers, and `handleDALError()` for consistent error handling. Ready for DAL file migration when authorized.
+- **Admin Dashboard Analytics**: Comprehensive platform metrics with date range filtering and time bucketing. Tracks revenue, orders, users, products, vendors, fulfillment rates, commissions, and payouts. Includes trend charts (recharts), pie charts for status distributions, and top vendor leaderboard.
+- **Structured Logging**: JSON-based logging utility in `src/lib/utils/logger.ts`. Supports levels: debug, info, warn, error. Controlled by `LOG_LEVEL` env var.
+- **Rate Limiting**: Database-backed distributed rate limiting in `src/lib/utils/rate-limiter.ts`. Applied to public endpoints (products, categories, cart, reviews, etc.) with configurable limits.
+- **DAL Error Handling**: Standardized error utilities in `src/lib/db/dal/errors.ts`. Provides `DALResult<T>` type, `success()/failure()` helpers, and `handleDALError()` for consistent error handling.
+- **Automated Testing**: Vitest-based API test suite in `tests/api/`. Covers critical public endpoint tests.
 
 ## External Dependencies
 - **Paystack**: Payment gateway for Mobile Money transactions and vendor payouts.
@@ -62,69 +63,3 @@ The platform is built with Next.js 15, Tailwind CSS for styling, and `shadcn/ui`
 - **Google Maps Places API**: Location services for address autocompletion and geocoding.
 - **Smile Identity KYC Integration**: SDK and webhook for biometric and ID verification.
 - **Arkesel SMS Notifications**: Transactional SMS for order events, template management, and delivery tracking.
-
-## Development Roadmap
-
-### Tier 1: Launch-Blocking Features (COMPLETED ✅)
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| Vendor Payouts - Database Schema | ✅ Complete | `vendor_bank_accounts` and `vendor_payouts` tables with full constraints |
-| Vendor Payouts - DAL | ✅ Complete | Data access layer with balance calculation, CRUD operations |
-| Vendor Payouts - Bank Account Management | ✅ Complete | Add/verify bank accounts and mobile money with Paystack |
-| Vendor Payouts - Mobile Money Support | ✅ Complete | MTN, Vodafone/Telecel, AirtelTigo with uppercase provider codes |
-| Vendor Payouts - Withdrawal Flow | ✅ Complete | Request payouts from available balance |
-| Vendor Payouts - Admin Management | ✅ Complete | Admin UI to approve/reject/process payouts |
-| Vendor Payouts - Paystack Integration | ✅ Complete | Transfer recipients and transfers via Paystack API (demo mode) |
-| Vendor Payouts - Webhook Handlers | ✅ Complete | Handle `transfer.success`, `transfer.failed`, `transfer.reversed` events |
-| Commission System | ✅ Complete | 3-tier priority (vendor, category, default), stored at order level |
-| Dispute Resolution - Database Schema | ✅ Complete | `disputes` table with refund tracking columns (refund_status, refund_amount, resolution_type) |
-| Dispute Resolution - DAL | ✅ Complete | Full CRUD operations, message threading, statistics aggregation |
-| Dispute Resolution - Admin API | ✅ Complete | List, view, update status, resolve disputes with resolution types |
-| Dispute Resolution - Buyer API | ✅ Complete | Create disputes (48h window), view own disputes and status |
-| Dispute Resolution - Refund Execution | ✅ Complete | Paystack refund integration with async status, commission reversal, validation guards |
-| Dispute Resolution - Admin UI | ✅ Complete | Dashboard with stats, list view, detail dialogs, status updates, refund processing |
-| Dispute Resolution - Buyer UI | ✅ Complete | View disputes, status tracking, resolution details, refund status |
-| Dispute Resolution - Vendor UI | ✅ Complete | View disputes against orders, evidence photos, status tracking |
-| Dispute Resolution - Evidence Upload | ✅ Complete | Photo evidence upload (up to 5 images) via Supabase Storage |
-| Dispute Resolution - Notifications | ✅ Complete | Event notifications for resolution, refund initiation, refund completion |
-
-### Tier 2: First Month Post-Launch
-
-| Feature | Est. Days | Status | Notes |
-|---------|-----------|--------|-------|
-| Email Notifications (Order events) | 3-4 | ✅ Complete | Order confirmation, payment received, shipped, delivered, cancelled emails to buyers; new order emails to vendors |
-| Low Stock Alerts (Email/SMS) | 1-2 | ✅ Complete | Integrated into order processing, configurable threshold in vendor settings |
-| Admin Dashboard Analytics | 4-5 | ✅ Complete | Revenue, users, products, vendors, orders, financials with charts and date range filtering |
-| Export Functionality (CSV) | 2-3 | ✅ Complete | Vendor products/orders, admin orders/payouts with formatted exports |
-| Social Sharing (WhatsApp focus) | 1-2 | ✅ Complete | Product pages, order confirmation, vendor store pages |
-| Recently Viewed Products | 2-3 | ✅ Complete | localStorage-backed tracking, displayed on product pages |
-| Real Vendor Analytics | 3-4 | ✅ Complete | Sales trends, product performance, order metrics, rating distribution with charts |
-| **Subtotal** | **~16-23** | | |
-
-### Tier 2: Security Enhancements
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| Verified Phone Requirement | ✅ Complete | Backend check requiring phone_verified=true before adding payout accounts, frontend warning banner |
-| OTP Security for Payout Accounts | ✅ Complete | OTP verification via SMS before adding payout accounts, 15-minute token expiry, single-use tokens |
-| OTP Security for Phone Changes | ✅ Complete | OTP required via current phone before changing profile phone number, 10-minute token expiry, single-use tokens, phone_verified reset after change |
-| bcrypt Password Hashing | ✅ Complete | Migrated from SHA-256 to bcrypt (10 rounds), backward-compatible verification |
-| Database-Backed Rate Limiting | ✅ Complete | Atomic UPSERT operations, fail-closed error handling, configurable limits per action |
-| CSRF Protection | ✅ Complete | Double Submit Cookie pattern, middleware validation, protected: payouts, admin, password change |
-| XSS Prevention | ✅ Complete | DOMPurify sanitization for HTML content |
-| Paystack Webhook Security | ✅ Complete | Secret enforcement in production |
-| Dual OTP Delivery | ✅ Complete | OTP codes sent via both SMS and Email simultaneously for reliability; success if either delivery works |
-| Payout Analytics Dashboard | ⏳ Pending | Visual reports for payout trends, vendor earnings over time |
-| Bulk Payout Processing | ⏳ Pending | Admin ability to approve/process multiple payouts at once |
-| Scheduled Payouts | ⏳ Pending | Automatic weekly/monthly payout processing |
-| Payout Export (CSV/PDF) | ⏳ Pending | Export payout history for accounting purposes |
-
-### Tier 3: Future Considerations
-
-| Feature | Status | Description |
-|---------|--------|-------------|
-| Multi-Currency Support | ⏳ Pending | Support for USD alongside GHS |
-| International Transfers | ⏳ Pending | Cross-border payout support |
-| Vendor Payout Preferences | ⏳ Pending | Minimum payout threshold, preferred schedule |
-| Advanced Fraud Detection | ⏳ Pending | ML-based detection of suspicious payout patterns |
