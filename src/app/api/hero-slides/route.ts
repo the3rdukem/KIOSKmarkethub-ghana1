@@ -50,12 +50,16 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title, subtitle, image_url, link_url, order_num, is_active, media_type, video_url } = body;
 
-    if (!image_url) {
-      return NextResponse.json({ error: 'Image URL is required' }, { status: 400 });
-    }
-
-    if (media_type === 'video' && !video_url) {
-      return NextResponse.json({ error: 'Video URL is required for video slides' }, { status: 400 });
+    // For image slides, image_url is required
+    // For video slides, video_url is required (image_url/poster is optional)
+    if (media_type === 'video') {
+      if (!video_url) {
+        return NextResponse.json({ error: 'Video URL is required for video slides' }, { status: 400 });
+      }
+    } else {
+      if (!image_url) {
+        return NextResponse.json({ error: 'Image URL is required' }, { status: 400 });
+      }
     }
 
     const slide = await heroSlidesDAL.createHeroSlide({
