@@ -38,6 +38,7 @@ const CSRF_EXEMPT_PATHS = [
   '/api/stats/public',
   '/api/footer-links/public',
   '/api/hero-slides',
+  '/api/promotional-banners',
   '/api/products',
   '/api/categories',
   '/api/search',
