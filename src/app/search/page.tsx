@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, Suspense } from "react";
+import { useState, useEffect, useMemo, useCallback, Suspense, useRef } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { SiteLayout } from "@/components/layout/site-layout";
@@ -66,6 +66,62 @@ interface CategoryAttribute {
 interface RangeFilter {
   min: number | null;
   max: number | null;
+}
+
+function DebouncedNumberInput({
+  value,
+  onChange,
+  placeholder,
+  min,
+  max,
+  className,
+  debounceMs = 500
+}: {
+  value: number | null;
+  onChange: (value: number | null) => void;
+  placeholder?: string;
+  min?: number;
+  max?: number;
+  className?: string;
+  debounceMs?: number;
+}) {
+  const [localValue, setLocalValue] = useState(value?.toString() ?? "");
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const isInternalChange = useRef(false);
+
+  useEffect(() => {
+    if (!isInternalChange.current) {
+      setLocalValue(value?.toString() ?? "");
+    }
+    isInternalChange.current = false;
+  }, [value]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setLocalValue(newValue);
+    isInternalChange.current = true;
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+
+    debounceRef.current = setTimeout(() => {
+      const parsed = newValue ? parseInt(newValue) : null;
+      onChange(parsed);
+    }, debounceMs);
+  };
+
+  return (
+    <Input
+      type="number"
+      placeholder={placeholder}
+      value={localValue}
+      onChange={handleChange}
+      className={className}
+      min={min}
+      max={max}
+    />
+  );
 }
 
 interface DynamicFilterOptions {
@@ -661,15 +717,13 @@ function SearchPageContent() {
                   <div className="mt-2 space-y-2">
                     <div className="flex items-center gap-2">
                       <div className="flex-1">
-                        <Input
-                          type="number"
+                        <DebouncedNumberInput
                           placeholder={isYearField ? `From ${numericRange.min}` : `Min`}
-                          value={currentRange.min ?? ""}
-                          onChange={(e) => {
-                            const value = e.target.value ? parseInt(e.target.value) : null;
+                          value={currentRange.min}
+                          onChange={(value) => {
                             setRangeFilters(prev => ({
                               ...prev,
-                              [attr.key]: { ...currentRange, min: value }
+                              [attr.key]: { ...prev[attr.key], min: value }
                             }));
                           }}
                           className="text-sm h-9"
@@ -679,15 +733,13 @@ function SearchPageContent() {
                       </div>
                       <span className="text-muted-foreground text-sm">to</span>
                       <div className="flex-1">
-                        <Input
-                          type="number"
+                        <DebouncedNumberInput
                           placeholder={isYearField ? `To ${numericRange.max}` : `Max`}
-                          value={currentRange.max ?? ""}
-                          onChange={(e) => {
-                            const value = e.target.value ? parseInt(e.target.value) : null;
+                          value={currentRange.max}
+                          onChange={(value) => {
                             setRangeFilters(prev => ({
                               ...prev,
-                              [attr.key]: { ...currentRange, max: value }
+                              [attr.key]: { ...prev[attr.key], max: value }
                             }));
                           }}
                           className="text-sm h-9"
